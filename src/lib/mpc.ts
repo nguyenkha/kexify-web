@@ -1,0 +1,294 @@
+import { initCbMpc, NID_secp256k1, NID_ED25519 } from "cb-mpc";
+import type { CbMpc, DataTransport, Ecdsa2pKeyHandle, EcKey2pHandle } from "cb-mpc";
+import { isRecoveryMode, performLocalMpcSign } from "./recovery";
+import { apiUrl } from "./apiBase";
+// @ts-ignore -- Vite ?url suffix resolves to a servable URL string
+import cbmpcWasmUrl from "cb-mpc/cbmpc.wasm?url";
+
+export { NID_secp256k1, NID_ED25519 };
+export type { CbMpc, Ecdsa2pKeyHandle, EcKey2pHandle };
+
+// ── Singleton MPC instance ──
+
+let mpcInstance: CbMpc | null = null;
+let mpcPromise: Promise<CbMpc> | null = null;
+
+export async function getMpcInstance(): Promise<CbMpc> {
+  if (!mpcInstance) {
+    if (!mpcPromise) {
+      // Import Emscripten glue and wrap factory with locateFile override.
+      // Vite's dev server can't resolve the relative paths that Emscripten
+      // uses internally, so we point it to Vite-resolved URLs explicitly.
+      // @ts-ignore -- cb-mpc has no type declarations
+      const mod = await import("cb-mpc/cbmpc.js");
+      const rawFactory = mod.default || mod.createCbMpc || mod;
+      const factory = (opts?: Record<string, unknown>) =>
+        rawFactory({
+          ...opts,
+          locateFile: (path: string) =>
+            path.endsWith(".wasm") ? cbmpcWasmUrl : path,
+        });
+      mpcPromise = initCbMpc(factory as any);
+    }
+    mpcInstance = await mpcPromise;
+  }
+  return mpcInstance;
+}
+
+// ── In-memory key handle cache (lost on page reload) ──
+
+export interface ClientKeyHandles {
+  mpc: CbMpc;
+  ecdsa?: Ecdsa2pKeyHandle;
+  eddsa?: EcKey2pHandle;
+}
+
+export const clientKeys = new Map<string, ClientKeyHandles>();
+
+/**
+ * Restore key handles from serialized data (stored in key file or browser storage).
+ * No-op if already in memory.
+ */
+export async function restoreKeyHandles(keyId: string, shareData: string, eddsaShareData?: string): Promise<void> {
+  if (clientKeys.has(keyId)) return;
+
+  const mpc = await getMpcInstance();
+  const entry: ClientKeyHandles = { mpc };
+
+  if (shareData) {
+    const parts = shareData.split(",").map((s) => fromBase64(s));
+    entry.ecdsa = mpc.deserializeEcdsa2p(parts);
+  }
+
+  if (eddsaShareData) {
+    const parts = eddsaShareData.split(",").map((s) => fromBase64(s));
+    entry.eddsa = mpc.deserializeEcKey2p(parts);
+  }
+
+  clientKeys.set(keyId, entry);
+}
+
+// ── Helpers ──
+
+export function toBase64(buf: Uint8Array): string {
+  let binary = "";
+  for (let i = 0; i < buf.length; i++) {
+    binary += String.fromCharCode(buf[i]);
+  }
+  return btoa(binary);
+}
+
+export function fromBase64(str: string): Uint8Array {
+  const binary = atob(str);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+export function toHex(buf: Uint8Array): string {
+  return Array.from(buf)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+export async function sha256(message: string): Promise<Uint8Array> {
+  const data = new TextEncoder().encode(message);
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  return new Uint8Array(hash);
+}
+
+// ── HTTP Transport ──
+
+const PARTY_NAMES: [string, string] = ["client", "server"];
+
+/**
+ * Create a DataTransport that bridges cb-mpc's send/receive to HTTP.
+ *
+ * Each transport.send() POSTs a message to the server and buffers the response.
+ * The subsequent transport.receive() returns the buffered response.
+ *
+ * First send goes to initUrl, subsequent sends go to stepUrl.
+ */
+export function createHttpTransport(opts: {
+  initUrl: string;
+  stepUrl: string;
+  initExtra?: Record<string, unknown>;
+  headers: Record<string, string>;
+}): { transport: DataTransport; getSessionId: () => string; getServerResult: () => Record<string, unknown> | null; getError: () => Error | null; transportFailed: Promise<never> } {
+  let sessionId = "";
+  let inbox: Uint8Array | null = null;
+  let isFirst = true;
+  let serverResult: Record<string, unknown> | null = null;
+  let transportError: Error | null = null;
+  let rejectTransport: ((err: Error) => void) | null = null;
+  const transportFailed = new Promise<never>((_resolve, reject) => {
+    rejectTransport = reject;
+  });
+
+  const transport: DataTransport = {
+    send: async (_receiver, message) => {
+      // Copy — WASM memory views may be invalidated after return
+      const msgCopy = new Uint8Array(message);
+      const url = isFirst ? opts.initUrl : opts.stepUrl;
+      const body = isFirst
+        ? { ...opts.initExtra, message: toBase64(msgCopy) }
+        : { sessionId, message: toBase64(msgCopy) };
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...opts.headers },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (data.error) {
+        transportError = new Error(data.error);
+        rejectTransport?.(transportError);
+        throw transportError;
+      }
+
+      if (isFirst) {
+        sessionId = data.sessionId;
+        isFirst = false;
+      }
+
+      if (data.done) {
+        serverResult = data;
+        // No more messages — protocol will complete on our side too
+        inbox = null;
+      } else {
+        inbox = data.message ? fromBase64(data.message) : null;
+      }
+
+      return 0;
+    },
+
+    receive: async (_sender) => {
+      if (inbox) {
+        const msg = inbox;
+        inbox = null;
+        return msg;
+      }
+      // If server is done, return empty (protocol should also be finishing)
+      return new Uint8Array(0);
+    },
+
+    receiveAll: async (senders) =>
+      Promise.all(senders.map((s) => transport.receive(s))),
+  };
+
+  return {
+    transport,
+    getSessionId: () => sessionId,
+    getServerResult: () => serverResult,
+    getError: () => transportError,
+    transportFailed,
+  };
+}
+
+// ── MPC Signing ──
+
+export interface MpcSignResult {
+  signature: Uint8Array;
+  sessionId: string;
+}
+
+/**
+ * Run the MPC signing protocol.
+ * Requires the key handle to be in the clientKeys cache.
+ */
+export async function performMpcSign(opts: {
+  algorithm: "ecdsa" | "eddsa";
+  keyId: string;
+  hash: Uint8Array;
+  initPayload: Record<string, unknown>;
+  headers: Record<string, string>;
+  onStep?: (step: number) => void;
+}): Promise<MpcSignResult> {
+  const { algorithm, keyId, hash, initPayload, headers, onStep } = opts;
+
+  // In recovery mode, sign locally with both peers in the browser
+  if (isRecoveryMode()) {
+    return performLocalMpcSign({ algorithm, keyId, hash, onStep });
+  }
+
+  const entry = clientKeys.get(keyId);
+  if (!entry) {
+    throw new Error("Key handle not found. Please re-create or re-import the key.");
+  }
+
+  const keyHandle = algorithm === "eddsa" ? entry.eddsa : entry.ecdsa;
+  if (!keyHandle) {
+    throw new Error(`No ${algorithm} key handle available`);
+  }
+
+  const mpc = entry.mpc;
+
+  // For ECDSA, both parties must use the same session ID
+  const sigSessionId = new Uint8Array(32);
+  crypto.getRandomValues(sigSessionId);
+
+  const { transport, getSessionId, getServerResult, getError, transportFailed } = createHttpTransport({
+    initUrl: apiUrl("/api/sign/init"),
+    stepUrl: apiUrl("/api/sign/step"),
+    initExtra: {
+      ...initPayload,
+      data: toBase64(hash),
+      ...(algorithm === "ecdsa" ? { sigSessionId: toBase64(sigSessionId) } : {}),
+    },
+    headers,
+  });
+
+  const startedAt = Date.now();
+  onStep?.(1);
+
+  let sigRaw: Uint8Array;
+
+  // Race the MPC protocol against transport errors — WASM may hang if the
+  // server rejects (e.g. policy block) because it swallows the send() throw.
+  const mpcPromise = (async () => {
+    if (algorithm === "eddsa") {
+      return mpc.schnorr2pEddsaSign(
+        transport, 0, PARTY_NAMES, keyHandle as EcKey2pHandle, hash,
+      );
+    } else {
+      const sigs = await mpc.ecdsa2pSign(
+        transport, 0, PARTY_NAMES, keyHandle as Ecdsa2pKeyHandle, sigSessionId, [hash],
+      );
+      return sigs[0].length > 0 ? sigs[0] : new Uint8Array(0);
+    }
+  })();
+
+  try {
+    sigRaw = await Promise.race([mpcPromise, transportFailed]);
+  } catch (err) {
+    const transportErr = getError();
+    if (transportErr) throw transportErr;
+    throw err;
+  }
+
+  onStep?.(3);
+
+  // If client didn't get the signature, check server result
+  if (sigRaw.length === 0) {
+    const sr = getServerResult();
+    if (sr?.signature) {
+      sigRaw = fromBase64(sr.signature as string);
+    }
+  }
+
+  if (!sigRaw || sigRaw.length === 0) {
+    throw new Error("No signature available");
+  }
+
+  // Pad fast signing to at least 1s for smoother UX
+  const elapsed = Date.now() - startedAt;
+  if (elapsed < 1000) {
+    await new Promise((r) =>
+      setTimeout(r, 1000 - elapsed + Math.floor(Math.random() * 500)),
+    );
+  }
+
+  return { signature: sigRaw, sessionId: getSessionId() };
+}
