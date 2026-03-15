@@ -5,7 +5,7 @@ import { fetchTransactions, type Transaction } from "../lib/transactions";
 import { fetchNativeBalance, fetchTokenBalances, getCachedNativeBalance, getCachedTokenBalances } from "../lib/balance";
 import { clearCache, balanceCacheKey, tokenBalancesCacheKey } from "../lib/dataCache";
 import { fetchPrices, formatUsd, getUsdValue } from "../lib/prices";
-import { toBase64, performMpcSign, clientKeys, restoreKeyHandles } from "../lib/mpc";
+import { toBase64, performMpcSign, clientKeys, restoreKeyHandles, clearClientKey } from "../lib/mpc";
 import { authHeaders } from "../lib/auth";
 import { apiUrl } from "../lib/apiBase";
 import { fetchPasskeys, sensitiveHeaders } from "../lib/passkey";
@@ -492,6 +492,11 @@ function SendDialog({
     }
   }, [keyId]);
 
+  // Clear deserialized key handles from memory when dialog closes or keyFile changes
+  useEffect(() => {
+    return () => { if (keyFile) clearClientKey(keyFile.id); };
+  }, [keyFile?.id]);
+
   async function loadBrowserShare() {
     setBrowserShareLoading(true);
     setBrowserShareError("");
@@ -687,8 +692,8 @@ function SendDialog({
       feeBaseUnits = BigInt(xlmFeeRates[feeLevel]);
     }
     if (feeBaseUnits == null) return balance;
-    // Convert human balance to base units via BigInt
-    const [intPart, fracPart = ""] = balance.split(".");
+    // Convert human balance to base units via BigInt (strip thousands separators first)
+    const [intPart, fracPart = ""] = balance.replace(/,/g, "").split(".");
     const padded = fracPart.padEnd(asset.decimals, "0").slice(0, asset.decimals);
     const balanceBase = BigInt(intPart + padded);
     const net = balanceBase - feeBaseUnits;
@@ -801,11 +806,14 @@ function SendDialog({
 
       setTxResult({ status: receipt.status, txHash, blockNumber: receipt.blockNumber });
       if (receipt.status === "success") onTxConfirmed?.(txHash);
+      setKeyFile(null); setPendingEncrypted(null);
       setStep("result");
 
     } catch (err: any) {
       console.error("[send] Error:", err);
       setSigningError(err.message || String(err));
+    } finally {
+      clearClientKey(keyFile.id);
     }
   }
 
@@ -910,11 +918,14 @@ function SendDialog({
         blockNumber: result.blockHeight,
       });
       if (result.confirmed) onTxConfirmed?.(broadcastTxid || txid);
+      setKeyFile(null); setPendingEncrypted(null);
       setStep("result");
 
     } catch (err: any) {
       console.error("[send] BTC Error:", err);
       setSigningError(err.message || String(err));
+    } finally {
+      clearClientKey(keyFile.id);
     }
   }
 
@@ -1005,11 +1016,14 @@ function SendDialog({
         blockNumber: result.blockHeight,
       });
       if (result.confirmed) onTxConfirmed?.(broadcastTxid || txid);
+      setKeyFile(null); setPendingEncrypted(null);
       setStep("result");
 
     } catch (err: any) {
       console.error("[send] BCH Error:", err);
       setSigningError(err.message || String(err));
+    } finally {
+      clearClientKey(keyFile.id);
     }
   }
 
@@ -1083,11 +1097,14 @@ message = buildSplTransferMessage({
         blockNumber: result.slot,
       });
       if (result.confirmed) onTxConfirmed?.(txSig);
+      setKeyFile(null); setPendingEncrypted(null);
       setStep("result");
 
     } catch (err: any) {
       console.error("[send] Solana Error:", err);
       setSigningError(err.message || String(err));
+    } finally {
+      clearClientKey(keyFile.id);
     }
   }
 
@@ -1108,7 +1125,7 @@ message = buildSplTransferMessage({
       // 1. Build payment params
       const acctInfo = await getXrpAccountInfo(chain.rpcUrl, address);
       const ledgerIndex = await getCurrentLedgerIndex(chain.rpcUrl);
-      const amountDrops = BigInt(Math.round(parseFloat(amount) * 1e6));
+      const amountDrops = BigInt(Math.round(parseFloat(amount.replace(/,/g, "")) * 1e6));
 
       const pubKeyRaw = hexToBytes(keyFile.publicKey);
       const compressed = getCompressedPublicKey(
@@ -1191,11 +1208,14 @@ message = buildSplTransferMessage({
         blockNumber: result.ledgerIndex,
       });
       if (result.confirmed) onTxConfirmed?.(txHash);
+      setKeyFile(null); setPendingEncrypted(null);
       setStep("result");
 
     } catch (err: any) {
       console.error("[send] XRP Error:", err);
       setSigningError(err.message || String(err));
+    } finally {
+      clearClientKey(keyFile.id);
     }
   }
 
@@ -1222,7 +1242,7 @@ message = buildSplTransferMessage({
 
       const { sequence } = await getXlmAccountInfo(chain.rpcUrl, fromAddress);
       const feeStroops = xlmFeeRates?.[feeLevel] ?? 100;
-      const amountStroops = BigInt(Math.round(parseFloat(amount) * 1e7));
+      const amountStroops = BigInt(Math.round(parseFloat(amount.replace(/,/g, "")) * 1e7));
       const isTestnet = chain.rpcUrl.includes("testnet");
 
       // 2. Check if destination exists; use CREATE_ACCOUNT for new native XLM accounts
@@ -1296,11 +1316,14 @@ message = buildSplTransferMessage({
         blockNumber: result.ledger,
       });
       if (result.confirmed) onTxConfirmed?.(txHash);
+      setKeyFile(null); setPendingEncrypted(null);
       setStep("result");
 
     } catch (err: any) {
       console.error("[send] XLM Error:", err);
       setSigningError(err.message || String(err));
+    } finally {
+      clearClientKey(keyFile.id);
     }
   }
 
@@ -2132,6 +2155,11 @@ function XlmTrustlineDialog({
     }
   }, [keyId, chain.rpcUrl]);
 
+  // Clear deserialized key handles from memory when dialog closes or keyFile changes
+  useEffect(() => {
+    return () => { if (keyFile) clearClientKey(keyFile.id); };
+  }, [keyFile?.id]);
+
   // Fetch existing trustlines so we can indicate which tokens are already enabled
   useEffect(() => {
     if (!chain.rpcUrl || !address) return;
@@ -2233,9 +2261,12 @@ function XlmTrustlineDialog({
       setSigningPhase("polling");
       const result = await waitForXlmConfirmation(chain.rpcUrl, txHash, () => {}, 30, 3000);
       setTxResult({ status: result.confirmed ? "success" : "pending", txHash, blockNumber: result.ledger });
+      setKeyFile(null); setPendingEncrypted(null);
       setStep("result");
     } catch (err: any) {
       setSigningError(err.message || String(err));
+    } finally {
+      clearClientKey(keyFile.id);
     }
   }
 

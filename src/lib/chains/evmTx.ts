@@ -277,7 +277,7 @@ export async function waitForReceipt(
 // ── Parse amount string to wei ──────────────────────────────────
 
 export function parseUnits(amount: string, decimals: number): bigint {
-  const [intPart, fracPart = ""] = amount.split(".");
+  const [intPart, fracPart = ""] = amount.replace(/,/g, "").split(".");
   const paddedFrac = fracPart.padEnd(decimals, "0").slice(0, decimals);
   return BigInt(intPart + paddedFrac);
 }

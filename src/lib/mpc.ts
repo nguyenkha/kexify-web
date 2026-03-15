@@ -68,6 +68,11 @@ export async function restoreKeyHandles(keyId: string, shareData: string, eddsaS
   clientKeys.set(keyId, entry);
 }
 
+/** Remove a key handle from the in-memory cache (call after signing is done or on dialog close). */
+export function clearClientKey(keyId: string): void {
+  clientKeys.delete(keyId);
+}
+
 // ── Helpers ──
 
 export function toBase64(buf: Uint8Array): string {
