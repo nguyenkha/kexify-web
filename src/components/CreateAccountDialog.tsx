@@ -125,6 +125,14 @@ export function CreateAccountDialog({
       const eddsaKey = await mpc.ecKey2pDkg(eddsaTransport, 0, PARTY_NAMES, NID_ED25519);
       const eddsaInfo = mpc.ecKey2pInfo(eddsaKey);
 
+      // Correct the DB: server stores party-1's ecKey2pInfo().publicKey during keygen,
+      // but signatures verify against party-0's key. Push the correct value now.
+      fetch(apiUrl("/api/generate/eddsa-pubkey-correction"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify({ keyId, eddsaPublicKey: toHex(eddsaInfo.publicKey) }),
+      }).catch(() => {});
+
       // Store key handles in memory for signing
       const entry: ClientKeyHandles = { mpc, ecdsa: ecdsaKey, eddsa: eddsaKey };
       clientKeys.set(keyId, entry);

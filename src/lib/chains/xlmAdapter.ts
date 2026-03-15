@@ -83,11 +83,22 @@ function hexToBytes(hex: string): Uint8Array {
 }
 
 export function publicKeyToXlmAddress(eddsaPubKeyHex: string): string {
-  let pubKeyBytes = hexToBytes(eddsaPubKeyHex);
-  // cb-mpc may return 65-byte SEC1 uncompressed — extract 32-byte x coord
-  if (pubKeyBytes.length === 65) pubKeyBytes = pubKeyBytes.slice(1, 33);
-  else if (pubKeyBytes.length === 64) pubKeyBytes = pubKeyBytes.slice(0, 32);
-  return encodeStrkeyAccountId(pubKeyBytes);
+  const pubKeyBytes = hexToBytes(eddsaPubKeyHex);
+  let key32: Uint8Array;
+  if (pubKeyBytes.length === 32) {
+    key32 = pubKeyBytes;
+  } else if (pubKeyBytes.length === 65 && pubKeyBytes[0] === 0x04) {
+    // SEC1 uncompressed (04 || x_BE(32) || y_BE(32)) → Ed25519 compressed point.
+    // SEC1 coordinates are big-endian; Ed25519 encoding is little-endian y
+    // with the sign of x in the high bit of the last byte.
+    const x_be = pubKeyBytes.slice(1, 33);
+    const y_le = pubKeyBytes.slice(33).reverse();
+    key32 = new Uint8Array(y_le);
+    key32[31] = (key32[31] & 0x7f) | ((x_be[31] & 1) << 7);
+  } else {
+    throw new Error(`Expected 32 or 65-byte Ed25519 public key, got ${pubKeyBytes.length} bytes`);
+  }
+  return encodeStrkeyAccountId(key32);
 }
 
 // ── Horizon API helpers ──────────────────────────────────────────
@@ -172,6 +183,9 @@ export const xlmAdapter: ChainAdapter = {
         from: string;
         to: string;
         amount: string;
+        asset_type?: string;
+        asset_code?: string;
+        asset_issuer?: string;
         created_at: string;
         transaction_successful: boolean;
       }[] = data._embedded?.records ?? [];
@@ -180,16 +194,27 @@ export const xlmAdapter: ChainAdapter = {
       const slice = records.slice(0, limit);
 
       const txs: Transaction[] = slice
-        .filter((op) => op.type === "payment" && !op.from.includes(":")) // native only
+        .filter((op) => {
+          if (op.type !== "payment") return false;
+          if (asset.isNative) {
+            // XLM native: asset_type === "native"
+            return op.asset_type === "native";
+          } else {
+            // Token: match asset_code and asset_issuer
+            return op.asset_code === asset.symbol && op.asset_issuer === asset.contractAddress;
+          }
+        })
         .map((op) => {
-          const stroops = Math.round(parseFloat(op.amount) * 1e7);
+          const amount = parseFloat(op.amount);
+          // For XLM native, value is stroops; for tokens, use raw amount string
+          const value = asset.isNative ? Math.round(amount * 1e7).toString() : op.amount;
           const direction = op.from === address ? "out" : op.to === address ? "in" : "self";
           return {
             hash: op.transaction_hash,
             from: op.from,
             to: op.to,
-            value: stroops.toString(),
-            formatted: parseFloat(op.amount).toFixed(7),
+            value,
+            formatted: amount.toFixed(7),
             symbol: asset.symbol,
             timestamp: Math.floor(new Date(op.created_at).getTime() / 1000),
             direction,

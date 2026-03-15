@@ -12,6 +12,9 @@ const COINGECKO_IDS: Record<string, string> = {
   WETH: "weth",
   USDe: "ethena-usde",
   XRP: "ripple",
+  XLM: "stellar",
+  SOL: "solana",
+  BCH: "bitcoin-cash",
 };
 
 // In-memory fallback (survives within same session even if localStorage fails)

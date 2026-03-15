@@ -24,6 +24,7 @@ export function AccountDetail() {
   const [chain, setChain] = useState<Chain | null>(null);
   const [asset, setAsset] = useState<Asset | null>(null);
   const [address, setAddress] = useState<string | null>(null);
+  const [chainAssets, setChainAssets] = useState<Asset[]>([]);
   const [pollInterval, setPollInterval] = useState<number | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -80,7 +81,7 @@ export function AccountDetail() {
 
         const adapter = getChainAdapter(foundChain.type);
         let addr: string;
-        if (foundChain.type === "solana") {
+        if (foundChain.type === "solana" || foundChain.type === "xlm") {
           if (!key.eddsaPublicKey) {
             setError(true);
             return;
@@ -97,6 +98,7 @@ export function AccountDetail() {
         setChain(foundChain);
         setAsset(foundAsset);
         setAddress(addr);
+        setChainAssets(chainAssets);
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
@@ -130,6 +132,7 @@ export function AccountDetail() {
       address={address}
       chain={chain}
       asset={asset}
+      chainAssets={chainAssets}
       onBack={() => navigate("/accounts")}
       pollInterval={pollInterval}
       pendingTx={pendingTx}

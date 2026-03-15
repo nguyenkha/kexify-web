@@ -186,6 +186,7 @@ export function AccountRowView({
   const nativeAsset = row.assets.find((a) => a.isNative);
   const nativeSymbol = nativeBalance?.asset.symbol || nativeAsset?.symbol || "";
 
+
   /** Truncate a formatted balance to at most ~10 visible digits */
   function truncateBalance(val: string): string {
     if (!val.includes(".")) return val;
@@ -373,6 +374,7 @@ export function AccountRowView({
             );
           })
       }
+
     </div>
   );
 }
