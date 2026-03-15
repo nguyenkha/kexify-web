@@ -1694,6 +1694,7 @@ function SendDialog({
                   const flows: Record<string, () => void> = { solana: executeSolanaSigningFlow, btc: executeBtcSigningFlow, bch: executeBchSigningFlow, evm: executeSigningFlow, xrp: executeXrpSigningFlow };
                   const flow = flows[chain.type];
                   if (flow) guardedSign(flow);
+                  else setSigningError(`Send is not yet supported for ${chain.displayName}.`);
                 }}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
               >

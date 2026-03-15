@@ -6,6 +6,9 @@ import { initTheme } from './lib/theme'
 
 initTheme()
 
+const buildHash = (import.meta.env.VITE_GIT_HASH as string | undefined)?.slice(0, 7) ?? "dev";
+console.log(`Build ${buildHash}`);
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
