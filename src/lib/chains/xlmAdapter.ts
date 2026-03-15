@@ -129,9 +129,27 @@ export const xlmAdapter: ChainAdapter = {
     }
   },
 
-  async fetchTokenBalances(_address: string, _chain: Chain, _tokenAssets: Asset[]): Promise<BalanceResult[]> {
-    // Stellar tokens (trustlines) not yet supported
-    return [];
+  async fetchTokenBalances(address: string, chain: Chain, tokenAssets: Asset[]): Promise<BalanceResult[]> {
+    if (tokenAssets.length === 0) return [];
+    try {
+      const res = await fetch(`${horizonUrl(chain)}/accounts/${address}`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      const balances: { asset_type: string; asset_code?: string; asset_issuer?: string; balance: string }[] =
+        data.balances ?? [];
+
+      return tokenAssets.flatMap((asset) => {
+        // contractAddress stores the issuer account ID
+        const b = balances.find(
+          (bl) => bl.asset_code === asset.symbol && bl.asset_issuer === asset.contractAddress,
+        );
+        if (!b) return [];
+        const raw = Math.round(parseFloat(b.balance) * 1e7).toString();
+        return [{ asset, chain, balance: raw, formatted: b.balance }];
+      });
+    } catch {
+      return [];
+    }
   },
 
   async fetchTransactions(
