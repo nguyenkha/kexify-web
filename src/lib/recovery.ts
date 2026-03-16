@@ -5,7 +5,7 @@ import type { KeyFileData } from "./crypto";
 import type { KeyShare } from "../shared/types";
 import type { CbMpc, DataTransport, Ecdsa2pKeyHandle, EcKey2pHandle } from "cb-mpc";
 import { getMpcInstance, fromBase64 } from "./mpc";
-import type { MpcSignResult } from "./mpc";
+import type { MpcSignResult, BatchMpcSignResult } from "./mpc";
 
 // ── Module-level state ──
 
@@ -236,4 +236,54 @@ export async function performLocalMpcSign(opts: {
   }
 
   return { signature: sigRaw, sessionId: `recovery-${Date.now()}` };
+}
+
+/**
+ * Batch local MPC signing for recovery mode (UTXO chains with multiple inputs).
+ * Each hash gets its own MPC session since ecdsa2pSign with multiple hashes
+ * requires both parties to be in sync.
+ */
+export async function performLocalBatchMpcSign(opts: {
+  keyId: string;
+  hashes: Uint8Array[];
+  onStep?: (step: number) => void;
+}): Promise<BatchMpcSignResult> {
+  const { hashes, onStep } = opts;
+
+  if (!handles) {
+    throw new Error("Recovery mode not initialized");
+  }
+
+  const key0 = handles.ecdsa0;
+  const key1 = handles.ecdsa1;
+  if (!key0 || !key1) throw new Error("No ECDSA key handles available");
+
+  const startedAt = Date.now();
+  onStep?.(1);
+
+  const sigSessionId = new Uint8Array(32);
+  crypto.getRandomValues(sigSessionId);
+
+  const { t0, t1 } = createLocalTransport();
+
+  const [sigs0] = await Promise.all([
+    handles.mpc0.ecdsa2pSign(t0, 0, PARTY_NAMES, key0, sigSessionId, hashes),
+    handles.mpc1.ecdsa2pSign(t1, 1, PARTY_NAMES, key1, sigSessionId, hashes),
+  ]);
+
+  onStep?.(3);
+
+  for (let i = 0; i < sigs0.length; i++) {
+    if (!sigs0[i] || sigs0[i].length === 0) {
+      throw new Error(`No signature produced for input ${i}`);
+    }
+  }
+
+  // Pad to at least 1s for UX consistency
+  const elapsed = Date.now() - startedAt;
+  if (elapsed < 1000) {
+    await new Promise((r) => setTimeout(r, 1000 - elapsed + Math.floor(Math.random() * 500)));
+  }
+
+  return { signatures: sigs0, sessionId: `recovery-${Date.now()}` };
 }

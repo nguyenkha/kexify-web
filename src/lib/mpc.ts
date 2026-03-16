@@ -160,7 +160,7 @@ export function createHttpTransport(opts: {
 
       if (data.done) {
         serverResult = data;
-        // No more messages — protocol will complete on our side too
+        // No more messages — protocol will complete on our side too (supports both single & batch)
         inbox = null;
       } else {
         inbox = data.message ? fromBase64(data.message) : null;
@@ -196,6 +196,11 @@ export function createHttpTransport(opts: {
 
 export interface MpcSignResult {
   signature: Uint8Array;
+  sessionId: string;
+}
+
+export interface BatchMpcSignResult {
+  signatures: Uint8Array[];
   sessionId: string;
 }
 
@@ -296,4 +301,123 @@ export async function performMpcSign(opts: {
   }
 
   return { signature: sigRaw, sessionId: getSessionId() };
+}
+
+/**
+ * Batch MPC signing — sign multiple hashes in a single MPC session.
+ * Used for UTXO chains (BTC/BCH/LTC) where each input needs a separate signature.
+ * Only supports ECDSA (ecdsa2pSign natively accepts multiple hashes).
+ */
+export async function performBatchMpcSign(opts: {
+  keyId: string;
+  hashes: Uint8Array[];
+  initPayload: Record<string, unknown>;
+  headers: Record<string, string>;
+  onStep?: (step: number) => void;
+}): Promise<BatchMpcSignResult> {
+  const { keyId, hashes, initPayload, headers, onStep } = opts;
+
+  if (hashes.length === 0) throw new Error("No hashes to sign");
+
+  // Single hash — delegate to regular sign
+  if (hashes.length === 1) {
+    const result = await performMpcSign({
+      algorithm: "ecdsa",
+      keyId,
+      hash: hashes[0],
+      initPayload,
+      headers,
+      onStep,
+    });
+    return { signatures: [result.signature], sessionId: result.sessionId };
+  }
+
+  // In recovery mode, sign each hash locally (recovery uses separate sessions)
+  if (isRecoveryMode()) {
+    const { performLocalBatchMpcSign } = await import("./recovery");
+    return performLocalBatchMpcSign({ keyId, hashes, onStep });
+  }
+
+  const entry = clientKeys.get(keyId);
+  if (!entry) {
+    throw new Error("Key handle not found. Please re-create or re-import the key.");
+  }
+
+  const keyHandle = entry.ecdsa;
+  if (!keyHandle) {
+    throw new Error("No ECDSA key handle available");
+  }
+
+  const mpc = entry.mpc;
+
+  // Both parties must use the same session ID
+  const sigSessionId = new Uint8Array(32);
+  crypto.getRandomValues(sigSessionId);
+
+  // Build hashes array for init payload
+  const hashesPayload = hashes.map((h, i) => ({
+    data: toBase64(h),
+    inputIndex: i,
+  }));
+
+  const { transport, getSessionId, getServerResult, getError, transportFailed } = createHttpTransport({
+    initUrl: apiUrl("/api/sign/init"),
+    stepUrl: apiUrl("/api/sign/step"),
+    initExtra: {
+      ...initPayload,
+      data: toBase64(hashes[0]),
+      hashes: hashesPayload,
+      sigSessionId: toBase64(sigSessionId),
+    },
+    headers,
+  });
+
+  const startedAt = Date.now();
+  onStep?.(1);
+
+  const mpcPromise = (async () => {
+    const sigs = await mpc.ecdsa2pSign(
+      transport, 0, PARTY_NAMES, keyHandle as Ecdsa2pKeyHandle, sigSessionId, hashes,
+    );
+    return sigs;
+  })();
+
+  let rawSigs: Uint8Array[];
+  try {
+    rawSigs = await Promise.race([mpcPromise, transportFailed]);
+  } catch (err) {
+    const transportErr = getError();
+    if (transportErr) throw transportErr;
+    throw err;
+  }
+
+  onStep?.(3);
+
+  // If client got empty signatures, check server result
+  if (rawSigs.every((s) => s.length === 0)) {
+    const sr = getServerResult();
+    if (sr?.signatures) {
+      rawSigs = (sr.signatures as string[]).map((s) => fromBase64(s));
+    }
+  }
+
+  if (!rawSigs || rawSigs.length !== hashes.length) {
+    throw new Error(`Expected ${hashes.length} signatures, got ${rawSigs?.length ?? 0}`);
+  }
+
+  for (let i = 0; i < rawSigs.length; i++) {
+    if (!rawSigs[i] || rawSigs[i].length === 0) {
+      throw new Error(`No signature produced for input ${i}`);
+    }
+  }
+
+  // Pad fast signing to at least 1s for smoother UX
+  const elapsed = Date.now() - startedAt;
+  if (elapsed < 1000) {
+    await new Promise((r) =>
+      setTimeout(r, 1000 - elapsed + Math.floor(Math.random() * 500)),
+    );
+  }
+
+  return { signatures: rawSigs, sessionId: getSessionId() };
 }

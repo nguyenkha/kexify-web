@@ -5,7 +5,7 @@ import { simulateEvmTransaction } from "../lib/txSimulation";
 import { useExpertMode } from "../context/ExpertModeContext";
 import { PolicyWarning, ExpertWarnings, SimulationPreview, SigningError } from "./tx";
 import { fetchPrices, formatUsd, getUsdValue } from "../lib/prices";
-import { toBase64, performMpcSign, clientKeys, restoreKeyHandles, clearClientKey } from "../lib/mpc";
+import { toBase64, performMpcSign, performBatchMpcSign, clientKeys, restoreKeyHandles, clearClientKey } from "../lib/mpc";
 import { authHeaders } from "../lib/auth";
 import { apiUrl } from "../lib/apiBase";
 import { fetchPasskeys, sensitiveHeaders } from "../lib/passkey";
@@ -721,25 +721,26 @@ export function SendDialog({
         locktime: btcTx.locktime,
       };
 
-      // 3. Sign each input via MPC
+      // 3. Compute all sighashes and batch-sign via single MPC session
       const witnesses: Uint8Array[][] = [];
       const scriptSigs: Uint8Array[] = [];
 
-      for (let i = 0; i < btcTx.inputs.length; i++) {
-        const sighash = isLegacy ? legacySighash(btcTx, i, pkHash) : bip143Sighash(btcTx, i, pkHash);
+      const sighashes = btcTx.inputs.map((_, i) =>
+        isLegacy ? legacySighash(btcTx, i, pkHash) : bip143Sighash(btcTx, i, pkHash)
+      );
 
-        const { signature: sigRaw } = await performMpcSign({
-          algorithm: "ecdsa",
-          keyId: keyFile.id,
-          hash: sighash,
-          initPayload: {
-            id: keyFile.id, chainType: "btc", btcTx: btcTxPayload,
-            inputIndex: i, pubKeyHash: toBase64(pkHash), from: address,
-          },
-          headers: sensitiveHeaders(),
-        });
+      const { signatures: allSigs } = await performBatchMpcSign({
+        keyId: keyFile.id,
+        hashes: sighashes,
+        initPayload: {
+          id: keyFile.id, chainType: "btc", btcTx: btcTxPayload,
+          pubKeyHash: toBase64(pkHash), from: address,
+        },
+        headers: sensitiveHeaders(),
+      });
 
-        const { r: sigR, s: sigS } = parseDerSignature(sigRaw);
+      for (let i = 0; i < allSigs.length; i++) {
+        const { r: sigR, s: sigS } = parseDerSignature(allSigs[i]);
         if (isLegacy) {
           scriptSigs.push(makeP2PKHScriptSig(sigR, sigS, compressedPubKey));
         } else {
@@ -831,24 +832,23 @@ export function SendDialog({
         locktime: bchTx.locktime,
       };
 
-      // 3. Sign each input via MPC (BCH uses SIGHASH_FORKID)
+      // 3. Compute all sighashes and batch-sign via single MPC session (BCH uses SIGHASH_FORKID)
       const scriptSigs: Uint8Array[] = [];
 
-      for (let i = 0; i < bchTx.inputs.length; i++) {
-        const sighash = bchSighash(bchTx, i, pkHash);
+      const sighashes = bchTx.inputs.map((_, i) => bchSighash(bchTx, i, pkHash));
 
-        const { signature: sigRaw } = await performMpcSign({
-          algorithm: "ecdsa",
-          keyId: keyFile.id,
-          hash: sighash,
-          initPayload: {
-            id: keyFile.id, chainType: "bch", bchTx: bchTxPayload,
-            inputIndex: i, pubKeyHash: toBase64(pkHash), from: address,
-          },
-          headers: sensitiveHeaders(),
-        });
+      const { signatures: allSigs } = await performBatchMpcSign({
+        keyId: keyFile.id,
+        hashes: sighashes,
+        initPayload: {
+          id: keyFile.id, chainType: "bch", bchTx: bchTxPayload,
+          pubKeyHash: toBase64(pkHash), from: address,
+        },
+        headers: sensitiveHeaders(),
+      });
 
-        const { r: sigR, s: sigS } = parseDerSignature(sigRaw);
+      for (let i = 0; i < allSigs.length; i++) {
+        const { r: sigR, s: sigS } = parseDerSignature(allSigs[i]);
         scriptSigs.push(makeBchP2PKHScriptSig(sigR, sigS, compressedPubKey));
       }
 
@@ -931,25 +931,26 @@ export function SendDialog({
         locktime: ltcTx.locktime,
       };
 
-      // 3. Sign each input via MPC
+      // 3. Compute all sighashes and batch-sign via single MPC session
       const witnesses: Uint8Array[][] = [];
       const scriptSigs: Uint8Array[] = [];
 
-      for (let i = 0; i < ltcTx.inputs.length; i++) {
-        const sighash = isLegacy ? legacySighash(ltcTx, i, pkHash) : bip143Sighash(ltcTx, i, pkHash);
+      const sighashes = ltcTx.inputs.map((_, i) =>
+        isLegacy ? legacySighash(ltcTx, i, pkHash) : bip143Sighash(ltcTx, i, pkHash)
+      );
 
-        const { signature: sigRaw } = await performMpcSign({
-          algorithm: "ecdsa",
-          keyId: keyFile.id,
-          hash: sighash,
-          initPayload: {
-            id: keyFile.id, chainType: "ltc", ltcTx: ltcTxPayload,
-            inputIndex: i, pubKeyHash: toBase64(pkHash), from: address,
-          },
-          headers: sensitiveHeaders(),
-        });
+      const { signatures: allSigs } = await performBatchMpcSign({
+        keyId: keyFile.id,
+        hashes: sighashes,
+        initPayload: {
+          id: keyFile.id, chainType: "ltc", ltcTx: ltcTxPayload,
+          pubKeyHash: toBase64(pkHash), from: address,
+        },
+        headers: sensitiveHeaders(),
+      });
 
-        const { r: sigR, s: sigS } = parseDerSignature(sigRaw);
+      for (let i = 0; i < allSigs.length; i++) {
+        const { r: sigR, s: sigS } = parseDerSignature(allSigs[i]);
         if (isLegacy) {
           scriptSigs.push(makeP2PKHScriptSig(sigR, sigS, compressedPubKey));
         } else {
