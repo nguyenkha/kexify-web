@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { Chain, Asset } from "../lib/api";
 import { explorerLink, hexToBytes, bytesToHex } from "../shared/utils";
+import { simulateEvmTransaction } from "../lib/txSimulation";
 import { fetchPrices, formatUsd, getUsdValue } from "../lib/prices";
 import { toBase64, performMpcSign, clientKeys, restoreKeyHandles, clearClientKey } from "../lib/mpc";
 import { authHeaders } from "../lib/auth";
@@ -184,6 +185,9 @@ export function SendDialog({
     fraudCheck?: { flagged: boolean; flags: string[]; level: string; address: string };
   } | null>(null);
   const [policyChecking, setPolicyChecking] = useState(false);
+
+  // Transaction simulation
+  const [simResult, setSimResult] = useState<import("../lib/txSimulation").SimulationResult | null>(null);
 
   const [signingPhase, setSigningPhase] = useState<SigningPhase>("loading-keyshare");
   const [signingError, setSigningError] = useState<string | null>(null);
@@ -1528,6 +1532,19 @@ message = buildSplTransferMessage({
                     }
                     setPolicyChecking(false);
                   }
+                  // EVM transaction simulation (non-blocking)
+                  if (chain.type === "evm" && chain.rpcUrl) {
+                    setSimResult(null);
+                    const value = asset.isNative ? "0x" + parseUnits(amount, asset.decimals).toString(16) : "0x0";
+                    const dataBytes = !asset.isNative && asset.contractAddress
+                      ? encodeErc20Transfer(to, parseUnits(amount, asset.decimals))
+                      : null;
+                    const data = dataBytes ? "0x" + bytesToHex(dataBytes as Uint8Array) : "0x";
+                    const txTo = !asset.isNative && asset.contractAddress ? asset.contractAddress : to;
+                    simulateEvmTransaction(chain.rpcUrl, { from: address, to: txTo, value, data }).then((r) => {
+                      if (r) setSimResult(r);
+                    });
+                  }
                   setStep("preview");
                 }}
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
@@ -1628,14 +1645,31 @@ message = buildSplTransferMessage({
                 </div>
               </div>
 
-              {/* Balance changes */}
-              {(() => {
+              {/* Balance changes — simulation or static fallback */}
+              {simResult && simResult.changes.length > 0 ? (
+                <div>
+                  <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
+                    {simResult.changes.map((c, i) => (
+                      <div key={i} className={i > 0 ? "border-t border-border-secondary" : ""}>
+                        <div className="px-3 py-2 flex items-center justify-between">
+                          <span className="text-xs text-text-muted">{c.asset.symbol}</span>
+                          <span className={`text-[11px] tabular-nums font-medium ${c.direction === "out" ? "text-red-400" : "text-green-400"}`}>
+                            {c.direction === "out" ? "-" : "+"}{c.amount}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-text-muted/50 mt-1.5 text-right">
+                    Simulated via {simResult.provider.charAt(0).toUpperCase() + simResult.provider.slice(1)}
+                  </p>
+                </div>
+              ) : (() => {
                 const changes: BalanceChange[] = [];
                 const amountBase = amount ? parseUnits(amount, asset.decimals) : 0n;
                 const balanceBase = parseUnits(balance, asset.decimals);
 
                 if (asset.isNative) {
-                  // Native: balance decreases by amount + fee
                   let feeCost = 0n;
                   if (chain.type === "evm" && estimatedFeeWei != null) feeCost = estimatedFeeWei;
                   else if (chain.type === "solana") feeCost = SOLANA_BASE_FEE;
@@ -1649,15 +1683,12 @@ message = buildSplTransferMessage({
                     delta: -(amountBase + feeCost),
                   });
                 } else {
-                  // Token: token balance decreases by amount
                   changes.push({
                     symbol: asset.symbol,
                     decimals: asset.decimals,
                     currentBalance: balanceBase.toString(),
                     delta: -amountBase,
                   });
-                  // Native: fee only (need to fetch separately — use feeDisplay info)
-                  // We don't have the native balance here, so omit if unavailable
                 }
 
                 return <BalancePreview changes={changes} prices={prices} />;

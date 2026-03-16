@@ -22,6 +22,7 @@ import { clearCache, tokenBalancesCacheKey } from "../lib/dataCache";
 import type { BalanceResult } from "../lib/balance";
 import { explorerLink } from "../shared/utils";
 import { BalancePreview, type BalanceChange } from "./BalancePreview";
+import { simulateEvmTransaction, type SimulationResult } from "../lib/txSimulation";
 
 interface Props {
   request: PendingRequest;
@@ -395,6 +396,9 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   } | null>(null);
   const [policyChecking, setPolicyChecking] = useState(false);
 
+  // Transaction simulation
+  const [simResult, setSimResult] = useState<SimulationResult | null>(null);
+
   // ── Approve flow (passkey #2 for MPC signing) ──────────────────
 
   /** Approve button: key must already be loaded → pre-check policy → go to preview */
@@ -438,6 +442,18 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
         // Fail-open
       }
       setPolicyChecking(false);
+    }
+
+    // EVM transaction simulation (non-blocking)
+    if (!isSolana && isTx && txParams && chain?.rpcUrl) {
+      setSimResult(null);
+      simulateEvmTransaction(chain.rpcUrl, {
+        from: account.address,
+        to: txParams.to || "",
+        value: txParams.value || "0x0",
+        data: txParams.data || "0x",
+        gas: txParams.gas || txParams.gasLimit,
+      }).then((r) => { if (r) setSimResult(r); });
     }
 
     setPhase("preview");
@@ -1205,14 +1221,31 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                     })()}
                   </div>
 
-                  {/* Balance preview */}
-                  {nativeBalance != null && (
+                  {/* Balance preview — simulation or static fallback */}
+                  {simResult && simResult.changes.length > 0 ? (
+                    <div>
+                      <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
+                        {simResult.changes.map((c, i) => (
+                          <div key={i} className={i > 0 ? "border-t border-border-secondary" : ""}>
+                            <div className="px-3 py-2 flex items-center justify-between">
+                              <span className="text-xs text-text-muted">{c.asset.symbol}</span>
+                              <span className={`text-[11px] tabular-nums font-medium ${c.direction === "out" ? "text-red-400" : "text-green-400"}`}>
+                                {c.direction === "out" ? "-" : "+"}{c.amount}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-[10px] text-text-muted/50 mt-1.5 text-right">
+                        Simulated via {simResult.provider.charAt(0).toUpperCase() + simResult.provider.slice(1)}
+                      </p>
+                    </div>
+                  ) : nativeBalance != null ? (
                     (() => {
                       const txValue = txParams?.value ? BigInt(txParams.value) : 0n;
                       const feeCost = estimatedFeeWei ?? 0n;
                       const changes: BalanceChange[] = [];
 
-                      // Native ETH: value + fee
                       changes.push({
                         symbol: "ETH",
                         decimals: 18,
@@ -1220,8 +1253,6 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                         delta: -(txValue + feeCost),
                       });
 
-                      // For ERC-20 approve: show token being approved (informational, no balance change)
-                      // For ERC-20 transfers via contract call: find the token being transferred
                       if (isApprove && approveToken && txParams?.to) {
                         const tokenBal = tokenBalances.find(
                           (b) => b.asset.contractAddress?.toLowerCase() === txParams.to.toLowerCase()
@@ -1231,14 +1262,14 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                             symbol: approveToken.symbol,
                             decimals: approveToken.decimals,
                             currentBalance: tokenBal.balance,
-                            delta: 0n, // approve doesn't change balance
+                            delta: 0n,
                           });
                         }
                       }
 
                       return <BalancePreview changes={changes} prices={prices} />;
                     })()
-                  )}
+                  ) : null}
                 </div>
               ) : isSolanaTx && decodedSolTx ? (
                 <div className="space-y-5">

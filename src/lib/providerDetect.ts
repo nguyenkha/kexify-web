@@ -1,5 +1,21 @@
-// Detect API provider from URL hostname for REST-based chains (BTC, BCH, XLM).
-// EVM/Solana/XRP use standard JSON-RPC — no detection needed.
+// Detect API provider from URL hostname.
+// Used for REST-based chains (BTC, BCH, XLM) and EVM simulation providers.
+
+// ── EVM simulation provider detection ──
+
+export type EvmSimProvider = "alchemy" | "tenderly" | "infura" | "none";
+
+export function detectEvmSimProvider(rpcUrl: string): EvmSimProvider {
+  try {
+    const host = new URL(rpcUrl).hostname;
+    if (host.includes("alchemy.com")) return "alchemy";
+    if (host.includes("tenderly.co")) return "tenderly";
+    if (host.includes("infura.io")) return "infura";
+  } catch {}
+  return "none";
+}
+
+// ── REST chain provider detection ──
 
 export type BtcProvider = "mempool" | "blockstream" | "blockchair" | "unknown";
 export type BchProvider = "blockchair" | "unknown";
