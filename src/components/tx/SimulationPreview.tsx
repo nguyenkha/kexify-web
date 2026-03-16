@@ -1,4 +1,5 @@
 // Shared simulation result display for Send/WC preview
+// Uses same visual format as BalancePreview for consistency
 
 import type { SimulationResult } from "../../lib/txSimulation";
 
@@ -13,7 +14,7 @@ export function SimulationPreview({ simResult }: { simResult: SimulationResult }
             <div className="px-3 py-2 flex items-center justify-between">
               <span className="text-xs text-text-muted">{c.asset.symbol}</span>
               <span className={`text-[11px] tabular-nums font-medium ${c.direction === "out" ? "text-red-400" : "text-green-400"}`}>
-                {c.direction === "out" ? "-" : "+"}{c.amount}
+                {c.direction === "out" ? "-" : "+"}{c.amount} {c.asset.symbol}
               </span>
             </div>
           </div>
