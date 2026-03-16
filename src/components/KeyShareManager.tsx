@@ -569,7 +569,7 @@ export function KeyShareManager() {
                           onClick={() => setBadgeExplain(badgeExplain === `hkdf-${k.id}` ? null : `hkdf-${k.id}`)}
                           className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors"
                         >
-                          Backup saved
+                          Server backup
                         </button>
                       )}
                       {k.hasClientBackup && (
@@ -577,7 +577,7 @@ export function KeyShareManager() {
                           onClick={() => setBadgeExplain(badgeExplain === `bu-${k.id}` ? null : `bu-${k.id}`)}
                           className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-colors"
                         >
-                          Backed up
+                          Key escrowed
                         </button>
                       )}
                     </div>
@@ -599,12 +599,12 @@ export function KeyShareManager() {
                 )}
                 {badgeExplain === `hkdf-${k.id}` && (
                   <p className="px-3 md:px-5 pb-3 text-[10px] text-blue-400/80 leading-relaxed">
-                    Server key backup downloaded. Contact kexify support to get the decryption key in case of emergency.
+                    You downloaded a copy of the server's key. It's encrypted — contact kexify support to decrypt it in an emergency.
                   </p>
                 )}
                 {badgeExplain === `bu-${k.id}` && (
                   <p className="px-3 md:px-5 pb-3 text-[10px] text-green-400/80 leading-relaxed">
-                    Your key share is backed up on our server. You can restore it on any device using your passphrase.
+                    Your client key is escrowed on our server. Restore it on any device using your passphrase.
                   </p>
                 )}
 
