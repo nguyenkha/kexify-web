@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { authHeaders } from "../lib/auth";
+import { sensitiveHeaders, authenticatePasskey } from "../lib/passkey";
 import { apiUrl } from "../lib/apiBase";
 import { listKeyShares, hasKeyShare } from "../lib/keystore";
 import { RecoveryGuide } from "./RecoveryGuide";
@@ -16,8 +17,10 @@ interface AccountStatus {
 export function RecoveryChecklist() {
   const [accounts, setAccounts] = useState<AccountStatus[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hkdfDownloadingId, setHkdfDownloadingId] = useState<string | null>(null);
+  const [hkdfError, setHkdfError] = useState<string | null>(null);
 
-  useEffect(() => {
+  function fetchAccounts() {
     const browserShares = listKeyShares();
     const browserIds = new Set(browserShares.map((s) => s.keyId));
 
@@ -35,7 +38,39 @@ export function RecoveryChecklist() {
         })));
       })
       .finally(() => setLoading(false));
-  }, []);
+  }
+
+  useEffect(() => { fetchAccounts(); }, []);
+
+  async function handleHkdfDownload(account: AccountStatus) {
+    setHkdfDownloadingId(account.id);
+    setHkdfError(null);
+    try {
+      await authenticatePasskey({});
+      const headers = sensitiveHeaders();
+      const res = await fetch(apiUrl(`/api/keys/${account.id}/backup/server-share-hkdf`), { headers });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setHkdfError(data.error || "Download failed");
+        setHkdfDownloadingId(null);
+        return;
+      }
+      const { encryptedShare, encryptedEddsaShare } = await res.json();
+      const payload = JSON.stringify({ id: account.id, peer: 2, encryptedShare, encryptedEddsaShare, encryption: "server-hkdf" }, null, 2);
+      const blob = new Blob([payload], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const safeName = account.name ? account.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") : account.id.slice(0, 8);
+      a.download = `kexify-server-hkdf-${safeName}-${account.id.slice(0, 8)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      fetchAccounts();
+    } catch (err) {
+      setHkdfError(String(err));
+    }
+    setHkdfDownloadingId(null);
+  }
 
   if (loading) {
     return (
@@ -79,24 +114,32 @@ export function RecoveryChecklist() {
 
       {/* Per-account checklist */}
       {accounts.map((account) => {
+        const serverKeyDone = !!(account.hkdfDownloadedAt || account.selfCustodyAt);
+
         const steps = [
           {
+            key: "browser",
             label: "Key saved in this browser",
             detail: "Your key is encrypted and stored locally so you can sign transactions.",
             action: "Save your key file to this browser during account creation, or import it from a backup file.",
             done: account.hasBrowserShare,
           },
           {
+            key: "escrow",
             label: "Key backed up on server",
             detail: "An encrypted copy of your key is stored on our server. You can restore it on any device.",
             action: "During account creation, choose to save an encrypted backup. You can also upload it later.",
             done: account.hasClientBackup,
           },
           {
+            key: "server",
             label: "Server key downloaded",
-            detail: "You have a copy of the server's key share. Combined with yours, it lets you recover without our server.",
-            action: "Enable Expert mode in Config, then go to Backup & Recovery to download the server key share.",
-            done: !!(account.hkdfDownloadedAt || account.selfCustodyAt),
+            detail: serverKeyDone
+              ? account.selfCustodyAt
+                ? "You hold a self-custody copy of the server's key share."
+                : "You have a server-encrypted backup. Contact kexify support to decrypt it in an emergency."
+              : "Download a backup of the server's key share. It's encrypted by the server — in an emergency, contact us to decrypt it.",
+            done: serverKeyDone,
           },
         ];
 
@@ -134,7 +177,24 @@ export function RecoveryChecklist() {
                       {step.label}
                     </p>
                     <p className="text-[10px] text-text-muted mt-0.5 leading-relaxed">{step.detail}</p>
-                    {!step.done && (
+                    {!step.done && step.key === "server" && (
+                      <div className="mt-2 space-y-1.5">
+                        <button
+                          onClick={() => handleHkdfDownload(account)}
+                          disabled={hkdfDownloadingId === account.id}
+                          className="px-3 py-1.5 rounded-md text-[11px] font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50"
+                        >
+                          {hkdfDownloadingId === account.id ? "Downloading..." : "Download server key backup"}
+                        </button>
+                        <p className="text-[10px] text-text-muted leading-relaxed">
+                          For full self-custody, use Expert mode in Config.
+                        </p>
+                        {hkdfError && hkdfDownloadingId === null && (
+                          <p className="text-[10px] text-red-400">{hkdfError}</p>
+                        )}
+                      </div>
+                    )}
+                    {!step.done && step.key !== "server" && (
                       <p className="text-[10px] text-blue-400/80 mt-1 leading-relaxed">{step.action}</p>
                     )}
                   </div>
