@@ -178,6 +178,23 @@ export function ConfigPage() {
     save({ ...overrides, preferences: Object.keys(prefs).length ? prefs : undefined });
   }
 
+  function getShowTestnet(): boolean {
+    return overrides.preferences?.show_testnet ?? false;
+  }
+
+  function setShowTestnet(value: boolean) {
+    const prefs = { ...overrides.preferences };
+    if (!value) {
+      delete prefs.show_testnet;
+    } else {
+      prefs.show_testnet = true;
+    }
+    save({ ...overrides, preferences: Object.keys(prefs).length ? prefs : undefined });
+  }
+
+  const isTestnet = (name: string) => /testnet|sepolia|devnet/i.test(name);
+  const visibleChains = getShowTestnet() ? chains : chains.filter((c) => !isTestnet(c.name));
+
   function getDefaultChains(): string[] {
     return overrides.preferences?.default_chains ?? serverDefaults;
   }
@@ -324,7 +341,7 @@ export function ConfigPage() {
           Networks
         </p>
         <div className="bg-surface-secondary rounded-xl border border-border-primary overflow-hidden divide-y divide-border-secondary">
-          {chains.map((chain) => {
+          {visibleChains.map((chain) => {
             const expanded = expandedChain === chain.name;
             const hasFieldOverrides = !!getChainField(chain.name, "rpcUrl") || !!getChainField(chain.name, "explorerUrl");
 
@@ -402,6 +419,26 @@ export function ConfigPage() {
           Preferences
         </p>
         <div className="bg-surface-secondary rounded-xl border border-border-primary overflow-hidden divide-y divide-border-secondary">
+          {/* Show testnets */}
+          <div className="px-3 md:px-5 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-text-primary">Show test networks</p>
+                <p className="text-xs text-text-muted mt-0.5">Display testnet, devnet, and Sepolia chains</p>
+              </div>
+              <button
+                onClick={() => setShowTestnet(!getShowTestnet())}
+                className={`relative w-8 h-[18px] rounded-full transition-colors shrink-0 ${
+                  getShowTestnet() ? "bg-blue-500" : "bg-surface-tertiary"
+                }`}
+              >
+                <span className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform ${
+                  getShowTestnet() ? "left-[16px]" : "left-[2px]"
+                }`} />
+              </button>
+            </div>
+          </div>
+
           {/* Refresh interval */}
           <div className="px-3 md:px-5 py-4">
             <div className="flex items-center justify-between">

@@ -66,11 +66,14 @@ export function Wallet() {
 
         // Apply user config overrides (RPC, explorer, preferences)
         const overrides = getUserOverrides(me?.id);
-        const mergedChains = c.map((ch: Chain) => {
-          const o = overrides.chains?.[ch.name];
-          if (!o) return ch;
-          return { ...ch, ...o };
-        });
+        const showTestnet = overrides.preferences?.show_testnet ?? false;
+        const mergedChains = c
+          .filter((ch: Chain) => showTestnet || !/testnet|sepolia|devnet/i.test(ch.name))
+          .map((ch: Chain) => {
+            const o = overrides.chains?.[ch.name];
+            if (!o) return ch;
+            return { ...ch, ...o };
+          });
         setChainsData(mergedChains);
         setAssetsData(a);
 

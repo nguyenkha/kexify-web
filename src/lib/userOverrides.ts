@@ -10,6 +10,7 @@ export interface UserOverrides {
   preferences?: {
     refresh_interval?: number;
     default_chains?: string[];
+    show_testnet?: boolean;
     [key: string]: unknown;
   };
 }
