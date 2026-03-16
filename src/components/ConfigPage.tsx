@@ -11,6 +11,66 @@ function highlightCode(code: string): string {
   return Prism.highlight(code, Prism.languages.json, "json");
 }
 
+type RpcStatus = "checking" | "ok" | "error";
+
+async function checkRpcHealth(rpcUrl: string, chainType: string): Promise<boolean> {
+  if (!rpcUrl) return false;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+
+    if (chainType === "evm") {
+      const res = await fetch(rpcUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] }),
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      if (!res.ok) return false;
+      const data = await res.json();
+      return !!data.result;
+    }
+
+    if (chainType === "solana") {
+      const res = await fetch(rpcUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getHealth", params: [] }),
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      if (!res.ok) return false;
+      const data = await res.json();
+      return data.result === "ok";
+    }
+
+    if (chainType === "xrp") {
+      const res = await fetch(rpcUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ method: "server_info", params: [{}] }),
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      return res.ok;
+    }
+
+    if (chainType === "xlm") {
+      const res = await fetch(rpcUrl, { signal: controller.signal });
+      clearTimeout(timer);
+      return res.ok;
+    }
+
+    // btc, bch — REST APIs, just check if reachable
+    const res = await fetch(rpcUrl, { signal: controller.signal });
+    clearTimeout(timer);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 const REFRESH_OPTIONS = [
   { label: "30s", value: 30 },
   { label: "1m", value: 60 },
@@ -27,6 +87,7 @@ export function ConfigPage() {
   const [userId, setUserId] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
   const [expandedChain, setExpandedChain] = useState<string | null>(null);
+  const [rpcStatus, setRpcStatus] = useState<Record<string, RpcStatus>>({});
   const [saved, setSaved] = useState(false);
   const [jsonMode, setJsonMode] = useState(false);
   const [jsonTab, setJsonTab] = useState<"edit" | "preview">("edit");
@@ -47,6 +108,17 @@ export function ConfigPage() {
       setUserId(uid);
       setOverrides(getUserOverrides(uid));
       setLoading(false);
+
+      // Run health checks for all chains
+      const userOvr = getUserOverrides(uid);
+      for (const chain of c) {
+        const url = userOvr.chains?.[chain.name]?.rpcUrl || chain.rpcUrl;
+        if (!url) continue;
+        setRpcStatus((prev) => ({ ...prev, [chain.name]: "checking" }));
+        checkRpcHealth(url, chain.type).then((ok) => {
+          setRpcStatus((prev) => ({ ...prev, [chain.name]: ok ? "ok" : "error" }));
+        });
+      }
     });
   }, []);
 
@@ -68,10 +140,22 @@ export function ConfigPage() {
       delete chain[field];
     }
     const hasOverrides = Object.keys(chain).some((k) => chain[k as keyof typeof chain]);
-    const chains = { ...prev };
-    if (hasOverrides) chains[name] = chain;
-    else delete chains[name];
-    save({ ...overrides, chains: Object.keys(chains).length ? chains : undefined });
+    const updatedChains = { ...prev };
+    if (hasOverrides) updatedChains[name] = chain;
+    else delete updatedChains[name];
+    save({ ...overrides, chains: Object.keys(updatedChains).length ? updatedChains : undefined });
+
+    // Re-check RPC health when URL changes
+    if (field === "rpcUrl") {
+      const chainData = chains.find((c) => c.name === name);
+      const url = value || chainData?.rpcUrl || "";
+      if (url) {
+        setRpcStatus((prev) => ({ ...prev, [name]: "checking" }));
+        checkRpcHealth(url, chainData?.type || "evm").then((ok) => {
+          setRpcStatus((prev) => ({ ...prev, [name]: ok ? "ok" : "error" }));
+        });
+      }
+    }
   }
 
   function getChainField(name: string, field: "rpcUrl" | "explorerUrl"): string {
@@ -267,9 +351,17 @@ export function ConfigPage() {
                         <span className="text-[9px] px-1 py-0.5 rounded bg-blue-500/10 text-blue-400 font-medium">custom</span>
                       )}
                     </div>
-                    <p className="text-[11px] text-text-muted font-mono truncate mt-0.5">
-                      {getChainField(chain.name, "rpcUrl") || chain.rpcUrl || "—"}
-                    </p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                        rpcStatus[chain.name] === "ok" ? "bg-green-500" :
+                        rpcStatus[chain.name] === "error" ? "bg-red-400" :
+                        rpcStatus[chain.name] === "checking" ? "bg-yellow-400 animate-pulse" :
+                        "bg-surface-tertiary"
+                      }`} />
+                      <p className="text-[11px] text-text-muted font-mono truncate">
+                        {getChainField(chain.name, "rpcUrl") || chain.rpcUrl || "—"}
+                      </p>
+                    </div>
                   </div>
                   <svg className={`w-4 h-4 text-text-muted shrink-0 transition-transform ${expanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
