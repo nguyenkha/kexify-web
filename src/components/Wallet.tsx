@@ -8,6 +8,7 @@ import { fetchPasskeys } from "../lib/passkey";
 import { PasskeyGate } from "./PasskeyGate";
 import { PasskeyChallenge } from "./PasskeyChallenge";
 import { PolicyRules } from "./PolicyRules";
+import { AuditLog } from "./AuditLog";
 import { getStoredDisplay, setStoredDisplay, isChainVisible } from "../lib/displayPrefs";
 import { buildAccountRows, type AccountRow } from "../lib/accountRows";
 import { SkeletonRow } from "./SkeletonRow";
@@ -92,6 +93,7 @@ export function Wallet() {
   );
 
   const [policyKeyId, setPolicyKeyId] = useState<string | null>(null);
+  const [auditKeyId, setAuditKeyId] = useState<string | null>(null);
   const [manageDisplayKeyId, setManageDisplayKeyId] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [infoKeyId, setInfoKeyId] = useState<string | null>(null);
@@ -366,7 +368,7 @@ export function Wallet() {
                 </svg>
                 Manage Display
               </button>
-              {!isRecovery && (
+              {!isRecovery && (<>
                 <button
                   onClick={() => { setPolicyKeyId(group.keyId); setMenuKeyId(null); }}
                   className="w-full px-4 py-2.5 text-sm text-text-secondary hover:bg-surface-tertiary transition-colors flex items-center gap-3"
@@ -376,7 +378,16 @@ export function Wallet() {
                   </svg>
                   Policy Rules
                 </button>
-              )}
+                <button
+                  onClick={() => { setAuditKeyId(group.keyId); setMenuKeyId(null); }}
+                  className="w-full px-4 py-2.5 text-sm text-text-secondary hover:bg-surface-tertiary transition-colors flex items-center gap-3"
+                >
+                  <svg className="w-4 h-4 text-text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Activity Log
+                </button>
+              </>)}
               {!isRecovery && (
                 <button
                   onClick={() => { toggleKey(group.keyId, false); setMenuKeyId(null); }}
@@ -426,6 +437,14 @@ export function Wallet() {
           keyId={policyKeyId}
           keyName={keys.find((k) => k.id === policyKeyId)?.name}
           onClose={() => setPolicyKeyId(null)}
+        />
+      )}
+
+      {auditKeyId && (
+        <AuditLog
+          keyId={auditKeyId}
+          keyName={keys.find((k) => k.id === auditKeyId)?.name}
+          onClose={() => setAuditKeyId(null)}
         />
       )}
 

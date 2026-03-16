@@ -444,6 +444,14 @@ function SendDialog({
   // XRP destination tag
   const [destinationTag, setDestinationTag] = useState("");
 
+  // Policy pre-check
+  const [policyCheck, setPolicyCheck] = useState<{
+    allowed: boolean;
+    reason?: string;
+    fraudCheck?: { flagged: boolean; flags: string[]; level: string; address: string };
+  } | null>(null);
+  const [policyChecking, setPolicyChecking] = useState(false);
+
   const [signingPhase, setSigningPhase] = useState<SigningPhase>("loading-keyshare");
   const [signingError, setSigningError] = useState<string | null>(null);
   const [txResult, setTxResult] = useState<TxResult | null>(null);
@@ -1754,18 +1762,44 @@ message = buildSplTransferMessage({
             {/* Footer — Input step */}
             <div className="px-5 py-4 border-t border-border-secondary">
               <button
-                disabled={!canReview}
+                disabled={!canReview || policyChecking}
                 onClick={async () => {
                   if (chain.type === "xlm" && chain.rpcUrl) {
                     setXlmDestExists(null);
                     const exists = await checkXlmAccountExists(chain.rpcUrl, to);
                     setXlmDestExists(exists);
                   }
+                  // Policy pre-check (skip in recovery mode — no server)
+                  if (!isRecoveryMode()) {
+                    setPolicyChecking(true);
+                    setPolicyCheck(null);
+                    try {
+                      const baseUnits = parseUnits(amount, asset.decimals).toString();
+                      const res = await fetch(apiUrl(`/api/keys/${keyId}/rules/check`), {
+                        method: "POST",
+                        headers: { ...authHeaders(), "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          to,
+                          amount: baseUnits,
+                          nativeSymbol: asset.isNative ? asset.symbol : undefined,
+                          contractAddress: asset.contractAddress || undefined,
+                          chainId: chain.evmChainId ?? undefined,
+                        }),
+                      });
+                      if (res.ok) {
+                        const result = await res.json();
+                        setPolicyCheck(result);
+                      }
+                    } catch {
+                      // Fail-open: if pre-check fails, still show preview
+                    }
+                    setPolicyChecking(false);
+                  }
                   setStep("preview");
                 }}
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
               >
-                👀 Review Transaction
+                {policyChecking ? "Checking..." : "👀 Review Transaction"}
               </button>
             </div>
           </>
@@ -1775,6 +1809,22 @@ message = buildSplTransferMessage({
           <>
             {/* Body — Preview step */}
             <div className="p-5 space-y-5">
+              {/* Policy pre-check warning */}
+              {policyCheck && !policyCheck.allowed && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3">
+                  <p className="text-xs font-medium text-red-400">
+                    {policyCheck.fraudCheck?.flagged
+                      ? "\uD83D\uDEE1\uFE0F Risky address detected"
+                      : "\u26D4 Blocked by policy"}
+                  </p>
+                  <p className="text-[11px] text-red-400/80 mt-1 leading-relaxed">
+                    {policyCheck.fraudCheck?.flagged
+                      ? `This address has been flagged for: ${policyCheck.fraudCheck.flags.map(f => f.replace(/_/g, " ")).join(", ")}. The transaction will be rejected by your policy.`
+                      : policyCheck.reason || "This transaction does not match any allow rule in your policy."}
+                  </p>
+                </div>
+              )}
+
               {/* Amount hero */}
               <div className="text-center py-2">
                 <p className="text-2xl font-semibold tabular-nums text-text-primary">
@@ -1884,15 +1934,16 @@ message = buildSplTransferMessage({
             {/* Footer — Preview step */}
             <div className="px-5 py-4 border-t border-border-secondary">
               <button
+                disabled={policyCheck?.allowed === false}
                 onClick={() => {
                   const flows: Record<string, () => void> = { solana: executeSolanaSigningFlow, btc: executeBtcSigningFlow, bch: executeBchSigningFlow, evm: executeSigningFlow, xrp: executeXrpSigningFlow, xlm: executeXlmSigningFlow };
                   const flow = flows[chain.type];
                   if (flow) guardedSign(flow);
                   else setSigningError(`Send is not yet supported for ${chain.displayName}.`);
                 }}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
               >
-                🔐 Confirm &amp; Sign
+                {policyCheck?.allowed === false ? "\u26D4 Blocked by Policy" : "\uD83D\uDD10 Confirm & Sign"}
               </button>
             </div>
           </>
