@@ -21,9 +21,9 @@ const EMPTY_RULE: PolicyRuleBody = {
 };
 
 const FRAUD_LEVEL_LABELS: Record<string, string> = {
-  high: "High (sanctions & crime)",
-  medium: "Medium (+ phishing & laundering)",
-  low: "Low (all flags)",
+  high: "Standard — sanctions, cybercrime, theft",
+  medium: "Strict — + phishing, laundering, darkweb",
+  low: "Maximum — all flags incl. mixers",
 };
 
 function formatCountdown(effectiveAt: string): string {
@@ -205,7 +205,7 @@ export function PolicyRules({
                 <span className="text-text-muted"> (any contract)</span>
               )}
               {rule.fraudCheck && (
-                <span className="text-orange-400 text-[10px]"> fraud={rule.fraudCheck}</span>
+                <span className="text-orange-400 text-[10px]"> {"\u229E"} fraud check</span>
               )}
             </span>
           ) : (
@@ -220,7 +220,7 @@ export function PolicyRules({
                 </span>
               )}
               {rule.fraudCheck && (
-                <span className="text-orange-400 text-[10px]"> fraud={rule.fraudCheck}</span>
+                <span className="text-orange-400 text-[10px]"> {"\u229E"} fraud check</span>
               )}
             </span>
           )}
