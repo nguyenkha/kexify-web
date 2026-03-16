@@ -205,7 +205,7 @@ export function PolicyRules({
                 <span className="text-text-muted"> (any contract)</span>
               )}
               {rule.fraudCheck && (
-                <span className="text-orange-400 text-[10px]"> {"\u229E"} fraud check</span>
+                <span className={`text-[10px] ${rule.fraudCheck === "low" ? "text-green-400" : rule.fraudCheck === "medium" ? "text-yellow-400" : "text-red-400"}`}> {"\uD83D\uDEE1\uFE0F"} {rule.fraudCheck === "low" ? "max" : rule.fraudCheck === "medium" ? "strict" : "standard"}</span>
               )}
             </span>
           ) : (
@@ -220,7 +220,7 @@ export function PolicyRules({
                 </span>
               )}
               {rule.fraudCheck && (
-                <span className="text-orange-400 text-[10px]"> {"\u229E"} fraud check</span>
+                <span className={`text-[10px] ${rule.fraudCheck === "low" ? "text-green-400" : rule.fraudCheck === "medium" ? "text-yellow-400" : "text-red-400"}`}> {"\uD83D\uDEE1\uFE0F"} {rule.fraudCheck === "low" ? "max" : rule.fraudCheck === "medium" ? "strict" : "standard"}</span>
               )}
             </span>
           )}
