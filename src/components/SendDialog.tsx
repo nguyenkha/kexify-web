@@ -1683,9 +1683,42 @@ message = buildSplTransferMessage({
                   <span className={`text-xs font-mono text-text-secondary ${expert ? "break-all" : ""}`}>{expert ? address : shortAddrPreview(address)}</span>
                 </div>
                 <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                  <span className="text-xs text-text-muted">To</span>
-                  <span className={`text-xs font-mono text-text-secondary ${expert ? "break-all" : ""}`}>{expert ? to : shortAddrPreview(to)}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-text-muted">To</span>
+                    {!asset.isNative && asset.contractAddress && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 font-medium">Contract</span>
+                    )}
+                  </div>
+                  <span className={`text-xs font-mono text-text-secondary ${expert ? "break-all" : ""}`}>
+                    {!asset.isNative && asset.contractAddress
+                      ? (expert ? asset.contractAddress : shortAddrPreview(asset.contractAddress))
+                      : (expert ? to : shortAddrPreview(to))}
+                  </span>
                 </div>
+                {!asset.isNative && asset.contractAddress && expert && (
+                  <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
+                    <span className="text-xs text-text-muted">Recipient</span>
+                    <span className="text-xs font-mono text-text-secondary break-all">{to}</span>
+                  </div>
+                )}
+                {!asset.isNative && asset.contractAddress && (
+                  <div className="border-t border-border-secondary px-3 py-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-text-muted">Data</span>
+                      <span className={`text-xs font-mono text-text-muted ${expert ? "" : "truncate max-w-[200px]"}`}>
+                        {expert
+                          ? null
+                          : (() => { const d = "0x" + bytesToHex(encodeErc20Transfer(to, parseUnits(amount, asset.decimals)) as Uint8Array); return d.length > 20 ? d.slice(0, 20) + "..." : d; })()
+                        }
+                      </span>
+                    </div>
+                    {expert && (
+                      <pre className="text-[10px] font-mono text-text-muted break-all mt-1 leading-relaxed max-h-20 overflow-auto">
+                        {"0x" + bytesToHex(encodeErc20Transfer(to, parseUnits(amount, asset.decimals)) as Uint8Array)}
+                      </pre>
+                    )}
+                  </div>
+                )}
                 {destinationTag && (
                 <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
                   <span className="text-xs text-text-muted">Destination Tag</span>
@@ -1746,17 +1779,6 @@ message = buildSplTransferMessage({
                 />
               )}
 
-              {/* Expert: transaction data */}
-              {expert && chain.type === "evm" && (
-                <div>
-                  <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-1.5">Transaction Data</p>
-                  <pre className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2 text-[10px] font-mono text-text-muted break-all overflow-auto max-h-20 leading-relaxed">
-                    {!asset.isNative && asset.contractAddress
-                      ? "0x" + bytesToHex(encodeErc20Transfer(to, parseUnits(amount, asset.decimals)) as Uint8Array)
-                      : "0x (native transfer)"}
-                  </pre>
-                </div>
-              )}
 
               {/* Balance changes — simulation or static fallback */}
               {simResult && simResult.changes.length > 0 ? (
