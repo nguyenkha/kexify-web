@@ -25,6 +25,7 @@ import { explorerLink } from "../shared/utils";
 import { BalancePreview, type BalanceChange } from "./BalancePreview";
 import { simulateEvmTransaction, type SimulationResult } from "../lib/txSimulation";
 import { useExpertMode } from "../context/ExpertModeContext";
+import { PolicyWarning, ExpertWarnings, SimulationPreview, SigningError } from "./tx";
 
 interface Props {
   request: PendingRequest;
@@ -1027,25 +1028,13 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                         </div>
                       </div>
 
-                      {/* Expert warnings */}
-                      {(() => {
-                        const warnings: { text: string; level: "red" | "yellow" }[] = [];
-                        if (gasLimitInput && /^\d+$/.test(gasLimitInput) && estimatedGasLimit && BigInt(gasLimitInput) < estimatedGasLimit) {
-                          warnings.push({ text: `Gas limit ${gasLimitInput} is below estimated ${estimatedGasLimit.toString()}. Transaction may fail.`, level: "red" });
-                        }
-                        if (maxFeeOverride && /^\d+(\.\d+)?$/.test(maxFeeOverride) && baseGasPrice != null) {
-                          const lowGwei = Number(baseGasPrice) * FEE_MULTIPLIER.low / 1e9;
-                          if (parseFloat(maxFeeOverride) < lowGwei) {
-                            warnings.push({ text: `Max fee ${maxFeeOverride} Gwei is below network minimum (~${lowGwei.toFixed(2)} Gwei). Transaction may not be confirmed.`, level: "yellow" });
-                          }
-                        }
-                        if (warnings.length === 0) return null;
-                        return warnings.map((w, i) => (
-                          <div key={i} className={`${w.level === "red" ? "bg-red-500/10 border-red-500/20" : "bg-yellow-500/5 border-yellow-500/15"} border rounded-lg px-3 py-2`}>
-                            <p className={`text-xs ${w.level === "red" ? "text-red-400" : "text-yellow-500/80"} leading-relaxed`}>{w.text}</p>
-                          </div>
-                        ));
-                      })()}
+                      <ExpertWarnings
+                        gasLimitOverride={gasLimitInput}
+                        maxFeeOverride={maxFeeOverride}
+                        estimatedGas={estimatedGasLimit}
+                        baseGasPrice={baseGasPrice}
+                        lowMultiplier={FEE_MULTIPLIER.low}
+                      />
                     </div>
                   )}
 
@@ -1181,21 +1170,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
           {/* ── Preview phase (review before signing) ─────────────── */}
           {phase === "preview" && (
             <>
-              {/* Policy pre-check warning */}
-              {policyCheck && !policyCheck.allowed && (
-                <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3 mb-4">
-                  <p className="text-xs font-medium text-red-400">
-                    {policyCheck.fraudCheck?.flagged
-                      ? "\uD83D\uDEE1\uFE0F Risky address detected"
-                      : "\u26D4 Blocked by policy"}
-                  </p>
-                  <p className="text-[11px] text-red-400/80 mt-1 leading-relaxed">
-                    {policyCheck.fraudCheck?.flagged
-                      ? `This address has been flagged for: ${policyCheck.fraudCheck.flags.map(f => f.replace(/_/g, " ")).join(", ")}. The transaction will be rejected by your policy.`
-                      : policyCheck.reason || "This transaction does not match any allow rule in your policy."}
-                  </p>
-                </div>
-              )}
+              <PolicyWarning policyCheck={policyCheck} />
 
               {isTx && !isSolana ? (
                 <div className="space-y-5">
@@ -1300,23 +1275,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
                   {/* Balance preview — simulation or static fallback */}
                   {simResult && simResult.changes.length > 0 ? (
-                    <div>
-                      <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
-                        {simResult.changes.map((c, i) => (
-                          <div key={i} className={i > 0 ? "border-t border-border-secondary" : ""}>
-                            <div className="px-3 py-2 flex items-center justify-between">
-                              <span className="text-xs text-text-muted">{c.asset.symbol}</span>
-                              <span className={`text-[11px] tabular-nums font-medium ${c.direction === "out" ? "text-red-400" : "text-green-400"}`}>
-                                {c.direction === "out" ? "-" : "+"}{c.amount}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      <p className="text-[10px] text-text-muted/50 mt-1.5 text-right">
-                        Simulated via {simResult.provider.charAt(0).toUpperCase() + simResult.provider.slice(1)}
-                      </p>
-                    </div>
+                    <SimulationPreview simResult={simResult} />
                   ) : nativeBalance != null ? (
                     (() => {
                       const txValue = txParams?.value ? BigInt(txParams.value) : 0n;
@@ -1705,32 +1664,12 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
           {/* ── Error phase ──────────────────────────────────────── */}
           {phase === "error" && (
-            <div className="text-center py-6">
-              <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
-                <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </div>
-              <p className="text-sm font-medium text-text-primary mb-1">
-                {isTx ? "Transaction Failed" : "Signing Failed"}
-              </p>
-              <p className="text-xs text-red-400 break-all mb-2">{error}</p>
-              <p className="text-[10px] text-text-muted mb-5">Check Activity Log in the Advanced menu for details.</p>
-              <div className="flex gap-3">
-                <button
-                  onClick={onReject}
-                  className="flex-1 bg-surface-tertiary hover:bg-border-primary text-text-secondary text-xs font-medium py-2.5 rounded-lg transition-colors"
-                >
-                  Close
-                </button>
-                <button
-                  onClick={() => { setError(""); setPhase("review"); }}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium py-2.5 rounded-lg transition-colors"
-                >
-                  Try Again
-                </button>
-              </div>
-            </div>
+            <SigningError
+              error={error}
+              title={isTx ? "Transaction Failed" : "Signing Failed"}
+              onClose={onReject}
+              onRetry={() => { setError(""); setPhase("review"); }}
+            />
           )}
         </div>
 

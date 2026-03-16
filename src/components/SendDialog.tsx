@@ -3,6 +3,7 @@ import type { Chain, Asset } from "../lib/api";
 import { explorerLink, hexToBytes, bytesToHex } from "../shared/utils";
 import { simulateEvmTransaction } from "../lib/txSimulation";
 import { useExpertMode } from "../context/ExpertModeContext";
+import { PolicyWarning, ExpertWarnings, SimulationPreview, SigningError } from "./tx";
 import { fetchPrices, formatUsd, getUsdValue } from "../lib/prices";
 import { toBase64, performMpcSign, clientKeys, restoreKeyHandles, clearClientKey } from "../lib/mpc";
 import { authHeaders } from "../lib/auth";
@@ -1663,21 +1664,7 @@ message = buildSplTransferMessage({
           <>
             {/* Body — Preview step */}
             <div className="p-5 space-y-5">
-              {/* Policy pre-check warning */}
-              {policyCheck && !policyCheck.allowed && (
-                <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3">
-                  <p className="text-xs font-medium text-red-400">
-                    {policyCheck.fraudCheck?.flagged
-                      ? "\uD83D\uDEE1\uFE0F Risky address detected"
-                      : "\u26D4 Blocked by policy"}
-                  </p>
-                  <p className="text-[11px] text-red-400/80 mt-1 leading-relaxed">
-                    {policyCheck.fraudCheck?.flagged
-                      ? `This address has been flagged for: ${policyCheck.fraudCheck.flags.map(f => f.replace(/_/g, " ")).join(", ")}. The transaction will be rejected by your policy.`
-                      : policyCheck.reason || "This transaction does not match any allow rule in your policy."}
-                  </p>
-                </div>
-              )}
+              <PolicyWarning policyCheck={policyCheck} />
 
               {/* Amount hero */}
               <div className="text-center py-2">
@@ -1743,30 +1730,15 @@ message = buildSplTransferMessage({
               </div>
 
               {/* Expert warnings */}
-              {expert && chain.type === "evm" && (() => {
-                const warnings: { text: string; level: "red" | "yellow" }[] = [];
-                // Gas limit warning
-                if (gasLimitOverride && /^\d+$/.test(gasLimitOverride) && estimatedGas && BigInt(gasLimitOverride) < estimatedGas) {
-                  warnings.push({ text: `Gas limit ${gasLimitOverride} is below estimated ${estimatedGas.toString()}. Transaction may fail.`, level: "red" });
-                }
-                // Gas price warning
-                if (maxFeeOverride && /^\d+(\.\d+)?$/.test(maxFeeOverride) && baseGasPrice != null) {
-                  const lowGwei = Number(baseGasPrice) * EVM_FEE_MULTIPLIER.low / 1e9;
-                  if (parseFloat(maxFeeOverride) < lowGwei) {
-                    warnings.push({ text: `Max fee ${maxFeeOverride} Gwei is below network minimum (~${lowGwei.toFixed(2)} Gwei). Transaction may not be confirmed.`, level: "yellow" });
-                  }
-                }
-                if (warnings.length === 0) return null;
-                return (
-                  <div className="space-y-2">
-                    {warnings.map((w, i) => (
-                      <div key={i} className={`${w.level === "red" ? "bg-red-500/10 border-red-500/20" : "bg-yellow-500/5 border-yellow-500/15"} border rounded-lg px-3 py-2`}>
-                        <p className={`text-xs ${w.level === "red" ? "text-red-400" : "text-yellow-500/80"} leading-relaxed`}>{w.text}</p>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
+              {expert && chain.type === "evm" && (
+                <ExpertWarnings
+                  gasLimitOverride={gasLimitOverride}
+                  maxFeeOverride={maxFeeOverride}
+                  estimatedGas={estimatedGas}
+                  baseGasPrice={baseGasPrice}
+                  lowMultiplier={EVM_FEE_MULTIPLIER.low}
+                />
+              )}
 
               {/* Expert: transaction data */}
               {expert && chain.type === "evm" && (
@@ -1782,23 +1754,7 @@ message = buildSplTransferMessage({
 
               {/* Balance changes — simulation or static fallback */}
               {simResult && simResult.changes.length > 0 ? (
-                <div>
-                  <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
-                    {simResult.changes.map((c, i) => (
-                      <div key={i} className={i > 0 ? "border-t border-border-secondary" : ""}>
-                        <div className="px-3 py-2 flex items-center justify-between">
-                          <span className="text-xs text-text-muted">{c.asset.symbol}</span>
-                          <span className={`text-[11px] tabular-nums font-medium ${c.direction === "out" ? "text-red-400" : "text-green-400"}`}>
-                            {c.direction === "out" ? "-" : "+"}{c.amount}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="text-[10px] text-text-muted/50 mt-1.5 text-right">
-                    Simulated via {simResult.provider.charAt(0).toUpperCase() + simResult.provider.slice(1)}
-                  </p>
-                </div>
+                <SimulationPreview simResult={simResult} />
               ) : (() => {
                 const changes: BalanceChange[] = [];
                 const amountBase = amount ? parseUnits(amount, asset.decimals) : 0n;
@@ -1851,34 +1807,11 @@ message = buildSplTransferMessage({
         {step === "signing" && (
           <div className="p-5">
             {signingError ? (
-              /* Error state */
-              <div className="text-center py-6">
-                <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </div>
-                <p className="text-sm font-medium text-text-primary mb-1">Transaction Failed</p>
-                <p className="text-xs text-red-400 break-all mb-2">{signingError}</p>
-                <p className="text-[10px] text-text-muted mb-5">Check Activity Log in the Advanced menu for details.</p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={onClose}
-                    className="flex-1 bg-surface-tertiary hover:bg-border-primary text-text-secondary text-sm font-medium py-2.5 rounded-lg transition-colors"
-                  >
-                    Close
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSigningError(null);
-                      setStep("preview");
-                    }}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
-                  >
-                    Try Again
-                  </button>
-                </div>
-              </div>
+              <SigningError
+                error={signingError}
+                onClose={onClose}
+                onRetry={() => { setSigningError(null); setStep("preview"); }}
+              />
             ) : (
               /* Progress state */
               <div className="py-6">
