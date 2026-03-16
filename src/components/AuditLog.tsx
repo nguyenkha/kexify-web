@@ -19,111 +19,206 @@ const HIDDEN_ACTIONS = new Set([
   "sign.complete",
 ]);
 
-/** Human-readable explanation of an audit log entry */
-function describeEntry(entry: AuditEntry): { title: string; detail: string; icon: string; color: string } {
+// ── Icons (SVG components) ──────────────────────────────────
+
+function CheckIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+    </svg>
+  );
+}
+
+function XIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  );
+}
+
+function ShieldIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+    </svg>
+  );
+}
+
+function DownloadIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+    </svg>
+  );
+}
+
+function UploadIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+    </svg>
+  );
+}
+
+function KeyIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+    </svg>
+  );
+}
+
+function SendIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+    </svg>
+  );
+}
+
+// ── Entry description ───────────────────────────────────────
+
+interface EntryDesc {
+  title: string;
+  subtitle: string;    // shown collapsed — chain/amount/address at a glance
+  detail: string;      // shown expanded — full explanation
+  icon: (props: { className?: string }) => React.ReactNode;
+  iconBg: string;
+  iconColor: string;
+}
+
+function describeEntry(entry: AuditEntry): EntryDesc {
   const meta = entry.meta ?? {};
   const reason = meta.reason as string | undefined;
+  const chainType = meta.chainType as string | undefined;
+  const transfer = meta.transfer as Record<string, string> | undefined;
 
   switch (entry.action) {
     case "sign.init":
       return {
         title: "Transaction signed",
+        subtitle: buildSubtitle(chainType, transfer, meta),
         detail: describeTransaction(meta),
-        icon: "\u2713", // ✓
-        color: "text-green-400",
+        icon: SendIcon,
+        iconBg: "bg-green-500/10",
+        iconColor: "text-green-500",
       };
     case "sign.reject":
       return describeRejection(reason, meta);
     case "generate.complete":
       return {
         title: "Account created",
+        subtitle: "",
         detail: "A new account was set up successfully.",
-        icon: "\u2713",
-        color: "text-green-400",
+        icon: CheckIcon,
+        iconBg: "bg-green-500/10",
+        iconColor: "text-green-500",
       };
     case "backup.upload":
       return {
         title: "Backup saved",
+        subtitle: "",
         detail: "Your encrypted key backup was uploaded.",
-        icon: "\uD83D\uDCBE",
-        color: "text-blue-400",
+        icon: UploadIcon,
+        iconBg: "bg-blue-500/10",
+        iconColor: "text-blue-400",
       };
     case "backup.download":
       return {
         title: "Backup downloaded",
+        subtitle: "",
         detail: "Your encrypted key backup was downloaded.",
-        icon: "\u2B07",
-        color: "text-yellow-400",
+        icon: DownloadIcon,
+        iconBg: "bg-yellow-500/10",
+        iconColor: "text-yellow-400",
       };
     case "server-share.hkdf-download":
       return {
         title: "Server share downloaded",
+        subtitle: "",
         detail: "The server's key share was exported with encryption.",
-        icon: "\u2B07",
-        color: "text-yellow-400",
+        icon: DownloadIcon,
+        iconBg: "bg-yellow-500/10",
+        iconColor: "text-yellow-400",
       };
     case "server-share.export":
       return {
         title: "Self-custody export",
+        subtitle: "",
         detail: "The server's key share was exported. You now have full self-custody.",
-        icon: "\uD83D\uDD11",
-        color: "text-orange-400",
+        icon: KeyIcon,
+        iconBg: "bg-orange-500/10",
+        iconColor: "text-orange-400",
       };
     default:
       return {
         title: entry.action,
+        subtitle: "",
         detail: "",
-        icon: "\u2022",
-        color: "text-text-muted",
+        icon: CheckIcon,
+        iconBg: "bg-surface-tertiary",
+        iconColor: "text-text-muted",
       };
   }
 }
 
-function describeTransaction(meta: Record<string, unknown>): string {
+function buildSubtitle(chainType?: string, transfer?: Record<string, string>, meta?: Record<string, unknown>): string {
   const parts: string[] = [];
-  const chainType = meta.chainType as string | undefined;
-  if (chainType) parts.push(`on ${chainType.toUpperCase()}`);
-
-  const transfer = meta.transfer as Record<string, string> | undefined;
+  if (chainType) parts.push(chainType.toUpperCase());
   if (transfer) {
-    const to = transfer.to;
-    const symbol = transfer.nativeSymbol || "tokens";
-    parts.push(`sent ${symbol} to ${shortenAddress(to)}`);
-  } else if (meta.type === "raw_message") {
-    return "Signed a message.";
+    const symbol = transfer.nativeSymbol || "";
+    if (symbol) parts.push(symbol);
+    if (transfer.to) parts.push(`to ${shortenAddress(transfer.to)}`);
+  } else if (meta?.type === "raw_message") {
+    parts.push("message signing");
   }
-
-  return parts.length > 0 ? parts.join(" ") : "Transaction initiated.";
+  return parts.join(" \u00b7 ");
 }
 
-function describeRejection(reason: string | undefined, meta: Record<string, unknown>): {
-  title: string; detail: string; icon: string; color: string;
-} {
-  const base = { icon: "\u2717", color: "text-red-400" }; // ✗
+function describeTransaction(meta: Record<string, unknown>): string {
+  const chainType = meta.chainType as string | undefined;
+  const transfer = meta.transfer as Record<string, string> | undefined;
+  if (transfer) {
+    const symbol = transfer.nativeSymbol || "tokens";
+    return `Sent ${symbol} to ${shortenAddress(transfer.to)} on ${chainType?.toUpperCase() || "unknown chain"}.`;
+  }
+  if (meta.type === "raw_message") return "Signed a message.";
+  return "Transaction initiated.";
+}
+
+function describeRejection(reason: string | undefined, meta: Record<string, unknown>): EntryDesc {
+  const chainType = meta.chainType as string | undefined;
+  const transfer = meta.transfer as Record<string, string> | undefined;
+  const baseIcon = { icon: XIcon, iconBg: "bg-red-500/10", iconColor: "text-red-400" };
 
   switch (reason) {
     case "key_disabled":
       return {
-        ...base,
+        ...baseIcon,
         title: "Blocked \u2014 account disabled",
+        subtitle: "",
         detail: "This transaction was rejected because your account is disabled. You can re-enable it in account settings.",
       };
     case "not_owner":
       return {
-        ...base,
+        ...baseIcon,
         title: "Blocked \u2014 unauthorized",
+        subtitle: "",
         detail: "Someone tried to sign with your key from a different account.",
       };
     case "sighash_mismatch":
       return {
-        ...base,
+        ...baseIcon,
         title: "Blocked \u2014 invalid transaction",
+        subtitle: "",
         detail: "The transaction data didn't match its hash. This could indicate tampering.",
       };
     case "unsupported_asset":
       return {
-        ...base,
+        ...baseIcon,
         title: "Blocked \u2014 unsupported token",
+        subtitle: "",
         detail: "The token being transferred is not supported by this wallet.",
       };
     case "policy": {
@@ -131,8 +226,11 @@ function describeRejection(reason: string | undefined, meta: Record<string, unkn
       if (fraudCheck?.flagged) {
         const flagLabels = (fraudCheck.flags || []).map(humanizeFlag).join(", ");
         return {
-          ...base,
-          title: "Blocked \u2014 risky address detected",
+          icon: ShieldIcon,
+          iconBg: "bg-red-500/10",
+          iconColor: "text-red-400",
+          title: "Blocked \u2014 risky address",
+          subtitle: buildSubtitle(chainType, transfer, meta),
           detail: `The recipient address ${shortenAddress(fraudCheck.address || "")} was flagged for: ${flagLabels}. This is based on your fraud check setting (${levelLabel(fraudCheck.level)}).`,
         };
       }
@@ -140,21 +238,24 @@ function describeRejection(reason: string | undefined, meta: Record<string, unkn
       const priority = meta.rulePriority;
       if (priority === "default_deny") {
         return {
-          ...base,
+          ...baseIcon,
           title: "Blocked \u2014 no matching rule",
+          subtitle: buildSubtitle(chainType, transfer, meta),
           detail: "No policy rule matched this transaction. By default, unmatched transactions are blocked. You can add a rule in Policy Rules settings.",
         };
       }
       return {
-        ...base,
+        ...baseIcon,
         title: "Blocked \u2014 policy rule",
+        subtitle: buildSubtitle(chainType, transfer, meta),
         detail: `Your policy rule #${priority} blocked this transaction. You can adjust your rules in Policy Rules settings.`,
       };
     }
     default:
       return {
-        ...base,
+        ...baseIcon,
         title: "Transaction rejected",
+        subtitle: "",
         detail: reason ? `Reason: ${reason}` : "This transaction was not approved.",
       };
   }
@@ -189,6 +290,8 @@ function shortenAddress(addr: string): string {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 }
 
+// ── Time formatting ─────────────────────────────────────────
+
 function formatTime(iso: string): string {
   const d = new Date(iso);
   const now = new Date();
@@ -204,21 +307,43 @@ function formatTime(iso: string): string {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+function formatDateHeader(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const entryDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diffDays = Math.floor((today.getTime() - entryDate.getTime()) / 86400000);
+
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return d.toLocaleDateString(undefined, { weekday: "long" });
+  return d.toLocaleDateString(undefined, { month: "long", day: "numeric", year: d.getFullYear() !== now.getFullYear() ? "numeric" : undefined });
+}
+
+function getDateKey(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+// ── Entry Row ───────────────────────────────────────────────
+
 function EntryRow({ entry, showAccount }: { entry: AuditEntry; showAccount?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const desc = describeEntry(entry);
+  const Icon = desc.icon;
+
   return (
     <button
       type="button"
-      className="w-full text-left px-3 py-2.5 flex items-start gap-2.5 hover:bg-surface-tertiary/50 transition-colors rounded-lg"
+      className="w-full text-left px-3 py-3 flex items-start gap-3 hover:bg-surface-tertiary/50 transition-colors"
       onClick={() => setExpanded(!expanded)}
     >
-      <span className={`${desc.color} text-sm shrink-0 w-5 text-center mt-0.5`}>
-        {desc.icon}
-      </span>
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${desc.iconBg}`}>
+        <Icon className={`w-4 h-4 ${desc.iconColor}`} />
+      </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs font-medium text-text-primary truncate">
+          <span className="text-sm font-medium text-text-primary truncate">
             {desc.title}
           </span>
           <span
@@ -228,11 +353,19 @@ function EntryRow({ entry, showAccount }: { entry: AuditEntry; showAccount?: boo
             {formatTime(entry.createdAt)}
           </span>
         </div>
-        {showAccount && entry.keyName && (
-          <p className="text-[10px] text-text-secondary mt-0.5">{entry.keyName}</p>
-        )}
+        <div className="flex items-center gap-1.5 mt-0.5">
+          {showAccount && entry.keyName && (
+            <span className="text-[10px] text-text-secondary">{entry.keyName}</span>
+          )}
+          {showAccount && entry.keyName && desc.subtitle && (
+            <span className="text-[10px] text-text-muted/40">\u00b7</span>
+          )}
+          {desc.subtitle && (
+            <span className="text-[10px] text-text-muted font-mono truncate">{desc.subtitle}</span>
+          )}
+        </div>
         {expanded && desc.detail && (
-          <p className="text-[11px] text-text-muted mt-1.5 leading-relaxed">
+          <p className="text-[11px] text-text-muted mt-2 leading-relaxed bg-surface-primary/50 rounded-lg px-2.5 py-2 border border-border-secondary">
             {desc.detail}
           </p>
         )}
@@ -240,6 +373,8 @@ function EntryRow({ entry, showAccount }: { entry: AuditEntry; showAccount?: boo
     </button>
   );
 }
+
+// ── Page Component ──────────────────────────────────────────
 
 /** Full-page activity log for all accounts (used in Advanced menu) */
 export function ActivityLogPage() {
@@ -270,6 +405,20 @@ export function ActivityLogPage() {
     setLoading(false);
   }
 
+  const filtered = logs.filter((e) => !HIDDEN_ACTIONS.has(e.action));
+
+  // Group by date
+  const groups: { dateKey: string; label: string; entries: AuditEntry[] }[] = [];
+  for (const entry of filtered) {
+    const key = getDateKey(entry.createdAt);
+    const last = groups[groups.length - 1];
+    if (last && last.dateKey === key) {
+      last.entries.push(entry);
+    } else {
+      groups.push({ dateKey: key, label: formatDateHeader(entry.createdAt), entries: [entry] });
+    }
+  }
+
   return (
     <div className="space-y-5">
       <div>
@@ -280,8 +429,18 @@ export function ActivityLogPage() {
       </div>
 
       {loading && logs.length === 0 ? (
-        <div className="text-xs text-text-muted text-center py-8">Loading...</div>
-      ) : logs.length === 0 ? (
+        <div className="space-y-3">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="flex items-start gap-3 px-3 py-3 animate-pulse">
+              <div className="w-8 h-8 rounded-full bg-surface-tertiary shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="h-3.5 w-32 bg-surface-tertiary rounded" />
+                <div className="h-2.5 w-48 bg-surface-tertiary/60 rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="text-center py-8">
           <p className="text-xs text-text-muted">No activity yet</p>
           <p className="text-[10px] text-text-muted/60 mt-1">
@@ -289,12 +448,19 @@ export function ActivityLogPage() {
           </p>
         </div>
       ) : (
-        <>
-          <div className="bg-surface-secondary rounded-xl border border-border-primary overflow-hidden divide-y divide-border-secondary">
-            {logs.filter((e) => !HIDDEN_ACTIONS.has(e.action)).map((entry) => (
-              <EntryRow key={entry.id} entry={entry} showAccount />
-            ))}
-          </div>
+        <div className="space-y-4">
+          {groups.map((group) => (
+            <div key={group.dateKey}>
+              <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-1.5 px-1">
+                {group.label}
+              </p>
+              <div className="bg-surface-secondary rounded-xl border border-border-primary overflow-hidden divide-y divide-border-secondary">
+                {group.entries.map((entry) => (
+                  <EntryRow key={entry.id} entry={entry} showAccount />
+                ))}
+              </div>
+            </div>
+          ))}
 
           {hasMore && (
             <button
@@ -305,7 +471,7 @@ export function ActivityLogPage() {
               {loading ? "Loading..." : "Load more"}
             </button>
           )}
-        </>
+        </div>
       )}
     </div>
   );
