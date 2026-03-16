@@ -302,7 +302,7 @@ export function AccountRowView({
         </div>
       </div>
 
-      {/* Token rows — shown inline like native row */}
+      {/* Token rows — indented with smaller icon to show hierarchy */}
       {tokenState === "loaded" && tokenBalances.length > 0 &&
         tokenBalances
           .filter((b) => isTokenVisible(b.asset.id, displayPrefs, b.formatted))
@@ -311,42 +311,41 @@ export function AccountRowView({
             return (
               <div
                 key={b.asset.id}
-                className="flex items-center h-[68px] px-3 md:px-5 hover:bg-surface-tertiary/40 transition-colors cursor-pointer group"
+                className="flex items-center h-14 pl-8 md:pl-12 pr-3 md:pr-5 hover:bg-surface-tertiary/40 transition-colors cursor-pointer group"
                 onClick={() =>
                   navigate(`/accounts/${row.keyId}/${row.chain.name.toLowerCase()}/${b.asset.symbol}${row.btcAddrType ? `/${row.btcAddrType}` : ""}`)
                 }
               >
-                <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
                   {b.asset.iconUrl ? (
                     <img
                       src={b.asset.iconUrl}
                       alt={b.asset.symbol}
-                      className="w-9 h-9 rounded-full bg-surface-tertiary shrink-0"
+                      className="w-7 h-7 rounded-full bg-surface-tertiary shrink-0"
                     />
                   ) : (
-                    <div className="w-9 h-9 rounded-full bg-surface-tertiary shrink-0" />
+                    <div className="w-7 h-7 rounded-full bg-surface-tertiary shrink-0" />
                   )}
                   <div className="min-w-0">
-                    <div className="text-sm font-medium text-text-primary leading-tight flex items-center gap-1.5">
+                    <div className="text-xs font-medium text-text-secondary leading-tight flex items-center gap-1.5">
                       {b.asset.name.replace(/\s*\(?\s*(testnet|devnet)\s*\)?\s*/gi, " ").trim()}
                       {/devnet/i.test(row.chain.name) ? (
-                        <span className="text-[9px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">devnet</span>
+                        <span className="text-[8px] px-0.5 py-px rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold leading-none">devnet</span>
                       ) : /testnet|sepolia/i.test(row.chain.name) ? (
-                        <span className="text-[9px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">testnet</span>
+                        <span className="text-[8px] px-0.5 py-px rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold leading-none">testnet</span>
                       ) : null}
                     </div>
-                    <div className="text-[11px] text-text-muted mt-0.5">{row.chain.displayName}</div>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3 shrink-0">
                   <div className="text-right min-w-[4rem]">
-                    <div className="flex items-baseline justify-end gap-1 text-sm tabular-nums font-medium text-text-primary">
+                    <div className="flex items-baseline justify-end gap-1 text-xs tabular-nums font-medium text-text-secondary">
                       <span>{maskBalance(truncateBalance(b.formatted), hidden)}</span>
-                      <span className="text-[11px] text-text-muted font-normal">{b.asset.symbol}</span>
+                      <span className="text-text-muted font-normal">{b.asset.symbol}</span>
                     </div>
                     {tokenUsd != null && (
-                      <div className="text-[11px] text-text-muted tabular-nums">{hidden ? "••••" : formatUsd(tokenUsd)}</div>
+                      <div className="text-[10px] text-text-muted tabular-nums">{hidden ? "••••" : formatUsd(tokenUsd)}</div>
                     )}
                   </div>
                   <svg className="w-4 h-4 text-text-muted/30 group-hover:text-text-muted transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

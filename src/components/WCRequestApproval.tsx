@@ -387,11 +387,59 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
     reader.readAsText(file);
   }
 
+  // Policy pre-check
+  const [policyCheck, setPolicyCheck] = useState<{
+    allowed: boolean;
+    reason?: string;
+    fraudCheck?: { flagged: boolean; flags: string[]; level: string; address: string };
+  } | null>(null);
+  const [policyChecking, setPolicyChecking] = useState(false);
+
   // ── Approve flow (passkey #2 for MPC signing) ──────────────────
 
-  /** Approve button: key must already be loaded → go to review/preview */
-  function handleApproveClick() {
+  /** Approve button: key must already be loaded → pre-check policy → go to preview */
+  async function handleApproveClick() {
     if (!account || !keyFile) return;
+
+    // Policy pre-check for transactions (skip in recovery mode and for message signing)
+    if (isTx && !isRecoveryMode()) {
+      setPolicyChecking(true);
+      setPolicyCheck(null);
+      try {
+        let to = "";
+        let amount = "0";
+        let nativeSymbol: string | undefined;
+        let contractAddress: string | undefined;
+        let reqChainId: number | undefined;
+
+        if (isSolana && decodedSolTx) {
+          to = decodedSolTx.to || "";
+          amount = decodedSolTx.amount || "0";
+          nativeSymbol = decodedSolTx.mint ? undefined : "SOL";
+          contractAddress = decodedSolTx.mint || undefined;
+        } else if (txParams) {
+          to = txParams.to || "";
+          amount = txParams.value ? BigInt(txParams.value).toString() : "0";
+          nativeSymbol = (!txParams.data || txParams.data === "0x") ? "ETH" : undefined;
+          reqChainId = chainId || undefined;
+        }
+
+        if (to) {
+          const res = await fetch(apiUrl(`/api/keys/${account.keyId}/rules/check`), {
+            method: "POST",
+            headers: { ...authHeaders(), "Content-Type": "application/json" },
+            body: JSON.stringify({ to, amount, nativeSymbol, contractAddress, chainId: reqChainId }),
+          });
+          if (res.ok) {
+            setPolicyCheck(await res.json());
+          }
+        }
+      } catch {
+        // Fail-open
+      }
+      setPolicyChecking(false);
+    }
+
     setPhase("preview");
   }
 
@@ -1033,6 +1081,22 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
           {/* ── Preview phase (review before signing) ─────────────── */}
           {phase === "preview" && (
             <>
+              {/* Policy pre-check warning */}
+              {policyCheck && !policyCheck.allowed && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3 mb-4">
+                  <p className="text-xs font-medium text-red-400">
+                    {policyCheck.fraudCheck?.flagged
+                      ? "\uD83D\uDEE1\uFE0F Risky address detected"
+                      : "\u26D4 Blocked by policy"}
+                  </p>
+                  <p className="text-[11px] text-red-400/80 mt-1 leading-relaxed">
+                    {policyCheck.fraudCheck?.flagged
+                      ? `This address has been flagged for: ${policyCheck.fraudCheck.flags.map(f => f.replace(/_/g, " ")).join(", ")}. The transaction will be rejected by your policy.`
+                      : policyCheck.reason || "This transaction does not match any allow rule in your policy."}
+                  </p>
+                </div>
+              )}
+
               {isTx && !isSolana ? (
                 <div className="space-y-5">
                   {/* Value hero */}
@@ -1567,10 +1631,10 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
           <div className="px-5 py-4 border-t border-border-secondary">
             <button
               onClick={handleApproveClick}
-              disabled={!account || !keyFile}
+              disabled={!account || !keyFile || policyChecking}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
             >
-              👀 Review Transaction
+              {policyChecking ? "Checking..." : "👀 Review Transaction"}
             </button>
           </div>
         )}
@@ -1579,10 +1643,11 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
         {phase === "preview" && (
           <div className="px-5 py-4 border-t border-border-secondary">
             <button
+              disabled={policyCheck?.allowed === false}
               onClick={() => isRecoveryMode() ? onPasskeyAuth({} as PasskeyAuthResult) : setPhase("passkey")}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
             >
-              {isRecoveryMode() ? "Confirm & Sign" : "🔐 Confirm & Sign"}
+              {policyCheck?.allowed === false ? "\u26D4 Blocked by Policy" : isRecoveryMode() ? "Confirm & Sign" : "\uD83D\uDD10 Confirm & Sign"}
             </button>
           </div>
         )}
