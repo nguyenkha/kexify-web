@@ -1527,7 +1527,7 @@ message = buildSplTransferMessage({
                       <input
                         value={nonceOverride}
                         onChange={(e) => setNonceOverride(e.target.value)}
-                        placeholder={currentNonce != null ? currentNonce.toString() : "Auto"}
+                        placeholder={currentNonce != null ? currentNonce.toString() : "..."}
                         className="w-full bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
                       />
                     </div>

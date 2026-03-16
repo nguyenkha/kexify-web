@@ -669,7 +669,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   }
 
   // Format request for display
-  const requestDisplay = formatRequest(request);
+  const requestDisplay = formatRequest(request, expert);
 
   const shortAddr = (addr: string) => expert ? addr : `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
@@ -864,7 +864,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                   <div>
                     <label className="block text-xs text-text-muted mb-1.5">From</label>
                     <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5">
-                      <p className="text-xs font-mono text-text-tertiary truncate">{account?.address ?? "—"}</p>
+                      <p className={`text-xs font-mono text-text-tertiary ${expert ? "break-all" : "truncate"}`}>{account?.address ?? "—"}</p>
                       {chain && (
                         <p className="text-[10px] text-text-muted mt-0.5">{chain.displayName}</p>
                       )}
@@ -878,7 +878,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                         <label className="text-xs text-text-muted">To</label>
                         {isContractCall ? (
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 font-medium">
-                            Contract Address
+                            Contract
                           </span>
                         ) : (
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-medium">
@@ -887,7 +887,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                         )}
                       </div>
                       <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5">
-                        <p className="text-xs font-mono text-text-tertiary truncate">{txParams.to}</p>
+                        <p className={`text-xs font-mono text-text-tertiary ${expert ? "break-all" : "truncate"}`}>{txParams.to}</p>
                       </div>
                     </div>
                   )}
@@ -907,9 +907,9 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                   {!isApprove && txParams?.data && txParams.data !== "0x" && (
                     <div>
                       <label className="block text-xs text-text-muted mb-1.5">Data</label>
-                      <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5">
-                        <p className="text-xs font-mono text-text-muted truncate">
-                          {txParams.data.length > 66 ? txParams.data.slice(0, 66) + "..." : txParams.data}
+                      <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 overflow-auto max-h-20">
+                        <p className={`text-xs font-mono text-text-muted ${expert ? "break-all" : "truncate"}`}>
+                          {expert ? txParams.data : (txParams.data.length > 66 ? txParams.data.slice(0, 66) + "..." : txParams.data)}
                         </p>
                       </div>
                     </div>
@@ -990,7 +990,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                           <input
                             value=""
                             readOnly
-                            placeholder={currentNonce != null ? currentNonce.toString() : "Auto"}
+                            placeholder={currentNonce != null ? currentNonce.toString() : "..."}
                             className="w-full bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
                           />
                         </div>
@@ -1182,7 +1182,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                           <span className="text-xs text-text-muted">To</span>
                           {isContractCall ? (
                             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 font-medium">
-                              Contract Address
+                              Contract
                             </span>
                           ) : (
                             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-medium">
@@ -1741,7 +1741,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
 // ── Helpers ──────────────────────────────────────────────────────
 
-function formatRequest(request: PendingRequest): Array<{ label: string; value: string }> {
+function formatRequest(request: PendingRequest, expertMode = false): Array<{ label: string; value: string }> {
   switch (request.method) {
     case "personal_sign": {
       const msgHex = request.params[0];
@@ -1777,8 +1777,8 @@ function formatRequest(request: PendingRequest): Array<{ label: string; value: s
         items.push({ label: "Value", value: `${ethStr} ETH` });
       }
       if (tx.data && tx.data !== "0x") {
-        const truncated = tx.data.length > 66 ? tx.data.slice(0, 66) + "..." : tx.data;
-        items.push({ label: "Data", value: truncated });
+        const dataDisplay = expertMode ? tx.data : (tx.data.length > 66 ? tx.data.slice(0, 66) + "..." : tx.data);
+        items.push({ label: "Data", value: dataDisplay });
       }
       if (tx.gas || tx.gasLimit) items.push({ label: "Gas Limit", value: String(parseInt(tx.gas || tx.gasLimit, 16)) });
       return items;
