@@ -549,19 +549,24 @@ export function Wallet() {
 
       {/* Last updated indicator */}
       {lastUpdated && (
-        <div className="flex items-center gap-1.5 px-1">
-          <span className="text-[10px] text-text-muted tabular-nums">
-            Updated {formatLastUpdated(lastUpdated)}
+        <div className="flex flex-col gap-0.5 px-1">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-text-muted tabular-nums">
+              Updated {formatLastUpdated(lastUpdated)}
+            </span>
+            <button
+              onClick={loadData}
+              className="text-text-muted hover:text-text-secondary transition-colors p-0.5 rounded hover:bg-surface-tertiary"
+              title="Refresh"
+            >
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+          </div>
+          <span className="text-[10px] text-text-muted/50 font-mono">
+            {(import.meta.env.VITE_GIT_HASH as string | undefined)?.slice(0, 7) ?? "dev"}
           </span>
-          <button
-            onClick={loadData}
-            className="text-text-muted hover:text-text-secondary transition-colors p-0.5 rounded hover:bg-surface-tertiary"
-            title="Refresh"
-          >
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          </button>
         </div>
       )}
     </div>
