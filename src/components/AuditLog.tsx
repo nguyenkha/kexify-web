@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { authHeaders } from "../lib/auth";
 import { apiUrl } from "../lib/apiBase";
 import { useExpertMode } from "../context/ExpertModeContext";
+import Prism from "prismjs";
+import "prismjs/components/prism-json";
 
 interface AuditEntry {
   id: string;
@@ -374,9 +376,10 @@ function EntryRow({ entry, showAccount, expert }: { entry: AuditEntry; showAccou
           </p>
         )}
         {expanded && expert && entry.meta && Object.keys(entry.meta).length > 0 && (
-          <pre className="text-[10px] text-text-muted font-mono mt-1.5 bg-surface-primary/50 rounded-lg px-2.5 py-2 border border-border-secondary overflow-auto max-h-40 leading-relaxed">
-            {JSON.stringify(entry.meta, null, 2)}
-          </pre>
+          <pre
+            className="text-[10px] font-mono mt-1.5 bg-surface-primary/50 rounded-lg px-2.5 py-2 border border-border-secondary overflow-auto max-h-40 leading-relaxed"
+            dangerouslySetInnerHTML={{ __html: Prism.highlight(JSON.stringify(entry.meta, null, 2), Prism.languages.json, "json") }}
+          />
         )}
       </div>
     </button>
