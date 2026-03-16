@@ -129,6 +129,8 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   const [feeCountdown, setFeeCountdown] = useState(10);
   const [prices, setPrices] = useState<Record<string, number>>({});
   const [gasLimitInput, setGasLimitInput] = useState<string>("");
+  const [maxFeeOverride, setMaxFeeOverride] = useState("");
+  const [priorityFeeOverride, setPriorityFeeOverride] = useState("");
   const [approveAmountInput, setApproveAmountInput] = useState<string>("");
   const [approveToken, setApproveToken] = useState<{ symbol: string; decimals: number } | null>(null);
   const [nativeBalance, setNativeBalance] = useState<string | null>(null); // raw wei as string
@@ -200,8 +202,10 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   const approveData = txParams?.data ? parseApproveData(txParams.data) : null;
   const isApprove = approveData !== null;
 
-  const gasPrice = baseGasPrice != null
-    ? BigInt(Math.round(Number(baseGasPrice) * FEE_MULTIPLIER[feeLevel]))
+  const gasPrice = maxFeeOverride && /^\d+(\.\d+)?$/.test(maxFeeOverride)
+    ? BigInt(Math.round(parseFloat(maxFeeOverride) * 1e9))
+    : baseGasPrice != null
+      ? BigInt(Math.round(Number(baseGasPrice) * FEE_MULTIPLIER[feeLevel]))
     : null;
   const estimatedFeeWei = gasPrice != null ? gasPrice * gasLimit : null;
   const feeEth = estimatedFeeWei != null ? formatEthFee(estimatedFeeWei) : null;
@@ -1003,7 +1007,45 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                             className="w-full bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
                           />
                         </div>
+                        <div>
+                          <label className="block text-xs text-text-muted mb-1">Max fee (Gwei)</label>
+                          <input
+                            value={maxFeeOverride}
+                            onChange={(e) => setMaxFeeOverride(e.target.value)}
+                            placeholder={gasPrice != null ? formatGwei(gasPrice) : "..."}
+                            className="w-full bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-text-muted mb-1">Priority fee (Gwei)</label>
+                          <input
+                            value={priorityFeeOverride}
+                            onChange={(e) => setPriorityFeeOverride(e.target.value)}
+                            placeholder={baseGasPrice != null ? formatGwei(baseGasPrice / 10n) : "..."}
+                            className="w-full bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
+                          />
+                        </div>
                       </div>
+
+                      {/* Expert warnings */}
+                      {(() => {
+                        const warnings: { text: string; level: "red" | "yellow" }[] = [];
+                        if (gasLimitInput && /^\d+$/.test(gasLimitInput) && estimatedGasLimit && BigInt(gasLimitInput) < estimatedGasLimit) {
+                          warnings.push({ text: `Gas limit ${gasLimitInput} is below estimated ${estimatedGasLimit.toString()}. Transaction may fail.`, level: "red" });
+                        }
+                        if (maxFeeOverride && /^\d+(\.\d+)?$/.test(maxFeeOverride) && baseGasPrice != null) {
+                          const lowGwei = Number(baseGasPrice) * FEE_MULTIPLIER.low / 1e9;
+                          if (parseFloat(maxFeeOverride) < lowGwei) {
+                            warnings.push({ text: `Max fee ${maxFeeOverride} Gwei is below network minimum (~${lowGwei.toFixed(2)} Gwei). Transaction may not be confirmed.`, level: "yellow" });
+                          }
+                        }
+                        if (warnings.length === 0) return null;
+                        return warnings.map((w, i) => (
+                          <div key={i} className={`${w.level === "red" ? "bg-red-500/10 border-red-500/20" : "bg-yellow-500/5 border-yellow-500/15"} border rounded-lg px-3 py-2`}>
+                            <p className={`text-xs ${w.level === "red" ? "text-red-400" : "text-yellow-500/80"} leading-relaxed`}>{w.text}</p>
+                          </div>
+                        ));
+                      })()}
                     </div>
                   )}
 
@@ -1226,16 +1268,9 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                     )}
                     <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
                       <span className="text-xs text-text-muted">Estimated fee</span>
-                      <div className="text-right">
-                        <span className="text-xs tabular-nums text-text-secondary font-medium">
-                          {feeEth ?? "—"} ETH
-                        </span>
-                        {feeUsd != null && (
-                          <span className="text-[10px] text-text-muted ml-1.5 tabular-nums">
-                            ({formatUsd(feeUsd)})
-                          </span>
-                        )}
-                      </div>
+                      <span className="text-xs tabular-nums text-text-secondary font-medium">
+                        {feeEth ?? "—"} ETH
+                      </span>
                     </div>
                     {gasPrice != null && (
                       <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">

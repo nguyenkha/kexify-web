@@ -1724,16 +1724,9 @@ message = buildSplTransferMessage({
                 </div>
                 <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
                   <span className="text-xs text-text-muted">Estimated fee</span>
-                  <div className="text-right">
-                    <span className="text-xs tabular-nums text-text-secondary font-medium">
-                      {(feeDisplay.formatted ?? "—") + " " + feeDisplay.symbol}
-                    </span>
-                    {feeDisplay.usd != null && (
-                      <span className="text-[10px] text-text-muted ml-1.5 tabular-nums">
-                        ({formatUsd(feeDisplay.usd)})
-                      </span>
-                    )}
-                  </div>
+                  <span className="text-xs tabular-nums text-text-secondary font-medium">
+                    {(feeDisplay.formatted ?? "—") + " " + feeDisplay.symbol}
+                  </span>
                 </div>
                 {feeDisplay.rateLabel != null && (
                   <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
@@ -1748,6 +1741,44 @@ message = buildSplTransferMessage({
                   </span>
                 </div>
               </div>
+
+              {/* Expert warnings */}
+              {expert && chain.type === "evm" && (() => {
+                const warnings: { text: string; level: "red" | "yellow" }[] = [];
+                // Gas limit warning
+                if (gasLimitOverride && /^\d+$/.test(gasLimitOverride) && estimatedGas && BigInt(gasLimitOverride) < estimatedGas) {
+                  warnings.push({ text: `Gas limit ${gasLimitOverride} is below estimated ${estimatedGas.toString()}. Transaction may fail.`, level: "red" });
+                }
+                // Gas price warning
+                if (maxFeeOverride && /^\d+(\.\d+)?$/.test(maxFeeOverride) && baseGasPrice != null) {
+                  const lowGwei = Number(baseGasPrice) * EVM_FEE_MULTIPLIER.low / 1e9;
+                  if (parseFloat(maxFeeOverride) < lowGwei) {
+                    warnings.push({ text: `Max fee ${maxFeeOverride} Gwei is below network minimum (~${lowGwei.toFixed(2)} Gwei). Transaction may not be confirmed.`, level: "yellow" });
+                  }
+                }
+                if (warnings.length === 0) return null;
+                return (
+                  <div className="space-y-2">
+                    {warnings.map((w, i) => (
+                      <div key={i} className={`${w.level === "red" ? "bg-red-500/10 border-red-500/20" : "bg-yellow-500/5 border-yellow-500/15"} border rounded-lg px-3 py-2`}>
+                        <p className={`text-xs ${w.level === "red" ? "text-red-400" : "text-yellow-500/80"} leading-relaxed`}>{w.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+
+              {/* Expert: transaction data */}
+              {expert && chain.type === "evm" && (
+                <div>
+                  <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-1.5">Transaction Data</p>
+                  <pre className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2 text-[10px] font-mono text-text-muted break-all overflow-auto max-h-20 leading-relaxed">
+                    {!asset.isNative && asset.contractAddress
+                      ? "0x" + bytesToHex(encodeErc20Transfer(to, parseUnits(amount, asset.decimals)) as Uint8Array)
+                      : "0x (native transfer)"}
+                  </pre>
+                </div>
+              )}
 
               {/* Balance changes — simulation or static fallback */}
               {simResult && simResult.changes.length > 0 ? (
