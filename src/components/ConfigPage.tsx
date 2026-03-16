@@ -318,7 +318,7 @@ export function ConfigPage() {
         <div>
           <h2 className="text-lg font-semibold text-text-primary">Config</h2>
           <p className="text-xs text-text-muted mt-1">
-            Customize networks, preferences, and RPC endpoints.
+            Customize networks, preferences, and RPC endpoints. Changes apply instantly.
             {saved && <span className="text-green-400 ml-2">Saved</span>}
           </p>
         </div>
@@ -387,22 +387,68 @@ export function ConfigPage() {
                 {expanded && (
                   <div className="px-3 md:px-5 pb-4 pt-1 space-y-3">
                     <div>
-                      <label className="block text-xs text-text-muted mb-1.5">RPC URL</label>
-                      <input
-                        value={getChainField(chain.name, "rpcUrl")}
-                        onChange={(e) => setChainField(chain.name, "rpcUrl", e.target.value)}
-                        placeholder={chain.rpcUrl || "No default RPC"}
-                        className="w-full bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 text-sm text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
-                      />
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-xs text-text-muted">RPC URL</label>
+                        {getChainField(chain.name, "rpcUrl") && (
+                          <button
+                            onClick={() => setChainField(chain.name, "rpcUrl", "")}
+                            className="text-[10px] text-text-muted hover:text-text-secondary transition-colors"
+                          >
+                            Reset to default
+                          </button>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <input
+                          value={getChainField(chain.name, "rpcUrl")}
+                          onChange={(e) => setChainField(chain.name, "rpcUrl", e.target.value)}
+                          placeholder={chain.rpcUrl || "No default RPC"}
+                          className="w-full bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 pr-8 text-sm text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
+                        />
+                        {getChainField(chain.name, "rpcUrl") && (
+                          <button
+                            onClick={() => setChainField(chain.name, "rpcUrl", "")}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-text-secondary transition-colors"
+                            title="Clear"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div>
-                      <label className="block text-xs text-text-muted mb-1.5">Explorer URL</label>
-                      <input
-                        value={getChainField(chain.name, "explorerUrl")}
-                        onChange={(e) => setChainField(chain.name, "explorerUrl", e.target.value)}
-                        placeholder={chain.explorerUrl}
-                        className="w-full bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 text-sm text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
-                      />
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-xs text-text-muted">Explorer URL</label>
+                        {getChainField(chain.name, "explorerUrl") && (
+                          <button
+                            onClick={() => setChainField(chain.name, "explorerUrl", "")}
+                            className="text-[10px] text-text-muted hover:text-text-secondary transition-colors"
+                          >
+                            Reset to default
+                          </button>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <input
+                          value={getChainField(chain.name, "explorerUrl")}
+                          onChange={(e) => setChainField(chain.name, "explorerUrl", e.target.value)}
+                          placeholder={chain.explorerUrl}
+                          className="w-full bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 pr-8 text-sm text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
+                        />
+                        {getChainField(chain.name, "explorerUrl") && (
+                          <button
+                            onClick={() => setChainField(chain.name, "explorerUrl", "")}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-text-secondary transition-colors"
+                            title="Clear"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
