@@ -216,12 +216,20 @@ export function ConfigPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h2 className="text-lg font-semibold text-text-primary">Config</h2>
-        <p className="text-xs text-text-muted mt-1">
-          Customize networks, preferences, and RPC endpoints.
-          {saved && <span className="text-green-400 ml-2">Saved</span>}
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-text-primary">Config</h2>
+          <p className="text-xs text-text-muted mt-1">
+            Customize networks, preferences, and RPC endpoints.
+            {saved && <span className="text-green-400 ml-2">Saved</span>}
+          </p>
+        </div>
+        <button
+          onClick={openJsonEditor}
+          className="text-xs text-text-muted hover:text-text-secondary px-2.5 py-1.5 rounded-lg hover:bg-surface-tertiary transition-colors shrink-0"
+        >
+          {"{ }"}
+        </button>
       </div>
 
       {/* ── Networks ── */}
@@ -425,16 +433,6 @@ export function ConfigPage() {
             </div>
           )}
         </div>
-      </div>
-
-      {/* ── Edit as JSON ── */}
-      <div className="px-1">
-        <button
-          onClick={openJsonEditor}
-          className="text-xs text-text-muted hover:text-text-secondary transition-colors"
-        >
-          Edit as JSON
-        </button>
       </div>
 
       {/* JSON Editor Modal */}
