@@ -199,6 +199,7 @@ function DashboardLayout() {
               <h1 className="text-3xl font-bold tracking-tight">kexify</h1>
               <p className="text-[11px] text-text-muted mt-0.5">
                 <span className={recovery ? "text-orange-400 recovery-accent" : ""}>keys simplified</span>
+                <span className="text-text-muted/40 font-mono ml-1.5">{(import.meta.env.VITE_GIT_HASH as string | undefined)?.slice(0, 7) ?? "dev"}</span>
               </p>
             </div>
           </div>
@@ -292,20 +293,15 @@ function DashboardLayout() {
               <p className="text-xs text-text-tertiary truncate" title={email}>
                 {email}
               </p>
-              <div className="flex items-center gap-2 mt-1">
-                <button
-                  onClick={() => {
-                    clearToken();
-                    window.location.href = "/login";
-                  }}
-                  className="text-xs text-text-muted hover:text-text-secondary"
-                >
-                  Logout
-                </button>
-                <span className="text-[10px] text-text-muted/50 font-mono">
-                  {(import.meta.env.VITE_GIT_HASH as string | undefined)?.slice(0, 7) ?? "dev"}
-                </span>
-              </div>
+              <button
+                onClick={() => {
+                  clearToken();
+                  window.location.href = "/login";
+                }}
+                className="text-xs text-text-muted hover:text-text-secondary mt-1"
+              >
+                Logout
+              </button>
             </div>
             <HideBalancesToggle />
             <ThemeToggle />
