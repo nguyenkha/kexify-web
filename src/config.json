@@ -7,7 +7,7 @@
             "type": "btc",
             "coinType": 0,
             "evmChainId": null,
-            "rpcUrl": "",
+            "rpcUrl": "https://mempool.space/api",
             "explorerUrl": "https://mempool.space",
             "iconUrl": "https://assets.coingecko.com/coins/images/1/large/bitcoin.png"
         },
@@ -18,7 +18,7 @@
             "type": "btc",
             "coinType": 0,
             "evmChainId": null,
-            "rpcUrl": "",
+            "rpcUrl": "https://mempool.space/testnet/api",
             "explorerUrl": "https://mempool.space/testnet",
             "iconUrl": "https://assets.coingecko.com/coins/images/1/large/bitcoin.png"
         },
