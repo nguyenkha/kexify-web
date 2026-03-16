@@ -1,10 +1,11 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { type KeyFileData, isEncryptedKeyFile, decryptKeyFile } from "../lib/crypto";
+import { type KeyFileData, isEncryptedKeyFile, decryptKeyFile, isHkdfEncrypted, decryptHkdfKeyFile } from "../lib/crypto";
 import { enterRecoveryMode } from "../lib/recovery";
 type PeerState =
   | { step: "idle" }
   | { step: "passphrase"; raw: KeyFileData }
+  | { step: "hkdf-key"; raw: KeyFileData }
   | { step: "ready"; data: KeyFileData };
 
 export function RecoveryImport() {
@@ -29,7 +30,10 @@ export function RecoveryImport() {
           setError("Invalid key share file");
           return;
         }
-        if (isEncryptedKeyFile(data)) {
+        if (isHkdfEncrypted(data)) {
+          setPeer({ step: "hkdf-key", raw: data });
+          setPass("");
+        } else if (isEncryptedKeyFile(data)) {
           setPeer({ step: "passphrase", raw: data });
           setPass("");
         } else {
@@ -53,6 +57,20 @@ export function RecoveryImport() {
       setPeer({ step: "ready", data: decrypted });
     } catch (err: any) {
       setError(err.message || "Decryption failed");
+    }
+  }
+
+  async function handleHkdfDecrypt(
+    raw: KeyFileData,
+    hexKey: string,
+    setPeer: typeof setPeer1,
+  ) {
+    setError("");
+    try {
+      const decrypted = await decryptHkdfKeyFile(raw, hexKey.trim());
+      setPeer({ step: "ready", data: decrypted });
+    } catch (err: any) {
+      setError(err.message || "HKDF decryption failed");
     }
   }
 
@@ -119,6 +137,7 @@ export function RecoveryImport() {
               onFile={(f) => handleFile(f, setPeer1, setPass1)}
               onPassChange={setPass1}
               onDecrypt={(raw) => handleDecrypt(raw, pass1, setPeer1)}
+              onHkdfDecrypt={(raw) => handleHkdfDecrypt(raw, pass1, setPeer1)}
               onClear={() => { setPeer1({ step: "idle" }); setError(""); }}
             />
           </div>
@@ -133,6 +152,7 @@ export function RecoveryImport() {
               onFile={(f) => handleFile(f, setPeer2, setPass2)}
               onPassChange={setPass2}
               onDecrypt={(raw) => handleDecrypt(raw, pass2, setPeer2)}
+              onHkdfDecrypt={(raw) => handleHkdfDecrypt(raw, pass2, setPeer2)}
               onClear={() => { setPeer2({ step: "idle" }); setError(""); }}
             />
           </div>
@@ -172,6 +192,7 @@ function PeerImport({
   onFile,
   onPassChange,
   onDecrypt,
+  onHkdfDecrypt,
   onClear,
 }: {
   state: PeerState;
@@ -180,6 +201,7 @@ function PeerImport({
   onFile: (f: File) => void;
   onPassChange: (v: string) => void;
   onDecrypt: (raw: KeyFileData) => void;
+  onHkdfDecrypt: (raw: KeyFileData) => void;
   onClear: () => void;
 }) {
   if (state.step === "idle") {
@@ -223,6 +245,40 @@ function PeerImport({
         <div className="flex gap-2">
           <button
             onClick={() => onDecrypt(state.raw)}
+            disabled={!passphrase}
+            className="flex-1 recovery-accent bg-yellow-600 hover:bg-yellow-500 disabled:bg-surface-tertiary disabled:text-text-muted disabled:cursor-not-allowed px-4 py-2.5 rounded-lg text-sm font-medium text-white transition-colors"
+          >
+            Decrypt
+          </button>
+          <button
+            onClick={onClear}
+            className="bg-surface-tertiary text-text-secondary hover:bg-border-primary px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (state.step === "hkdf-key") {
+    return (
+      <div className="bg-surface-secondary border border-border-primary rounded-lg p-3 space-y-2">
+        <p className="text-xs text-text-tertiary">
+          Server-encrypted backup. Enter the HKDF decryption key (hex) from kexify support:
+        </p>
+        <input
+          type="text"
+          value={passphrase}
+          onChange={(e) => onPassChange(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && passphrase && onHkdfDecrypt(state.raw)}
+          placeholder="64-character hex key"
+          className="w-full bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 text-sm text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-text-tertiary transition-colors"
+          autoFocus
+        />
+        <div className="flex gap-2">
+          <button
+            onClick={() => onHkdfDecrypt(state.raw)}
             disabled={!passphrase}
             className="flex-1 recovery-accent bg-yellow-600 hover:bg-yellow-500 disabled:bg-surface-tertiary disabled:text-text-muted disabled:cursor-not-allowed px-4 py-2.5 rounded-lg text-sm font-medium text-white transition-colors"
           >

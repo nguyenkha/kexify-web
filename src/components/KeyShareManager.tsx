@@ -274,8 +274,8 @@ export function KeyShareManager() {
         setHkdfDownloading(false);
         return;
       }
-      const { encryptedShare, encryptedEddsaShare } = await res.json();
-      const payload = JSON.stringify({ id: keyId, peer: 2, encryptedShare, encryptedEddsaShare, encryption: "server-hkdf" }, null, 2);
+      const { encryptedShare, encryptedEddsaShare, publicKey, eddsaPublicKey } = await res.json();
+      const payload = JSON.stringify({ id: keyId, peer: 2, share: encryptedShare, eddsaShare: encryptedEddsaShare || "", publicKey: publicKey || "", eddsaPublicKey: eddsaPublicKey || "", encryption: "server-hkdf" }, null, 2);
       const blob = new Blob([payload], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");

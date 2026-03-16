@@ -13,8 +13,12 @@ export function RecoveryGuide() {
 You need two .json files:
 - **Your key file** — downloaded during account creation or from Backup & Recovery
 - **Server key file** — downloaded from Backup & Recovery > Server Key Share
-  - If you used "Safe backup": contact kexify support to get the decryption key first
-  - If you used "Self-custody": use the passphrase you chose during export
+
+There are two types of server key files:
+- **Safe backup** (filename: kexify-server-hkdf-*.json) — encrypted by the server.
+  Contact kexify support to get the decryption key (a 64-character hex string).
+- **Self-custody** (filename: kexify-server-*.json) — encrypted with your passphrase.
+  You can decrypt it yourself.
 
 ### Step 2: Open the recovery page
 Go to: ${RECOVERY_URL}
@@ -25,7 +29,9 @@ ${REPO_URL}
 
 ### Step 3: Load your key files
 1. Upload "Your key file" (enter passphrase if encrypted)
-2. Upload "Server key file" (enter passphrase if encrypted)
+2. Upload "Server key file":
+   - For safe backup files: enter the HKDF decryption key (hex) from support
+   - For self-custody files: enter the passphrase you chose during export
 3. Click "Enter Recovery Mode"
 
 ### Step 4: Move your funds
@@ -37,34 +43,34 @@ You can also use WalletConnect to interact with any dApp.
 If the web app is unavailable, you can recover using the command-line tool:
 
 1. Clone the source code: ${REPO_URL}
-2. Follow the CLI recovery instructions in the README
-3. The CLI can export your private key for use in any wallet
+2. Run: bun frontend/cli.ts recover <your-key.json> <server-key.json>
+3. The CLI supports both passphrase-encrypted and HKDF-encrypted files
+4. For HKDF files, you will be prompted for the hex decryption key
+5. The CLI can also export your private key for use in any wallet
+
+## About Server-Encrypted Backup Files (Safe Backup)
+
+If you downloaded the server key using the "Safe backup" option, the file is encrypted
+by the server using a key derived from your account (HKDF). You cannot decrypt it alone.
+
+**In case of emergency** (e.g., the service is shutting down or you need to recover
+without server access), contact kexify support or our designated escrow service to
+obtain the 64-character hex decryption key for your backup file.
+
+Both the recovery page and the CLI tool accept this hex key to decrypt the file.
 
 ## Important Links
 
 - Recovery page: ${RECOVERY_URL}
 - Source code: ${REPO_URL}
 
-## About Server-Encrypted Backup Files
-
-If you downloaded the server key using the "Safe backup" option, the file is encrypted
-by the server using a key derived from your account. You cannot decrypt it on your own.
-
-**In case of emergency** (e.g., the service is shutting down or you need to recover
-without server access), contact kexify support or our designated escrow service to
-obtain the decryption key for your backup file.
-
-Once you have the decryption key, you can use it together with your client key file
-in the recovery page to regain access to your funds.
-
 ## Tips
 
 - Store your key files in separate secure locations (USB drive, password manager, etc.)
-- Never share your key files with anyone
+- Never share your key files or decryption keys with anyone
 - The two key files are useless individually — both are needed together
 - Test recovery periodically to make sure your files are intact
-- The "Safe backup" server key file requires contacting kexify support to decrypt
-- The "Self-custody" server key file is encrypted with your passphrase — no support needed
+- Safe backup files need a hex key from support; self-custody files use your passphrase
 
 ---
 Generated on ${new Date().toLocaleDateString()} by kexify

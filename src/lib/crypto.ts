@@ -16,6 +16,37 @@ export interface KeyFileData {
   eddsaPublicKey: string;
   encrypted?: boolean;
   salt?: string;
+  encryption?: "server-hkdf"; // present when encrypted by server HKDF
+}
+
+/** Check if a key file is HKDF-encrypted (server backup format) */
+export function isHkdfEncrypted(data: KeyFileData): boolean {
+  return data.encryption === "server-hkdf";
+}
+
+/** Decrypt HKDF-encrypted fields using a hex key from support */
+export async function decryptHkdfKeyFile(data: KeyFileData, hexKey: string): Promise<KeyFileData> {
+  const keyBytes = new Uint8Array(hexKey.match(/.{2}/g)!.map((b) => parseInt(b, 16)));
+  const cryptoKey = await crypto.subtle.importKey("raw", keyBytes, "AES-GCM", false, ["decrypt"]);
+
+  async function dec(encB64: string): Promise<string> {
+    const combined = fromBase64(encB64);
+    const iv = combined.slice(0, 12);
+    const ciphertext = combined.slice(12);
+    const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, cryptoKey, ciphertext);
+    return new TextDecoder().decode(plain);
+  }
+
+  try {
+    const share = await dec(data.share);
+    const eddsaShare = data.eddsaShare ? await dec(data.eddsaShare) : "";
+    return { ...data, share, eddsaShare, encrypted: false, encryption: undefined };
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "OperationError") {
+      throw new Error("Invalid decryption key");
+    }
+    throw err;
+  }
 }
 
 async function deriveKey(passphrase: string, salt: Uint8Array): Promise<CryptoKey> {

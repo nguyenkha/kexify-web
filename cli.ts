@@ -73,6 +73,7 @@ interface KeyFileData {
   eddsaPublicKey: string;
   encrypted?: boolean;
   salt?: string;
+  encryption?: "server-hkdf";
 }
 
 // ── Utility Functions ────────────────────────────────────────────
@@ -244,6 +245,28 @@ async function decryptKeyFile(data: KeyFileData, passphrase: string): Promise<Ke
     };
   } catch (err: any) {
     if (err?.name === "OperationError") throw new Error("Incorrect passphrase");
+    throw err;
+  }
+}
+
+async function decryptHkdfKeyFile(data: KeyFileData, hexKey: string): Promise<KeyFileData> {
+  const keyBytes = hexToBytes(hexKey);
+  const cryptoKey = await crypto.subtle.importKey("raw", keyBytes, "AES-GCM", false, ["decrypt"]);
+  async function dec(encB64: string): Promise<string> {
+    const combined = fromBase64(encB64);
+    const iv = new Uint8Array(combined.buffer, combined.byteOffset, 12);
+    const ciphertext = new Uint8Array(combined.buffer, combined.byteOffset + 12);
+    const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: iv as Uint8Array<ArrayBuffer> }, cryptoKey, ciphertext as Uint8Array<ArrayBuffer>);
+    return new TextDecoder().decode(plain);
+  }
+  try {
+    return {
+      id: data.id, peer: data.peer, publicKey: data.publicKey, eddsaPublicKey: data.eddsaPublicKey,
+      share: await dec(data.share),
+      eddsaShare: data.eddsaShare ? await dec(data.eddsaShare) : "",
+    };
+  } catch (err: any) {
+    if (err?.name === "OperationError") throw new Error("Invalid HKDF decryption key");
     throw err;
   }
 }
@@ -570,8 +593,25 @@ async function loadAndDecryptShares(filePath1: string, filePath2: string): Promi
     } catch { throw new Error(`Cannot read share file: ${p}`); }
   }
 
-  const needsDecrypt = raws.filter((r) => r.raw.encrypted);
-  const unencrypted = raws.filter((r) => !r.raw.encrypted);
+  const needsHkdf = raws.filter((r) => r.raw.encryption === "server-hkdf");
+  const needsDecrypt = raws.filter((r) => r.raw.encrypted && r.raw.encryption !== "server-hkdf");
+  const unencrypted = raws.filter((r) => !r.raw.encrypted && r.raw.encryption !== "server-hkdf");
+
+  // Decrypt HKDF files first
+  const decrypted: KeyFileData[] = [...unencrypted.map((r) => r.raw)];
+
+  for (const { raw, path } of needsHkdf) {
+    const hexKey = await askPassword(`HKDF key (hex) for ${path}: `);
+    process.stdout.write(`Decrypting ${path} (HKDF)... `);
+    try {
+      const result = await decryptHkdfKeyFile(raw, hexKey.trim());
+      console.log("✓");
+      decrypted.push(result);
+    } catch {
+      console.log("✗");
+      throw new Error(`HKDF decryption failed for ${path} — invalid key`);
+    }
+  }
 
   // Collect passphrases — ask up to 2
   const passphrases: string[] = [];
@@ -583,7 +623,6 @@ async function loadAndDecryptShares(filePath1: string, filePath2: string): Promi
   }
 
   // Decrypt each encrypted file by trying all passphrases
-  const decrypted: KeyFileData[] = [...unencrypted.map((r) => r.raw)];
   for (const { raw, path } of needsDecrypt) {
     process.stdout.write(`Decrypting ${path}... `);
     let result: KeyFileData | null = null;
