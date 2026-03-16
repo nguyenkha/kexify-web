@@ -1,0 +1,472 @@
+{
+    "chains": [
+        {
+            "id": "73b1fecb-da70-4f64-9a58-60ee5d26e8ac",
+            "name": "BITCOIN",
+            "displayName": "Bitcoin",
+            "type": "btc",
+            "coinType": 0,
+            "evmChainId": null,
+            "rpcUrl": "",
+            "explorerUrl": "https://mempool.space",
+            "iconUrl": "https://assets.coingecko.com/coins/images/1/large/bitcoin.png"
+        },
+        {
+            "id": "146c1f66-5c65-4b2e-b9f7-c30450283d3f",
+            "name": "BITCOIN_TESTNET",
+            "displayName": "Bitcoin (Testnet)",
+            "type": "btc",
+            "coinType": 0,
+            "evmChainId": null,
+            "rpcUrl": "",
+            "explorerUrl": "https://mempool.space/testnet",
+            "iconUrl": "https://assets.coingecko.com/coins/images/1/large/bitcoin.png"
+        },
+        {
+            "id": "8dea007b-7016-41a3-9a47-48879d5264a8",
+            "name": "BASE",
+            "displayName": "Base",
+            "type": "evm",
+            "coinType": 60,
+            "evmChainId": 8453,
+            "rpcUrl": "https://base-rpc.publicnode.com",
+            "explorerUrl": "https://basescan.org",
+            "iconUrl": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/base/info/logo.png"
+        },
+        {
+            "id": "676e1c60-1fc2-4ae4-aed1-45162770cdca",
+            "name": "BASE_SEPOLIA",
+            "displayName": "Base Sepolia (Testnet)",
+            "type": "evm",
+            "coinType": 60,
+            "evmChainId": 84532,
+            "rpcUrl": "https://base-sepolia-rpc.publicnode.com",
+            "explorerUrl": "https://sepolia.basescan.org",
+            "iconUrl": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/base/info/logo.png"
+        },
+        {
+            "id": "6621212c-19a5-4b5f-86bb-679658dfbd88",
+            "name": "ETHEREUM",
+            "displayName": "Ethereum",
+            "type": "evm",
+            "coinType": 60,
+            "evmChainId": 1,
+            "rpcUrl": "https://ethereum-rpc.publicnode.com",
+            "explorerUrl": "https://etherscan.io",
+            "iconUrl": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"
+        },
+        {
+            "id": "f0ba2e9e-f894-4d91-9787-401fb770980f",
+            "name": "ETHEREUM_SEPOLIA",
+            "displayName": "Sepolia (Testnet)",
+            "type": "evm",
+            "coinType": 60,
+            "evmChainId": 11155111,
+            "rpcUrl": "https://sepolia.drpc.org",
+            "explorerUrl": "https://sepolia.etherscan.io",
+            "iconUrl": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"
+        },
+        {
+            "id": "bf7c4424-bafb-4730-a83a-6fd14971edb5",
+            "name": "RIPPLE",
+            "displayName": "XRP Ledger",
+            "type": "xrp",
+            "coinType": 144,
+            "evmChainId": null,
+            "rpcUrl": "https://xrplcluster.com",
+            "explorerUrl": "https://xrpscan.com",
+            "iconUrl": "https://assets.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png"
+        },
+        {
+            "id": "8936a537-0318-48a2-ae4c-79eae56038ce",
+            "name": "RIPPLE_TESTNET",
+            "displayName": "XRP Ledger (Testnet)",
+            "type": "xrp",
+            "coinType": 144,
+            "evmChainId": null,
+            "rpcUrl": "https://testnet.xrpl-labs.com",
+            "explorerUrl": "https://testnet.xrpl.org",
+            "iconUrl": "https://assets.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png"
+        },
+        {
+            "id": "48e05741-5c55-4a9a-9be5-4c1d280444ce",
+            "name": "BITCOIN_CASH",
+            "displayName": "Bitcoin Cash",
+            "type": "bch",
+            "coinType": 145,
+            "evmChainId": null,
+            "rpcUrl": "https://api.blockchair.com/bitcoin-cash",
+            "explorerUrl": "https://blockchair.com/bitcoin-cash",
+            "iconUrl": "https://assets.coingecko.com/coins/images/780/large/bitcoin-cash-circle.png"
+        },
+        {
+            "id": "69df2df5-2427-4c30-a961-c51bec94eea7",
+            "name": "BITCOIN_CASH_TESTNET",
+            "displayName": "Bitcoin Cash (Testnet)",
+            "type": "bch",
+            "coinType": 145,
+            "evmChainId": null,
+            "rpcUrl": "https://api.blockchair.com/bitcoin-cash/testnet",
+            "explorerUrl": "https://blockchair.com/bitcoin-cash/testnet",
+            "iconUrl": "https://assets.coingecko.com/coins/images/780/large/bitcoin-cash-circle.png"
+        },
+        {
+            "id": "5cf271e2-4020-4c3a-82fb-f1c27490c00f",
+            "name": "STELLAR",
+            "displayName": "Stellar",
+            "type": "xlm",
+            "coinType": 148,
+            "evmChainId": null,
+            "rpcUrl": "https://horizon.stellar.org",
+            "explorerUrl": "https://stellar.expert/explorer/public",
+            "iconUrl": "https://assets.coingecko.com/coins/images/100/large/Stellar_symbol_black_RGB.png"
+        },
+        {
+            "id": "f11f6e9c-6f6a-46cd-a228-852585c4f04e",
+            "name": "STELLAR_TESTNET",
+            "displayName": "Stellar (Testnet)",
+            "type": "xlm",
+            "coinType": 148,
+            "evmChainId": null,
+            "rpcUrl": "https://horizon-testnet.stellar.org",
+            "explorerUrl": "https://stellar.expert/explorer/testnet",
+            "iconUrl": "https://assets.coingecko.com/coins/images/100/large/Stellar_symbol_black_RGB.png"
+        },
+        {
+            "id": "3eb09875-c1b3-4075-a9fe-60066212d8f9",
+            "name": "SOLANA",
+            "displayName": "Solana",
+            "type": "solana",
+            "coinType": 501,
+            "evmChainId": null,
+            "rpcUrl": "https://solana-rpc.publicnode.com",
+            "explorerUrl": "https://explorer.solana.com",
+            "iconUrl": "https://assets.coingecko.com/coins/images/4128/large/solana.png"
+        },
+        {
+            "id": "ec3a48b4-b82f-4ad9-8073-0257fe9361b2",
+            "name": "SOLANA_DEVNET",
+            "displayName": "Solana (Devnet)",
+            "type": "solana",
+            "coinType": 501,
+            "evmChainId": null,
+            "rpcUrl": "https://api.devnet.solana.com",
+            "explorerUrl": "https://explorer.solana.com?cluster=devnet",
+            "iconUrl": "https://assets.coingecko.com/coins/images/4128/large/solana.png"
+        },
+        {
+            "id": "42630bdb-ff90-444f-aa10-655cea7308ec",
+            "name": "SOLANA_TESTNET",
+            "displayName": "Solana (Testnet)",
+            "type": "solana",
+            "coinType": 501,
+            "evmChainId": null,
+            "rpcUrl": "https://api.testnet.solana.com",
+            "explorerUrl": "https://explorer.solana.com?cluster=testnet",
+            "iconUrl": "https://assets.coingecko.com/coins/images/4128/large/solana.png"
+        }
+    ],
+    "assets": [
+        {
+            "id": "1816d399-f51d-4085-a2ed-fa7d22958dd4",
+            "symbol": "BTC",
+            "name": "Bitcoin (Testnet)",
+            "decimals": 8,
+            "contractAddress": null,
+            "isNative": true,
+            "iconUrl": "https://assets.coingecko.com/coins/images/1/large/bitcoin.png",
+            "chainId": "146c1f66-5c65-4b2e-b9f7-c30450283d3f"
+        },
+        {
+            "id": "d4ed8714-e72f-4123-888c-e7295cfab2a4",
+            "symbol": "SOL",
+            "name": "Solana",
+            "decimals": 9,
+            "contractAddress": null,
+            "isNative": true,
+            "iconUrl": "https://assets.coingecko.com/coins/images/4128/large/solana.png",
+            "chainId": "3eb09875-c1b3-4075-a9fe-60066212d8f9"
+        },
+        {
+            "id": "e26ee37b-e38c-4bb7-9c55-9d2e119ed5db",
+            "symbol": "USDC",
+            "name": "USD Coin",
+            "decimals": 6,
+            "contractAddress": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            "isNative": false,
+            "iconUrl": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+            "chainId": "3eb09875-c1b3-4075-a9fe-60066212d8f9"
+        },
+        {
+            "id": "263561e8-8da6-4859-8775-967e6d30eba8",
+            "symbol": "SOL",
+            "name": "Solana (Testnet)",
+            "decimals": 9,
+            "contractAddress": null,
+            "isNative": true,
+            "iconUrl": "https://assets.coingecko.com/coins/images/4128/large/solana.png",
+            "chainId": "42630bdb-ff90-444f-aa10-655cea7308ec"
+        },
+        {
+            "id": "0fdc9e4c-bb03-4498-a398-eff31eab087b",
+            "symbol": "BCH",
+            "name": "Bitcoin Cash",
+            "decimals": 8,
+            "contractAddress": null,
+            "isNative": true,
+            "iconUrl": "https://assets.coingecko.com/coins/images/780/large/bitcoin-cash-circle.png",
+            "chainId": "48e05741-5c55-4a9a-9be5-4c1d280444ce"
+        },
+        {
+            "id": "62677336-e117-4fc9-8dad-c4c9f4a0a614",
+            "symbol": "XLM",
+            "name": "Stellar Lumens",
+            "decimals": 7,
+            "contractAddress": null,
+            "isNative": true,
+            "iconUrl": "https://assets.coingecko.com/coins/images/100/large/Stellar_symbol_black_RGB.png",
+            "chainId": "5cf271e2-4020-4c3a-82fb-f1c27490c00f"
+        },
+        {
+            "id": "1d957f29-c4fb-45d9-b278-f027b9c1640e",
+            "symbol": "USDC",
+            "name": "USD Coin",
+            "decimals": 7,
+            "contractAddress": "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN",
+            "isNative": false,
+            "iconUrl": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+            "chainId": "5cf271e2-4020-4c3a-82fb-f1c27490c00f"
+        },
+        {
+            "id": "20b2c193-84d5-4b5c-8975-a8952352cc05",
+            "symbol": "ETH",
+            "name": "Ether",
+            "decimals": 18,
+            "contractAddress": null,
+            "isNative": true,
+            "iconUrl": "https://assets.coingecko.com/coins/images/279/large/ethereum.png",
+            "chainId": "6621212c-19a5-4b5f-86bb-679658dfbd88"
+        },
+        {
+            "id": "414ce914-0531-4256-bc13-b742c4b529ee",
+            "symbol": "aEthUSDT",
+            "name": "Aave Ethereum USDT",
+            "decimals": 6,
+            "contractAddress": "0x23878914EFE38d27C4D67Ab83ed1b93A74D4086a",
+            "isNative": false,
+            "iconUrl": "https://static.cx.metamask.io/api/v1/tokenIcons/1/0x23878914efe38d27c4d67ab83ed1b93a74d4086a.png",
+            "chainId": "6621212c-19a5-4b5f-86bb-679658dfbd88"
+        },
+        {
+            "id": "22c6395c-2d6c-46d2-b34a-c697801bf812",
+            "symbol": "DAI",
+            "name": "Dai Stablecoin",
+            "decimals": 18,
+            "contractAddress": "0x6B175474E89094C44Da98b954EedeAC495271d0F",
+            "isNative": false,
+            "iconUrl": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x6B175474E89094C44Da98b954EedeAC495271d0F/logo.png",
+            "chainId": "6621212c-19a5-4b5f-86bb-679658dfbd88"
+        },
+        {
+            "id": "35a4bead-3950-439a-9035-89e3fdb5bb1d",
+            "symbol": "USDC",
+            "name": "USD Coin",
+            "decimals": 6,
+            "contractAddress": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+            "isNative": false,
+            "iconUrl": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+            "chainId": "6621212c-19a5-4b5f-86bb-679658dfbd88"
+        },
+        {
+            "id": "0115c102-33f9-4820-aaf0-4b705720746e",
+            "symbol": "USDT",
+            "name": "Tether USD",
+            "decimals": 6,
+            "contractAddress": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+            "isNative": false,
+            "iconUrl": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png",
+            "chainId": "6621212c-19a5-4b5f-86bb-679658dfbd88"
+        },
+        {
+            "id": "839f431f-3720-4402-be56-3e53f3a4ed72",
+            "symbol": "WBTC",
+            "name": "Wrapped BTC",
+            "decimals": 8,
+            "contractAddress": "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
+            "isNative": false,
+            "iconUrl": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599/logo.png",
+            "chainId": "6621212c-19a5-4b5f-86bb-679658dfbd88"
+        },
+        {
+            "id": "2ff30182-e386-48a8-a9ab-426fe67242b6",
+            "symbol": "WETH",
+            "name": "Wrapped Ether",
+            "decimals": 18,
+            "contractAddress": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+            "isNative": false,
+            "iconUrl": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+            "chainId": "6621212c-19a5-4b5f-86bb-679658dfbd88"
+        },
+        {
+            "id": "9ee3963f-79ff-4c51-9553-ab253a167325",
+            "symbol": "ETH",
+            "name": "Ether (Base Sepolia)",
+            "decimals": 18,
+            "contractAddress": null,
+            "isNative": true,
+            "iconUrl": "https://assets.coingecko.com/coins/images/279/large/ethereum.png",
+            "chainId": "676e1c60-1fc2-4ae4-aed1-45162770cdca"
+        },
+        {
+            "id": "0042422d-e643-4f10-9d19-6cc5b34f449e",
+            "symbol": "BCH",
+            "name": "Bitcoin Cash (Testnet)",
+            "decimals": 8,
+            "contractAddress": null,
+            "isNative": true,
+            "iconUrl": "https://assets.coingecko.com/coins/images/780/large/bitcoin-cash-circle.png",
+            "chainId": "69df2df5-2427-4c30-a961-c51bec94eea7"
+        },
+        {
+            "id": "2cf6b1a1-3d5a-4d19-b7e5-14e39d8c6e1c",
+            "symbol": "BTC",
+            "name": "Bitcoin",
+            "decimals": 8,
+            "contractAddress": null,
+            "isNative": true,
+            "iconUrl": "https://assets.coingecko.com/coins/images/1/large/bitcoin.png",
+            "chainId": "73b1fecb-da70-4f64-9a58-60ee5d26e8ac"
+        },
+        {
+            "id": "8ac86614-c9b5-4dfc-9379-18007fc2f883",
+            "symbol": "XRP",
+            "name": "XRP (Testnet)",
+            "decimals": 6,
+            "contractAddress": null,
+            "isNative": true,
+            "iconUrl": "https://assets.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png",
+            "chainId": "8936a537-0318-48a2-ae4c-79eae56038ce"
+        },
+        {
+            "id": "4adfb759-444a-478d-a336-04ba2ba1b781",
+            "symbol": "ETH",
+            "name": "Ether (Base)",
+            "decimals": 18,
+            "contractAddress": null,
+            "isNative": true,
+            "iconUrl": "https://assets.coingecko.com/coins/images/279/large/ethereum.png",
+            "chainId": "8dea007b-7016-41a3-9a47-48879d5264a8"
+        },
+        {
+            "id": "fa612252-a953-4051-9f1d-ab95ab7d9b86",
+            "symbol": "aBasUSDC",
+            "name": "Aave Base USDC",
+            "decimals": 6,
+            "contractAddress": "0x4e65fE4DbA92790696d040ac24Aa414708F5c0AB",
+            "isNative": false,
+            "iconUrl": null,
+            "chainId": "8dea007b-7016-41a3-9a47-48879d5264a8"
+        },
+        {
+            "id": "f481829a-88f8-42d6-bc6a-4d3bdd5503ca",
+            "symbol": "DAI",
+            "name": "Dai (Base)",
+            "decimals": 18,
+            "contractAddress": "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb",
+            "isNative": false,
+            "iconUrl": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x6B175474E89094C44Da98b954EedeAC495271d0F/logo.png",
+            "chainId": "8dea007b-7016-41a3-9a47-48879d5264a8"
+        },
+        {
+            "id": "f77cae14-9c67-46bf-9c5e-b6878915d363",
+            "symbol": "USDC",
+            "name": "USD Coin (Base)",
+            "decimals": 6,
+            "contractAddress": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+            "isNative": false,
+            "iconUrl": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+            "chainId": "8dea007b-7016-41a3-9a47-48879d5264a8"
+        },
+        {
+            "id": "dd95ded3-b075-4070-8b5d-e58ba922de39",
+            "symbol": "XRP",
+            "name": "XRP",
+            "decimals": 6,
+            "contractAddress": null,
+            "isNative": true,
+            "iconUrl": "https://assets.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png",
+            "chainId": "bf7c4424-bafb-4730-a83a-6fd14971edb5"
+        },
+        {
+            "id": "bc6db455-0799-48f0-9b8a-507fa17c2f87",
+            "symbol": "SOL",
+            "name": "Solana (Devnet)",
+            "decimals": 9,
+            "contractAddress": null,
+            "isNative": true,
+            "iconUrl": "https://assets.coingecko.com/coins/images/4128/large/solana.png",
+            "chainId": "ec3a48b4-b82f-4ad9-8073-0257fe9361b2"
+        },
+        {
+            "id": "881be0a3-0c10-4544-8529-f3ce2696716b",
+            "symbol": "USDC",
+            "name": "USD Coin (Devnet)",
+            "decimals": 6,
+            "contractAddress": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+            "isNative": false,
+            "iconUrl": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+            "chainId": "ec3a48b4-b82f-4ad9-8073-0257fe9361b2"
+        },
+        {
+            "id": "500a3978-9b30-434f-9c16-9ffb62b37fb7",
+            "symbol": "ETH",
+            "name": "Sepolia Ether",
+            "decimals": 18,
+            "contractAddress": null,
+            "isNative": true,
+            "iconUrl": "https://assets.coingecko.com/coins/images/279/large/ethereum.png",
+            "chainId": "f0ba2e9e-f894-4d91-9787-401fb770980f"
+        },
+        {
+            "id": "79726a4e-0aad-432e-bffa-bc934ffd5608",
+            "symbol": "USDC",
+            "name": "USD Coin (Sepolia)",
+            "decimals": 6,
+            "contractAddress": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+            "isNative": false,
+            "iconUrl": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+            "chainId": "f0ba2e9e-f894-4d91-9787-401fb770980f"
+        },
+        {
+            "id": "34f761c8-c718-4b6c-a69a-8a04ee93373c",
+            "symbol": "XLM",
+            "name": "Stellar Lumens (Testnet)",
+            "decimals": 7,
+            "contractAddress": null,
+            "isNative": true,
+            "iconUrl": "https://assets.coingecko.com/coins/images/100/large/Stellar_symbol_black_RGB.png",
+            "chainId": "f11f6e9c-6f6a-46cd-a228-852585c4f04e"
+        },
+        {
+            "id": "94ab7de2-6870-4de1-aedd-7d0089b38153",
+            "symbol": "USDC",
+            "name": "USD Coin (Testnet)",
+            "decimals": 7,
+            "contractAddress": "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+            "isNative": false,
+            "iconUrl": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+            "chainId": "f11f6e9c-6f6a-46cd-a228-852585c4f04e"
+        }
+    ],
+    "preferences": {
+        "default_chains": [
+            "ETHEREUM",
+            "BASE",
+            "BITCOIN",
+            "BITCOIN_CASH",
+            "SOLANA",
+            "RIPPLE"
+        ],
+        "refresh_interval": 60
+    }
+}
