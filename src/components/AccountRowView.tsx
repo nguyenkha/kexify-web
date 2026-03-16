@@ -211,7 +211,7 @@ export function AccountRowView({
     <div>
       {/* Main row */}
       <div
-        className="flex items-center h-[68px] px-3 md:px-5 hover:bg-surface-tertiary/40 transition-colors group cursor-pointer"
+        className="relative flex items-center h-[68px] px-3 md:px-5 hover:bg-surface-tertiary/40 transition-colors group cursor-pointer"
         onClick={handleNativeClick}
       >
         {/* Left: icon + label + address */}
@@ -266,25 +266,23 @@ export function AccountRowView({
           </div>
         </div>
 
-        {/* Center: token count badge */}
-        <div className="w-8 flex items-center justify-center shrink-0">
-          {tokenBalances.length > 0 && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setTokensExpanded((v) => !v);
-              }}
-              className={`w-7 h-7 flex items-center justify-center text-[10px] font-medium rounded-full transition-colors ${
-                tokensExpanded
-                  ? "bg-blue-500/10 text-blue-400"
-                  : "bg-surface-tertiary text-text-muted hover:text-text-tertiary"
-              }`}
-              title={tokensExpanded ? "Collapse tokens" : "Expand tokens"}
-            >
-              {tokenBalances.length}
-            </button>
-          )}
-        </div>
+        {/* Center: token count badge — absolute center of row */}
+        {tokenBalances.length > 0 && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setTokensExpanded((v) => !v);
+            }}
+            className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-[10px] font-medium rounded-full transition-colors z-10 ${
+              tokensExpanded
+                ? "bg-blue-500/10 text-blue-400"
+                : "bg-surface-tertiary text-text-muted hover:text-text-tertiary"
+            }`}
+            title={tokensExpanded ? "Collapse tokens" : "Expand tokens"}
+          >
+            {tokenBalances.length}
+          </button>
+        )}
 
         {/* Right: balance + chevron */}
         <div className="flex items-center gap-3 shrink-0">
