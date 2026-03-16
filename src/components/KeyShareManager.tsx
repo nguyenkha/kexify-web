@@ -40,6 +40,10 @@ export function KeyShareManager() {
   // Badge explanation
   const [badgeExplain, setBadgeExplain] = useState<string | null>(null);
 
+  // Download choice dialog
+  const [downloadChoiceId, setDownloadChoiceId] = useState<string | null>(null);
+  const [hkdfDownloading, setHkdfDownloading] = useState(false);
+
   // Restore from escrow state
   const [restoreId, setRestoreId] = useState<string | null>(null);
   const [restoreStep, setRestoreStep] = useState<"idle" | "loading" | "decrypt" | "encrypt" | "saving">("idle");
@@ -48,6 +52,7 @@ export function KeyShareManager() {
   useEffect(() => {
     function handleEscape(e: KeyboardEvent) {
       if (e.key !== "Escape") return;
+      if (downloadChoiceId) { setDownloadChoiceId(null); return; }
       if (confirmDeleteId) { setConfirmDeleteId(null); return; }
       if (serverExportStep === "passphrase") { setServerExportStep("idle"); setServerExportId(null); delete (window as any).__serverExportData; return; }
       if (importStep === "decrypt" || importStep === "encrypt") { setImportStep("idle"); setImportData(null); setImportPassphrase(null); return; }
@@ -254,6 +259,53 @@ export function KeyShareManager() {
       setError(String(err));
       setRestoreStep("encrypt");
     }
+  }
+
+  async function handleHkdfDownload(keyId: string) {
+    setHkdfDownloading(true);
+    setServerExportError("");
+    try {
+      await authenticatePasskey({});
+      const headers = sensitiveHeaders();
+      const res = await fetch(apiUrl(`/api/keys/${keyId}/backup/server-share-hkdf`), { headers });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setServerExportError(data.error || "Download failed");
+        setHkdfDownloading(false);
+        return;
+      }
+      const { encryptedShare, encryptedEddsaShare } = await res.json();
+      const payload = JSON.stringify({ id: keyId, peer: 2, encryptedShare, encryptedEddsaShare, encryption: "server-hkdf" }, null, 2);
+      const blob = new Blob([payload], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const serverName = serverKeys.find((k) => k.id === keyId)?.name;
+      const safeName = serverName ? serverName.toLowerCase().replace(/[^a-z0-9]+/g, "-") : keyId.slice(0, 8);
+      a.download = `kexify-server-hkdf-${safeName}-${keyId.slice(0, 8)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      // Refresh server keys to pick up hkdfDownloadedAt
+      fetch(apiUrl("/api/keys"), { headers: authHeaders() })
+        .then((r) => r.json())
+        .then((d) => {
+          const keys = (d.keys || []) as Array<Record<string, unknown>>;
+          setServerKeys(keys.map((k) => ({
+            id: k.id as string,
+            name: k.name as string | null,
+            selfCustodyAt: k.selfCustodyAt as string | null,
+            hkdfDownloadedAt: k.hkdfDownloadedAt as string | null,
+            hasClientBackup: !!k.hasClientBackup,
+          })));
+        })
+        .catch(() => {});
+
+      setDownloadChoiceId(null);
+    } catch (err) {
+      setServerExportError(String(err));
+    }
+    setHkdfDownloading(false);
   }
 
   async function handleServerExport(keyId: string) {
@@ -512,6 +564,14 @@ export function KeyShareManager() {
                           Self-custody
                         </button>
                       )}
+                      {k.hkdfDownloadedAt && !k.selfCustodyAt && (
+                        <button
+                          onClick={() => setBadgeExplain(badgeExplain === `hkdf-${k.id}` ? null : `hkdf-${k.id}`)}
+                          className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors"
+                        >
+                          Backup saved
+                        </button>
+                      )}
                       {k.hasClientBackup && (
                         <button
                           onClick={() => setBadgeExplain(badgeExplain === `bu-${k.id}` ? null : `bu-${k.id}`)}
@@ -523,7 +583,7 @@ export function KeyShareManager() {
                     </div>
                   </div>
                   <button
-                    onClick={() => handleServerExport(k.id)}
+                    onClick={() => setDownloadChoiceId(k.id)}
                     disabled={(serverExportId === k.id && serverExportStep === "loading") || frozen}
                     className="px-2.5 py-1.5 rounded-md text-[11px] font-medium bg-surface-tertiary text-text-secondary hover:bg-border-primary transition-colors disabled:opacity-50 shrink-0"
                   >
@@ -535,6 +595,11 @@ export function KeyShareManager() {
                 {badgeExplain === `sc-${k.id}` && (
                   <p className="px-3 md:px-5 pb-3 text-[10px] text-purple-400/80 leading-relaxed">
                     You hold both key shares and can recover your wallet without our server.
+                  </p>
+                )}
+                {badgeExplain === `hkdf-${k.id}` && (
+                  <p className="px-3 md:px-5 pb-3 text-[10px] text-blue-400/80 leading-relaxed">
+                    Server key backup downloaded. Contact kexify support to get the decryption key in case of emergency.
                   </p>
                 )}
                 {badgeExplain === `bu-${k.id}` && (
@@ -562,6 +627,78 @@ export function KeyShareManager() {
           </div>
         </>
       )}
+      {/* Download choice dialog */}
+      {downloadChoiceId && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setDownloadChoiceId(null)} />
+          <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl">
+            <div className="px-5 py-4 border-b border-border-primary flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-text-primary">📥 Download Server Key</h3>
+              <button onClick={() => setDownloadChoiceId(null)} className="p-1.5 rounded-md text-text-tertiary hover:text-text-secondary hover:bg-surface-tertiary transition-colors">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="px-5 py-5 space-y-3">
+              <p className="text-xs text-text-secondary leading-relaxed">
+                Choose how you want to download the server's key share.
+              </p>
+
+              {/* Option 1: HKDF backup */}
+              <button
+                onClick={() => handleHkdfDownload(downloadChoiceId)}
+                disabled={hkdfDownloading}
+                className="w-full text-left bg-surface-primary border border-border-primary hover:border-blue-500/30 rounded-lg px-4 py-3.5 transition-colors group disabled:opacity-50"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0 mt-0.5">
+                    <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-text-primary group-hover:text-blue-400 transition-colors">
+                      {hkdfDownloading ? "Downloading..." : "Safe backup (recommended)"}
+                    </p>
+                    <p className="text-[10px] text-text-muted mt-0.5 leading-relaxed">
+                      Encrypted by the server. You keep a backup copy, but cannot decrypt it on your own. In an emergency, contact kexify support to get the decryption key.
+                    </p>
+                  </div>
+                </div>
+              </button>
+
+              {/* Option 2: Self-custody */}
+              <button
+                onClick={() => { setDownloadChoiceId(null); handleServerExport(downloadChoiceId); }}
+                className="w-full text-left bg-surface-primary border border-border-primary hover:border-border-secondary rounded-lg px-4 py-3.5 transition-colors group"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-full bg-surface-tertiary flex items-center justify-center shrink-0 mt-0.5">
+                    <svg className="w-4 h-4 text-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-text-primary group-hover:text-text-secondary transition-colors">Full self-custody</p>
+                    <p className="text-[10px] text-text-muted mt-0.5 leading-relaxed">
+                      Decrypted and re-encrypted with your passphrase. You hold both key shares and no longer depend on us. Use this only if you understand the security implications.
+                    </p>
+                  </div>
+                </div>
+              </button>
+
+              {serverExportError && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                  <p className="text-xs text-red-400">{serverExportError}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* Delete confirmation dialog */}
       {confirmDeleteId && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

@@ -12,7 +12,9 @@ export function RecoveryGuide() {
 ### Step 1: Get both key files
 You need two .json files:
 - **Your key file** — downloaded during account creation or from Backup & Recovery
-- **Server key file** — downloaded from Backup & Recovery (Expert mode) > Server Key Share
+- **Server key file** — downloaded from Backup & Recovery > Server Key Share
+  - If you used "Safe backup": contact kexify support to get the decryption key first
+  - If you used "Self-custody": use the passphrase you chose during export
 
 ### Step 2: Open the recovery page
 Go to: ${RECOVERY_URL}
@@ -43,12 +45,26 @@ If the web app is unavailable, you can recover using the command-line tool:
 - Recovery page: ${RECOVERY_URL}
 - Source code: ${REPO_URL}
 
+## About Server-Encrypted Backup Files
+
+If you downloaded the server key using the "Safe backup" option, the file is encrypted
+by the server using a key derived from your account. You cannot decrypt it on your own.
+
+**In case of emergency** (e.g., the service is shutting down or you need to recover
+without server access), contact kexify support or our designated escrow service to
+obtain the decryption key for your backup file.
+
+Once you have the decryption key, you can use it together with your client key file
+in the recovery page to regain access to your funds.
+
 ## Tips
 
 - Store your key files in separate secure locations (USB drive, password manager, etc.)
 - Never share your key files with anyone
 - The two key files are useless individually — both are needed together
 - Test recovery periodically to make sure your files are intact
+- The "Safe backup" server key file requires contacting kexify support to decrypt
+- The "Self-custody" server key file is encrypted with your passphrase — no support needed
 
 ---
 Generated on ${new Date().toLocaleDateString()} by kexify
