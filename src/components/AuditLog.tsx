@@ -221,7 +221,10 @@ function EntryRow({ entry, showAccount }: { entry: AuditEntry; showAccount?: boo
           <span className="text-xs font-medium text-text-primary truncate">
             {desc.title}
           </span>
-          <span className="text-[10px] text-text-muted shrink-0">
+          <span
+            className="text-[10px] text-text-muted shrink-0"
+            title={new Date(entry.createdAt).toLocaleString()}
+          >
             {formatTime(entry.createdAt)}
           </span>
         </div>
