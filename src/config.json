@@ -36,7 +36,7 @@
         {
             "id": "676e1c60-1fc2-4ae4-aed1-45162770cdca",
             "name": "BASE_SEPOLIA",
-            "displayName": "Base Sepolia (Testnet)",
+            "displayName": "Base Sepolia Testnet",
             "type": "evm",
             "coinType": 60,
             "evmChainId": 84532,
@@ -58,7 +58,7 @@
         {
             "id": "f0ba2e9e-f894-4d91-9787-401fb770980f",
             "name": "ETHEREUM_SEPOLIA",
-            "displayName": "Sepolia (Testnet)",
+            "displayName": "Sepolia Testnet",
             "type": "evm",
             "coinType": 60,
             "evmChainId": 11155111,

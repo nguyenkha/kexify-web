@@ -424,7 +424,7 @@ export function ConfigPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-text-primary">Show test networks</p>
-                <p className="text-xs text-text-muted mt-0.5">Display testnet, devnet, and Sepolia chains</p>
+                <p className="text-xs text-text-muted mt-0.5">Display testnet and devnet chains</p>
               </div>
               <button
                 onClick={() => setShowTestnet(!getShowTestnet())}
