@@ -564,11 +564,13 @@ export function Wallet() {
               </svg>
             </button>
           </div>
-          <span className="text-[10px] text-text-muted/50 font-mono">
-            {(import.meta.env.VITE_GIT_HASH as string | undefined)?.slice(0, 7) ?? "dev"}
-          </span>
         </div>
       )}
+
+      {/* Build SHA — fixed bottom-right */}
+      <div className="fixed bottom-2 right-3 text-[10px] text-text-muted/30 font-mono pointer-events-none">
+        {(import.meta.env.VITE_GIT_HASH as string | undefined)?.slice(0, 7) ?? "dev"}
+      </div>
     </div>
   );
 }
