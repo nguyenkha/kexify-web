@@ -195,6 +195,20 @@ export function ConfigPage() {
     save({ ...overrides, preferences: Object.keys(prefs).length ? prefs : undefined });
   }
 
+  function getExpertMode(): boolean {
+    return overrides.preferences?.expert_mode ?? false;
+  }
+
+  function setExpertMode(value: boolean) {
+    const prefs = { ...overrides.preferences };
+    if (!value) {
+      delete prefs.expert_mode;
+    } else {
+      prefs.expert_mode = true;
+    }
+    save({ ...overrides, preferences: Object.keys(prefs).length ? prefs : undefined });
+  }
+
   const isTestnet = (name: string) => /testnet|sepolia|devnet/i.test(name);
   const visibleChains = getShowTestnet() ? chains : chains.filter((c) => !isTestnet(c.name));
 
@@ -463,6 +477,26 @@ export function ConfigPage() {
               >
                 <span className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform ${
                   getShowTestnet() ? "left-[16px]" : "left-[2px]"
+                }`} />
+              </button>
+            </div>
+          </div>
+
+          {/* Expert mode */}
+          <div className="px-3 md:px-5 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-text-primary">Expert mode</p>
+                <p className="text-xs text-text-muted mt-0.5">Show advanced transaction controls, raw data, and detailed logs</p>
+              </div>
+              <button
+                onClick={() => setExpertMode(!getExpertMode())}
+                className={`relative w-8 h-[18px] rounded-full transition-colors shrink-0 ${
+                  getExpertMode() ? "bg-blue-500" : "bg-surface-tertiary"
+                }`}
+              >
+                <span className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform ${
+                  getExpertMode() ? "left-[16px]" : "left-[2px]"
                 }`} />
               </button>
             </div>

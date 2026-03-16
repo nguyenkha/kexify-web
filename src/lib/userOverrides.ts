@@ -11,6 +11,7 @@ export interface UserOverrides {
     refresh_interval?: number;
     default_chains?: string[];
     show_testnet?: boolean;
+    expert_mode?: boolean;
     [key: string]: unknown;
   };
 }

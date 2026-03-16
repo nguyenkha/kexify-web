@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import type { Chain, Asset } from "../lib/api";
 import { explorerLink, hexToBytes, bytesToHex } from "../shared/utils";
 import { simulateEvmTransaction } from "../lib/txSimulation";
+import { useExpertMode } from "../context/ExpertModeContext";
 import { fetchPrices, formatUsd, getUsdValue } from "../lib/prices";
 import { toBase64, performMpcSign, clientKeys, restoreKeyHandles, clearClientKey } from "../lib/mpc";
 import { authHeaders } from "../lib/auth";
@@ -143,7 +144,15 @@ export function SendDialog({
   onTxConfirmed?: (txHash: string) => void;
 }) {
   const { hidden: balancesHidden } = useHideBalances();
+  const expert = useExpertMode();
   const [step, setStep] = useState<SendStep>("input");
+
+  // Expert mode overrides
+  const [nonceOverride, setNonceOverride] = useState("");
+  const [gasLimitOverride, setGasLimitOverride] = useState("");
+  const [maxFeeOverride, setMaxFeeOverride] = useState("");
+  const [priorityFeeOverride, setPriorityFeeOverride] = useState("");
+  const [btcFeeRateOverride, setBtcFeeRateOverride] = useState("");
   const [to, setTo] = useState("");
   const [amount, setAmount] = useState("");
   const [toTouched, setToTouched] = useState(false);
@@ -1473,6 +1482,66 @@ message = buildSplTransferMessage({
               </div>
               )}
 
+              {/* Expert mode: advanced tx overrides */}
+              {expert && chain.type === "evm" && (
+                <div className="space-y-2">
+                  <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">Advanced</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs text-text-muted mb-1">Nonce</label>
+                      <input
+                        value={nonceOverride}
+                        onChange={(e) => setNonceOverride(e.target.value)}
+                        placeholder="Auto"
+                        className="w-full bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-text-muted mb-1">Gas limit</label>
+                      <input
+                        value={gasLimitOverride}
+                        onChange={(e) => setGasLimitOverride(e.target.value)}
+                        placeholder="Auto"
+                        className="w-full bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-text-muted mb-1">Max fee (Gwei)</label>
+                      <input
+                        value={maxFeeOverride}
+                        onChange={(e) => setMaxFeeOverride(e.target.value)}
+                        placeholder={gasPrice != null ? formatGwei(gasPrice) : "Auto"}
+                        className="w-full bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-text-muted mb-1">Priority fee (Gwei)</label>
+                      <input
+                        value={priorityFeeOverride}
+                        onChange={(e) => setPriorityFeeOverride(e.target.value)}
+                        placeholder="Auto"
+                        className="w-full bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {expert && (chain.type === "btc" || chain.type === "bch") && (
+                <div className="space-y-2">
+                  <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">Advanced</p>
+                  <div>
+                    <label className="block text-xs text-text-muted mb-1">Fee rate (sat/vB)</label>
+                    <input
+                      value={btcFeeRateOverride}
+                      onChange={(e) => setBtcFeeRateOverride(e.target.value)}
+                      placeholder={chain.type === "btc" ? (btcFeeRates?.[feeLevel]?.toString() ?? "Auto") : (bchFeeRates?.[feeLevel]?.toString() ?? "Auto")}
+                      className="w-full bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* Fee summary */}
               <div className="flex items-center justify-between px-1">
                 <span className="text-[10px] text-text-muted flex items-center gap-1">
@@ -1589,11 +1658,11 @@ message = buildSplTransferMessage({
               <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
                 <div className="px-3 py-2.5 flex items-center justify-between">
                   <span className="text-xs text-text-muted">From</span>
-                  <span className="text-xs font-mono text-text-secondary">{shortAddrPreview(address)}</span>
+                  <span className={`text-xs font-mono text-text-secondary ${expert ? "break-all" : ""}`}>{expert ? address : shortAddrPreview(address)}</span>
                 </div>
                 <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
                   <span className="text-xs text-text-muted">To</span>
-                  <span className="text-xs font-mono text-text-secondary">{shortAddrPreview(to)}</span>
+                  <span className={`text-xs font-mono text-text-secondary ${expert ? "break-all" : ""}`}>{expert ? to : shortAddrPreview(to)}</span>
                 </div>
                 {destinationTag && (
                 <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">

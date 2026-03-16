@@ -13,6 +13,7 @@ import { FrozenBanner } from "./components/FrozenBanner";
 import { FrozenProvider } from "./context/FrozenContext";
 import { getStoredTheme, setTheme } from "./lib/theme";
 import { HideBalancesProvider, useHideBalances } from "./context/HideBalancesContext";
+import { ExpertModeProvider } from "./context/ExpertModeContext";
 import { KeyShareManager } from "./components/KeyShareManager";
 import { ActivityLogPage } from "./components/AuditLog";
 import { ConfigPage } from "./components/ConfigPage";
@@ -373,11 +374,13 @@ function App() {
         <Route
           element={
             <RequireAuth>
+              <ExpertModeProvider>
               <HideBalancesProvider>
               <WalletConnectProvider>
                 <DashboardLayout />
               </WalletConnectProvider>
               </HideBalancesProvider>
+              </ExpertModeProvider>
             </RequireAuth>
           }
         >

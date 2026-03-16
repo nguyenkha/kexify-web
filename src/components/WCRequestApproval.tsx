@@ -24,6 +24,7 @@ import type { BalanceResult } from "../lib/balance";
 import { explorerLink } from "../shared/utils";
 import { BalancePreview, type BalanceChange } from "./BalancePreview";
 import { simulateEvmTransaction, type SimulationResult } from "../lib/txSimulation";
+import { useExpertMode } from "../context/ExpertModeContext";
 
 interface Props {
   request: PendingRequest;
@@ -105,6 +106,7 @@ function formatEthFee(wei: bigint): string {
 
 export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: Props) {
   const navigate = useNavigate();
+  const expert = useExpertMode();
   // Phases: review → preview → passkey (#2) → signing → done
   // Browser share decrypt uses inline authenticatePasskey (passkey #1)
   // Confirm & Sign triggers PasskeyChallenge overlay (passkey #2)
@@ -652,7 +654,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   // Format request for display
   const requestDisplay = formatRequest(request);
 
-  const shortAddr = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+  const shortAddr = (addr: string) => expert ? addr : `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
   // Signing progress steps
   // 4-step for transactions, 3-step for message signing

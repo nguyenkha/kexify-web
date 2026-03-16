@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { authHeaders } from "../lib/auth";
 import { apiUrl } from "../lib/apiBase";
+import { useExpertMode } from "../context/ExpertModeContext";
 
 interface AuditEntry {
   id: string;
@@ -327,7 +328,7 @@ function getDateKey(iso: string): string {
 
 // ── Entry Row ───────────────────────────────────────────────
 
-function EntryRow({ entry, showAccount }: { entry: AuditEntry; showAccount?: boolean }) {
+function EntryRow({ entry, showAccount, expert }: { entry: AuditEntry; showAccount?: boolean; expert?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const desc = describeEntry(entry);
   const Icon = desc.icon;
@@ -363,11 +364,19 @@ function EntryRow({ entry, showAccount }: { entry: AuditEntry; showAccount?: boo
           {desc.subtitle && (
             <span className="text-[10px] text-text-muted font-mono truncate">{desc.subtitle}</span>
           )}
+          {expert && (
+            <span className="text-[10px] text-text-muted/40 font-mono">{entry.action}</span>
+          )}
         </div>
         {expanded && desc.detail && (
           <p className="text-[11px] text-text-muted mt-2 leading-relaxed bg-surface-primary/50 rounded-lg px-2.5 py-2 border border-border-secondary">
             {desc.detail}
           </p>
+        )}
+        {expanded && expert && entry.meta && Object.keys(entry.meta).length > 0 && (
+          <pre className="text-[10px] text-text-muted font-mono mt-1.5 bg-surface-primary/50 rounded-lg px-2.5 py-2 border border-border-secondary overflow-auto max-h-40 leading-relaxed">
+            {JSON.stringify(entry.meta, null, 2)}
+          </pre>
         )}
       </div>
     </button>
@@ -378,6 +387,7 @@ function EntryRow({ entry, showAccount }: { entry: AuditEntry; showAccount?: boo
 
 /** Full-page activity log for all accounts (used in Advanced menu) */
 export function ActivityLogPage() {
+  const expert = useExpertMode();
   const [logs, setLogs] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -405,7 +415,7 @@ export function ActivityLogPage() {
     setLoading(false);
   }
 
-  const filtered = logs.filter((e) => !HIDDEN_ACTIONS.has(e.action));
+  const filtered = expert ? logs : logs.filter((e) => !HIDDEN_ACTIONS.has(e.action));
 
   // Group by date
   const groups: { dateKey: string; label: string; entries: AuditEntry[] }[] = [];
@@ -456,7 +466,7 @@ export function ActivityLogPage() {
               </p>
               <div className="bg-surface-secondary rounded-xl border border-border-primary overflow-hidden divide-y divide-border-secondary">
                 {group.entries.map((entry) => (
-                  <EntryRow key={entry.id} entry={entry} showAccount />
+                  <EntryRow key={entry.id} entry={entry} showAccount expert={expert} />
                 ))}
               </div>
             </div>
