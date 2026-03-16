@@ -100,17 +100,18 @@ export function RecoveryImport() {
         </div>
 
         {/* Recovery header */}
-        <div className="recovery-accent bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2.5 mb-6">
-          <p className="text-xs text-yellow-400 recovery-accent font-medium">Recovery Mode</p>
-          <p className="text-[10px] text-text-muted mt-0.5">
-            Import both key share files to use your wallet without the server.
+        <div className="recovery-accent bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-4 py-3 mb-6">
+          <p className="text-xs text-yellow-400 recovery-accent font-medium">Wallet Recovery</p>
+          <p className="text-[11px] text-yellow-400/70 mt-1 leading-relaxed">
+            Load your two key files to access your wallet without our server.
+            Both files are needed — they will be <span className="text-yellow-400/90 font-medium">combined locally in your browser</span> and never sent anywhere.
           </p>
         </div>
 
         <div className="space-y-4">
           {/* Peer 1 */}
           <div>
-            <label className="block text-xs text-text-muted mb-1.5">Peer 1 — Your Share</label>
+            <label className="block text-xs text-text-muted mb-1.5">Your key file</label>
             <PeerImport
               state={peer1}
               passphrase={pass1}
@@ -124,7 +125,7 @@ export function RecoveryImport() {
 
           {/* Peer 2 */}
           <div>
-            <label className="block text-xs text-text-muted mb-1.5">Peer 2 — Server Share</label>
+            <label className="block text-xs text-text-muted mb-1.5">Server key file</label>
             <PeerImport
               state={peer2}
               passphrase={pass2}
@@ -251,7 +252,7 @@ function PeerImport({
           {state.data.id.slice(0, 8)}...{state.data.id.slice(-4)}
         </p>
         <p className="text-[10px] text-green-500/70 truncate">
-          Share loaded
+          Key file loaded
         </p>
       </div>
       <button
