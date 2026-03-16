@@ -14,6 +14,7 @@ import { FrozenProvider } from "./context/FrozenContext";
 import { getStoredTheme, setTheme } from "./lib/theme";
 import { HideBalancesProvider, useHideBalances } from "./context/HideBalancesContext";
 import { KeyShareManager } from "./components/KeyShareManager";
+import { ActivityLogPage } from "./components/AuditLog";
 import { WalletConnect as WalletConnectPage } from "./components/WalletConnect";
 import { WalletConnectProvider } from "./context/WalletConnectContext";
 import { WCRequestQueue } from "./components/WCRequestQueue";
@@ -29,6 +30,7 @@ const mainNavItems = [
 
 const advancedNavItems = [
   { path: "/backup-recovery", label: "🗄️ Backup & Recovery" },
+  { path: "/activity", label: "📋 Activity Log" },
   { path: "/passkeys", label: "🔑 Passkeys" },
   { path: "/sign", label: "✍️ Raw Signing" },
 ];
@@ -379,6 +381,7 @@ function App() {
           <Route path="/accounts/:keyId/:chainName/:assetSymbol/:btcAddrType?" element={<AccountDetail />} />
           <Route path="/passkeys" element={<Passkeys />} />
           <Route path="/backup-recovery" element={<KeyShareManager />} />
+          <Route path="/activity" element={<ActivityLogPage />} />
           <Route path="/walletconnect" element={<WalletConnectPage />} />
           <Route path="/sign" element={<Sign />} />
           <Route path="/" element={<Navigate to="/accounts" replace />} />

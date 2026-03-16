@@ -5,6 +5,8 @@ import { apiUrl } from "../lib/apiBase";
 interface AuditEntry {
   id: string;
   action: string;
+  keyShareId?: string | null;
+  keyName?: string | null;
   meta: Record<string, unknown> | null;
   createdAt: string;
 }
@@ -93,10 +95,8 @@ function describeTransaction(meta: Record<string, unknown>): string {
   const transfer = meta.transfer as Record<string, string> | undefined;
   if (transfer) {
     const to = transfer.to;
-    const amount = transfer.amount;
     const symbol = transfer.nativeSymbol || "tokens";
     parts.push(`sent ${symbol} to ${shortenAddress(to)}`);
-    if (amount) parts.push(`(${amount} base units)`);
   } else if (meta.type === "raw_message") {
     return "Signed a message.";
   }
@@ -212,15 +212,44 @@ function formatTime(iso: string): string {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-export function AuditLog({
-  keyId,
-  keyName,
-  onClose,
-}: {
-  keyId: string;
-  keyName?: string | null;
-  onClose: () => void;
-}) {
+function renderEntry(entry: AuditEntry, showAccount?: boolean) {
+  const desc = describeEntry(entry);
+  return (
+    <div
+      key={entry.id}
+      className="px-3 py-2.5 bg-surface-primary rounded-lg border border-border-secondary"
+    >
+      <div className="flex items-start gap-2">
+        <span className={`${desc.color} text-sm shrink-0 w-5 text-center`}>
+          {desc.icon}
+        </span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-medium text-text-primary">
+              {desc.title}
+            </span>
+            <span className="text-[10px] text-text-muted shrink-0">
+              {formatTime(entry.createdAt)}
+            </span>
+          </div>
+          {showAccount && entry.keyName && (
+            <p className="text-[10px] text-text-muted mt-0.5">
+              {entry.keyName}
+            </p>
+          )}
+          {desc.detail && (
+            <p className="text-[11px] text-text-muted mt-1 leading-relaxed">
+              {desc.detail}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Full-page activity log for all accounts (used in Advanced menu) */
+export function ActivityLogPage() {
   const [logs, setLogs] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -228,19 +257,11 @@ export function AuditLog({
 
   useEffect(() => {
     fetchLogs(1);
-  }, [keyId]);
-
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  }, []);
 
   async function fetchLogs(p: number) {
     setLoading(true);
-    const res = await fetch(apiUrl(`/api/keys/${keyId}/audit?page=${p}&limit=20`), {
+    const res = await fetch(apiUrl(`/api/account/audit?page=${p}&limit=20`), {
       headers: authHeaders(),
     });
     if (res.ok) {
@@ -257,85 +278,30 @@ export function AuditLog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-surface-secondary border border-border-primary rounded-xl w-full max-w-lg mx-4 max-h-[80vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border-primary">
-          <div>
-            <h3 className="text-sm font-semibold text-text-primary">Activity Log</h3>
-            <p className="text-[11px] text-text-muted mt-0.5">
-              {keyName || `Account ${keyId.slice(0, 8)}`}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-md text-text-tertiary hover:text-text-primary hover:bg-surface-tertiary transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+    <div className="space-y-3">
+      <p className="text-[11px] text-text-muted">
+        Signing activity, security events, and policy blocks across all accounts.
+      </p>
 
-        {/* Content */}
-        <div className="flex-1 overflow-auto p-4 space-y-2">
-          {loading && logs.length === 0 ? (
-            <div className="text-xs text-text-muted text-center py-8">Loading...</div>
-          ) : logs.length === 0 ? (
-            <div className="text-xs text-text-muted text-center py-8">No activity yet</div>
-          ) : (
-            <>
-              {logs.map((entry) => {
-                const desc = describeEntry(entry);
-                return (
-                  <div
-                    key={entry.id}
-                    className="px-3 py-2.5 bg-surface-primary rounded-lg border border-border-secondary"
-                  >
-                    <div className="flex items-start gap-2">
-                      <span className={`${desc.color} text-sm shrink-0 w-5 text-center`}>
-                        {desc.icon}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs font-medium text-text-primary">
-                            {desc.title}
-                          </span>
-                          <span className="text-[10px] text-text-muted shrink-0">
-                            {formatTime(entry.createdAt)}
-                          </span>
-                        </div>
-                        {desc.detail && (
-                          <p className="text-[11px] text-text-muted mt-1 leading-relaxed">
-                            {desc.detail}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+      {loading && logs.length === 0 ? (
+        <div className="text-xs text-text-muted text-center py-8">Loading...</div>
+      ) : logs.length === 0 ? (
+        <div className="text-xs text-text-muted text-center py-8">No activity yet</div>
+      ) : (
+        <div className="space-y-2">
+          {logs.map((entry) => renderEntry(entry, true))}
 
-              {hasMore && (
-                <button
-                  onClick={() => fetchLogs(page + 1)}
-                  disabled={loading}
-                  className="w-full text-xs text-blue-400 hover:text-blue-300 py-2 rounded-lg border border-dashed border-border-secondary hover:border-blue-500/30 transition-colors disabled:opacity-50"
-                >
-                  {loading ? "Loading..." : "Load more"}
-                </button>
-              )}
-            </>
+          {hasMore && (
+            <button
+              onClick={() => fetchLogs(page + 1)}
+              disabled={loading}
+              className="w-full text-xs text-blue-400 hover:text-blue-300 py-2 rounded-lg border border-dashed border-border-secondary hover:border-blue-500/30 transition-colors disabled:opacity-50"
+            >
+              {loading ? "Loading..." : "Load more"}
+            </button>
           )}
         </div>
-
-        {/* Footer */}
-        <div className="px-5 py-3 border-t border-border-primary">
-          <p className="text-[10px] text-text-muted leading-relaxed">
-            Shows signing activity, security events, and policy blocks for this account.
-          </p>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
