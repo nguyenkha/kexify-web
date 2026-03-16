@@ -141,8 +141,9 @@ export function buildLtcTransaction(
   changeAddress: string,
   addrType: BtcAddressType = "p2wpkh",
   rbf: boolean = true,
+  useAllUtxos: boolean = false,
 ): BtcUnsignedTx {
-  const { selected, change } = selectUtxos(utxos, amountSats, feeRateSatPerVB, addrType);
+  const { selected, change } = selectUtxos(utxos, amountSats, feeRateSatPerVB, addrType, useAllUtxos);
 
   const inputs: BtcInput[] = selected.map((u) => ({
     txid: u.txid,

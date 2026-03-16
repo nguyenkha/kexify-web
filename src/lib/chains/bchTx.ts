@@ -214,7 +214,34 @@ export function selectUtxos(
   utxos: UTXO[],
   targetSats: bigint,
   feeRateSatPerByte: number,
+  useAll: boolean = false,
 ): { selected: UTXO[]; fee: bigint; change: bigint } {
+  if (useAll) {
+    const selected = utxos.filter((u) => u.status.confirmed);
+    const totalIn = selected.reduce((sum, u) => sum + BigInt(u.value), 0n);
+    const size2 = estimateLegacyBytes(selected.length, 2);
+    const fee2 = BigInt(Math.ceil(size2 * feeRateSatPerByte));
+
+    if (totalIn < targetSats + fee2) {
+      const size1 = estimateLegacyBytes(selected.length, 1);
+      const fee1 = BigInt(Math.ceil(size1 * feeRateSatPerByte));
+      if (totalIn < targetSats + fee1) {
+        throw new Error("Insufficient funds (selected UTXOs too small)");
+      }
+      return { selected, fee: totalIn - targetSats, change: 0n };
+    }
+
+    const change = totalIn - targetSats - fee2;
+    if (change > 0n && change < DUST_LIMIT) {
+      return { selected, fee: fee2 + change, change: 0n };
+    }
+    if (change === 0n) {
+      const fee1 = BigInt(Math.ceil(estimateLegacyBytes(selected.length, 1) * feeRateSatPerByte));
+      return { selected, fee: fee1, change: 0n };
+    }
+    return { selected, fee: fee2, change };
+  }
+
   const sorted = [...utxos]
     .filter((u) => u.status.confirmed)
     .sort((a, b) => b.value - a.value);
@@ -253,8 +280,9 @@ export function buildBchTransaction(
   utxos: UTXO[],
   feeRateSatPerByte: number,
   changeAddress: string,
+  useAllUtxos: boolean = false,
 ): BchUnsignedTx {
-  const { selected, change } = selectUtxos(utxos, amountSats, feeRateSatPerByte);
+  const { selected, change } = selectUtxos(utxos, amountSats, feeRateSatPerByte, useAllUtxos);
 
   const inputs: BchInput[] = selected.map((u) => ({
     txid: u.txid,

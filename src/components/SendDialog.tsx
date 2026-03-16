@@ -699,7 +699,7 @@ export function SendDialog({
       const utxos = manualUtxos ?? await fetchUtxos(address, btcApi);
       const amountSats = parseUnits(amount, asset.decimals);
       const addrType = detectAddressType(address);
-      const btcTx = buildBtcTransaction(to, amountSats, utxos, btcFeeRate, address, addrType, rbfEnabled);
+      const btcTx = buildBtcTransaction(to, amountSats, utxos, btcFeeRate, address, addrType, rbfEnabled, manualUtxos != null);
       // 2. Get compressed public key and hash
       setSigningPhase("mpc-signing");
       const pubKeyRaw = hexToBytes(keyFile.publicKey);
@@ -809,7 +809,7 @@ export function SendDialog({
       // 1. Fetch UTXOs and build transaction
       const utxos = manualUtxos ?? await fetchBchUtxos(address, api);
       const amountSats = parseUnits(amount, asset.decimals);
-      const bchTx = buildBchTransaction(to, amountSats, utxos, bchFeeRate, address);
+      const bchTx = buildBchTransaction(to, amountSats, utxos, bchFeeRate, address, manualUtxos != null);
 
       // 2. Get compressed public key and hash
       setSigningPhase("mpc-signing");
@@ -908,7 +908,7 @@ export function SendDialog({
       const utxos = manualUtxos ?? await fetchLtcUtxos(address, ltcApi);
       const amountSats = parseUnits(amount, asset.decimals);
       const addrType = detectLtcAddressType(address);
-      const ltcTx = buildLtcTransaction(to, amountSats, utxos, ltcFeeRate, address, addrType, rbfEnabled);
+      const ltcTx = buildLtcTransaction(to, amountSats, utxos, ltcFeeRate, address, addrType, rbfEnabled, manualUtxos != null);
 
       // 2. Get compressed public key and hash
       setSigningPhase("mpc-signing");

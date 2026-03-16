@@ -232,9 +232,38 @@ export function selectUtxos(
   utxos: UTXO[],
   targetSats: bigint,
   feeRateSatPerVB: number,
-  addrType: BtcAddressType = "p2wpkh"
+  addrType: BtcAddressType = "p2wpkh",
+  useAll: boolean = false,
 ): { selected: UTXO[]; fee: bigint; change: bigint } {
   const estimateSize = addrType === "p2pkh" ? estimateLegacyBytes : estimateVBytes;
+
+  if (useAll) {
+    // Manual UTXO selection: use all provided UTXOs as-is
+    const selected = utxos.filter((u) => u.status.confirmed);
+    const totalIn = selected.reduce((sum, u) => sum + BigInt(u.value), 0n);
+    const size2 = estimateSize(selected.length, 2);
+    const fee2 = BigInt(Math.ceil(size2 * feeRateSatPerVB));
+
+    if (totalIn < targetSats + fee2) {
+      // Try with 1 output (no change)
+      const size1 = estimateSize(selected.length, 1);
+      const fee1 = BigInt(Math.ceil(size1 * feeRateSatPerVB));
+      if (totalIn < targetSats + fee1) {
+        throw new Error("Insufficient funds (selected UTXOs too small)");
+      }
+      return { selected, fee: totalIn - targetSats, change: 0n };
+    }
+
+    const change = totalIn - targetSats - fee2;
+    if (change > 0n && change < DUST_LIMIT) {
+      return { selected, fee: fee2 + change, change: 0n };
+    }
+    if (change === 0n) {
+      const fee1 = BigInt(Math.ceil(estimateSize(selected.length, 1) * feeRateSatPerVB));
+      return { selected, fee: fee1, change: 0n };
+    }
+    return { selected, fee: fee2, change };
+  }
 
   // Sort by value descending (prefer larger UTXOs to minimize inputs)
   const sorted = [...utxos]
@@ -285,8 +314,9 @@ export function buildBtcTransaction(
   changeAddress: string,
   addrType: BtcAddressType = "p2wpkh",
   rbf: boolean = true,
+  useAllUtxos: boolean = false,
 ): BtcUnsignedTx {
-  const { selected, change } = selectUtxos(utxos, amountSats, feeRateSatPerVB, addrType);
+  const { selected, change } = selectUtxos(utxos, amountSats, feeRateSatPerVB, addrType, useAllUtxos);
 
   const inputs: BtcInput[] = selected.map((u) => ({
     txid: u.txid,
