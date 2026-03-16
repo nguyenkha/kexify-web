@@ -216,34 +216,33 @@ function EntryRow({ entry, showAccount }: { entry: AuditEntry; showAccount?: boo
   const [expanded, setExpanded] = useState(false);
   const desc = describeEntry(entry);
   return (
-    <div
-      className="px-3 py-2.5 bg-surface-primary rounded-lg border border-border-secondary cursor-pointer hover:border-border-primary transition-colors"
+    <button
+      type="button"
+      className="w-full text-left px-3 py-2.5 flex items-start gap-2.5 hover:bg-surface-tertiary/50 transition-colors rounded-lg"
       onClick={() => setExpanded(!expanded)}
     >
-      <div className="flex items-start gap-2">
-        <span className={`${desc.color} text-sm shrink-0 w-5 text-center`}>
-          {desc.icon}
-        </span>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium text-text-primary">
-              {desc.title}
-              {showAccount && entry.keyName && (
-                <span className="text-text-muted font-normal"> — {entry.keyName}</span>
-              )}
-            </span>
-            <span className="text-[10px] text-text-muted shrink-0">
-              {formatTime(entry.createdAt)}
-            </span>
-          </div>
-          {expanded && desc.detail && (
-            <p className="text-[11px] text-text-muted mt-1 leading-relaxed">
-              {desc.detail}
-            </p>
-          )}
+      <span className={`${desc.color} text-sm shrink-0 w-5 text-center mt-0.5`}>
+        {desc.icon}
+      </span>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-medium text-text-primary truncate">
+            {desc.title}
+          </span>
+          <span className="text-[10px] text-text-muted shrink-0">
+            {formatTime(entry.createdAt)}
+          </span>
         </div>
+        {showAccount && entry.keyName && (
+          <p className="text-[10px] text-text-muted mt-0.5">{entry.keyName}</p>
+        )}
+        {expanded && desc.detail && (
+          <p className="text-[11px] text-text-muted mt-1.5 leading-relaxed">
+            {desc.detail}
+          </p>
+        )}
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -277,31 +276,41 @@ export function ActivityLogPage() {
   }
 
   return (
-    <div className="space-y-3">
-      <p className="text-[11px] text-text-muted">
-        Signing activity, security events, and policy blocks across all accounts.
-      </p>
+    <div className="space-y-5">
+      <div>
+        <h2 className="text-lg font-semibold text-text-primary">Activity Log</h2>
+        <p className="text-xs text-text-muted mt-1">
+          Signing activity, security events, and policy blocks across all accounts.
+        </p>
+      </div>
 
       {loading && logs.length === 0 ? (
         <div className="text-xs text-text-muted text-center py-8">Loading...</div>
       ) : logs.length === 0 ? (
-        <div className="text-xs text-text-muted text-center py-8">No activity yet</div>
+        <div className="text-center py-8">
+          <p className="text-xs text-text-muted">No activity yet</p>
+          <p className="text-[10px] text-text-muted/60 mt-1">
+            Activity will appear here after you sign transactions or make account changes.
+          </p>
+        </div>
       ) : (
-        <div className="space-y-2">
-          {logs.map((entry) => (
-            <EntryRow key={entry.id} entry={entry} showAccount />
-          ))}
+        <>
+          <div className="bg-surface-secondary rounded-xl border border-border-primary overflow-hidden divide-y divide-border-secondary">
+            {logs.map((entry) => (
+              <EntryRow key={entry.id} entry={entry} showAccount />
+            ))}
+          </div>
 
           {hasMore && (
             <button
               onClick={() => fetchLogs(page + 1)}
               disabled={loading}
-              className="w-full text-xs text-blue-400 hover:text-blue-300 py-2 rounded-lg border border-dashed border-border-secondary hover:border-blue-500/30 transition-colors disabled:opacity-50"
+              className="w-full text-xs text-blue-400 hover:text-blue-300 py-2.5 rounded-lg border border-dashed border-border-primary hover:border-blue-500/30 transition-colors disabled:opacity-50"
             >
               {loading ? "Loading..." : "Load more"}
             </button>
           )}
-        </div>
+        </>
       )}
     </div>
   );
