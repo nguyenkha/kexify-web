@@ -697,9 +697,9 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={canClose ? (phase === "done" ? (onDismiss ?? onReject) : onReject) : undefined} />
-      <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl">
+      <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl max-h-[85vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border-secondary">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border-secondary shrink-0">
           {phase === "preview" ? (
             <button
               onClick={() => setPhase("review")}
@@ -739,7 +739,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
         </div>
 
         {/* Body */}
-        <div className="px-5 py-5 space-y-4">
+        <div className="px-5 py-5 space-y-4 overflow-y-auto flex-1 min-h-0">
           {/* ── Review phase ────────────────────────────────────── */}
           {phase === "review" && (
             <>
@@ -1685,7 +1685,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
         {/* Footer — review phase */}
         {phase === "review" && (
-          <div className="px-5 py-4 border-t border-border-secondary">
+          <div className="px-5 py-4 border-t border-border-secondary shrink-0">
             <button
               onClick={handleApproveClick}
               disabled={!account || !keyFile || policyChecking}
@@ -1698,7 +1698,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
         {/* Footer — preview phase */}
         {phase === "preview" && (
-          <div className="px-5 py-4 border-t border-border-secondary">
+          <div className="px-5 py-4 border-t border-border-secondary shrink-0">
             <button
               disabled={policyCheck?.allowed === false}
               onClick={() => isRecoveryMode() ? onPasskeyAuth({} as PasskeyAuthResult) : setPhase("passkey")}

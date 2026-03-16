@@ -189,9 +189,9 @@ export function WCSessionProposal({ proposal, onApprove, onReject }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={onReject} />
-      <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl">
+      <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl max-h-[85vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border-secondary">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border-secondary shrink-0">
           <h3 className="text-sm font-semibold text-text-primary">Session Request</h3>
           <button
             onClick={onReject}
@@ -204,7 +204,7 @@ export function WCSessionProposal({ proposal, onApprove, onReject }: Props) {
         </div>
 
         {/* Body */}
-        <div className="px-5 py-5 space-y-4">
+        <div className="px-5 py-5 space-y-4 overflow-y-auto flex-1 min-h-0">
           {/* dApp info */}
           <div className="flex items-center gap-3">
             {proposer.metadata.icons?.[0] ? (
@@ -331,7 +331,7 @@ export function WCSessionProposal({ proposal, onApprove, onReject }: Props) {
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-4 border-t border-border-secondary flex gap-3">
+        <div className="px-5 py-4 border-t border-border-secondary flex gap-3 shrink-0">
           <button
             onClick={onReject}
             className="flex-1 px-4 py-2.5 rounded-lg text-xs font-medium bg-surface-tertiary text-text-secondary hover:bg-border-primary transition-colors"

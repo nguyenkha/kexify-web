@@ -194,10 +194,10 @@ export function XlmTrustlineDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={step === "signing" ? undefined : onClose} />
-      <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl overflow-hidden">
+      <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl overflow-hidden max-h-[85vh] flex flex-col">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border-secondary">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border-secondary shrink-0">
           <div className="flex items-center gap-2">
             {(step === "input" || step === "preview") && (
               <button onClick={() => setStep(step === "preview" ? "input" : "select")} className="text-text-muted hover:text-text-secondary transition-colors mr-1">
@@ -225,7 +225,7 @@ export function XlmTrustlineDialog({
 
         {/* Select step */}
         {step === "select" && (
-          <div className="p-5">
+          <div className="p-5 overflow-y-auto flex-1 min-h-0">
             <p className="text-xs text-text-muted mb-3">Select a token to enable on your Stellar account.</p>
             <div className="space-y-2">
               {chainAssets.map((a) => {
@@ -262,7 +262,7 @@ export function XlmTrustlineDialog({
         {/* Input step — key share + from + fee (mirrors Send input step) */}
         {step === "input" && selectedAsset && (
           <>
-            <div className="p-5 space-y-4">
+            <div className="p-5 space-y-4 overflow-y-auto flex-1 min-h-0">
               <input
                 ref={fileInputRef} type="file" accept=".json" className="hidden"
                 onChange={async (e) => {
@@ -398,7 +398,7 @@ export function XlmTrustlineDialog({
             </div>
 
             {/* Footer */}
-            <div className="px-5 py-4 border-t border-border-secondary">
+            <div className="px-5 py-4 border-t border-border-secondary shrink-0">
               <button
                 disabled={!keyFile}
                 onClick={() => setStep("preview")}
@@ -413,7 +413,7 @@ export function XlmTrustlineDialog({
         {/* Preview step — review summary (mirrors Send review step) */}
         {step === "preview" && selectedAsset && (
           <>
-            <div className="p-5 space-y-5">
+            <div className="p-5 space-y-5 overflow-y-auto flex-1 min-h-0">
               {/* Hero — matches Send review style */}
               <div className="text-center py-2">
                 <div className="flex items-center justify-center gap-2 mb-1">
@@ -492,7 +492,7 @@ export function XlmTrustlineDialog({
               })()}
             </div>
 
-            <div className="px-5 py-4 border-t border-border-secondary">
+            <div className="px-5 py-4 border-t border-border-secondary shrink-0">
               <button
                 onClick={() => guardedSign(executeTrustlineFlow)}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2.5 rounded-lg transition-colors"

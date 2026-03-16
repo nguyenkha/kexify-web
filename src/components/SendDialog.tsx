@@ -1312,9 +1312,9 @@ message = buildSplTransferMessage({
       <div className="absolute inset-0 bg-black/50" onClick={canClose ? onClose : undefined} />
 
       {/* Dialog */}
-      <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl">
+      <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl max-h-[85vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border-secondary">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border-secondary shrink-0">
           {step === "preview" ? (
             <button
               onClick={() => setStep("input")}
@@ -1356,7 +1356,7 @@ message = buildSplTransferMessage({
         {step === "input" && (
           <>
             {/* Body — Input step */}
-            <div className="p-5 space-y-4">
+            <div className="p-5 space-y-4 overflow-y-auto flex-1 min-h-0">
               {/* Key share file */}
               <div>
                 <label className="block text-xs text-text-muted mb-1.5">Key Share</label>
@@ -1771,7 +1771,7 @@ message = buildSplTransferMessage({
             </div>
 
             {/* Footer — Input step */}
-            <div className="px-5 py-4 border-t border-border-secondary">
+            <div className="px-5 py-4 border-t border-border-secondary shrink-0">
               <button
                 disabled={!canReview || policyChecking}
                 onClick={async () => {
@@ -1832,7 +1832,7 @@ message = buildSplTransferMessage({
         {step === "preview" && (
           <>
             {/* Body — Preview step */}
-            <div className="p-5 space-y-5">
+            <div className="p-5 space-y-5 overflow-y-auto flex-1 min-h-0">
               <PolicyWarning policyCheck={policyCheck} />
 
               {chain.type === "evm" && gasEstimateError && (
@@ -2001,7 +2001,7 @@ message = buildSplTransferMessage({
             </div>
 
             {/* Footer — Preview step */}
-            <div className="px-5 py-4 border-t border-border-secondary">
+            <div className="px-5 py-4 border-t border-border-secondary shrink-0">
               <button
                 disabled={policyCheck?.allowed === false}
                 onClick={() => {
