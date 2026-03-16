@@ -27,7 +27,7 @@ export function FreezeAccount() {
   }
 
   return (
-    <div className="min-h-screen bg-surface-primary flex items-center justify-center p-4">
+    <div className="min-h-dvh bg-surface-primary flex items-center justify-center p-4">
       <div className="max-w-sm w-full text-center">
         {status === "confirm" && (
           <>

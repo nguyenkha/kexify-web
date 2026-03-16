@@ -109,7 +109,7 @@ export function RecoveryImport() {
   const canEnter = p1Ready && p2Ready && !entering;
 
   return (
-    <div className="min-h-screen bg-surface-primary text-text-primary flex items-center justify-center">
+    <div className="min-h-dvh bg-surface-primary text-text-primary flex items-center justify-center">
       <div className="max-w-sm w-full px-4">
         {/* Branding */}
         <div className="mb-8 text-center">

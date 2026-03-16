@@ -23,7 +23,7 @@ export function VerifyToken() {
   }, [searchParams, navigate]);
 
   return (
-    <div className="min-h-screen bg-surface-primary text-text-primary flex items-center justify-center">
+    <div className="min-h-dvh bg-surface-primary text-text-primary flex items-center justify-center">
       <div className="text-center">
         {error ? (
           <div>
