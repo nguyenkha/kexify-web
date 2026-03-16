@@ -120,10 +120,10 @@ function RecoveryBanner() {
     <div className="mb-6">
       <div className="recovery-accent bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-4 py-3">
         <p className="text-xs text-yellow-400 recovery-accent font-medium">Recovery mode — your wallet keys are loaded in this browser</p>
-        <p className="text-[11px] text-text-muted mt-1 leading-relaxed">
+        <p className="text-[11px] text-yellow-400/70 mt-1 leading-relaxed">
           Your two key files have been combined and loaded locally. You can sign transactions and connect to dApps without our server.
-          For best security, move your funds to a new wallet after recovery.
-          Keep your key files stored safely in a separate location.
+          <span className="text-red-400 font-medium"> Move your funds to a new wallet after recovery.</span>
+          <span className="text-yellow-400/90 font-medium"> Keep your key files stored safely</span> in a separate location.
         </p>
       </div>
     </div>
