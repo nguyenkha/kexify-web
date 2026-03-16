@@ -311,7 +311,8 @@ export function CreateAccountDialog({
                     ))}
                   </div>
                   <p className="text-[10px] text-text-muted mt-2">
-                    Fraud check (Strict) is enabled by default on all rules. You can adjust after creation in Policy Rules.
+                    Fraud check (Strict) is enabled by default. These rules take effect immediately.
+                    Future changes to policy rules require a 24-hour cooling period.
                   </p>
                 </div>
               )}

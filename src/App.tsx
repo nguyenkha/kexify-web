@@ -16,11 +16,23 @@ import { HideBalancesProvider, useHideBalances } from "./context/HideBalancesCon
 import { ExpertModeProvider } from "./context/ExpertModeContext";
 import { KeyShareManager } from "./components/KeyShareManager";
 import { RecoveryChecklist } from "./components/RecoveryChecklist";
+import { RecoveryGuide } from "./components/RecoveryGuide";
 import { useExpertMode } from "./context/ExpertModeContext";
 
 function BackupRecoveryPage() {
   const expert = useExpertMode();
-  return expert ? <KeyShareManager /> : <RecoveryChecklist />;
+  return (
+    <div className="space-y-6">
+      {expert ? (
+        <>
+          <KeyShareManager />
+          <RecoveryGuide />
+        </>
+      ) : (
+        <RecoveryChecklist />
+      )}
+    </div>
+  );
 }
 import { ActivityLogPage } from "./components/AuditLog";
 import { ConfigPage } from "./components/ConfigPage";
