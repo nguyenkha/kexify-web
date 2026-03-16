@@ -290,7 +290,11 @@ function DashboardLayout() {
           </div>
         ) : email ? (<>
           <div className="px-4 py-1.5 text-[10px] text-text-muted/40 font-mono">
-            {(import.meta.env.VITE_GIT_HASH as string | undefined)?.slice(0, 7) ?? "dev"}
+            {(import.meta.env.VITE_GIT_TAG as string | undefined)
+              ? `Version ${import.meta.env.VITE_GIT_TAG}`
+              : (import.meta.env.VITE_GIT_HASH as string | undefined)
+                ? `Build ${(import.meta.env.VITE_GIT_HASH as string).slice(0, 7)}`
+                : "Build dev"}
           </div>
           <div className="p-4 border-t border-border-primary flex items-center justify-between">
             <div className="min-w-0 flex-1">
