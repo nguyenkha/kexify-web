@@ -1,8 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { authHeaders } from "../lib/auth";
 import { sensitiveHeaders, authenticatePasskey } from "../lib/passkey";
 import { apiUrl } from "../lib/apiBase";
-import { listKeyShares, hasKeyShare } from "../lib/keystore";
+import {
+  listKeyShares,
+  hasKeyShare,
+  saveKeyShareWithPrf,
+  saveKeyShareWithPassphrase,
+} from "../lib/keystore";
+import { type KeyFileData, isEncryptedKeyFile, decryptKeyFile } from "../lib/crypto";
+import { PassphraseInput } from "./PassphraseInput";
 import { RecoveryGuide } from "./RecoveryGuide";
 
 interface AccountStatus {
@@ -19,6 +26,19 @@ export function RecoveryChecklist() {
   const [loading, setLoading] = useState(true);
   const [hkdfDownloadingId, setHkdfDownloadingId] = useState<string | null>(null);
   const [hkdfError, setHkdfError] = useState<string | null>(null);
+
+  // Import flow state
+  const [importAccountId, setImportAccountId] = useState<string | null>(null);
+  const [importStep, setImportStep] = useState<"idle" | "decrypt" | "saving">("idle");
+  const [importData, setImportData] = useState<KeyFileData | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Escrow upload state
+  const [escrowAccountId, setEscrowAccountId] = useState<string | null>(null);
+  const [escrowUploading, setEscrowUploading] = useState(false);
+  const [escrowError, setEscrowError] = useState<string | null>(null);
+  const escrowFileRef = useRef<HTMLInputElement>(null);
 
   function fetchAccounts() {
     const browserShares = listKeyShares();
@@ -42,6 +62,7 @@ export function RecoveryChecklist() {
 
   useEffect(() => { fetchAccounts(); }, []);
 
+  // ── HKDF download ──
   async function handleHkdfDownload(account: AccountStatus) {
     setHkdfDownloadingId(account.id);
     setHkdfError(null);
@@ -70,6 +91,124 @@ export function RecoveryChecklist() {
       setHkdfError(String(err));
     }
     setHkdfDownloadingId(null);
+  }
+
+  // ── Import key file to browser ──
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    setImportError(null);
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(reader.result as string) as KeyFileData;
+        if (!parsed.id || !parsed.share || !parsed.publicKey) {
+          setImportError("Invalid key share file");
+          return;
+        }
+        if (importAccountId && parsed.id !== importAccountId) {
+          setImportError("This key file belongs to a different account");
+          return;
+        }
+        if (isEncryptedKeyFile(parsed)) {
+          setImportData(parsed);
+          setImportStep("decrypt");
+        } else {
+          saveImport(parsed);
+        }
+      } catch {
+        setImportError("Could not parse key share file");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }
+
+  async function handleImportDecrypt(passphrase: string) {
+    if (!importData) return;
+    setImportError(null);
+    try {
+      const decrypted = await decryptKeyFile(importData, passphrase);
+      await saveImport(decrypted);
+    } catch {
+      setImportError("Incorrect passphrase");
+    }
+  }
+
+  async function saveImport(data: KeyFileData) {
+    setImportStep("saving");
+    try {
+      const result = await authenticatePasskey({ withPrf: true });
+      if (result.prfKey && result.credentialId) {
+        await saveKeyShareWithPrf(data.id, data, result.prfKey, result.credentialId);
+      } else {
+        // PRF not supported — use the original passphrase or a default
+        await saveKeyShareWithPassphrase(data.id, data, "");
+      }
+      setImportStep("idle");
+      setImportData(null);
+      setImportAccountId(null);
+      fetchAccounts();
+    } catch (err) {
+      setImportError(String(err));
+      setImportStep("idle");
+    }
+  }
+
+  // ── Upload escrow backup ──
+  function handleEscrowFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    setEscrowError(null);
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(reader.result as string) as KeyFileData;
+        if (!parsed.id || !parsed.share || !parsed.publicKey) {
+          setEscrowError("Invalid key share file");
+          return;
+        }
+        if (escrowAccountId && parsed.id !== escrowAccountId) {
+          setEscrowError("This key file belongs to a different account");
+          return;
+        }
+        // Upload the file as-is (already encrypted with user's passphrase)
+        uploadEscrow(parsed);
+      } catch {
+        setEscrowError("Could not parse key share file");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }
+
+  async function uploadEscrow(data: KeyFileData) {
+    setEscrowUploading(true);
+    setEscrowError(null);
+    try {
+      await authenticatePasskey({});
+      const headers = sensitiveHeaders();
+      const encryptedJson = JSON.stringify(data);
+      const res = await fetch(apiUrl(`/api/keys/${data.id}/backup`), {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          encryptedData: encryptedJson,
+          publicKey: data.publicKey,
+          eddsaPublicKey: data.eddsaPublicKey,
+        }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setEscrowError(d.error || "Upload failed");
+      } else {
+        setEscrowAccountId(null);
+        fetchAccounts();
+      }
+    } catch (err) {
+      setEscrowError(String(err));
+    }
+    setEscrowUploading(false);
   }
 
   if (loading) {
@@ -112,6 +251,10 @@ export function RecoveryChecklist() {
         </div>
       )}
 
+      {/* Hidden file inputs */}
+      <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleFileSelect} />
+      <input ref={escrowFileRef} type="file" accept=".json" className="hidden" onChange={handleEscrowFileSelect} />
+
       {/* Per-account checklist */}
       {accounts.map((account) => {
         const serverKeyDone = !!(account.hkdfDownloadedAt || account.selfCustodyAt);
@@ -121,14 +264,12 @@ export function RecoveryChecklist() {
             key: "browser",
             label: "Key saved in this browser",
             detail: "Your key is encrypted and stored locally so you can sign transactions.",
-            action: "Save your key file to this browser during account creation, or import it from a backup file.",
             done: account.hasBrowserShare,
           },
           {
             key: "escrow",
             label: "Key backed up on server",
             detail: "An encrypted copy of your key is stored on our server. You can restore it on any device.",
-            action: "During account creation, choose to save an encrypted backup. You can also upload it later.",
             done: account.hasClientBackup,
           },
           {
@@ -177,6 +318,61 @@ export function RecoveryChecklist() {
                       {step.label}
                     </p>
                     <p className="text-[10px] text-text-muted mt-0.5 leading-relaxed">{step.detail}</p>
+
+                    {/* Step 1: Import key file */}
+                    {!step.done && step.key === "browser" && (
+                      <div className="mt-2 space-y-1.5">
+                        {importStep === "decrypt" && importAccountId === account.id ? (
+                          <div className="space-y-2">
+                            <p className="text-[10px] text-text-muted">Enter passphrase to decrypt:</p>
+                            <PassphraseInput
+                              mode="enter"
+                              submitLabel="Decrypt & Save"
+                              onSubmit={handleImportDecrypt}
+                            />
+                          </div>
+                        ) : importStep === "saving" && importAccountId === account.id ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 border border-blue-400 border-t-transparent rounded-full animate-spin" />
+                            <span className="text-[10px] text-text-muted">Saving...</span>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => { setImportAccountId(account.id); setImportError(null); fileInputRef.current?.click(); }}
+                            className="px-3 py-1.5 rounded-md text-[11px] font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                          >
+                            Import key file
+                          </button>
+                        )}
+                        {importError && importAccountId === account.id && (
+                          <p className="text-[10px] text-red-400">{importError}</p>
+                        )}
+                        <p className="text-[10px] text-text-muted leading-relaxed">
+                          More options in Expert mode.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Step 2: Upload escrow */}
+                    {!step.done && step.key === "escrow" && (
+                      <div className="mt-2 space-y-1.5">
+                        <button
+                          onClick={() => { setEscrowAccountId(account.id); setEscrowError(null); escrowFileRef.current?.click(); }}
+                          disabled={escrowUploading}
+                          className="px-3 py-1.5 rounded-md text-[11px] font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50"
+                        >
+                          {escrowUploading && escrowAccountId === account.id ? "Uploading..." : "Upload key file as backup"}
+                        </button>
+                        {escrowError && escrowAccountId === account.id && (
+                          <p className="text-[10px] text-red-400">{escrowError}</p>
+                        )}
+                        <p className="text-[10px] text-text-muted leading-relaxed">
+                          More options in Expert mode.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Step 3: Download server key */}
                     {!step.done && step.key === "server" && (
                       <div className="mt-2 space-y-1.5">
                         <button
@@ -186,16 +382,13 @@ export function RecoveryChecklist() {
                         >
                           {hkdfDownloadingId === account.id ? "Downloading..." : "Download server key backup"}
                         </button>
-                        <p className="text-[10px] text-text-muted leading-relaxed">
-                          For full self-custody, use Expert mode in Config.
-                        </p>
                         {hkdfError && hkdfDownloadingId === null && (
                           <p className="text-[10px] text-red-400">{hkdfError}</p>
                         )}
+                        <p className="text-[10px] text-text-muted leading-relaxed">
+                          For full self-custody, use Expert mode in Config.
+                        </p>
                       </div>
-                    )}
-                    {!step.done && step.key !== "server" && (
-                      <p className="text-[10px] text-blue-400/80 mt-1 leading-relaxed">{step.action}</p>
                     )}
                   </div>
                 </div>
