@@ -2,23 +2,34 @@
 // Uses same visual format as BalancePreview for consistency
 
 import type { SimulationResult } from "../../lib/txSimulation";
+import { getUsdValue, formatUsd } from "../../lib/prices";
 
-export function SimulationPreview({ simResult }: { simResult: SimulationResult }) {
+export function SimulationPreview({ simResult, prices }: { simResult: SimulationResult; prices?: Record<string, number> }) {
   if (simResult.changes.length === 0) return null;
 
   return (
     <div>
       <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
-        {simResult.changes.map((c, i) => (
-          <div key={i} className={i > 0 ? "border-t border-border-secondary" : ""}>
-            <div className="px-3 py-2 flex items-center justify-between">
-              <span className="text-xs text-text-muted">{c.asset.symbol}</span>
-              <span className={`text-[11px] tabular-nums font-medium ${c.direction === "out" ? "text-red-400" : "text-green-400"}`}>
-                {c.direction === "out" ? "-" : "+"}{c.amount} {c.asset.symbol}
-              </span>
+        {simResult.changes.map((c, i) => {
+          const usd = prices ? getUsdValue(c.amount, c.asset.symbol, prices) : null;
+          return (
+            <div key={i} className={i > 0 ? "border-t border-border-secondary" : ""}>
+              <div className="px-3 py-2 flex items-center justify-between">
+                <span className="text-xs text-text-muted">{c.asset.symbol}</span>
+                <div className="text-right">
+                  <span className={`text-[11px] tabular-nums font-medium ${c.direction === "out" ? "text-red-400" : "text-green-400"}`}>
+                    {c.direction === "out" ? "-" : "+"}{c.amount} {c.asset.symbol}
+                  </span>
+                  {usd != null && usd > 0 && (
+                    <span className="text-[10px] text-text-muted ml-1.5 tabular-nums">
+                      ({formatUsd(usd)})
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       <p className="text-[10px] text-text-muted/50 mt-1.5 text-right">
         Simulated via {simResult.provider.charAt(0).toUpperCase() + simResult.provider.slice(1)}

@@ -870,7 +870,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                   <div>
                     <label className="block text-xs text-text-muted mb-1.5">From</label>
                     <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5">
-                      <p className={`text-xs font-mono text-text-tertiary ${expert ? "break-all" : "truncate"}`}>{account?.address ?? "—"}</p>
+                      <p className={`text-xs font-mono text-text-tertiary ${expert ? "text-[9px]" : "truncate"}`}>{account?.address ?? "—"}</p>
                       {chain && (
                         <p className="text-[10px] text-text-muted mt-0.5">{chain.displayName}</p>
                       )}
@@ -893,7 +893,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                         )}
                       </div>
                       <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5">
-                        <p className={`text-xs font-mono text-text-tertiary ${expert ? "break-all" : "truncate"}`}>{txParams.to}</p>
+                        <p className={`text-xs font-mono text-text-tertiary ${expert ? "text-[9px]" : "truncate"}`}>{txParams.to}</p>
                       </div>
                     </div>
                   )}
@@ -914,7 +914,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                     <div>
                       <label className="block text-xs text-text-muted mb-1.5">Data</label>
                       <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 overflow-auto max-h-20">
-                        <p className={`text-xs font-mono text-text-muted ${expert ? "break-all" : "truncate"}`}>
+                        <p className={`text-xs font-mono text-text-muted ${expert ? "text-[9px]" : "truncate"}`}>
                           {expert ? txParams.data : (txParams.data.length > 66 ? txParams.data.slice(0, 66) + "..." : txParams.data)}
                         </p>
                       </div>
@@ -1285,7 +1285,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
                   {/* Balance preview — simulation or static fallback */}
                   {simResult && simResult.changes.length > 0 ? (
-                    <SimulationPreview simResult={simResult} />
+                    <SimulationPreview simResult={simResult} prices={prices} />
                   ) : nativeBalance != null ? (
                     (() => {
                       const txValue = txParams?.value ? BigInt(txParams.value) : 0n;
