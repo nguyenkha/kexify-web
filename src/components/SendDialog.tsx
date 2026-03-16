@@ -1476,14 +1476,12 @@ message = buildSplTransferMessage({
                     {asset.symbol}
                   </span>
                 </div>
-                <div className="flex items-center justify-between mt-1">
+                <div className="flex items-center justify-end mt-1">
                   {amountError ? (
                     <p className="text-[10px] text-red-400">{amountError}</p>
                   ) : amountUsd != null ? (
                     <p className="text-[10px] text-text-muted tabular-nums">{formatUsd(amountUsd)}</p>
-                  ) : (
-                    <span />
-                  )}
+                  ) : null}
                 </div>
               </div>
 
