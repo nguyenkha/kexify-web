@@ -11,63 +11,62 @@ function highlightCode(code: string): string {
   return Prism.highlight(code, Prism.languages.json, "json");
 }
 
+import { checkBtcHealth, checkBchHealth, checkXlmHealth } from "../lib/providerDetect";
+
 type RpcStatus = "checking" | "ok" | "error";
 
 async function checkRpcHealth(rpcUrl: string, chainType: string): Promise<boolean> {
   if (!rpcUrl) return false;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000);
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 5000);
-
-    if (chainType === "evm") {
-      const res = await fetch(rpcUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] }),
-        signal: controller.signal,
-      });
-      clearTimeout(timer);
-      if (!res.ok) return false;
-      const data = await res.json();
-      return !!data.result;
+    switch (chainType) {
+      case "evm": {
+        const res = await fetch(rpcUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] }),
+          signal: controller.signal,
+        });
+        if (!res.ok) return false;
+        const data = await res.json();
+        return !!data.result;
+      }
+      case "solana": {
+        const res = await fetch(rpcUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getHealth", params: [] }),
+          signal: controller.signal,
+        });
+        if (!res.ok) return false;
+        const data = await res.json();
+        return data.result === "ok";
+      }
+      case "xrp": {
+        const res = await fetch(rpcUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ method: "server_info", params: [{}] }),
+          signal: controller.signal,
+        });
+        return res.ok;
+      }
+      case "btc":
+        return checkBtcHealth(rpcUrl, controller.signal);
+      case "bch":
+        return checkBchHealth(rpcUrl, controller.signal);
+      case "xlm":
+        return checkXlmHealth(rpcUrl, controller.signal);
+      default: {
+        const res = await fetch(rpcUrl, { signal: controller.signal });
+        return res.ok;
+      }
     }
-
-    if (chainType === "solana") {
-      const res = await fetch(rpcUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getHealth", params: [] }),
-        signal: controller.signal,
-      });
-      clearTimeout(timer);
-      if (!res.ok) return false;
-      const data = await res.json();
-      return data.result === "ok";
-    }
-
-    if (chainType === "xrp") {
-      const res = await fetch(rpcUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ method: "server_info", params: [{}] }),
-        signal: controller.signal,
-      });
-      clearTimeout(timer);
-      return res.ok;
-    }
-
-    if (chainType === "xlm") {
-      const res = await fetch(rpcUrl, { signal: controller.signal });
-      clearTimeout(timer);
-      return res.ok;
-    }
-
-    // btc, bch — REST APIs, just check if reachable
-    const res = await fetch(rpcUrl, { signal: controller.signal });
-    clearTimeout(timer);
-    return res.ok;
   } catch {
     return false;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
