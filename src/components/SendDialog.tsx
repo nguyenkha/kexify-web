@@ -1721,6 +1721,12 @@ message = buildSplTransferMessage({
                     <span className="text-xs tabular-nums text-text-muted">{feeDisplay.rateLabel}</span>
                   </div>
                 )}
+                {chain.type === "evm" && (
+                  <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
+                    <span className="text-xs text-text-muted">Gas limit</span>
+                    <span className="text-xs tabular-nums text-text-muted">{gasLimit.toLocaleString()}</span>
+                  </div>
+                )}
                 <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
                   <span className="text-xs text-text-muted font-medium">Total cost</span>
                   <span className="text-xs tabular-nums text-text-primary font-semibold">
