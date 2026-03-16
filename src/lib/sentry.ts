@@ -1,6 +1,6 @@
 import * as Sentry from "@sentry/react";
 
-const dsn = import.meta.env.VITE_SENTRY_DSN as string | undefined;
+const dsn = (import.meta.env.VITE_SENTRY_DSN as string | undefined) || undefined;
 const release = (import.meta.env.VITE_GIT_HASH as string | undefined) ?? "dev";
 
 export function initSentry() {
