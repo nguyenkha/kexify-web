@@ -370,7 +370,7 @@ export function ConfigPage() {
                     </div>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                        rpcStatus[chain.name] === "ok" ? "bg-green-500" :
+                        rpcStatus[chain.name] === "ok" ? "bg-green-500 animate-heartbeat" :
                         rpcStatus[chain.name] === "error" ? "bg-red-400" :
                         rpcStatus[chain.name] === "checking" ? "bg-yellow-400 animate-pulse" :
                         "bg-surface-tertiary"
