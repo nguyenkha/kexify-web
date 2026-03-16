@@ -1,0 +1,480 @@
+import { useState, useEffect, useRef } from "react";
+import { fetchChains, fetchSettings, type Chain } from "../lib/api";
+import { getMe } from "../lib/auth";
+import { getUserOverrides, setUserOverrides, clearUserOverrides, type UserOverrides } from "../lib/userOverrides";
+
+const REFRESH_OPTIONS = [
+  { label: "30s", value: 30 },
+  { label: "1m", value: 60 },
+  { label: "5m", value: 300 },
+];
+
+export function ConfigPage() {
+  const [chains, setChains] = useState<Chain[]>([]);
+  const [serverDefaults, setServerDefaults] = useState<string[]>([]);
+  const [serverRefresh, setServerRefresh] = useState(60);
+  const [overrides, setOverrides] = useState<UserOverrides>({});
+  const [userId, setUserId] = useState<string | undefined>();
+  const [loading, setLoading] = useState(true);
+  const [expandedChain, setExpandedChain] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [jsonMode, setJsonMode] = useState(false);
+  const [jsonText, setJsonText] = useState("");
+  const [jsonError, setJsonError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    Promise.all([fetchChains(), fetchSettings(), getMe()]).then(([c, s, me]) => {
+      setChains(c);
+      setServerDefaults((s.default_chains as string[]) ?? []);
+      if (s.refresh_interval && typeof s.refresh_interval === "number") {
+        setServerRefresh(s.refresh_interval);
+      }
+      const uid = me?.id;
+      setUserId(uid);
+      setOverrides(getUserOverrides(uid));
+      setLoading(false);
+    });
+  }, []);
+
+  function save(next: UserOverrides) {
+    setOverrides(next);
+    setUserOverrides(next, userId);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1500);
+  }
+
+  // ── Chain overrides ──
+
+  function isChainHidden(name: string): boolean {
+    return overrides.chains?.[name]?.hidden ?? false;
+  }
+
+  function toggleChainHidden(name: string) {
+    const prev = overrides.chains ?? {};
+    const chain = prev[name] ?? {};
+    const hidden = !chain.hidden;
+    const next = { ...chain, hidden };
+    // Clean up: remove entry if no overrides left
+    const { hidden: _h, ...rest } = next;
+    const cleaned = hidden || Object.keys(rest).some((k) => rest[k as keyof typeof rest])
+      ? next
+      : undefined;
+    const chains = { ...prev };
+    if (cleaned) chains[name] = cleaned;
+    else delete chains[name];
+    save({ ...overrides, chains: Object.keys(chains).length ? chains : undefined });
+  }
+
+  function setChainField(name: string, field: "rpcUrl" | "explorerUrl", value: string) {
+    const prev = overrides.chains ?? {};
+    const chain = { ...prev[name] };
+    if (value) {
+      chain[field] = value;
+    } else {
+      delete chain[field];
+    }
+    // Clean up empty chain overrides
+    const { hidden, ...fields } = chain;
+    const hasOverrides = hidden || Object.keys(fields).some((k) => fields[k as keyof typeof fields]);
+    const chains = { ...prev };
+    if (hasOverrides) chains[name] = chain;
+    else delete chains[name];
+    save({ ...overrides, chains: Object.keys(chains).length ? chains : undefined });
+  }
+
+  function getChainField(name: string, field: "rpcUrl" | "explorerUrl"): string {
+    return overrides.chains?.[name]?.[field] ?? "";
+  }
+
+  // ── Preferences ──
+
+  function getRefreshInterval(): number {
+    return overrides.preferences?.refresh_interval ?? serverRefresh;
+  }
+
+  function setRefreshInterval(value: number) {
+    const prefs = { ...overrides.preferences };
+    if (value === serverRefresh) {
+      delete prefs.refresh_interval;
+    } else {
+      prefs.refresh_interval = value;
+    }
+    save({ ...overrides, preferences: Object.keys(prefs).length ? prefs : undefined });
+  }
+
+  function getDefaultChains(): string[] {
+    return overrides.preferences?.default_chains ?? serverDefaults;
+  }
+
+  function toggleDefaultChain(name: string) {
+    const current = getDefaultChains();
+    const next = current.includes(name)
+      ? current.filter((c) => c !== name)
+      : [...current, name];
+    const prefs = { ...overrides.preferences, default_chains: next };
+    save({ ...overrides, preferences: prefs });
+  }
+
+  // ── Export / Import ──
+
+  function exportConfig() {
+    const json = JSON.stringify(overrides, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "kexify-config.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function copyConfig() {
+    navigator.clipboard.writeText(JSON.stringify(overrides, null, 2));
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1500);
+  }
+
+  function importConfig(file: File) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(reader.result as string);
+        save(parsed);
+      } catch {
+        // invalid JSON
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function resetConfig() {
+    clearUserOverrides(userId);
+    setOverrides({});
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1500);
+  }
+
+  // ── JSON editor ──
+
+  function openJsonEditor() {
+    setJsonText(JSON.stringify(overrides, null, 2));
+    setJsonError("");
+    setJsonMode(true);
+  }
+
+  function saveJsonEditor() {
+    try {
+      const parsed = JSON.parse(jsonText);
+      save(parsed);
+      setJsonMode(false);
+    } catch {
+      setJsonError("Invalid JSON");
+    }
+  }
+
+  const hasOverrides = Object.keys(overrides).length > 0 &&
+    (Object.keys(overrides.chains ?? {}).length > 0 || Object.keys(overrides.preferences ?? {}).length > 0);
+
+  if (loading) {
+    return (
+      <div className="space-y-5">
+        <h2 className="text-lg font-semibold text-text-primary">Config</h2>
+        <div className="text-xs text-text-muted text-center py-8">Loading...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h2 className="text-lg font-semibold text-text-primary">Config</h2>
+        <p className="text-xs text-text-muted mt-1">
+          Customize networks, preferences, and RPC endpoints.
+          {saved && <span className="text-green-400 ml-2">Saved</span>}
+        </p>
+      </div>
+
+      {/* ── Networks ── */}
+      <div>
+        <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-2 px-1">
+          Networks
+        </p>
+        <div className="bg-surface-secondary rounded-xl border border-border-primary overflow-hidden divide-y divide-border-secondary">
+          {chains.map((chain) => {
+            const hidden = isChainHidden(chain.name);
+            const expanded = expandedChain === chain.name;
+            const hasRpcOverride = !!getChainField(chain.name, "rpcUrl");
+            const hasExplorerOverride = !!getChainField(chain.name, "explorerUrl");
+            const hasFieldOverrides = hasRpcOverride || hasExplorerOverride;
+
+            return (
+              <div key={chain.id}>
+                <div className="flex items-center px-3 md:px-4 py-3 gap-3">
+                  {/* Chain icon + name */}
+                  <button
+                    className="flex items-center gap-2.5 flex-1 min-w-0 text-left"
+                    onClick={() => setExpandedChain(expanded ? null : chain.name)}
+                  >
+                    {chain.iconUrl ? (
+                      <img src={chain.iconUrl} alt={chain.displayName} className="w-7 h-7 rounded-full bg-surface-tertiary shrink-0" />
+                    ) : (
+                      <div className="w-7 h-7 rounded-full bg-surface-tertiary shrink-0" />
+                    )}
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-text-primary leading-tight flex items-center gap-1.5">
+                        {chain.displayName}
+                        {/devnet/i.test(chain.name) ? (
+                          <span className="text-[8px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">devnet</span>
+                        ) : /testnet|sepolia/i.test(chain.name) ? (
+                          <span className="text-[8px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">testnet</span>
+                        ) : null}
+                        {hasFieldOverrides && (
+                          <span className="text-[8px] px-1 py-0.5 rounded bg-blue-500/10 text-blue-400 font-medium">custom</span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-text-muted font-mono truncate mt-0.5">
+                        {getChainField(chain.name, "rpcUrl") || chain.rpcUrl}
+                      </p>
+                    </div>
+                  </button>
+
+                  {/* Expand chevron */}
+                  <button
+                    onClick={() => setExpandedChain(expanded ? null : chain.name)}
+                    className="p-1 text-text-muted hover:text-text-secondary transition-colors shrink-0"
+                  >
+                    <svg className={`w-3.5 h-3.5 transition-transform ${expanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {/* Show/hide toggle */}
+                  <button
+                    onClick={() => toggleChainHidden(chain.name)}
+                    className={`relative w-8 h-[18px] rounded-full transition-colors shrink-0 ${
+                      !hidden ? "bg-blue-500" : "bg-surface-tertiary"
+                    }`}
+                  >
+                    <span className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform ${
+                      !hidden ? "left-[16px]" : "left-[2px]"
+                    }`} />
+                  </button>
+                </div>
+
+                {/* Expanded: RPC + Explorer override */}
+                {expanded && (
+                  <div className="px-3 md:px-4 pb-3 space-y-2">
+                    <div>
+                      <label className="block text-[10px] text-text-muted mb-1">RPC URL</label>
+                      <input
+                        value={getChainField(chain.name, "rpcUrl")}
+                        onChange={(e) => setChainField(chain.name, "rpcUrl", e.target.value)}
+                        placeholder={chain.rpcUrl}
+                        className="w-full bg-surface-primary border border-border-primary rounded-lg px-3 py-2 text-xs text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-text-muted mb-1">Explorer URL</label>
+                      <input
+                        value={getChainField(chain.name, "explorerUrl")}
+                        onChange={(e) => setChainField(chain.name, "explorerUrl", e.target.value)}
+                        placeholder={chain.explorerUrl}
+                        className="w-full bg-surface-primary border border-border-primary rounded-lg px-3 py-2 text-xs text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Preferences ── */}
+      <div>
+        <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-2 px-1">
+          Preferences
+        </p>
+        <div className="bg-surface-secondary rounded-xl border border-border-primary overflow-hidden divide-y divide-border-secondary">
+          {/* Refresh interval */}
+          <div className="px-3 md:px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-text-primary">Refresh interval</p>
+                <p className="text-[10px] text-text-muted mt-0.5">How often balances and prices update</p>
+              </div>
+              <div className="flex bg-surface-primary border border-border-primary rounded-lg p-0.5 gap-0.5">
+                {REFRESH_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setRefreshInterval(opt.value)}
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                      getRefreshInterval() === opt.value
+                        ? "bg-surface-tertiary text-text-primary shadow-sm"
+                        : "text-text-muted hover:text-text-secondary"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Default chains */}
+          <div className="px-3 md:px-4 py-3">
+            <p className="text-sm text-text-primary">Default chains</p>
+            <p className="text-[10px] text-text-muted mt-0.5 mb-2.5">Chains shown by default for new accounts</p>
+            <div className="flex flex-wrap gap-2">
+              {chains.filter((c) => !/testnet|sepolia|devnet/i.test(c.name)).map((chain) => {
+                const selected = getDefaultChains().includes(chain.name);
+                return (
+                  <button
+                    key={chain.id}
+                    onClick={() => toggleDefaultChain(chain.name)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                      selected
+                        ? "bg-blue-500/10 border-blue-500/30 text-blue-400"
+                        : "bg-surface-primary border-border-primary text-text-muted hover:text-text-secondary hover:border-border-secondary"
+                    }`}
+                  >
+                    {chain.iconUrl && (
+                      <img src={chain.iconUrl} alt="" className="w-4 h-4 rounded-full" />
+                    )}
+                    {chain.displayName}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Backup & Restore ── */}
+      <div>
+        <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-2 px-1">
+          Backup & Restore
+        </p>
+        <div className="bg-surface-secondary rounded-xl border border-border-primary overflow-hidden divide-y divide-border-secondary">
+          <div className="px-3 md:px-4 py-3 flex items-center justify-between">
+            <div>
+              <p className="text-sm text-text-primary">Export config</p>
+              <p className="text-[10px] text-text-muted mt-0.5">Download or copy your overrides to transfer to another browser</p>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <button
+                onClick={copyConfig}
+                className="p-2 rounded-lg bg-surface-primary border border-border-primary hover:border-border-secondary text-text-muted hover:text-text-secondary transition-colors"
+                title="Copy to clipboard"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+                </svg>
+              </button>
+              <button
+                onClick={exportConfig}
+                disabled={!hasOverrides}
+                className="px-3 py-1.5 rounded-lg bg-surface-primary border border-border-primary hover:border-border-secondary text-xs text-text-secondary hover:text-text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Download
+              </button>
+            </div>
+          </div>
+
+          <div className="px-3 md:px-4 py-3 flex items-center justify-between">
+            <div>
+              <p className="text-sm text-text-primary">Import config</p>
+              <p className="text-[10px] text-text-muted mt-0.5">Upload a previously exported config file</p>
+            </div>
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                className="hidden"
+                onChange={(e) => { if (e.target.files?.[0]) importConfig(e.target.files[0]); }}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="px-3 py-1.5 rounded-lg bg-surface-primary border border-border-primary hover:border-border-secondary text-xs text-text-secondary hover:text-text-primary transition-colors"
+              >
+                Upload
+              </button>
+            </div>
+          </div>
+
+          {hasOverrides && (
+            <div className="px-3 md:px-4 py-3 flex items-center justify-between">
+              <div>
+                <p className="text-sm text-text-primary">Reset to defaults</p>
+                <p className="text-[10px] text-text-muted mt-0.5">Clear all custom overrides</p>
+              </div>
+              <button
+                onClick={resetConfig}
+                className="px-3 py-1.5 rounded-lg text-xs text-red-400 hover:bg-red-500/10 transition-colors"
+              >
+                Reset
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Edit as JSON ── */}
+      <div className="px-1">
+        <button
+          onClick={openJsonEditor}
+          className="text-xs text-text-muted hover:text-text-secondary transition-colors"
+        >
+          Edit as JSON
+        </button>
+      </div>
+
+      {/* JSON Editor Modal */}
+      {jsonMode && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setJsonMode(false)} />
+          <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl flex flex-col max-h-[80vh]">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border-primary">
+              <h3 className="text-sm font-semibold text-text-primary">Edit Config JSON</h3>
+              <button
+                onClick={() => setJsonMode(false)}
+                className="p-1.5 rounded-md text-text-tertiary hover:text-text-primary hover:bg-surface-tertiary transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="px-5 py-4 flex-1 overflow-auto">
+              <textarea
+                value={jsonText}
+                onChange={(e) => { setJsonText(e.target.value); setJsonError(""); }}
+                className="w-full h-64 bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 text-xs text-text-primary font-mono resize-none focus:outline-none focus:border-blue-500 transition-colors"
+                spellCheck={false}
+              />
+              {jsonError && (
+                <p className="text-[10px] text-red-400 mt-1">{jsonError}</p>
+              )}
+            </div>
+            <div className="px-5 py-4 border-t border-border-primary flex justify-end gap-2">
+              <button
+                onClick={() => setJsonMode(false)}
+                className="px-4 py-2 rounded-lg text-xs text-text-tertiary hover:text-text-secondary hover:bg-surface-tertiary transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveJsonEditor}
+                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium transition-colors"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

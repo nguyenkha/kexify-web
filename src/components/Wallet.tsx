@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import type { KeyShare } from "../shared/types";
 import { fetchChains, fetchAssets, fetchSettings, type Chain, type Asset } from "../lib/api";
+import { getMe } from "../lib/auth";
+import { getUserOverrides } from "../lib/userOverrides";
 import { setCacheTtl } from "../lib/dataCache";
 import { authHeaders } from "../lib/auth";
 import { apiUrl } from "../lib/apiBase";
@@ -58,14 +60,30 @@ export function Wallet() {
           .then((r) => r.json())
           .then((d) => d.keys || []);
 
-    Promise.all([keysPromise, fetchChains(), fetchAssets(), fetchSettings()])
-      .then(([k, c, a, s]) => {
+    Promise.all([keysPromise, fetchChains(), fetchAssets(), fetchSettings(), getMe()])
+      .then(([k, c, a, s, me]) => {
         setKeys(k);
-        setChainsData(c);
+
+        // Apply user overrides to chains and preferences
+        const overrides = getUserOverrides(me?.id);
+        const filteredChains = c
+          .filter((ch: Chain) => !overrides.chains?.[ch.name]?.hidden)
+          .map((ch: Chain) => {
+            const o = overrides.chains?.[ch.name];
+            if (!o) return ch;
+            const { hidden: _, ...fields } = o;
+            return Object.keys(fields).length ? { ...ch, ...fields } : ch;
+          });
+        setChainsData(filteredChains);
         setAssetsData(a);
-        setDefaultChains((s.default_chains as string[]) ?? null);
-        if (s.refresh_interval && typeof s.refresh_interval === "number" && s.refresh_interval > 0) {
-          const ms = s.refresh_interval * 1000;
+
+        const defaultChainsVal = overrides.preferences?.default_chains ?? (s.default_chains as string[]) ?? null;
+        setDefaultChains(defaultChainsVal);
+
+        const refreshSec = overrides.preferences?.refresh_interval
+          ?? (typeof s.refresh_interval === "number" ? s.refresh_interval : null);
+        if (refreshSec && refreshSec > 0) {
+          const ms = refreshSec * 1000;
           setPollInterval(ms);
           setCacheTtl(ms);
         }
