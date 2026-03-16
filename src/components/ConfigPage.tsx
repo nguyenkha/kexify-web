@@ -360,7 +360,7 @@ export function ConfigPage() {
         <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-2 px-1">
           Networks
         </p>
-        <div className="bg-surface-secondary rounded-xl border border-border-primary overflow-hidden divide-y divide-border-secondary">
+        <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden divide-y divide-border-secondary">
           {visibleChains.map((chain) => {
             const expanded = expandedChain === chain.name;
             const hasFieldOverrides = !!getChainField(chain.name, "rpcUrl") || !!getChainField(chain.name, "explorerUrl");
@@ -380,12 +380,12 @@ export function ConfigPage() {
                     <div className="text-sm font-medium text-text-primary leading-tight flex items-center gap-1.5">
                       {chain.displayName}
                       {/devnet/i.test(chain.name) ? (
-                        <span className="text-[9px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">devnet</span>
+                        <span className="text-[10px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">devnet</span>
                       ) : /testnet|sepolia/i.test(chain.name) ? (
-                        <span className="text-[9px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">testnet</span>
+                        <span className="text-[10px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">testnet</span>
                       ) : null}
                       {hasFieldOverrides && (
-                        <span className="text-[9px] px-1 py-0.5 rounded bg-blue-500/10 text-blue-400 font-medium">custom</span>
+                        <span className="text-[10px] px-1 py-0.5 rounded bg-blue-500/10 text-blue-400 font-medium">custom</span>
                       )}
                     </div>
                     <div className="flex items-center gap-1.5 mt-0.5">
@@ -464,7 +464,7 @@ export function ConfigPage() {
         <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-2 px-1">
           Preferences
         </p>
-        <div className="bg-surface-secondary rounded-xl border border-border-primary overflow-hidden divide-y divide-border-secondary">
+        <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden divide-y divide-border-secondary">
           {/* Show testnets */}
           <div className="px-3 md:px-5 py-4">
             <div className="flex items-center justify-between">
@@ -564,7 +564,7 @@ export function ConfigPage() {
         <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-2 px-1">
           Backup & Restore
         </p>
-        <div className="bg-surface-secondary rounded-xl border border-border-primary overflow-hidden divide-y divide-border-secondary">
+        <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden divide-y divide-border-secondary">
           {/* Export */}
           <div className="px-3 md:px-5 py-4 flex items-center justify-between gap-4">
             <div className="min-w-0">

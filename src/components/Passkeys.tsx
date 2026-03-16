@@ -139,7 +139,7 @@ export function Passkeys() {
         {[1, 2].map((i) => (
           <div
             key={i}
-            className="bg-surface-secondary rounded-xl border border-border-primary h-[68px] flex items-center px-5 gap-3"
+            className="bg-surface-secondary rounded-lg border border-border-primary h-[68px] flex items-center px-5 gap-3"
           >
             <div className="w-9 h-9 rounded-full bg-surface-tertiary animate-pulse" />
             <div className="flex-1 space-y-2">
@@ -199,7 +199,7 @@ export function Passkeys() {
         </p>
       </div>
 
-      <div className="bg-surface-secondary rounded-xl border border-border-primary overflow-hidden divide-y divide-border-secondary">
+      <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden divide-y divide-border-secondary">
         {passkeys.map((pk) => (
           <div
             key={pk.id}
@@ -285,7 +285,7 @@ export function Passkeys() {
       <button
         onClick={handleAdd}
         disabled={adding}
-        className="w-full border border-dashed border-border-primary rounded-xl py-3 text-sm text-text-muted hover:text-text-secondary hover:border-border-secondary transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60"
+        className="w-full border border-dashed border-border-primary rounded-lg py-3 text-sm text-text-muted hover:text-text-secondary hover:border-border-secondary transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60"
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />

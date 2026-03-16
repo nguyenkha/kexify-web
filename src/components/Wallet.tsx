@@ -237,7 +237,7 @@ export function Wallet() {
   // ── Loading state ──
   if (loading) {
     return (
-      <div className="bg-surface-secondary rounded-xl border border-border-primary overflow-hidden divide-y divide-border-secondary">
+      <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden divide-y divide-border-secondary">
         <SkeletonRow />
         <SkeletonRow />
         <SkeletonRow />
@@ -424,7 +424,7 @@ export function Wallet() {
             </div>
           )}
 
-          <div className="bg-surface-secondary rounded-xl border border-border-primary overflow-hidden divide-y divide-border-secondary">
+          <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden divide-y divide-border-secondary">
             {group.rows
               .filter((row) => isChainVisible(row.chain.name, displayMap[group.keyId] ?? null, defaultChains))
               .map((row) => (
@@ -459,7 +459,7 @@ export function Wallet() {
         <button
           onClick={() => guardedAction(() => setShowCreateDialog(true))}
           disabled={frozen}
-          className="w-full border border-dashed border-border-primary rounded-xl py-3 text-sm text-text-muted hover:text-text-secondary hover:border-border-secondary transition-colors flex items-center justify-center gap-1.5 disabled:text-text-muted disabled:cursor-not-allowed disabled:hover:border-border-primary"
+          className="w-full border border-dashed border-border-primary rounded-lg py-3 text-sm text-text-muted hover:text-text-secondary hover:border-border-secondary transition-colors flex items-center justify-center gap-1.5 disabled:text-text-muted disabled:cursor-not-allowed disabled:hover:border-border-primary"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -469,7 +469,7 @@ export function Wallet() {
       )}
 
       {incompleteKeys.length > 0 && (
-        <div className="bg-yellow-500/5 border border-yellow-500/15 rounded-xl px-4 py-3 flex items-start gap-3">
+        <div className="bg-yellow-500/5 border border-yellow-500/15 rounded-lg px-4 py-3 flex items-start gap-3">
           <svg
             className="w-4 h-4 text-yellow-500/70 shrink-0 mt-0.5"
             fill="none"
@@ -495,7 +495,7 @@ export function Wallet() {
           <h3 className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-2 px-1">
             Disabled
           </h3>
-          <div className="bg-surface-secondary rounded-xl border border-border-primary overflow-hidden divide-y divide-border-secondary">
+          <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden divide-y divide-border-secondary">
             {disabledKeys.map((key) => (
               <DisabledKeyRow
                 key={key.id}

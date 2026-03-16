@@ -115,7 +115,7 @@ export function RecoveryChecklist() {
                 {completedCount}/{steps.length}
               </span>
             </div>
-            <div className="bg-surface-secondary rounded-xl border border-border-primary overflow-hidden divide-y divide-border-secondary">
+            <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden divide-y divide-border-secondary">
               {steps.map((step, i) => (
                 <div key={i} className="px-3 md:px-5 py-3 flex items-start gap-3">
                   <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${

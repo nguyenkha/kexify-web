@@ -243,9 +243,9 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
         <h3 className="text-lg font-semibold text-text-primary mt-3 flex items-center gap-2">
           {asset.name.replace(/\s*\(?\s*(testnet|devnet)\s*\)?\s*/gi, " ").trim()}
           {/devnet/i.test(chain.name) ? (
-            <span className="text-[9px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">devnet</span>
+            <span className="text-[10px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">devnet</span>
           ) : /testnet|sepolia/i.test(chain.name) ? (
-            <span className="text-[9px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">testnet</span>
+            <span className="text-[10px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">testnet</span>
           ) : null}
         </h3>
         <p className="text-[11px] text-text-muted mt-0.5">{chain.displayName}</p>
@@ -253,7 +253,7 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
           onClick={() => setShowFullBalance(!showFullBalance)}
           className="text-2xl font-semibold tabular-nums text-text-primary mt-3 break-all cursor-pointer hover:text-text-secondary transition-colors"
         >
-          {maskBalance(showFullBalance ? balance : truncateBalance(balance), balancesHidden)} <span className="text-text-tertiary text-base">{asset.symbol}</span>
+          {maskBalance(showFullBalance ? balance : truncateBalance(balance), balancesHidden)} <span className="text-text-tertiary text-sm">{asset.symbol}</span>
         </button>
         {usdValue != null && (
           <p className="text-sm text-text-muted tabular-nums mt-0.5">{balancesHidden ? "••••" : formatUsd(usdValue)}</p>
@@ -398,7 +398,7 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
           )}
         </div>
 
-        <div className="bg-surface-secondary rounded-xl border border-border-primary overflow-hidden">
+        <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden">
           {/* Pending transactions — always shown at top */}
           {transactions.filter((t) => !t.confirmed).length > 0 && (
             <div className="divide-y divide-border-secondary">

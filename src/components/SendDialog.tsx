@@ -1383,7 +1383,7 @@ message = buildSplTransferMessage({
                   </button>
                 </div>
                 {showAddrScanner && (
-                  <div className="mt-2 rounded-xl overflow-hidden border border-border-primary">
+                  <div className="mt-2 rounded-lg overflow-hidden border border-border-primary">
                     <Scanner
                       onScan={(results) => {
                         if (results.length > 0) {
@@ -1668,7 +1668,7 @@ message = buildSplTransferMessage({
               {/* Amount hero */}
               <div className="text-center py-2">
                 <p className="text-2xl font-semibold tabular-nums text-text-primary">
-                  {amount} <span className="text-text-tertiary text-base">{asset.symbol}</span>
+                  {amount} <span className="text-text-tertiary text-sm">{asset.symbol}</span>
                 </p>
                 {amountUsd != null && (
                   <p className="text-sm text-text-muted tabular-nums mt-0.5">{formatUsd(amountUsd)}</p>

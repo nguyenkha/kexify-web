@@ -51,7 +51,7 @@ export function QrModal({ address, asset, chain, onClose }: { address: string; a
           </div>
           <button
             onClick={copyAddr}
-            className="w-full max-w-[280px] rounded-lg bg-surface-primary/60 border border-border-secondary px-2 py-2 text-[9px] font-mono text-center hover:bg-surface-tertiary/50 transition-colors cursor-pointer truncate"
+            className="w-full max-w-[280px] rounded-lg bg-surface-primary/60 border border-border-secondary px-2 py-2 text-[10px] font-mono text-center hover:bg-surface-tertiary/50 transition-colors cursor-pointer truncate"
             title="Copy address"
           >
             {copied ? <span className="text-green-500">Copied!</span> : <span className="text-text-secondary">{address}</span>}

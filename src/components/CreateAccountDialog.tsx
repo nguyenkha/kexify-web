@@ -225,7 +225,7 @@ export function CreateAccountDialog({
               <div className="space-y-3">
                 <button
                   onClick={() => chooseMode(false)}
-                  className="w-full bg-surface-primary border border-border-primary hover:border-blue-500/30 rounded-xl px-4 py-4 text-left transition-colors group"
+                  className="w-full bg-surface-primary border border-border-primary hover:border-blue-500/30 rounded-lg px-4 py-4 text-left transition-colors group"
                 >
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0 mt-0.5">
@@ -245,7 +245,7 @@ export function CreateAccountDialog({
 
                 <button
                   onClick={() => chooseMode(true)}
-                  className="w-full bg-surface-primary border border-border-primary hover:border-border-secondary rounded-xl px-4 py-4 text-left transition-colors group"
+                  className="w-full bg-surface-primary border border-border-primary hover:border-border-secondary rounded-lg px-4 py-4 text-left transition-colors group"
                 >
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 rounded-full bg-surface-tertiary flex items-center justify-center shrink-0 mt-0.5">

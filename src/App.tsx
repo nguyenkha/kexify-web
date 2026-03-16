@@ -276,7 +276,7 @@ function DashboardLayout() {
                     <button
                       key={item.path}
                       onClick={() => selectNav(item.path)}
-                      className={`w-full text-left px-3 py-2 rounded-md text-[13px] transition-colors ${
+                      className={`w-full text-left px-3 py-2 rounded-md text-xs transition-colors ${
                         isActive
                           ? "bg-blue-600/10 text-blue-500 font-medium"
                           : "text-text-tertiary hover:text-text-primary hover:bg-surface-tertiary"

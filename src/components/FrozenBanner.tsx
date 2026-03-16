@@ -162,7 +162,7 @@ export function FrozenBanner({
         )}
         <button
           onClick={() => setAction("freeze-confirm")}
-          className="w-full text-left px-3 py-2 rounded-md text-[13px] text-text-tertiary hover:text-text-primary hover:bg-surface-tertiary transition-colors"
+          className="w-full text-left px-3 py-2 rounded-md text-xs text-text-tertiary hover:text-text-primary hover:bg-surface-tertiary transition-colors"
           title="Freeze your account — blocks all operations immediately"
         >
           🥶 Freeze Account

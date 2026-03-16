@@ -235,9 +235,9 @@ export function AccountRowView({
             <div className="text-sm font-medium text-text-primary leading-tight flex items-center gap-1.5">
               {row.label.replace(/\s*\(?\s*(testnet|devnet)\s*\)?\s*/gi, " ").trim()}
               {/devnet/i.test(row.chain.name) ? (
-                <span className="text-[9px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">devnet</span>
+                <span className="text-[10px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">devnet</span>
               ) : /testnet|sepolia/i.test(row.chain.name) ? (
-                <span className="text-[9px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">testnet</span>
+                <span className="text-[10px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">testnet</span>
               ) : null}
             </div>
             <div className="flex items-center gap-1.5 mt-0.5">

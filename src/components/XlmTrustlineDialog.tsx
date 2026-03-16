@@ -194,7 +194,7 @@ export function XlmTrustlineDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={step === "signing" ? undefined : onClose} />
-      <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-sm shadow-xl overflow-hidden">
+      <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl overflow-hidden">
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border-secondary">
@@ -234,7 +234,7 @@ export function XlmTrustlineDialog({
                   <button
                     key={a.id}
                     onClick={() => { setSelectedAsset(a); setStep("input"); }}
-                    className="w-full flex items-center gap-3 px-3 py-3 bg-surface-primary border border-border-primary rounded-xl hover:border-blue-500/40 transition-colors text-left"
+                    className="w-full flex items-center gap-3 px-3 py-3 bg-surface-primary border border-border-primary rounded-lg hover:border-blue-500/40 transition-colors text-left"
                   >
                     {a.iconUrl ? (
                       <img src={a.iconUrl} alt={a.symbol} className="w-8 h-8 rounded-full bg-surface-tertiary shrink-0" />
@@ -421,7 +421,7 @@ export function XlmTrustlineDialog({
                     <img src={selectedAsset.iconUrl} alt={selectedAsset.symbol} className="w-6 h-6 rounded-full bg-surface-tertiary shrink-0" />
                   )}
                   <p className="text-2xl font-semibold text-text-primary">
-                    Enable <span className="text-text-tertiary text-base">{selectedAsset.symbol}</span>
+                    Enable <span className="text-text-tertiary text-sm">{selectedAsset.symbol}</span>
                   </p>
                 </div>
                 <p className="text-sm text-text-muted">Establish trustline</p>

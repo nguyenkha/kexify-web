@@ -467,7 +467,7 @@ export function ActivityLogPage() {
               <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-1.5 px-1">
                 {group.label}
               </p>
-              <div className="bg-surface-secondary rounded-xl border border-border-primary overflow-hidden divide-y divide-border-secondary">
+              <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden divide-y divide-border-secondary">
                 {group.entries.map((entry) => (
                   <EntryRow key={entry.id} entry={entry} showAccount expert={expert} />
                 ))}

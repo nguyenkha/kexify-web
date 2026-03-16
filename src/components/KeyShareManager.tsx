@@ -390,7 +390,7 @@ export function KeyShareManager() {
           <p className="text-[11px] text-text-muted mt-1">Save a key share during account creation or import one here.</p>
         </div>
       ) : (
-        <div className="bg-surface-secondary rounded-xl border border-border-primary overflow-hidden divide-y divide-border-secondary">
+        <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden divide-y divide-border-secondary">
           {[...shares].sort((a, b) => {
             const nameA = serverKeys.find((k) => k.id === a.keyId)?.name || a.keyId;
             const nameB = serverKeys.find((k) => k.id === b.keyId)?.name || b.keyId;
@@ -439,7 +439,7 @@ export function KeyShareManager() {
                 </p>
               </div>
             </div>
-            <div className="bg-surface-secondary rounded-xl border border-border-primary overflow-hidden divide-y divide-border-secondary">
+            <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden divide-y divide-border-secondary">
               {restorable.sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id)).map((k) => (
                 <div key={k.id}>
                   <div className="flex items-center h-[68px] px-3 md:px-5">
@@ -490,7 +490,7 @@ export function KeyShareManager() {
             </div>
           </div>
 
-          <div className="bg-surface-secondary rounded-xl border border-border-primary overflow-hidden divide-y divide-border-secondary">
+          <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden divide-y divide-border-secondary">
             {[...serverKeys].sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id)).map((k) => (
               <div key={k.id}>
                 <div className="flex items-center h-[68px] px-3 md:px-5">
@@ -566,7 +566,7 @@ export function KeyShareManager() {
       {confirmDeleteId && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50" onClick={() => setConfirmDeleteId(null)} />
-          <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-sm shadow-xl">
+          <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl">
             <div className="px-5 py-4 border-b border-border-primary flex items-center justify-between">
               <h3 className="text-sm font-semibold text-text-primary">🗑️ Remove from Browser</h3>
               <button onClick={() => setConfirmDeleteId(null)} className="p-1.5 rounded-md text-text-tertiary hover:text-text-secondary hover:bg-surface-tertiary transition-colors">
@@ -623,7 +623,7 @@ export function KeyShareManager() {
       {serverExportStep === "passphrase" && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50" onClick={() => { setServerExportStep("idle"); setServerExportId(null); delete (window as any).__serverExportData; }} />
-          <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-sm shadow-xl">
+          <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl">
             <div className="px-5 py-4 border-b border-border-primary flex items-center justify-between">
               <h3 className="text-sm font-semibold text-text-primary">📥 Download Server Key</h3>
               <button onClick={() => { setServerExportStep("idle"); setServerExportId(null); delete (window as any).__serverExportData; }} className="p-1.5 rounded-md text-text-tertiary hover:text-text-secondary hover:bg-surface-tertiary transition-colors">
@@ -653,7 +653,7 @@ export function KeyShareManager() {
       {restoreStep === "decrypt" && restoreData && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50" onClick={() => { setRestoreStep("idle"); setRestoreId(null); setRestoreData(null); }} />
-          <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-sm shadow-xl">
+          <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl">
             <div className="px-5 py-4 border-b border-border-primary flex items-center justify-between">
               <h3 className="text-sm font-semibold text-text-primary">🔓 Decrypt Backup</h3>
               <button onClick={() => { setRestoreStep("idle"); setRestoreId(null); setRestoreData(null); }} className="p-1.5 rounded-md text-text-tertiary hover:text-text-secondary hover:bg-surface-tertiary transition-colors">
@@ -680,7 +680,7 @@ export function KeyShareManager() {
       {restoreStep === "encrypt" && restoreData && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50" onClick={() => { setRestoreStep("idle"); setRestoreId(null); setRestoreData(null); }} />
-          <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-sm shadow-xl">
+          <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl">
             <div className="px-5 py-4 border-b border-border-primary flex items-center justify-between">
               <h3 className="text-sm font-semibold text-text-primary">🔐 Save Key Share</h3>
               <button onClick={() => { setRestoreStep("idle"); setRestoreId(null); setRestoreData(null); }} className="p-1.5 rounded-md text-text-tertiary hover:text-text-secondary hover:bg-surface-tertiary transition-colors">
@@ -714,7 +714,7 @@ export function KeyShareManager() {
       {importStep === "decrypt" && importData && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50" onClick={() => { setImportStep("idle"); setImportData(null); setImportPassphrase(null); }} />
-          <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-sm shadow-xl">
+          <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl">
             <div className="px-5 py-4 border-b border-border-primary flex items-center justify-between">
               <h3 className="text-sm font-semibold text-text-primary">🔓 Decrypt Key File</h3>
               <button onClick={() => { setImportStep("idle"); setImportData(null); setImportPassphrase(null); }} className="p-1.5 rounded-md text-text-tertiary hover:text-text-secondary hover:bg-surface-tertiary transition-colors">
@@ -741,7 +741,7 @@ export function KeyShareManager() {
       {importStep === "encrypt" && importData && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50" onClick={() => { setImportStep("idle"); setImportData(null); setImportPassphrase(null); }} />
-          <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-sm shadow-xl">
+          <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl">
             <div className="px-5 py-4 border-b border-border-primary flex items-center justify-between">
               <h3 className="text-sm font-semibold text-text-primary">🔐 Save Key Share</h3>
               <button onClick={() => { setImportStep("idle"); setImportData(null); setImportPassphrase(null); }} className="p-1.5 rounded-md text-text-tertiary hover:text-text-secondary hover:bg-surface-tertiary transition-colors">
@@ -795,7 +795,7 @@ export function KeyShareManager() {
       {importStep === "saving" && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50" />
-          <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-sm shadow-xl">
+          <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl">
             <div className="px-5 py-8 flex items-center justify-center gap-3">
               <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
               <span className="text-sm text-text-secondary">Saving key share...</span>

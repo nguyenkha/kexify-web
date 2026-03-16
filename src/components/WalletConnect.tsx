@@ -144,7 +144,7 @@ export function WalletConnect() {
 
       {/* QR scanner */}
       {scanning && (
-        <div className="mt-3 rounded-xl overflow-hidden border border-border-primary" style={{ maxWidth: 400 }}>
+        <div className="mt-3 rounded-lg overflow-hidden border border-border-primary" style={{ maxWidth: 400 }}>
           <Scanner
             onScan={handleScan}
             onError={() => {
@@ -179,7 +179,7 @@ export function WalletConnect() {
             <p className="text-[11px] text-text-muted uppercase tracking-wider mb-3">
               Active Sessions
             </p>
-            <div className="space-y-px bg-surface-secondary border border-border-primary rounded-xl overflow-hidden">
+            <div className="space-y-px bg-surface-secondary border border-border-primary rounded-lg overflow-hidden">
               {sessions.map((session) => {
                 const { peer } = session;
                 const accounts = Object.values(session.namespaces)

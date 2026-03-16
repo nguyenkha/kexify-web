@@ -1182,7 +1182,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                     return (
                       <div className="text-center py-2">
                         <p className="text-2xl font-semibold tabular-nums text-text-primary">
-                          {val} <span className="text-text-tertiary text-base">ETH</span>
+                          {val} <span className="text-text-tertiary text-sm">ETH</span>
                         </p>
                       </div>
                     );
@@ -1330,7 +1330,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                             : solTokenInfo
                               ? formatSplAmount(BigInt(decodedSolTx.amount), solTokenInfo.decimals)
                               : decodedSolTx.amount}
-                        {" "}<span className="text-text-tertiary text-base">
+                        {" "}<span className="text-text-tertiary text-sm">
                           {decodedSolTx.type === "sol_transfer" ? "SOL" : solTokenInfo?.symbol || "tokens"}
                         </span>
                       </p>
