@@ -12,6 +12,7 @@ function highlightCode(code: string): string {
 }
 
 import { checkBtcHealth, checkBchHealth, checkXlmHealth } from "../lib/providerDetect";
+import { useSetExpertMode } from "../context/ExpertModeContext";
 
 type RpcStatus = "checking" | "ok" | "error";
 
@@ -77,6 +78,7 @@ const REFRESH_OPTIONS = [
 ];
 
 export function ConfigPage() {
+  const setExpertContext = useSetExpertMode();
   const [chains, setChains] = useState<Chain[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [serverSettings, setServerSettings] = useState<Settings>({});
@@ -207,6 +209,7 @@ export function ConfigPage() {
       prefs.expert_mode = true;
     }
     save({ ...overrides, preferences: Object.keys(prefs).length ? prefs : undefined });
+    setExpertContext(value);
   }
 
   const isTestnet = (name: string) => /testnet|sepolia|devnet/i.test(name);

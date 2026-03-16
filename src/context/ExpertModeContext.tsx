@@ -1,37 +1,28 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { getMe } from "../lib/auth";
 import { getUserOverrides } from "../lib/userOverrides";
 
-const ExpertModeContext = createContext(false);
+const ExpertModeContext = createContext<{ expert: boolean; setExpert: (v: boolean) => void }>({ expert: false, setExpert: () => {} });
 
-export const useExpertMode = () => useContext(ExpertModeContext);
+export const useExpertMode = () => useContext(ExpertModeContext).expert;
+export const useSetExpertMode = () => useContext(ExpertModeContext).setExpert;
 
 export function ExpertModeProvider({ children }: { children: ReactNode }) {
-  const [expert, setExpert] = useState(false);
+  const [expert, setExpertState] = useState(false);
 
   useEffect(() => {
     getMe().then((me) => {
       const overrides = getUserOverrides(me?.id);
-      setExpert(overrides.preferences?.expert_mode ?? false);
+      setExpertState(overrides.preferences?.expert_mode ?? false);
     });
   }, []);
 
-  // Listen for changes (e.g. user toggles in Config page)
-  useEffect(() => {
-    function handleStorage(e: StorageEvent) {
-      if (e.key?.startsWith("kexify:config:")) {
-        try {
-          const overrides = e.newValue ? JSON.parse(e.newValue) : {};
-          setExpert(overrides.preferences?.expert_mode ?? false);
-        } catch {}
-      }
-    }
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
+  const setExpert = useCallback((v: boolean) => {
+    setExpertState(v);
   }, []);
 
   return (
-    <ExpertModeContext.Provider value={expert}>
+    <ExpertModeContext.Provider value={{ expert, setExpert }}>
       {children}
     </ExpertModeContext.Provider>
   );

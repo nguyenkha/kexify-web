@@ -1137,6 +1137,7 @@ message = buildSplTransferMessage({
   };
 
   const canClose = step === "input" || step === "preview" || step === "result" || signingError != null
+    || (step === "signing" && (signingPhase === "broadcasting" || signingPhase === "polling"))
     || (step === "signing" && (signingPhase === "polling" || signingPhase === "broadcasting"));
 
   useEffect(() => {

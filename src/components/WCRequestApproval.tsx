@@ -691,7 +691,8 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
     "broadcasting": 2,
   };
 
-  const canClose = phase === "review" || phase === "preview" || phase === "done" || phase === "error";
+  const canClose = phase === "review" || phase === "preview" || phase === "done" || phase === "error"
+    || (phase === "signing" && signingStepIdx >= 2);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -1132,7 +1133,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                   </div>
 
                   {/* Instruction count */}
-                  {decodedSolTx.numInstructions > 1 && (
+                  {expert && decodedSolTx.numInstructions > 1 && (
                     <div className="flex items-center justify-between px-1">
                       <span className="text-[10px] text-text-muted">Instructions</span>
                       <span className="text-[11px] tabular-nums text-text-secondary">{decodedSolTx.numInstructions}</span>
@@ -1224,11 +1225,20 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                         </div>
                       </>
                     ) : request.params[0]?.data && request.params[0].data !== "0x" ? (
-                      <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                        <span className="text-xs text-text-muted">Data</span>
-                        <span className="text-xs font-mono text-text-muted truncate max-w-[200px]">
-                          {request.params[0].data.slice(0, 10)}...
-                        </span>
+                      <div className="border-t border-border-secondary px-3 py-2.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-text-muted">Data</span>
+                          {!expert && (
+                            <span className="text-xs font-mono text-text-muted truncate max-w-[200px]">
+                              {request.params[0].data.slice(0, 10)}...
+                            </span>
+                          )}
+                        </div>
+                        {expert && (
+                          <pre className="text-[10px] font-mono text-text-muted break-all mt-1 leading-relaxed max-h-24 overflow-auto">
+                            {request.params[0].data}
+                          </pre>
+                        )}
                       </div>
                     ) : null}
                   </div>
@@ -1383,7 +1393,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                         {(() => { const u = getUsdValue("0.000005", "SOL", prices); return u != null ? <span className="text-[10px] text-text-muted ml-1.5">({formatUsd(u)})</span> : null; })()}
                       </div>
                     </div>
-                    {decodedSolTx.numInstructions > 1 && (
+                    {expert && decodedSolTx.numInstructions > 1 && (
                       <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
                         <span className="text-xs text-text-muted">Instructions</span>
                         <span className="text-xs tabular-nums text-text-muted">{decodedSolTx.numInstructions}</span>
