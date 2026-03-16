@@ -192,8 +192,12 @@ export function PolicyRules({
         </span>
 
         <div className="flex-1 min-w-0 text-xs text-text-secondary">
-          {rule.type === "raw_message" ? (
-            <span>Raw message signing</span>
+          {rule.type === "personal_sign" ? (
+            <span>Personal sign (EIP-191)</span>
+          ) : rule.type === "typed_message" ? (
+            <span>Typed data (EIP-712)</span>
+          ) : rule.type === "raw_message" ? (
+            <span>Raw message (catch-all)</span>
           ) : rule.type === "contract_call" ? (
             <span>
               Contract call
@@ -276,7 +280,9 @@ export function PolicyRules({
             >
               <option value="transfer">Transfer</option>
               <option value="contract_call">Contract Call</option>
-              <option value="raw_message">Raw Message</option>
+              <option value="personal_sign">Personal Sign (EIP-191)</option>
+              <option value="typed_message">Typed Data (EIP-712)</option>
+              <option value="raw_message">Raw Message (catch-all)</option>
             </select>
           </div>
           <div>

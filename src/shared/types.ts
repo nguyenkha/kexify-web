@@ -122,7 +122,7 @@ export interface KeyShare {
 
 export interface PolicyRuleBody {
   priority: number;
-  type: "raw_message" | "transfer" | "contract_call";
+  type: "raw_message" | "personal_sign" | "typed_message" | "transfer" | "contract_call";
   effect: "allow" | "block";
   asset: string | null;
   amountMax: string | null;

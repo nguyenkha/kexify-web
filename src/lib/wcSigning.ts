@@ -35,6 +35,7 @@ async function signHash(
   hash: Uint8Array,
   keyFile: KeyFileData,
   address: string,
+  messageType?: string,
 ): Promise<string> {
   if (!clientKeys.has(keyFile.id)) {
     await restoreKeyHandles(keyFile.id, keyFile.share, keyFile.eddsaShare);
@@ -44,7 +45,7 @@ async function signHash(
     algorithm: "ecdsa",
     keyId: keyFile.id,
     hash,
-    initPayload: { id: keyFile.id, data: toBase64(hash), from: address },
+    initPayload: { id: keyFile.id, data: toBase64(hash), from: address, ...(messageType ? { messageType } : {}) },
     headers: sensitiveHeaders(),
   });
 
@@ -78,7 +79,7 @@ export async function wcPersonalSign(
   prefixed.set(messageBytes, prefix.length);
   const hash = keccak_256(prefixed);
 
-  return signHash(hash, keyFile, address);
+  return signHash(hash, keyFile, address, "personal_sign");
 }
 
 // ── eth_sign (raw hash signing) ──────────────────────────────────
@@ -89,7 +90,7 @@ export async function wcEthSign(
   address: string,
 ): Promise<string> {
   const hash = hexToBytes(hashHex.startsWith("0x") ? hashHex.slice(2) : hashHex);
-  return signHash(hash, keyFile, address);
+  return signHash(hash, keyFile, address, "eth_sign");
 }
 
 // ── eth_signTypedData_v4 ─────────────────────────────────────────
@@ -111,7 +112,7 @@ export async function wcSignTypedData(
     ethers.TypedDataEncoder.hash(domain, filteredTypes, message).slice(2),
   );
 
-  return signHash(hash, keyFile, address);
+  return signHash(hash, keyFile, address, "eth_signTypedData");
 }
 
 // ── eth_sendTransaction ──────────────────────────────────────────
@@ -288,6 +289,7 @@ export async function wcSolanaSignMessage(
       algorithm: "eddsa",
       from: address,
       chainType: "solana",
+      messageType: "solana_signMessage",
       raw: toBase64(messageBytes),
     },
     headers: sensitiveHeaders(),
