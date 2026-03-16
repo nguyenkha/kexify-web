@@ -361,7 +361,7 @@ function EntryRow({ entry, showAccount, expert }: { entry: AuditEntry; showAccou
             <span className="text-[10px] text-text-secondary">{entry.keyName}</span>
           )}
           {showAccount && entry.keyName && desc.subtitle && (
-            <span className="text-[10px] text-text-muted/40">\u00b7</span>
+            <span className="text-[10px] text-text-muted/40">{"\u00b7"}</span>
           )}
           {desc.subtitle && (
             <span className="text-[10px] text-text-muted font-mono truncate">{desc.subtitle}</span>
