@@ -155,7 +155,7 @@ function DashboardLayout() {
 
   // In recovery mode, hide server-dependent nav items
   const filteredAdvanced = recovery
-    ? advancedNavItems.filter((item) => item.path === "/sign")
+    ? advancedNavItems.filter((item) => item.path === "/sign" || item.path === "/config")
     : advancedNavItems;
   const filteredAll = [...mainNavItems, ...filteredAdvanced];
 
