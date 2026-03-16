@@ -149,6 +149,15 @@ function deriveBtcAddress(pubKeyHex: string): string {
   return bech32.encode("bc", new Uint8Array([0, ...words]));
 }
 
+function deriveLtcAddress(pubKeyHex: string): string {
+  const rawKey = extractPublicKeyFromDER(pubKeyHex);
+  const point = secp256k1.Point.fromHex(rawKey);
+  const compressed = point.toBytes(true);
+  const h = ripemd160(sha256(compressed));
+  const words = bech32.toWords(h);
+  return bech32.encode("ltc", new Uint8Array([0, ...words]));
+}
+
 function deriveSolanaAddress(eddsaPubKeyHex: string): string {
   const pubKeyBytes = hexToBytes(eddsaPubKeyHex);
   let key32: Uint8Array;
@@ -667,12 +676,14 @@ async function cmdRecover(share1Path: string, share2Path: string): Promise<void>
   // Derive addresses
   const evmAddr = deriveEvmAddress(share1.publicKey);
   const btcAddr = deriveBtcAddress(share1.publicKey);
+  const ltcAddr = deriveLtcAddress(share1.publicKey);
   const solAddr = deriveSolanaAddress(share1.eddsaPublicKey);
   const xrpAddr = deriveXrpAddress(share1.publicKey);
 
   console.log("\nRecovered addresses:");
   console.log(`  Ethereum: ${evmAddr}`);
   console.log(`  Bitcoin:  ${btcAddr}`);
+  console.log(`  Litecoin: ${ltcAddr}`);
   console.log(`  Solana:   ${solAddr}`);
   console.log(`  XRP:      ${xrpAddr}`);
 
@@ -680,7 +691,7 @@ async function cmdRecover(share1Path: string, share2Path: string): Promise<void>
   initReadline();
   while (true) {
     console.log("\nOptions:");
-    console.log("  1. Export ECDSA private key (hex) — EVM/BTC/XRP");
+    console.log("  1. Export ECDSA private key (hex) — EVM/BTC/LTC/XRP");
     console.log("  2. Export EdDSA private key (hex) — Solana");
     console.log("  3. Export private key (WIF — Bitcoin)");
     console.log("  4. Exit");

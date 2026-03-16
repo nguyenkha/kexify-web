@@ -1,6 +1,7 @@
 import type { Chain, Asset, KeyShare, ChainType } from "../shared/types";
 import { getChainAdapter } from "./chains/adapter";
 import { publicKeyToBtcLegacyAddress } from "./chains/btcAdapter";
+import { publicKeyToLtcLegacyAddress } from "./chains/ltcAdapter";
 
 export interface AccountRow {
   keyId: string;
@@ -100,6 +101,33 @@ export function buildAccountRows(
           address: bchAdapt.deriveAddress(pubKeyHex, { testnet }),
           addressType: "bch",
           label: chain.displayName,
+          chain,
+          assets: chainAssets,
+        });
+      }
+    }
+
+    const ltcChains = chains.filter((c) => c.type === "ltc");
+    if (ltcChains.length > 0) {
+      const ltcAdapter = getChainAdapter("ltc");
+      for (const chain of ltcChains) {
+        const testnet = chain.displayName.toLowerCase().includes("testnet");
+        const chainAssets = assets.filter((a) => a.chainId === chain.id);
+        rows.push({
+          keyId: key.id,
+          address: ltcAdapter.deriveAddress(pubKeyHex, { testnet }),
+          addressType: "ltc",
+          btcAddrType: "segwit",
+          label: `${chain.displayName} (SegWit)`,
+          chain,
+          assets: chainAssets,
+        });
+        rows.push({
+          keyId: key.id,
+          address: publicKeyToLtcLegacyAddress(pubKeyHex, testnet),
+          addressType: "ltc",
+          btcAddrType: "legacy",
+          label: `${chain.displayName} (Legacy)`,
           chain,
           assets: chainAssets,
         });

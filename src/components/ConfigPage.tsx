@@ -54,6 +54,7 @@ async function checkRpcHealth(rpcUrl: string, chainType: string): Promise<boolea
         return res.ok;
       }
       case "btc":
+      case "ltc":
         return checkBtcHealth(rpcUrl, controller.signal);
       case "bch":
         return checkBchHealth(rpcUrl, controller.signal);

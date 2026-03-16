@@ -87,6 +87,17 @@ import {
   estimateFee as estimateBchFee,
   formatBchFee,
 } from "../lib/chains/bchTx";
+import {
+  fetchUtxos as fetchLtcUtxos,
+  fetchFeeRates as fetchLtcFeeRates,
+  ltcApiUrl,
+  buildLtcTransaction,
+  detectAddressType as detectLtcAddressType,
+  broadcastLtcTx,
+  waitForLtcConfirmation,
+  estimateFee as estimateLtcFee,
+  formatLtcFee,
+} from "../lib/chains/ltcTx";
 import { base58 } from "@scure/base";
 import { isEncryptedKeyFile, decryptKeyFile, type KeyFileData } from "../lib/crypto";
 import { BalancePreview, type BalanceChange } from "./BalancePreview";
@@ -173,6 +184,8 @@ export function SendDialog({
   const [btcFeeRates, setBtcFeeRates] = useState<{ low: number; medium: number; high: number } | null>(null);
   // BCH-specific state
   const [bchFeeRates, setBchFeeRates] = useState<{ low: number; medium: number; high: number } | null>(null);
+  // LTC-specific state
+  const [ltcFeeRates, setLtcFeeRates] = useState<{ low: number; medium: number; high: number } | null>(null);
   // XLM-specific state (stroops per operation)
   const [xlmFeeRates, setXlmFeeRates] = useState<{ low: number; medium: number; high: number } | null>(null);
   const [xlmDestExists, setXlmDestExists] = useState<boolean | null>(null);
@@ -302,6 +315,17 @@ export function SendDialog({
             });
           })
           .catch(() => {});
+      } else if (chain.type === "ltc") {
+        const ltcApi = ltcApiUrl(chain.explorerUrl);
+        fetchLtcFeeRates(ltcApi)
+          .then((rates) => {
+            setLtcFeeRates({
+              low: rates.hourFee,
+              medium: rates.halfHourFee,
+              high: rates.fastestFee,
+            });
+          })
+          .catch(() => {});
       } else if (chain.type === "bch") {
         fetchBchFeeRates()
           .then((rates) => {
@@ -376,6 +400,11 @@ export function SendDialog({
     : btcFeeRates?.[feeLevel] ?? null;
   const btcFeeRate = effectiveBtcFeeRate;
   const btcEstimatedFee = btcFeeRate != null ? estimateBtcFee(1, btcFeeRate, true, detectAddressType(address)) : null;
+  const effectiveLtcFeeRate = btcFeeRateOverride && /^\d+/.test(btcFeeRateOverride)
+    ? parseInt(btcFeeRateOverride)
+    : ltcFeeRates?.[feeLevel] ?? null;
+  const ltcFeeRate = effectiveLtcFeeRate;
+  const ltcEstimatedFee = ltcFeeRate != null ? estimateLtcFee(1, ltcFeeRate, true, detectLtcAddressType(address)) : null;
   const effectiveBchFeeRate = btcFeeRateOverride && /^\d+/.test(btcFeeRateOverride)
     ? parseInt(btcFeeRateOverride)
     : bchFeeRates?.[feeLevel] ?? null;
@@ -419,6 +448,16 @@ export function SendDialog({
         usd: feeXlm != null ? getUsdValue(feeXlm, "XLM", prices) : null,
         rateLabel: xlmFeeRate != null ? `${xlmFeeRate} stroops` : null,
         hasLevelSelector: false,
+        isFixed: false,
+      };
+    }
+    if (chain.type === "ltc") {
+      return {
+        formatted: ltcEstimatedFee != null ? formatLtcFee(ltcEstimatedFee) : null,
+        symbol: "LTC",
+        usd: ltcEstimatedFee != null ? getUsdValue(String(Number(ltcEstimatedFee) / 1e8), "LTC", prices) : null,
+        rateLabel: ltcFeeRate != null ? `${ltcFeeRate} sat/vB` : null,
+        hasLevelSelector: true,
         isFixed: false,
       };
     }
@@ -478,6 +517,8 @@ export function SendDialog({
       feeBaseUnits = XRP_BASE_FEE;
     } else if (chain.type === "btc" && btcEstimatedFee != null) {
       feeBaseUnits = BigInt(btcEstimatedFee);
+    } else if (chain.type === "ltc" && ltcEstimatedFee != null) {
+      feeBaseUnits = BigInt(ltcEstimatedFee);
     } else if (chain.type === "xlm" && xlmFeeRates != null) {
       feeBaseUnits = BigInt(xlmFeeRates[feeLevel]);
     }
@@ -495,7 +536,7 @@ export function SendDialog({
     return netFrac ? `${netInt}.${netFrac}` : netInt;
   })();
 
-  const ADDR_PLACEHOLDER: Record<string, string> = { btc: "bc1q...", bch: "bitcoincash:q...", solana: "So1ana...", evm: "0x" + "0".repeat(40), xrp: "r..." };
+  const ADDR_PLACEHOLDER: Record<string, string> = { btc: "bc1q...", ltc: "ltc1q...", bch: "bitcoincash:q...", solana: "So1ana...", evm: "0x" + "0".repeat(40), xrp: "r..." };
   const placeholder = ADDR_PLACEHOLDER[chain.type] ?? "Address";
 
   const totalUsd = (() => {
@@ -811,6 +852,118 @@ export function SendDialog({
 
     } catch (err: any) {
       console.error("[send] BCH Error:", err);
+      setSigningError(err.message || String(err));
+    } finally {
+      clearClientKey(keyFile.id);
+    }
+  }
+
+  // ── LTC signing flow ──────────────────────────────────────────
+  async function executeLtcSigningFlow() {
+    if (!keyFile || !ltcFeeRate) return;
+
+    setStep("signing");
+    setSigningPhase("building-tx");
+    setSigningError(null);
+
+    const ltcApi = ltcApiUrl(chain.explorerUrl);
+    try {
+      if (!clientKeys.has(keyFile.id)) {
+        await restoreKeyHandles(keyFile.id, keyFile.share, keyFile.eddsaShare);
+      }
+
+      // 1. Fetch UTXOs and build transaction
+      const utxos = await fetchLtcUtxos(address, ltcApi);
+      const amountSats = parseUnits(amount, asset.decimals);
+      const addrType = detectLtcAddressType(address);
+      const ltcTx = buildLtcTransaction(to, amountSats, utxos, ltcFeeRate, address, addrType);
+
+      // 2. Get compressed public key and hash
+      setSigningPhase("mpc-signing");
+      const pubKeyRaw = hexToBytes(keyFile.publicKey);
+      const compressedPubKey = getCompressedPublicKey(
+        Array.from(pubKeyRaw).map((b) => b.toString(16).padStart(2, "0")).join("")
+      );
+      const pkHash = pubKeyHash(compressedPubKey);
+      const isLegacy = addrType === "p2pkh";
+
+      // LTC tx payload for server-side verification
+      const ltcTxPayload = {
+        version: ltcTx.version,
+        inputs: ltcTx.inputs.map((inp) => ({
+          txid: inp.txid, vout: inp.vout, value: inp.value.toString(), sequence: inp.sequence,
+        })),
+        outputs: ltcTx.outputs.map((out) => ({
+          value: out.value.toString(), scriptPubKey: bytesToHex(out.scriptPubKey),
+        })),
+        locktime: ltcTx.locktime,
+      };
+
+      // 3. Sign each input via MPC
+      const witnesses: Uint8Array[][] = [];
+      const scriptSigs: Uint8Array[] = [];
+
+      for (let i = 0; i < ltcTx.inputs.length; i++) {
+        const sighash = isLegacy ? legacySighash(ltcTx, i, pkHash) : bip143Sighash(ltcTx, i, pkHash);
+
+        const { signature: sigRaw } = await performMpcSign({
+          algorithm: "ecdsa",
+          keyId: keyFile.id,
+          hash: sighash,
+          initPayload: {
+            id: keyFile.id, chainType: "ltc", ltcTx: ltcTxPayload,
+            inputIndex: i, pubKeyHash: toBase64(pkHash), from: address,
+          },
+          headers: sensitiveHeaders(),
+        });
+
+        const { r: sigR, s: sigS } = parseDerSignature(sigRaw);
+        if (isLegacy) {
+          scriptSigs.push(makeP2PKHScriptSig(sigR, sigS, compressedPubKey));
+        } else {
+          witnesses.push(makeP2WPKHWitness(sigR, sigS, compressedPubKey));
+        }
+      }
+
+      // 4. Assemble and serialize
+      let rawHex: string;
+      let txid: string;
+      if (isLegacy) {
+        rawHex = bytesToHex(serializeLegacyTx(ltcTx, scriptSigs));
+        txid = computeLegacyTxid(ltcTx, scriptSigs);
+      } else {
+        rawHex = bytesToHex(serializeWitnessTx(ltcTx, witnesses));
+        txid = computeTxid(ltcTx);
+      }
+
+      // 5. Broadcast
+      setSigningPhase("broadcasting");
+      const broadcastTxid = await broadcastLtcTx(rawHex, ltcApi);
+
+      fetch(apiUrl("/api/sign/broadcast"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ keyShareId: keyFile.id, txHash: broadcastTxid || txid, chainId: chain.id }),
+      }).catch(() => {});
+
+      onTxSubmitted?.(broadcastTxid || txid, to, amount);
+
+      // 6. Wait for confirmation
+      setPendingTxHash(broadcastTxid || txid);
+      setSigningPhase("polling");
+      const result = await waitForLtcConfirmation(broadcastTxid || txid, () => {}, 60, 5000, ltcApi);
+
+      setTxResult({
+        status: result.confirmed ? "success" : "pending",
+        txHash: broadcastTxid || txid,
+        blockNumber: result.blockHeight,
+      });
+      if (result.confirmed) onTxConfirmed?.(broadcastTxid || txid);
+      setKeyFile(null); setPendingEncrypted(null);
+      setStep("result");
+
+    } catch (err: any) {
+      console.error("[send] LTC Error:", err);
       setSigningError(err.message || String(err));
     } finally {
       clearClientKey(keyFile.id);
@@ -1491,8 +1644,8 @@ message = buildSplTransferMessage({
                 <div className="grid grid-cols-3 gap-1">
                   {(["low", "medium", "high"] as FeeLevel[]).map((level) => {
                     const isActive = feeLevel === level;
-                    const feeText = chain.type === "btc"
-                      ? (btcFeeRates?.[level] != null ? `${btcFeeRates[level]} sat/vB` : "...")
+                    const feeText = chain.type === "btc" || chain.type === "ltc"
+                      ? ((chain.type === "btc" ? btcFeeRates : ltcFeeRates)?.[level] != null ? `${(chain.type === "btc" ? btcFeeRates : ltcFeeRates)![level]} sat/vB` : "...")
                       : (baseGasPrice != null ? `${formatGwei(BigInt(Math.round(Number(baseGasPrice) * EVM_FEE_MULTIPLIER[level])))} Gwei` : "...");
                     return (
                       <button
@@ -1562,7 +1715,7 @@ message = buildSplTransferMessage({
                 </div>
               )}
 
-              {expert && (chain.type === "btc" || chain.type === "bch") && (
+              {expert && (chain.type === "btc" || chain.type === "ltc" || chain.type === "bch") && (
                 <div className="space-y-2">
                   <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">Advanced</p>
                   <div>
@@ -1570,7 +1723,7 @@ message = buildSplTransferMessage({
                     <input
                       value={btcFeeRateOverride}
                       onChange={(e) => setBtcFeeRateOverride(e.target.value)}
-                      placeholder={chain.type === "btc" ? (btcFeeRates?.[feeLevel]?.toString() ?? "Auto") : (bchFeeRates?.[feeLevel]?.toString() ?? "Auto")}
+                      placeholder={chain.type === "btc" ? (btcFeeRates?.[feeLevel]?.toString() ?? "Auto") : chain.type === "ltc" ? (ltcFeeRates?.[feeLevel]?.toString() ?? "Auto") : (bchFeeRates?.[feeLevel]?.toString() ?? "Auto")}
                       className="w-full bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
                     />
                   </div>
@@ -1749,7 +1902,7 @@ message = buildSplTransferMessage({
                 </div>
                 {feeDisplay.rateLabel != null && (
                   <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                    <span className="text-xs text-text-muted">{chain.type === "btc" || chain.type === "bch" ? "Fee rate" : chain.type === "xlm" ? "Base fee" : "Gas price"}</span>
+                    <span className="text-xs text-text-muted">{chain.type === "btc" || chain.type === "ltc" || chain.type === "bch" ? "Fee rate" : chain.type === "xlm" ? "Base fee" : "Gas price"}</span>
                     <span className="text-xs tabular-nums text-text-muted">{feeDisplay.rateLabel}</span>
                   </div>
                 )}
@@ -1793,6 +1946,7 @@ message = buildSplTransferMessage({
                   else if (chain.type === "solana") feeCost = SOLANA_BASE_FEE;
                   else if (chain.type === "xrp") feeCost = XRP_BASE_FEE;
                   else if (chain.type === "btc" && btcEstimatedFee != null) feeCost = BigInt(btcEstimatedFee);
+                  else if (chain.type === "ltc" && ltcEstimatedFee != null) feeCost = BigInt(ltcEstimatedFee);
                   else if (chain.type === "bch" && bchEstimatedFee != null) feeCost = bchEstimatedFee;
                   changes.push({
                     symbol: asset.symbol,
@@ -1818,7 +1972,7 @@ message = buildSplTransferMessage({
               <button
                 disabled={policyCheck?.allowed === false}
                 onClick={() => {
-                  const flows: Record<string, () => void> = { solana: executeSolanaSigningFlow, btc: executeBtcSigningFlow, bch: executeBchSigningFlow, evm: executeSigningFlow, xrp: executeXrpSigningFlow, xlm: executeXlmSigningFlow };
+                  const flows: Record<string, () => void> = { solana: executeSolanaSigningFlow, btc: executeBtcSigningFlow, ltc: executeLtcSigningFlow, bch: executeBchSigningFlow, evm: executeSigningFlow, xrp: executeXrpSigningFlow, xlm: executeXlmSigningFlow };
                   const flow = flows[chain.type];
                   if (flow) guardedSign(flow);
                   else setSigningError(`Send is not yet supported for ${chain.displayName}.`);

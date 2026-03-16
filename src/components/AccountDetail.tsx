@@ -5,6 +5,7 @@ import { fetchChains, fetchAssets, fetchSettings, type Chain, type Asset } from 
 import { isRecoveryMode, getRecoveryKeys } from "../lib/recovery";
 import { getChainAdapter } from "../lib/chains/adapter";
 import { publicKeyToBtcLegacyAddress } from "../lib/chains/btcAdapter.js";
+import { publicKeyToLtcLegacyAddress } from "../lib/chains/ltcAdapter.js";
 import { TokenDetail, type PendingTxFromNavigation } from "./TokenDetail";
 
 import { setCacheTtl } from "../lib/dataCache";
@@ -90,6 +91,9 @@ export function AccountDetail() {
         } else if (foundChain.type === "btc" && btcAddrType === "legacy") {
           const testnet = foundChain.name.toLowerCase().includes("testnet");
           addr = publicKeyToBtcLegacyAddress(pubKeyHex, testnet);
+        } else if (foundChain.type === "ltc" && btcAddrType === "legacy") {
+          const testnet = foundChain.name.toLowerCase().includes("testnet");
+          addr = publicKeyToLtcLegacyAddress(pubKeyHex, testnet);
         } else {
           const testnet = foundChain.name.toLowerCase().includes("testnet");
           addr = adapter.deriveAddress(pubKeyHex, { testnet });
