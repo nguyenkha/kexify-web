@@ -74,6 +74,8 @@ export function CreateAccountDialog({
   const [selectedRules, setSelectedRules] = useState<Record<string, boolean>>({
     transfer: true,
     contract_call: true,
+    personal_sign: true,
+    typed_message: true,
     raw_message: false,
   });
 
@@ -121,10 +123,22 @@ export function CreateAccountDialog({
       const PARTY_NAMES: [string, string] = ["client", "server"];
 
       // ── Phase 1: ECDSA key generation ──
+      // Build policy rules from expert selection (or use server defaults for non-expert)
+      const policyRules = expert ? (() => {
+        const rules: { priority: number; type: string; effect: string; fraudCheck?: string }[] = [];
+        let p = 0;
+        if (selectedRules.transfer) rules.push({ priority: p++, type: "transfer", effect: "allow", fraudCheck: "medium" });
+        if (selectedRules.contract_call) rules.push({ priority: p++, type: "contract_call", effect: "allow", fraudCheck: "medium" });
+        if (selectedRules.personal_sign) rules.push({ priority: p++, type: "personal_sign", effect: "allow" });
+        if (selectedRules.typed_message) rules.push({ priority: p++, type: "typed_message", effect: "allow" });
+        if (selectedRules.raw_message) rules.push({ priority: p++, type: "raw_message", effect: "allow" });
+        return rules;
+      })() : undefined;
+
       const { transport: ecdsaTransport, getServerResult: getEcdsaResult } = createHttpTransport({
         initUrl: apiUrl("/api/generate/init"),
         stepUrl: apiUrl("/api/generate/step"),
-        initExtra: { name: keyName },
+        initExtra: { name: keyName, ...(policyRules ? { policyRules } : {}) },
         headers,
       });
 
@@ -300,7 +314,9 @@ export function CreateAccountDialog({
                     {[
                       { key: "transfer", label: "Transfers", desc: "Allow sending tokens to other addresses. Includes strict fraud detection to block risky recipients." },
                       { key: "contract_call", label: "Contract calls", desc: "Allow interacting with smart contracts and dApps. Includes strict fraud detection to block flagged contracts." },
-                      { key: "raw_message", label: "Message signing", desc: "Allow signing raw messages (personal_sign, signTypedData). Disabled by default — enable only if needed for dApp login or off-chain signatures." },
+                      { key: "personal_sign", label: "Personal sign (EIP-191)", desc: "Allow signing login messages and off-chain signatures via personal_sign." },
+                      { key: "typed_message", label: "Typed data (EIP-712)", desc: "Allow signing structured data like permits, orders, and dApp approvals via signTypedData." },
+                      { key: "raw_message", label: "Raw message (catch-all)", desc: "Allow signing arbitrary raw messages. Disabled by default — only enable if you know what you're doing." },
                     ].map((rule) => {
                       const selected = selectedRules[rule.key];
                       return (
@@ -329,11 +345,16 @@ export function CreateAccountDialog({
               )}
 
               {/* Non-expert: safe defaults note */}
-              {!expert && isFirstAccount && (
-                <div className="bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2">
-                  <p className="text-[11px] text-green-400 leading-relaxed">
-                    Your account will be protected with fraud detection and safe default rules. You can customize these anytime in Policy Rules.
-                  </p>
+              {!expert && (
+                <div className="bg-surface-primary border border-border-secondary rounded-lg px-3 py-2.5 space-y-1.5">
+                  <p className="text-[11px] text-text-secondary font-medium">Your account comes with safe defaults:</p>
+                  <ul className="text-[11px] text-text-muted leading-relaxed space-y-0.5 pl-3">
+                    <li>Sending tokens — allowed, with fraud protection</li>
+                    <li>Using dApps — allowed, with fraud protection</li>
+                    <li>Signing messages & logins — allowed</li>
+                    <li>Raw message signing — blocked unless you enable it</li>
+                  </ul>
+                  <p className="text-[10px] text-text-muted">You can change these anytime in account Policy Rules.</p>
                 </div>
               )}
 
