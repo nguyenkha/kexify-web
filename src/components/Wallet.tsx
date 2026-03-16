@@ -64,17 +64,14 @@ export function Wallet() {
       .then(([k, c, a, s, me]) => {
         setKeys(k);
 
-        // Apply user overrides to chains and preferences
+        // Apply user config overrides (RPC, explorer, preferences)
         const overrides = getUserOverrides(me?.id);
-        const filteredChains = c
-          .filter((ch: Chain) => !overrides.chains?.[ch.name]?.hidden)
-          .map((ch: Chain) => {
-            const o = overrides.chains?.[ch.name];
-            if (!o) return ch;
-            const { hidden: _, ...fields } = o;
-            return Object.keys(fields).length ? { ...ch, ...fields } : ch;
-          });
-        setChainsData(filteredChains);
+        const mergedChains = c.map((ch: Chain) => {
+          const o = overrides.chains?.[ch.name];
+          if (!o) return ch;
+          return { ...ch, ...o };
+        });
+        setChainsData(mergedChains);
         setAssetsData(a);
 
         const defaultChainsVal = overrides.preferences?.default_chains ?? (s.default_chains as string[]) ?? null;

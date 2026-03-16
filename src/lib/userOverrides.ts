@@ -3,7 +3,6 @@
 export interface ChainOverride {
   rpcUrl?: string;
   explorerUrl?: string;
-  hidden?: boolean;
 }
 
 export interface UserOverrides {

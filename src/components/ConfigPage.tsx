@@ -69,26 +69,6 @@ export function ConfigPage() {
 
   // ── Chain overrides ──
 
-  function isChainHidden(name: string): boolean {
-    return overrides.chains?.[name]?.hidden ?? false;
-  }
-
-  function toggleChainHidden(name: string) {
-    const prev = overrides.chains ?? {};
-    const chain = prev[name] ?? {};
-    const hidden = !chain.hidden;
-    const next = { ...chain, hidden };
-    // Clean up: remove entry if no overrides left
-    const { hidden: _h, ...rest } = next;
-    const cleaned = hidden || Object.keys(rest).some((k) => rest[k as keyof typeof rest])
-      ? next
-      : undefined;
-    const chains = { ...prev };
-    if (cleaned) chains[name] = cleaned;
-    else delete chains[name];
-    save({ ...overrides, chains: Object.keys(chains).length ? chains : undefined });
-  }
-
   function setChainField(name: string, field: "rpcUrl" | "explorerUrl", value: string) {
     const prev = overrides.chains ?? {};
     const chain = { ...prev[name] };
@@ -98,8 +78,7 @@ export function ConfigPage() {
       delete chain[field];
     }
     // Clean up empty chain overrides
-    const { hidden, ...fields } = chain;
-    const hasOverrides = hidden || Object.keys(fields).some((k) => fields[k as keyof typeof fields]);
+    const hasOverrides = Object.keys(chain).some((k) => chain[k as keyof typeof chain]);
     const chains = { ...prev };
     if (hasOverrides) chains[name] = chain;
     else delete chains[name];
@@ -185,10 +164,8 @@ export function ConfigPage() {
     if (jsonTab !== "preview") return null;
     try {
       const pending = JSON.parse(jsonText) as UserOverrides;
-      const mergedChains = chains
-        .filter((c) => !pending.chains?.[c.name]?.hidden)
-        .map((c) => {
-          const { hidden: _, ...fields } = pending.chains?.[c.name] ?? {};
+      const mergedChains = chains.map((c) => {
+          const fields = pending.chains?.[c.name] ?? {};
           return Object.keys(fields).length ? { ...c, ...fields } : c;
         });
       return {
@@ -263,7 +240,6 @@ export function ConfigPage() {
         </p>
         <div className="bg-surface-secondary rounded-xl border border-border-primary overflow-hidden divide-y divide-border-secondary">
           {chains.map((chain) => {
-            const hidden = isChainHidden(chain.name);
             const expanded = expandedChain === chain.name;
             const hasRpcOverride = !!getChainField(chain.name, "rpcUrl");
             const hasExplorerOverride = !!getChainField(chain.name, "explorerUrl");
@@ -271,57 +247,35 @@ export function ConfigPage() {
 
             return (
               <div key={chain.id}>
-                <div className="flex items-center px-3 md:px-4 py-3 gap-3">
-                  {/* Chain icon + name */}
-                  <button
-                    className="flex items-center gap-2.5 flex-1 min-w-0 text-left"
-                    onClick={() => setExpandedChain(expanded ? null : chain.name)}
-                  >
-                    {chain.iconUrl ? (
-                      <img src={chain.iconUrl} alt={chain.displayName} className="w-7 h-7 rounded-full bg-surface-tertiary shrink-0" />
-                    ) : (
-                      <div className="w-7 h-7 rounded-full bg-surface-tertiary shrink-0" />
-                    )}
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium text-text-primary leading-tight flex items-center gap-1.5">
-                        {chain.displayName}
-                        {/devnet/i.test(chain.name) ? (
-                          <span className="text-[8px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">devnet</span>
-                        ) : /testnet|sepolia/i.test(chain.name) ? (
-                          <span className="text-[8px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">testnet</span>
-                        ) : null}
-                        {hasFieldOverrides && (
-                          <span className="text-[8px] px-1 py-0.5 rounded bg-blue-500/10 text-blue-400 font-medium">custom</span>
-                        )}
-                      </div>
-                      <p className="text-[10px] text-text-muted font-mono truncate mt-0.5">
-                        {getChainField(chain.name, "rpcUrl") || chain.rpcUrl}
-                      </p>
+                <button
+                  className="w-full flex items-center px-3 md:px-4 py-3 gap-3 text-left hover:bg-surface-tertiary/30 transition-colors"
+                  onClick={() => setExpandedChain(expanded ? null : chain.name)}
+                >
+                  {chain.iconUrl ? (
+                    <img src={chain.iconUrl} alt={chain.displayName} className="w-7 h-7 rounded-full bg-surface-tertiary shrink-0" />
+                  ) : (
+                    <div className="w-7 h-7 rounded-full bg-surface-tertiary shrink-0" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-text-primary leading-tight flex items-center gap-1.5">
+                      {chain.displayName}
+                      {/devnet/i.test(chain.name) ? (
+                        <span className="text-[8px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">devnet</span>
+                      ) : /testnet|sepolia/i.test(chain.name) ? (
+                        <span className="text-[8px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">testnet</span>
+                      ) : null}
+                      {hasFieldOverrides && (
+                        <span className="text-[8px] px-1 py-0.5 rounded bg-blue-500/10 text-blue-400 font-medium">custom</span>
+                      )}
                     </div>
-                  </button>
-
-                  {/* Expand chevron */}
-                  <button
-                    onClick={() => setExpandedChain(expanded ? null : chain.name)}
-                    className="p-1 text-text-muted hover:text-text-secondary transition-colors shrink-0"
-                  >
-                    <svg className={`w-3.5 h-3.5 transition-transform ${expanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-
-                  {/* Show/hide toggle */}
-                  <button
-                    onClick={() => toggleChainHidden(chain.name)}
-                    className={`relative w-8 h-[18px] rounded-full transition-colors shrink-0 ${
-                      !hidden ? "bg-blue-500" : "bg-surface-tertiary"
-                    }`}
-                  >
-                    <span className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform ${
-                      !hidden ? "left-[16px]" : "left-[2px]"
-                    }`} />
-                  </button>
-                </div>
+                    <p className="text-[10px] text-text-muted font-mono truncate mt-0.5">
+                      {getChainField(chain.name, "rpcUrl") || chain.rpcUrl}
+                    </p>
+                  </div>
+                  <svg className={`w-3.5 h-3.5 text-text-muted shrink-0 transition-transform ${expanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
 
                 {/* Expanded: RPC + Explorer override */}
                 {expanded && (
