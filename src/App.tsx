@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import * as Sentry from "@sentry/react";
 import { HashRouter, Routes, Route, Navigate, useNavigate, useLocation, Outlet } from "react-router-dom";
 import { Wallet } from "./components/Wallet";
 import { AccountDetail } from "./components/AccountDetail";
@@ -356,6 +357,7 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 
 function App() {
   return (
+    <Sentry.ErrorBoundary fallback={<p>Something went wrong.</p>}>
     <HashRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
@@ -383,6 +385,7 @@ function App() {
         </Route>
       </Routes>
     </HashRouter>
+    </Sentry.ErrorBoundary>
   );
 }
 

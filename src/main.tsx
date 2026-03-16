@@ -3,7 +3,9 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { initTheme } from './lib/theme'
+import { initSentry } from './lib/sentry'
 
+initSentry()
 initTheme()
 
 const buildHash = (import.meta.env.VITE_GIT_HASH as string | undefined)?.slice(0, 7) ?? "dev";

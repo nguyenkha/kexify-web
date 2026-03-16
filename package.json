@@ -13,6 +13,8 @@
     "@noble/curves": "^2.0.1",
     "@noble/hashes": "1",
     "@scure/base": "^2.0.0",
+    "@sentry/react": "^10.43.0",
+    "@sentry/vite-plugin": "^5.1.1",
     "@simplewebauthn/browser": "^13.3.0",
     "@walletconnect/core": "^2.23.8",
     "@walletconnect/web3wallet": "^1.16.1",
