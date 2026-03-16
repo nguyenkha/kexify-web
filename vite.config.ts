@@ -6,6 +6,9 @@ import { sentryVitePlugin } from "@sentry/vite-plugin";
 
 export default defineConfig({
   base: "/",
+  define: {
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+  },
   plugins: [
     react(),
     tailwindcss(),
