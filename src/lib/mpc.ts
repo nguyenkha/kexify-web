@@ -121,6 +121,7 @@ export function createHttpTransport(opts: {
   stepUrl: string;
   initExtra?: Record<string, unknown>;
   headers: Record<string, string>;
+  onStep?: (step: number) => void;
 }): { transport: DataTransport; getSessionId: () => string; getServerResult: () => Record<string, unknown> | null; getError: () => Error | null; transportFailed: Promise<never> } {
   let sessionId = "";
   let inbox: Uint8Array | null = null;
@@ -128,6 +129,7 @@ export function createHttpTransport(opts: {
   let serverResult: Record<string, unknown> | null = null;
   let transportError: Error | null = null;
   let rejectTransport: ((err: Error) => void) | null = null;
+  let stepCount = 0;
   const transportFailed = new Promise<never>((_resolve, reject) => {
     rejectTransport = reject;
   });
@@ -157,6 +159,8 @@ export function createHttpTransport(opts: {
         sessionId = data.sessionId;
         isFirst = false;
       }
+      stepCount++;
+      opts.onStep?.(stepCount);
 
       if (data.done) {
         serverResult = data;
@@ -248,6 +252,7 @@ export async function performMpcSign(opts: {
       ...(algorithm === "ecdsa" ? { sigSessionId: toBase64(sigSessionId) } : {}),
     },
     headers,
+    onStep,
   });
 
   const startedAt = Date.now();
@@ -370,6 +375,7 @@ export async function performBatchMpcSign(opts: {
       sigSessionId: toBase64(sigSessionId),
     },
     headers,
+    onStep,
   });
 
   const startedAt = Date.now();

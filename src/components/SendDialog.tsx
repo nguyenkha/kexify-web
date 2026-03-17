@@ -244,6 +244,7 @@ export function SendDialog({
   const [pendingTxHash, setPendingTxHash] = useState<string | null>(null);
   const [signedRawTx, setSignedRawTx] = useState<string | null>(null);
   const [manualBroadcasting, setManualBroadcasting] = useState(false);
+  const [signingStep, setSigningStep] = useState(0);
   const [signingInputCount, setSigningInputCount] = useState(0);
 
   // Passkey guard (triggered on confirm, not on dialog open)
@@ -648,12 +649,14 @@ export function SendDialog({
       const sighash = hashForSigning(unsignedTx);
       const serializedTx = serializeForSigning(unsignedTx);
 
+      setSigningStep(0);
       const { signature: sigRaw, sessionId } = await performMpcSign({
         algorithm: "ecdsa",
         keyId: keyFile.id,
         hash: sighash,
         initPayload: { id: keyFile.id, unsignedTx: toBase64(serializedTx), from: address },
         headers: sensitiveHeaders(),
+        onStep: setSigningStep,
       });
 
       // 3. Parse DER signature, determine recovery param, assemble signed tx
@@ -769,6 +772,7 @@ export function SendDialog({
         isLegacy ? legacySighash(btcTx, i, pkHash) : bip143Sighash(btcTx, i, pkHash)
       );
 
+      setSigningStep(0);
       const { signatures: allSigs } = await performBatchMpcSign({
         keyId: keyFile.id,
         hashes: sighashes,
@@ -777,6 +781,7 @@ export function SendDialog({
           pubKeyHash: toBase64(pkHash), from: address,
         },
         headers: sensitiveHeaders(),
+        onStep: setSigningStep,
       });
 
       for (let i = 0; i < allSigs.length; i++) {
@@ -889,6 +894,7 @@ export function SendDialog({
 
       const sighashes = bchTx.inputs.map((_, i) => bchSighash(bchTx, i, pkHash));
 
+      setSigningStep(0);
       const { signatures: allSigs } = await performBatchMpcSign({
         keyId: keyFile.id,
         hashes: sighashes,
@@ -897,6 +903,7 @@ export function SendDialog({
           pubKeyHash: toBase64(pkHash), from: address,
         },
         headers: sensitiveHeaders(),
+        onStep: setSigningStep,
       });
 
       for (let i = 0; i < allSigs.length; i++) {
@@ -1003,6 +1010,7 @@ export function SendDialog({
         isLegacy ? legacySighash(ltcTx, i, pkHash) : bip143Sighash(ltcTx, i, pkHash)
       );
 
+      setSigningStep(0);
       const { signatures: allSigs } = await performBatchMpcSign({
         keyId: keyFile.id,
         hashes: sighashes,
@@ -1011,6 +1019,7 @@ export function SendDialog({
           pubKeyHash: toBase64(pkHash), from: address,
         },
         headers: sensitiveHeaders(),
+        onStep: setSigningStep,
       });
 
       for (let i = 0; i < allSigs.length; i++) {
@@ -1110,6 +1119,7 @@ message = buildSplTransferMessage({
 
       // 2. MPC EdDSA signing
       setSigningPhase("mpc-signing");
+      setSigningStep(0);
 
       const { signature: sigRaw, sessionId } = await performMpcSign({
         algorithm: "eddsa",
@@ -1117,6 +1127,7 @@ message = buildSplTransferMessage({
         hash: message,
         initPayload: { id: keyFile.id, algorithm: "eddsa", from: address, chainType: "solana", unsignedTx: toBase64(message) },
         headers: sensitiveHeaders(),
+        onStep: setSigningStep,
       });
 
       // 3. Assemble signed transaction
@@ -1201,6 +1212,7 @@ message = buildSplTransferMessage({
 
       // 2. MPC signing
       setSigningPhase("mpc-signing");
+      setSigningStep(0);
       const sighash = xrpHashForSigning(params);
 
       const { signature: sigRaw, sessionId } = await performMpcSign({
@@ -1223,6 +1235,7 @@ message = buildSplTransferMessage({
           from: address,
         },
         headers: sensitiveHeaders(),
+        onStep: setSigningStep,
       });
 
       // 3. Parse DER signature (low-S normalized) and re-encode for XRP
@@ -1330,6 +1343,7 @@ message = buildSplTransferMessage({
 
       // 3. MPC EdDSA sign
       setSigningPhase("mpc-signing");
+      setSigningStep(0);
       const signingHash = await xlmHashForSigning(txXdr, isTestnet);
 
       const { signature: sigRaw, sessionId } = await performMpcSign({
@@ -1352,6 +1366,7 @@ message = buildSplTransferMessage({
           },
         },
         headers: sensitiveHeaders(),
+        onStep: setSigningStep,
       });
 
       // 4. Assemble signed envelope
@@ -1402,8 +1417,10 @@ message = buildSplTransferMessage({
   const recovery = isRecoveryMode();
   const signLabel = recovery ? "Local signing" : "MPC signing";
   const signLabelWithCount = signingInputCount > 1
-    ? `${signLabel} (${signingInputCount} inputs)`
-    : signLabel;
+    ? `${signLabel} (${signingInputCount} inputs${signingStep > 0 ? `, step ${signingStep}` : ""})`
+    : signingStep > 0
+      ? `${signLabel} (step ${signingStep})`
+      : signLabel;
   const phaseLabels: Record<SigningPhase, string> = {
     "loading-keyshare": "Build transaction",
     "building-tx": "Build transaction",
