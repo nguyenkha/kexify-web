@@ -4,6 +4,7 @@
  */
 
 import type { ChainType } from "../shared/types";
+import { keccak_256 } from "@noble/hashes/sha3";
 
 export interface TokenMetadata {
   symbol: string;
@@ -60,23 +61,77 @@ export async function fetchEvmTokenMetadata(contractAddress: string, rpcUrl: str
 
   if (!symbol) throw new Error("Contract does not implement ERC-20 symbol()");
 
-  // Try TrustWallet icon
-  let iconUrl: string | null = null;
-  const chainMap: Record<number, string> = {
-    1: "ethereum", 56: "smartchain", 137: "polygon", 43114: "avalanchec",
-    42161: "arbitrum", 10: "optimism", 8453: "base", 59144: "linea",
-    324: "zksync", 534352: "scroll",
-  };
-  const twChain = evmChainId != null ? chainMap[evmChainId] : null;
-  if (twChain) {
-    const twUrl = `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/${twChain}/assets/${contractAddress}/logo.png`;
-    try {
-      const check = await fetch(twUrl, { method: "HEAD" });
-      if (check.ok) iconUrl = twUrl;
-    } catch { /* no icon */ }
-  }
+  const iconUrl = await findEvmTokenIcon(addr, symbol, evmChainId);
 
   return { symbol, name, decimals, contractAddress: addr, iconUrl };
+}
+
+// ── Icon resolution (multiple sources) ─────────────────────────
+
+const TW_CHAIN_MAP: Record<number, string> = {
+  1: "ethereum", 56: "smartchain", 137: "polygon", 43114: "avalanchec",
+  42161: "arbitrum", 10: "optimism", 8453: "base", 59144: "linea",
+  324: "zksync", 534352: "scroll",
+};
+
+/** Try to find a token icon from multiple sources */
+async function findEvmTokenIcon(contractAddress: string, symbol: string, evmChainId: number | null): Promise<string | null> {
+  // Checksummed address for TrustWallet (they use checksummed paths)
+  const checksummed = toChecksumAddress(contractAddress);
+
+  // 1. TrustWallet assets
+  const twChain = evmChainId != null ? TW_CHAIN_MAP[evmChainId] : null;
+  if (twChain) {
+    const twUrl = `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/${twChain}/assets/${checksummed}/logo.png`;
+    try {
+      const r = await fetch(twUrl, { method: "HEAD" });
+      if (r.ok) return twUrl;
+    } catch { /* next */ }
+  }
+
+  // 2. CoinGecko by contract address (no API key needed for this endpoint)
+  if (evmChainId != null) {
+    const cgPlatform: Record<number, string> = {
+      1: "ethereum", 56: "binance-smart-chain", 137: "polygon-pos", 43114: "avalanche",
+      42161: "arbitrum-one", 10: "optimistic-ethereum", 8453: "base", 59144: "linea",
+      324: "zksync", 534352: "scroll",
+    };
+    const platform = cgPlatform[evmChainId];
+    if (platform) {
+      try {
+        const r = await fetch(`https://api.coingecko.com/api/v3/coins/${platform}/contract/${contractAddress.toLowerCase()}`);
+        if (r.ok) {
+          const data = await r.json();
+          const img = data.image?.small || data.image?.thumb;
+          if (img) return img;
+        }
+      } catch { /* next */ }
+    }
+  }
+
+  // 3. CoinGecko search by symbol
+  try {
+    const r = await fetch(`https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(symbol)}`);
+    if (r.ok) {
+      const data = await r.json();
+      const coin = data.coins?.find((c: any) => c.symbol?.toUpperCase() === symbol.toUpperCase());
+      if (coin?.thumb && !coin.thumb.includes("missing")) return coin.thumb;
+    }
+  } catch { /* no icon */ }
+
+  return null;
+}
+
+/** EIP-55 checksum address */
+function toChecksumAddress(addr: string): string {
+  const lower = addr.toLowerCase().replace("0x", "");
+  const hash = keccak_256(new TextEncoder().encode(lower));
+  const hashHex = Array.from(hash).map(b => b.toString(16).padStart(2, "0")).join("");
+  let checksummed = "0x";
+  for (let i = 0; i < lower.length; i++) {
+    checksummed += parseInt(hashHex[i], 16) >= 8 ? lower[i].toUpperCase() : lower[i];
+  }
+  return checksummed;
 }
 
 // ── Solana (SPL) ───────────────────────────────────────────────
@@ -97,16 +152,15 @@ export async function fetchSolanaTokenMetadata(mintAddress: string, rpcUrl: stri
 
   const decimals = parsed.info?.decimals ?? 0;
 
-  // Try fetching metadata from token list or metaplex
   let symbol = mintAddress.slice(0, 6).toUpperCase();
   let name = `SPL Token ${mintAddress.slice(0, 8)}`;
   let iconUrl: string | null = null;
 
-  // Try Jupiter token list (popular Solana token registry)
+  // 1. Jupiter single-token API
   try {
     const jupRes = await fetch(`https://token.jup.ag/strict`);
     if (jupRes.ok) {
-      const tokens: { address: string; symbol: string; name: string; logoURI?: string; decimals: number }[] = await jupRes.json();
+      const tokens: { address: string; symbol: string; name: string; logoURI?: string }[] = await jupRes.json();
       const match = tokens.find(t => t.address === mintAddress);
       if (match) {
         symbol = match.symbol;
@@ -114,7 +168,21 @@ export async function fetchSolanaTokenMetadata(mintAddress: string, rpcUrl: stri
         iconUrl = match.logoURI ?? null;
       }
     }
-  } catch { /* fallback to address-based name */ }
+  } catch { /* next */ }
+
+  // 2. CoinGecko by contract (Solana platform)
+  if (!iconUrl) {
+    try {
+      const r = await fetch(`https://api.coingecko.com/api/v3/coins/solana/contract/${mintAddress}`);
+      if (r.ok) {
+        const data = await r.json();
+        if (data.symbol) symbol = data.symbol.toUpperCase();
+        if (data.name) name = data.name;
+        const img = data.image?.small || data.image?.thumb;
+        if (img) iconUrl = img;
+      }
+    } catch { /* no icon */ }
+  }
 
   return { symbol, name, decimals, contractAddress: mintAddress, iconUrl };
 }
