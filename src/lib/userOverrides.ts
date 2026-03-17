@@ -35,6 +35,8 @@ export interface UserOverrides {
   customTokens?: CustomToken[];
   addressBook?: AddressBookEntry[];
   recentRecipients?: RecentRecipientEntry[];
+  hideBalances?: boolean;
+  display?: Record<string, Record<string, boolean>>;
   preferences?: {
     refresh_interval?: number;
     default_chains?: string[];

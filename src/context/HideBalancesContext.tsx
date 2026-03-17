@@ -1,6 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
-
-const STORAGE_KEY = "kexify:hideBalances";
+import { getUserOverrides, setUserOverrides } from "../lib/userOverrides";
 
 const HideBalancesContext = createContext<{
   hidden: boolean;
@@ -8,13 +7,15 @@ const HideBalancesContext = createContext<{
 }>({ hidden: false, toggle: () => {} });
 
 export function HideBalancesProvider({ children }: { children: ReactNode }) {
-  const [hidden, setHidden] = useState(() => localStorage.getItem(STORAGE_KEY) === "1");
+  const [hidden, setHidden] = useState(() => getUserOverrides().hideBalances === true);
 
   function toggle() {
     setHidden((prev) => {
       const next = !prev;
-      if (next) localStorage.setItem(STORAGE_KEY, "1");
-      else localStorage.removeItem(STORAGE_KEY);
+      const overrides = getUserOverrides();
+      if (next) overrides.hideBalances = true;
+      else delete overrides.hideBalances;
+      setUserOverrides(overrides);
       return next;
     });
   }

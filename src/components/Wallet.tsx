@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import type { KeyShare } from "../shared/types";
-import { fetchChains, fetchAssets, fetchSettings, type Chain, type Asset } from "../lib/api";
+import { fetchChains, fetchAssets, fetchSettings, type Chain, type Asset, type Settings } from "../lib/api";
+import staticConfig from "../config.json";
 import { getMe } from "../lib/auth";
 import { getUserOverrides, applyChainOverrides, getPreference } from "../lib/userOverrides";
 import { setCacheTtl, clearAllTokenBalanceCaches } from "../lib/dataCache";
@@ -46,6 +47,7 @@ export function Wallet() {
   const [defaultChains, setDefaultChains] = useState<string[] | null>(null);
   const [pollInterval, setPollInterval] = useState(DEFAULT_POLL_INTERVAL);
   const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string | undefined>();
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [, setTick] = useState(0);
 
@@ -56,15 +58,32 @@ export function Wallet() {
   }, []);
 
   function loadData() {
-    const keysPromise = isRecovery
-      ? Promise.resolve(recoveryKeys)
-      : fetch(apiUrl("/api/keys"), { headers: authHeaders() })
-          .then((r) => r.json())
-          .then((d) => d.keys || []);
+    if (isRecovery) {
+      // Recovery mode: use static config only, never call server APIs
+      const overrides = getUserOverrides();
+      const showTestnet = getPreference("show_testnet") ?? false;
+      const c = (staticConfig.chains as Chain[]).filter(
+        (ch) => showTestnet || !/testnet|sepolia|devnet/i.test(ch.name),
+      );
+      setKeys(recoveryKeys);
+      setChainsData(c);
+      setAssetsData(staticConfig.assets as Asset[]);
+      setDefaultChains(overrides.preferences?.default_chains ?? (staticConfig.preferences as Settings).default_chains ?? null);
+      setLastUpdated(new Date());
+      setLoading(false);
+      return;
+    }
 
-    Promise.all([keysPromise, fetchChains(), fetchAssets(), fetchSettings(), getMe()])
+    Promise.all([
+      fetch(apiUrl("/api/keys"), { headers: authHeaders() }).then((r) => r.json()).then((d) => d.keys || []),
+      fetchChains(),
+      fetchAssets(),
+      fetchSettings(),
+      getMe(),
+    ])
       .then(([k, c, a, s, me]) => {
         setKeys(k);
+        setUserId(me?.id);
 
         // Apply user config overrides (RPC, explorer, preferences)
         const overrides = getUserOverrides(me?.id);
@@ -174,16 +193,16 @@ export function Wallet() {
   useEffect(() => {
     const map: Record<string, Record<string, boolean> | null> = {};
     for (const k of keys) {
-      map[k.id] = getStoredDisplay(k.id);
+      map[k.id] = getStoredDisplay(k.id, userId);
     }
     setDisplayMap(map);
-  }, [keys]);
+  }, [keys, userId]);
 
   function handleDisplayChange(keyId: string, prefKey: string, visible: boolean) {
     setDisplayMap((prev) => {
       const existing = prev[keyId] ?? {};
       const updated = { ...existing, [prefKey]: visible };
-      setStoredDisplay(keyId, updated);
+      setStoredDisplay(keyId, updated, userId);
       return { ...prev, [keyId]: updated };
     });
   }

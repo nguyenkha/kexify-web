@@ -1,18 +1,17 @@
-const DISPLAY_PREFIX = "display:";
+import { getUserOverrides, setUserOverrides } from "./userOverrides";
 
 /** Get stored display map for a key. Returns null if never set. */
-export function getStoredDisplay(keyId: string): Record<string, boolean> | null {
-  try {
-    const raw = localStorage.getItem(DISPLAY_PREFIX + keyId);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
+export function getStoredDisplay(keyId: string, userId?: string): Record<string, boolean> | null {
+  const overrides = getUserOverrides(userId);
+  return overrides.display?.[keyId] ?? null;
 }
 
 /** Save display map for a key */
-export function setStoredDisplay(keyId: string, vis: Record<string, boolean>) {
-  localStorage.setItem(DISPLAY_PREFIX + keyId, JSON.stringify(vis));
+export function setStoredDisplay(keyId: string, vis: Record<string, boolean>, userId?: string) {
+  const overrides = getUserOverrides(userId);
+  if (!overrides.display) overrides.display = {};
+  overrides.display[keyId] = vis;
+  setUserOverrides(overrides, userId);
 }
 
 /** Determine if a chain row should be visible */
