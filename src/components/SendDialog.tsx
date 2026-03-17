@@ -2768,6 +2768,9 @@ message = buildSplTransferMessage({
                             } else if (chain.type === "xlm") {
                               const r = await waitForXlmConfirmation(chain.rpcUrl, txHash, () => {}, 30, 3000);
                               confirmed = r.confirmed;
+                            } else if (chain.type === "tron") {
+                              const r = await waitForTronConfirmation(chain.rpcUrl, txHash, () => {}, 30, 3000);
+                              confirmed = r.confirmed; blockHeight = r.blockNumber;
                             }
 
                             setTxResult({
