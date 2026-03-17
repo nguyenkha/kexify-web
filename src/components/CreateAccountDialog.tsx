@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Spinner, ErrorBox } from "./ui";
 import { getMpcInstance, createHttpTransport, clientKeys, toBase64, toHex, NID_secp256k1, NID_ED25519 } from "../lib/mpc";
 import type { ClientKeyHandles } from "../lib/mpc";
 import { sensitiveHeaders, authenticatePasskey, fetchPasskeys, isWithinPasskeyGrace } from "../lib/passkey";
@@ -447,11 +448,7 @@ export function CreateAccountDialog({
                 </div>
               )}
 
-              {error && (
-                <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
-                  <p className="text-xs text-red-400">{error}</p>
-                </div>
-              )}
+              {error && <ErrorBox>{error}</ErrorBox>}
 
               <button
                 onClick={guardedCreate}
@@ -494,10 +491,7 @@ export function CreateAccountDialog({
                 /* Progress state */
                 <>
                   <div className="flex justify-center">
-                    <div className="w-10 h-10 relative">
-                      <div className="absolute inset-0 rounded-full border-2 border-surface-tertiary" />
-                      <div className="absolute inset-0 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
-                    </div>
+                    <Spinner size="md" />
                   </div>
                   <div className="text-center">
                     <p className="text-sm font-medium text-text-secondary">{progress}</p>
@@ -657,7 +651,7 @@ export function CreateAccountDialog({
               )}
               {escrowStatus === "uploading" && (
                 <div className="flex items-center gap-2 px-1">
-                  <div className="w-3 h-3 border border-blue-400 border-t-transparent rounded-full animate-spin shrink-0" />
+                  <Spinner size="xs" />
                   <p className="text-[11px] text-text-muted">Uploading server backup...</p>
                 </div>
               )}

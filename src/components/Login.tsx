@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { requestMagicLink } from "../lib/auth";
 import { getStoredTheme, setTheme } from "../lib/theme";
+import { ErrorBox } from "./ui";
 
 export function Login() {
   const [email, setEmail] = useState("");
@@ -64,11 +65,7 @@ export function Login() {
               {loading ? "Sending..." : "✉️ Send Magic Link"}
             </button>
 
-            {error && (
-              <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
-                <p className="text-xs text-red-400">{error}</p>
-              </div>
-            )}
+            {error && <ErrorBox>{error}</ErrorBox>}
           </form>
         )}
 

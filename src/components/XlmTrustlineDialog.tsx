@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { Spinner, Button } from "./ui";
 import type { Chain, Asset } from "../lib/api";
 import { explorerLink } from "../shared/utils";
 // Expert mode available via useExpertMode() for future raw data display
@@ -314,7 +315,7 @@ export function XlmTrustlineDialog({
                         <p className="text-[10px] text-text-muted">{browserShareMode === "prf" ? "Passkey encrypted" : "Passphrase encrypted"} · ECDSA + EdDSA</p>
                       </div>
                       {browserShareLoading
-                        ? <div className="w-3 h-3 border border-blue-400 border-t-transparent rounded-full animate-spin shrink-0" />
+                        ? <Spinner size="xs" />
                         : <svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>
                       }
                     </button>
@@ -400,13 +401,9 @@ export function XlmTrustlineDialog({
 
             {/* Footer */}
             <div className="px-5 py-4 border-t border-border-secondary shrink-0">
-              <button
-                disabled={!keyFile}
-                onClick={() => setStep("preview")}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
-              >
+              <Button variant="primary" fullWidth disabled={!keyFile} onClick={() => setStep("preview")}>
                 👀 Review
-              </button>
+              </Button>
             </div>
           </>
         )}
@@ -494,12 +491,9 @@ export function XlmTrustlineDialog({
             </div>
 
             <div className="px-5 py-4 border-t border-border-secondary shrink-0">
-              <button
-                onClick={() => guardedSign(executeTrustlineFlow)}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
-              >
+              <Button variant="primary" fullWidth onClick={() => guardedSign(executeTrustlineFlow)}>
                 🔐 Confirm &amp; Enable
-              </button>
+              </Button>
             </div>
           </>
         )}
@@ -517,20 +511,15 @@ export function XlmTrustlineDialog({
                 <p className="text-xs text-red-400 break-all mb-2">{signingError}</p>
                 <p className="text-[10px] text-text-muted mb-5">Check Activity Log in the Advanced menu for details.</p>
                 <div className="flex gap-3">
-                  <button onClick={onClose} className="flex-1 bg-surface-tertiary hover:bg-border-primary text-text-secondary text-sm font-medium py-2.5 rounded-lg transition-colors">Close</button>
-                  <button onClick={() => { setSigningError(null); setStep("preview"); }} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2.5 rounded-lg transition-colors">Try Again</button>
+                  <Button variant="secondary" className="flex-1" onClick={onClose}>Close</Button>
+                  <Button variant="primary" className="flex-1" onClick={() => { setSigningError(null); setStep("preview"); }}>Try Again</Button>
                 </div>
               </div>
             ) : (
               <div className="py-6">
                 {/* Spinner */}
                 <div className="flex justify-center mb-6">
-                  <div className="relative w-16 h-16">
-                    <svg className="w-16 h-16 animate-spin" viewBox="0 0 50 50" fill="none">
-                      <circle cx="25" cy="25" r="20" stroke="currentColor" strokeWidth="3" className="text-surface-tertiary" />
-                      <path d="M25 5 A20 20 0 0 1 45 25" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-blue-500" />
-                    </svg>
-                  </div>
+                  <Spinner size="lg" />
                 </div>
 
                 {/* Phase label */}
@@ -637,7 +626,7 @@ export function XlmTrustlineDialog({
               </div>
             </div>
             <div className="border-t border-border-secondary pt-4">
-              <button onClick={onClose} className="w-full bg-surface-tertiary hover:bg-border-primary text-text-secondary text-sm font-medium py-2.5 rounded-lg transition-colors">Done</button>
+              <Button variant="secondary" fullWidth onClick={onClose}>Done</Button>
             </div>
           </div>
         )}

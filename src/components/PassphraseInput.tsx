@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ErrorBox, Spinner } from "./ui";
 
 interface PassphraseInputProps {
   mode: "set" | "enter";
@@ -81,23 +82,14 @@ export function PassphraseInput({ mode, onSubmit, error, submitLabel, hideHint }
         </div>
       )}
 
-      {displayError && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
-          <p className="text-xs text-red-400">{displayError}</p>
-        </div>
-      )}
+      {displayError && <ErrorBox>{displayError}</ErrorBox>}
 
       <button
         type="submit"
         disabled={loading || !passphrase || (mode === "set" && !confirm)}
         className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
       >
-        {loading && (
-          <div className="w-4 h-4 relative">
-            <div className="absolute inset-0 rounded-full border-2 border-white/20" />
-            <div className="absolute inset-0 rounded-full border-2 border-white border-t-transparent animate-spin" />
-          </div>
-        )}
+        {loading && <Spinner size="sm" className="border-white border-t-transparent" />}
         {loading ? "Processing..." : label}
       </button>
     </form>

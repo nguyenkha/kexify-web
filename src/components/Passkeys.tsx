@@ -6,6 +6,7 @@ import {
   deletePasskey,
   type PasskeyInfo,
 } from "../lib/passkey";
+import { ErrorBox } from "./ui";
 
 function formatTimeAgo(dateStr: string | null): string {
   if (!dateStr) return "Never";
@@ -181,11 +182,7 @@ export function Passkeys() {
         >
           {adding ? "Registering..." : "🔑 Add Your First Passkey"}
         </button>
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 mt-4">
-            <p className="text-xs text-red-400">{error}</p>
-          </div>
-        )}
+        {error && <ErrorBox className="mt-4">{error}</ErrorBox>}
       </div>
     );
   }
@@ -275,11 +272,7 @@ export function Passkeys() {
         ))}
       </div>
 
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
-          <p className="text-xs text-red-400">{error}</p>
-        </div>
-      )}
+      {error && <ErrorBox>{error}</ErrorBox>}
 
       {/* Add passkey button */}
       <button

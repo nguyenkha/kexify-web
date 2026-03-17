@@ -7,6 +7,7 @@ import { PassphraseInput } from "./PassphraseInput";
 import { authHeaders } from "../lib/auth";
 import { apiUrl } from "../lib/apiBase";
 import { useFrozen } from "../context/FrozenContext";
+import { Spinner, ErrorBox } from "./ui";
 
 // Extend window for temporary server export data (temp storage during server key download)
 declare global {
@@ -427,15 +428,11 @@ export function KeyShareManager() {
         Choose key share file (.json)
       </label>
 
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
-          <p className="text-xs text-red-400">{error}</p>
-        </div>
-      )}
+      {error && <ErrorBox>{error}</ErrorBox>}
 
       {loading ? (
         <div className="flex justify-center py-8">
-          <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <Spinner size="md" />
         </div>
       ) : shares.length === 0 ? (
         <div className="text-center py-12">
@@ -522,7 +519,7 @@ export function KeyShareManager() {
                   {/* Saving spinner */}
                   {restoreId === k.id && restoreStep === "saving" && (
                     <div className="px-3 md:px-5 pb-3 flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                      <Spinner size="sm" />
                       <span className="text-xs text-text-muted">Saving...</span>
                     </div>
                   )}
@@ -694,11 +691,7 @@ export function KeyShareManager() {
                 </div>
               </button>
 
-              {serverExportError && (
-                <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
-                  <p className="text-xs text-red-400">{serverExportError}</p>
-                </div>
-              )}
+              {serverExportError && <ErrorBox>{serverExportError}</ErrorBox>}
             </div>
           </div>
         </div>,
@@ -940,7 +933,7 @@ export function KeyShareManager() {
           <div className="absolute inset-0 bg-black/50" />
           <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl">
             <div className="px-5 py-8 flex items-center justify-center gap-3">
-              <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              <Spinner size="sm" />
               <span className="text-sm text-text-secondary">Saving key share...</span>
             </div>
           </div>

@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { type KeyFileData, isEncryptedKeyFile, decryptKeyFile, isHkdfEncrypted, decryptHkdfKeyFile } from "../lib/crypto";
 import { enterRecoveryMode } from "../lib/recovery";
+import { ErrorBox } from "./ui";
 type PeerState =
   | { step: "idle" }
   | { step: "passphrase"; raw: KeyFileData }
@@ -157,11 +158,7 @@ export function RecoveryImport() {
             />
           </div>
 
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
-              <p className="text-xs text-red-400">{error}</p>
-            </div>
-          )}
+          {error && <ErrorBox>{error}</ErrorBox>}
 
           {/* Enter recovery */}
           <button

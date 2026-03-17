@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { authHeaders } from "../lib/auth";
 import { sensitiveHeaders, authenticatePasskey } from "../lib/passkey";
+import { Spinner } from "./ui";
 import { apiUrl } from "../lib/apiBase";
 import {
   listKeyShares,
@@ -462,7 +463,7 @@ export function RecoveryChecklist() {
                           </div>
                         ) : importStep === "saving" && importAccountId === account.id ? (
                           <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 border border-blue-400 border-t-transparent rounded-full animate-spin" />
+                            <Spinner size="xs" />
                             <span className="text-[10px] text-text-muted">Saving...</span>
                           </div>
                         ) : (

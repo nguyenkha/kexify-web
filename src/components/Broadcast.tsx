@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { ErrorBox } from "./ui";
 import { broadcastBtcTx, mempoolApiUrl } from "../lib/chains/btcTx";
 import { broadcastTransaction } from "../lib/chains/evmTx";
 import { broadcastBchTx, bchApiUrl } from "../lib/chains/bchTx";
@@ -120,10 +121,10 @@ export function Broadcast() {
 
       {/* Error */}
       {error && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
-          <p className="text-xs text-red-400 font-medium">Broadcast failed</p>
-          <p className="text-[11px] text-red-400/70 mt-0.5 break-all">{error}</p>
-        </div>
+        <ErrorBox>
+          <span className="font-medium">Broadcast failed</span>
+          <span className="block text-[11px] opacity-70 mt-0.5 break-all">{error}</span>
+        </ErrorBox>
       )}
 
       {/* Result */}

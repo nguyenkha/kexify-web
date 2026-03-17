@@ -4,6 +4,7 @@ import type { MeUser } from "../lib/auth";
 import { PasskeyChallenge } from "./PasskeyChallenge";
 import { sensitiveHeaders } from "../lib/passkey";
 import { apiUrl } from "../lib/apiBase";
+import { ErrorBox, Button } from "./ui";
 
 function formatCountdown(target: string): string {
   const diff = new Date(target).getTime() - Date.now();
@@ -136,26 +137,16 @@ export function FrozenBanner({
                 Unfreezing requires passkey verification and a 24-hour cooling period.
               </p>
 
-              {error && (
-                <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 mb-4">
-                  <p className="text-xs text-red-400">{error}</p>
-                </div>
-              )}
+              {error && <ErrorBox className="mb-4">{error}</ErrorBox>}
 
-              <button
-                onClick={confirmFreeze}
-                disabled={loading}
-                className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors disabled:bg-surface-tertiary disabled:text-text-muted disabled:cursor-not-allowed"
-              >
+              <Button variant="danger" fullWidth onClick={confirmFreeze} disabled={loading}>
                 {loading ? "Freezing…" : "🥶 Freeze My Account"}
-              </button>
-              <button
-                onClick={dismiss}
-                disabled={loading}
-                className="w-full mt-3 bg-surface-tertiary text-text-secondary hover:bg-border-primary px-4 py-2.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-              >
-                Cancel
-              </button>
+              </Button>
+              <div className="mt-3">
+                <Button variant="secondary" fullWidth onClick={dismiss} disabled={loading}>
+                  Cancel
+                </Button>
+              </div>
             </div>
           </div>,
           document.body

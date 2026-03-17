@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import type { Chain, Asset } from "../shared/types";
 import type { AccountRow } from "../lib/accountRows";
 import { ToggleSwitch } from "./ToggleSwitch";
+import { Button } from "./ui";
 import { fetchTokenMetadata } from "../lib/tokenMetadata";
 import { getUserOverrides, setUserOverrides, type CustomToken } from "../lib/userOverrides";
 import { getMe } from "../lib/auth";
@@ -205,7 +206,9 @@ export function ManageDisplayPanel({
             />
 
             {/* Fetch button */}
-            <button
+            <Button
+              size="sm"
+              fullWidth
               onClick={async () => {
                 const chain = uniqueChains.find(c => c.chain.id === addChainId)?.chain;
                 if (!chain || !addContract.trim()) return;
@@ -229,10 +232,9 @@ export function ManageDisplayPanel({
                 }
               }}
               disabled={!addChainId || !addContract.trim() || addLoading}
-              className="w-full py-1.5 rounded-lg text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               {addLoading ? "Fetching..." : "Fetch token info"}
-            </button>
+            </Button>
 
             {addError && <p className="text-[11px] text-red-400">{addError}</p>}
 
@@ -249,7 +251,10 @@ export function ManageDisplayPanel({
                   <span className="text-[10px] text-text-muted">{addPreview.name}</span>
                 </div>
                 <p className="text-[10px] text-text-muted">Decimals: {addPreview.decimals}</p>
-                <button
+                <Button
+                  size="sm"
+                  fullWidth
+                  className="bg-green-600 hover:bg-green-500"
                   onClick={async () => {
                     const chain = uniqueChains.find(c => c.chain.id === addChainId)?.chain;
                     if (!chain || !addPreview) return;
@@ -283,10 +288,9 @@ export function ManageDisplayPanel({
                     setTimeout(() => setAddSuccess(""), 4000);
                     onTokenAdded?.();
                   }}
-                  className="w-full py-1.5 rounded-lg text-xs font-medium text-white bg-green-600 hover:bg-green-500 transition-colors"
                 >
                   Add {addPreview.symbol}
-                </button>
+                </Button>
               </div>
             )}
           </div>

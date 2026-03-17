@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { authHeaders } from "../lib/auth";
 import { apiUrl } from "../lib/apiBase";
 import { useExpertMode } from "../context/ExpertModeContext";
+import { EmptyState } from "./ui";
 import Prism from "prismjs";
 import "prismjs/components/prism-json";
 
@@ -454,12 +455,10 @@ export function ActivityLogPage() {
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-8">
-          <p className="text-xs text-text-muted">No activity yet</p>
-          <p className="text-[10px] text-text-muted/60 mt-1">
-            Activity will appear here after you sign transactions or make account changes.
-          </p>
-        </div>
+        <EmptyState
+          title="No activity yet"
+          description="Activity will appear here after you sign transactions or make account changes."
+        />
       ) : (
         <div className="space-y-4">
           {groups.map((group) => (

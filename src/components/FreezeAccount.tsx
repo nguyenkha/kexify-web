@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { apiUrl } from "../lib/apiBase";
+import { Spinner, Button } from "./ui";
 
 export function FreezeAccount() {
   const [params] = useSearchParams();
@@ -45,28 +46,21 @@ export function FreezeAccount() {
               This will immediately block all signing, key generation, and account changes.
               Unfreezing requires passkey verification and a 24-hour cooling period.
             </p>
-            <button
-              onClick={handleFreeze}
-              className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
-            >
+            <Button variant="danger" fullWidth onClick={handleFreeze}>
               🥶 Freeze My Account
-            </button>
-            <button
-              onClick={() => navigate("/login")}
-              className="w-full mt-3 bg-surface-tertiary text-text-secondary hover:bg-border-primary px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
-            >
-              Cancel
-            </button>
+            </Button>
+            <div className="mt-3">
+              <Button variant="secondary" fullWidth onClick={() => navigate("/login")}>
+                Cancel
+              </Button>
+            </div>
           </>
         )}
 
         {status === "loading" && (
           <>
-            <div className="relative w-16 h-16 mx-auto mb-4">
-              <svg className="w-16 h-16 animate-spin" viewBox="0 0 50 50" fill="none">
-                <circle cx="25" cy="25" r="20" stroke="currentColor" strokeWidth="3" className="text-surface-tertiary" />
-                <path d="M25 5 A20 20 0 0 1 45 25" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-blue-500" />
-              </svg>
+            <div className="flex justify-center mb-4">
+              <Spinner size="lg" />
             </div>
             <p className="text-sm font-medium text-text-secondary">Freezing your account…</p>
             <p className="text-xs text-text-muted mt-1">This may take a few seconds.</p>
@@ -103,12 +97,9 @@ export function FreezeAccount() {
             </div>
             <p className="text-sm font-medium text-text-primary mb-1">Couldn't freeze account</p>
             <p className="text-xs text-red-400 break-all mb-5">{error}</p>
-            <button
-              onClick={() => navigate("/login")}
-              className="bg-surface-tertiary text-text-secondary hover:bg-border-primary px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
-            >
+            <Button variant="secondary" onClick={() => navigate("/login")}>
               Go to login
-            </button>
+            </Button>
           </>
         )}
       </div>

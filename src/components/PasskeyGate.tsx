@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { registerPasskey, authenticatePasskey } from "../lib/passkey";
+import { ErrorBox } from "./ui";
 
 /**
  * Blocking dialog shown when a user with zero passkeys attempts a sensitive operation.
@@ -61,11 +62,7 @@ export function PasskeyGate({
         No passwords to remember. Your device handles it securely.
       </p>
 
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 mb-4">
-          <p className="text-xs text-red-400">{error}</p>
-        </div>
-      )}
+      {error && <ErrorBox className="mb-4">{error}</ErrorBox>}
 
       <div className="flex gap-3 justify-center">
         {!inline && (

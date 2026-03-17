@@ -12,6 +12,7 @@ import { listKeyShares, getKeyShareWithPrf, getKeyShareWithPassphrase, type KeyS
 import { useFrozen } from "../context/FrozenContext";
 import { isRecoveryMode, getRecoveryKeyFile } from "../lib/recovery";
 import { useSteppedProgress, signingDurationMs, ProgressBar } from "./ProgressBar";
+import { Spinner } from "./ui";
 
 interface KeyFile {
   id: string;
@@ -245,7 +246,7 @@ export function Sign() {
                         <p className="text-[10px] text-text-muted">{s.mode === "prf" ? "Passkey encrypted" : "Passphrase encrypted"} · ECDSA + EdDSA</p>
                       </div>
                       {browserLoading === s.keyId ? (
-                        <div className="w-3 h-3 border border-blue-400 border-t-transparent rounded-full animate-spin shrink-0" />
+                        <Spinner size="xs" />
                       ) : (
                         <svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
