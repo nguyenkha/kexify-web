@@ -4,6 +4,7 @@ import { broadcastTransaction } from "../lib/chains/evmTx";
 import { broadcastBchTx, bchApiUrl } from "../lib/chains/bchTx";
 import { broadcastLtcTx, ltcApiUrl } from "../lib/chains/ltcTx";
 import { broadcastSolanaTransaction } from "../lib/chains/solanaTx";
+import { broadcastTronTransaction } from "../lib/chains/tronTx";
 import { fetchChains } from "../lib/api";
 import type { Chain } from "../lib/api";
 import { explorerLink } from "../shared/utils";
@@ -57,6 +58,10 @@ export function Broadcast() {
           txHash = await broadcastSolanaTransaction(hex, selectedChain.rpcUrl);
           break;
         }
+        case "tron": {
+          txHash = await broadcastTronTransaction(selectedChain.rpcUrl, hex);
+          break;
+        }
         default:
           throw new Error(`Broadcast not supported for ${selectedChain.type}`);
       }
@@ -92,11 +97,13 @@ export function Broadcast() {
 
       {/* Raw tx input */}
       <div>
-        <label className="block text-xs text-text-muted mb-1.5">Raw Transaction (hex)</label>
+        <label className="block text-xs text-text-muted mb-1.5">
+          Raw Transaction {selectedChain?.type === "tron" ? "(JSON)" : "(hex)"}
+        </label>
         <textarea
           value={rawTx}
           onChange={(e) => setRawTx(e.target.value)}
-          placeholder="Paste signed transaction hex..."
+          placeholder={selectedChain?.type === "tron" ? "Paste signed transaction JSON..." : "Paste signed transaction hex..."}
           rows={6}
           className="w-full bg-surface-secondary border border-border-primary rounded-lg px-3 py-2.5 text-sm text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors resize-none"
         />
