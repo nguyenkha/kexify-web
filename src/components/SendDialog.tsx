@@ -113,7 +113,7 @@ import {
 import { useHideBalances, maskBalance } from "../context/HideBalancesContext";
 import { authenticatePasskey } from "../lib/passkey";
 import { isRecoveryMode, getRecoveryKeyFile } from "../lib/recovery";
-import { getUserOverrides } from "../lib/userOverrides";
+import { getPreference } from "../lib/userOverrides";
 
 const MAX_UTXO_INPUTS = 10;
 import {
@@ -176,7 +176,7 @@ export function SendDialog({
   const [priorityFeeOverride, setPriorityFeeOverride] = useState("");
   const [btcFeeRateOverride, setBtcFeeRateOverride] = useState("");
   const [rbfEnabled, setRbfEnabled] = useState(true);
-  const confirmBeforeBroadcast = getUserOverrides()?.preferences?.confirm_before_broadcast ?? false;
+  const confirmBeforeBroadcast = getPreference("confirm_before_broadcast") ?? false;
   const [signOnlyMode, setSignOnlyMode] = useState(!!signOnly);
   // Effective sign-only: explicit toggle OR confirm-before-broadcast preference (not in sign-only prop mode)
   const effectiveSignOnly = signOnlyMode || (confirmBeforeBroadcast && !signOnly);

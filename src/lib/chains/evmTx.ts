@@ -5,7 +5,7 @@ import { keccak_256 } from "@noble/hashes/sha3";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import { hexToBytes, bytesToHex } from "../../shared/utils";
 import { GAS_LIMIT_NATIVE } from "../../components/sendTypes";
-import { getUserOverrides } from "../userOverrides";
+import { getPreference } from "../userOverrides";
 
 // ── RLP Encoding ────────────────────────────────────────────────
 
@@ -85,7 +85,7 @@ export async function estimateGas(rpcUrl: string, tx: { from: string; to: string
   const result = await ethRpc(rpcUrl, "eth_estimateGas", [tx]);
   const estimate = BigInt(result);
   if (estimate <= GAS_LIMIT_NATIVE) return GAS_LIMIT_NATIVE;
-  const pct = bufferPct ?? getUserOverrides()?.preferences?.evm_gas_buffer_pct ?? 10;
+  const pct = bufferPct ?? getPreference("evm_gas_buffer_pct") ?? 10;
   if (pct <= 0) return estimate;
   return estimate + estimate * BigInt(pct) / 100n;
 }

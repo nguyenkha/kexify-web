@@ -38,3 +38,22 @@ export function setUserOverrides(overrides: UserOverrides, userId?: string): voi
 export function clearUserOverrides(userId?: string): void {
   localStorage.removeItem(storageKey(userId));
 }
+
+/** Get a preference value from any user override entry (scans localStorage if no userId) */
+export function getPreference<K extends keyof NonNullable<UserOverrides["preferences"]>>(
+  key: K,
+  userId?: string,
+): NonNullable<UserOverrides["preferences"]>[K] | undefined {
+  if (userId) return getUserOverrides(userId).preferences?.[key] as any;
+  // No userId — scan for any kexify:config:* key
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k?.startsWith("kexify:config:")) {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(k)!) as UserOverrides;
+        if (parsed.preferences?.[key] !== undefined) return parsed.preferences[key] as any;
+      } catch { /* skip */ }
+    }
+  }
+  return undefined;
+}
