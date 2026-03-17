@@ -61,13 +61,25 @@ export function WalletConnectProvider({ children }: { children: ReactNode }) {
 
     const onRequest = (request: Web3WalletTypes.SessionRequest) => {
       const { topic, id, params } = request;
-      // For Solana methods, inject the account address from the session
-      // since Solana params don't always include the signer address
+      // For Solana/TRON methods, inject the account address from the session
+      // since their params don't always include the signer address
       let reqParams = params.request.params;
       if (params.request.method.startsWith("solana_") && params.chainId) {
         const session = wcService.getSessions().find((s) => s.topic === topic);
         if (session?.namespaces?.solana?.accounts) {
           const match = session.namespaces.solana.accounts.find((a) =>
+            a.startsWith(params.chainId),
+          );
+          if (match) {
+            const address = match.split(":").slice(2).join(":");
+            reqParams = { ...reqParams, account: address };
+          }
+        }
+      }
+      if (params.request.method.startsWith("tron_") && params.chainId) {
+        const session = wcService.getSessions().find((s) => s.topic === topic);
+        if (session?.namespaces?.tron?.accounts) {
+          const match = session.namespaces.tron.accounts.find((a) =>
             a.startsWith(params.chainId),
           );
           if (match) {

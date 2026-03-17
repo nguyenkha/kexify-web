@@ -190,7 +190,7 @@ export function ManageDisplayPanel({
             >
               <option value="">Select network...</option>
               {uniqueChains
-                .filter(({ chain }) => chain.type === "evm" || chain.type === "solana" || chain.type === "xlm")
+                .filter(({ chain }) => chain.type === "evm" || chain.type === "solana" || chain.type === "xlm" || chain.type === "tron")
                 .map(({ chain }) => (
                   <option key={chain.id} value={chain.id}>{chain.displayName}</option>
                 ))}
@@ -200,7 +200,7 @@ export function ManageDisplayPanel({
             <input
               value={addContract}
               onChange={(e) => { setAddContract(e.target.value); setAddPreview(null); setAddError(""); }}
-              placeholder={addChainId && uniqueChains.find(c => c.chain.id === addChainId)?.chain.type === "xlm" ? "CODE:ISSUER_ADDRESS" : "Contract address"}
+              placeholder={addChainId && uniqueChains.find(c => c.chain.id === addChainId)?.chain.type === "xlm" ? "CODE:ISSUER_ADDRESS" : addChainId && uniqueChains.find(c => c.chain.id === addChainId)?.chain.type === "tron" ? "TRC-20 contract address (T...)" : "Contract address"}
               className="w-full bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
             />
 

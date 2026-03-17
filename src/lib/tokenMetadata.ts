@@ -1,6 +1,6 @@
 /**
  * Fetch token metadata (symbol, name, decimals, icon) from chain RPCs.
- * Supports EVM (ERC-20), Solana (SPL), and Stellar (XLM) tokens.
+ * Supports EVM (ERC-20), Solana (SPL), Stellar (XLM), and TRON (TRC-20) tokens.
  */
 
 import type { ChainType } from "../shared/types";
@@ -207,6 +207,78 @@ export async function fetchXlmTokenMetadata(assetCode: string, issuer: string, h
   };
 }
 
+// ── TRON (TRC-20) ───────────────────────────────────────────────
+
+async function tronConstantCall(rpcUrl: string, ownerAddress: string, contractAddress: string, functionSelector: string, parameter: string): Promise<string> {
+  const res = await fetch(`${rpcUrl}/wallet/triggerconstantcontract`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      owner_address: ownerAddress,
+      contract_address: contractAddress,
+      function_selector: functionSelector,
+      parameter,
+      visible: true,
+    }),
+  });
+  const data = await res.json();
+  const result = data.constant_result;
+  if (!result || result.length === 0) throw new Error(`${functionSelector} call failed`);
+  return result[0];
+}
+
+export async function fetchTronTokenMetadata(contractAddress: string, rpcUrl: string): Promise<TokenMetadata> {
+  // Use a zero address as caller for constant calls
+  const caller = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
+
+  const [symbolHex, nameHex, decimalsHex] = await Promise.all([
+    tronConstantCall(rpcUrl, caller, contractAddress, "symbol()", ""),
+    tronConstantCall(rpcUrl, caller, contractAddress, "name()", ""),
+    tronConstantCall(rpcUrl, caller, contractAddress, "decimals()", ""),
+  ]);
+
+  const symbol = decodeString("0x" + symbolHex);
+  const name = decodeString("0x" + nameHex);
+  const decimals = parseInt(decimalsHex, 16);
+
+  if (!symbol) throw new Error("Contract does not implement TRC-20 symbol()");
+
+  const iconUrl = await findTronTokenIcon(contractAddress, symbol);
+
+  return { symbol, name, decimals, contractAddress, iconUrl };
+}
+
+async function findTronTokenIcon(contractAddress: string, symbol: string): Promise<string | null> {
+  // 1. TrustWallet assets (TRON chain)
+  try {
+    const twUrl = `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/tron/assets/${contractAddress}/logo.png`;
+    const r = await fetch(twUrl, { method: "HEAD" });
+    if (r.ok) return twUrl;
+  } catch { /* next */ }
+
+  // 2. CoinGecko by contract address (tron platform)
+  try {
+    const r = await fetch(`https://api.coingecko.com/api/v3/coins/tron/contract/${contractAddress}`);
+    if (r.ok) {
+      const data = await r.json();
+      const img = data.image?.small || data.image?.thumb;
+      if (img) return img;
+    }
+  } catch { /* next */ }
+
+  // 3. CoinGecko search by symbol
+  try {
+    const r = await fetch(`https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(symbol)}`);
+    if (r.ok) {
+      const data = await r.json();
+      const coin = data.coins?.find((c: any) => c.symbol?.toUpperCase() === symbol.toUpperCase());
+      if (coin?.thumb && !coin.thumb.includes("missing")) return coin.thumb;
+    }
+  } catch { /* no icon */ }
+
+  return null;
+}
+
 // ── Unified fetcher ────────────────────────────────────────────
 
 export async function fetchTokenMetadata(
@@ -227,6 +299,8 @@ export async function fetchTokenMetadata(
       const horizonUrl = rpcUrl.replace(/\/+$/, "");
       return fetchXlmTokenMetadata(code, issuer, horizonUrl);
     }
+    case "tron":
+      return fetchTronTokenMetadata(contractAddress, rpcUrl);
     default:
       throw new Error(`Custom tokens not supported for ${chainType}`);
   }

@@ -14,9 +14,10 @@ import { authenticatePasskey } from "../lib/passkey";
 import { hasKeyShare, getKeyShareMode, getKeyShareWithPrf, getKeyShareWithPassphrase } from "../lib/keystore";
 import { decryptKeyFile, isEncryptedKeyFile, type KeyFileData } from "../lib/crypto";
 import { isRecoveryMode, getRecoveryKeys, getRecoveryKeyFile } from "../lib/recovery";
-import { wcPersonalSign, wcEthSign, wcSignTypedData, wcSendTransaction, wcSolanaSignTransaction, wcSolanaSignAndSendTransaction, wcSolanaSignMessage, type WcSignPhase } from "../lib/wcSigning";
+import { wcPersonalSign, wcEthSign, wcSignTypedData, wcSendTransaction, wcSolanaSignTransaction, wcSolanaSignAndSendTransaction, wcSolanaSignMessage, wcTronSignTransaction, wcTronSignMessage, type WcSignPhase } from "../lib/wcSigning";
 import { waitForReceipt, estimateGas, getTransactionCount } from "../lib/chains/evmTx";
 import { decodeSolanaTransaction, formatLamports, formatTokenAmount as formatSplAmount, waitForSolanaConfirmation, type DecodedSolanaTx } from "../lib/chains/solanaTx";
+import { formatSun, waitForTronConfirmation, estimateTronFee, type TronTransaction } from "../lib/chains/tronTx";
 import { fetchPrices, getUsdValue, formatUsd } from "../lib/prices";
 import { fetchNativeBalance, getCachedNativeBalance, fetchTokenBalances } from "../lib/balance";
 import { clearCache, tokenBalancesCacheKey } from "../lib/dataCache";
@@ -140,8 +141,30 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
   const isSolana = request.method.startsWith("solana_");
   const isSolanaTx = request.method === "solana_signTransaction" || request.method === "solana_signAndSendTransaction";
-  const isTx = request.method === "eth_sendTransaction" || isSolanaTx;
-  const isContractCall = !isSolana && isTx && request.params[0]?.data && request.params[0].data !== "0x";
+  const isTron = request.method.startsWith("tron_");
+  const isTronTx = request.method === "tron_signTransaction";
+  const isTx = request.method === "eth_sendTransaction" || isSolanaTx || isTronTx;
+  const isContractCall = !isSolana && !isTron && isTx && request.params[0]?.data && request.params[0].data !== "0x";
+
+  // TRON state
+  const [tronResources, setTronResources] = useState<{ bandwidthFree: number; energyFree: number } | null>(null);
+  const [tronTokenInfo, setTronTokenInfo] = useState<{ symbol: string; decimals: number } | null>(null);
+
+  // Parse TRON transaction contract info
+  const tronContract = isTronTx ? (request.params?.transaction?.raw_data?.contract?.[0] ?? null) : null;
+  const isTronNative = tronContract?.type === "TransferContract";
+  const isTronSmartContract = tronContract?.type === "TriggerSmartContract";
+  const tronTo = tronContract?.parameter?.value?.to_address || tronContract?.parameter?.value?.contract_address || "";
+  const tronAmountSun = isTronNative ? BigInt(tronContract?.parameter?.value?.amount || 0) : 0n;
+  // TRC-20 transfer(address,uint256) selector = a9059cbb
+  const tronCallData = isTronSmartContract ? (tronContract?.parameter?.value?.data || "") : "";
+  const isTrc20Transfer = isTronSmartContract && tronCallData.toLowerCase().startsWith("a9059cbb");
+  // Fee limit (TRON's equivalent of gas limit — max TRX burned for energy)
+  const tronFeeLimit = isTronTx ? (request.params?.transaction?.raw_data?.fee_limit ?? null) : null;
+  const tronFeeLimitSun = tronFeeLimit != null ? BigInt(tronFeeLimit) : null;
+  // Estimated fee: native TRX uses bandwidth (free if available), TRC-20 uses energy (~15 TRX)
+  const tronEstFeeSun = isTronNative ? 0n : 15_000_000n;
+  const tronFeeFormatted = formatSun(tronEstFeeSun);
 
   // Decode Solana transaction for display
   const [decodedSolTx, setDecodedSolTx] = useState<DecodedSolanaTx | null>(null);
@@ -158,9 +181,13 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   // Resolve which chain this request targets
   const namespace = request.chainId?.split(":")[0] || "eip155";
   const chainId = namespace === "eip155" ? parseInt(request.chainId?.split(":")[1] || "1") : 0;
+  const tronChainRef = namespace === "tron" ? request.chainId?.split(":")[1] : null;
   const chain = isSolana
     ? chains.find((c) => c.type === "solana")
-    : chains.find((c) => c.evmChainId === chainId);
+    : isTron
+      ? chains.find((c) => c.type === "tron" && (tronChainRef ? c.id === tronChainRef : true))
+        || chains.find((c) => c.type === "tron")
+      : chains.find((c) => c.evmChainId === chainId);
 
   // Resolve SPL token info (symbol, decimals) from chain assets
   const [solTokenInfo, setSolTokenInfo] = useState<{ symbol: string; decimals: number } | null>(null);
@@ -174,8 +201,27 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
     });
   }, [decodedSolTx?.mint, chain?.id]);
 
+  // Fetch TRON account resources (bandwidth/energy) for fee display
+  useEffect(() => {
+    if (!isTronTx || !account || !chain?.rpcUrl) return;
+    estimateTronFee(chain.rpcUrl, account.address).then(setTronResources).catch(() => {});
+  }, [isTronTx, account?.address, chain?.rpcUrl]);
+
+  // Resolve TRC-20 token info from chain assets
+  useEffect(() => {
+    if (!isTrc20Transfer || !chain) return;
+    const contractAddr = tronContract?.parameter?.value?.contract_address;
+    if (!contractAddr) return;
+    fetchAssets(chain.id).then((assets) => {
+      const token = assets.find(
+        (a) => a.contractAddress?.toLowerCase() === contractAddr.toLowerCase()
+      );
+      if (token) setTronTokenInfo({ symbol: token.symbol, decimals: token.decimals });
+    });
+  }, [isTrc20Transfer, tronContract?.parameter?.value?.contract_address, chain?.id]);
+
   // Gas limit: use user override, estimated, dApp's value, or heuristic
-  const txParams = isTx ? request.params[0] : null;
+  const txParams = isTx && !isTronTx ? request.params[0] : null;
   const dappGasLimit = txParams?.gasLimit
     ? BigInt(txParams.gasLimit)
     : txParams?.gas
@@ -237,6 +283,10 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
           if (!key.eddsaPublicKey) continue;
           const solanaAdapter = getChainAdapter("solana");
           derived = solanaAdapter.deriveAddress(key.eddsaPublicKey);
+        } else if (isTron) {
+          if (!key.publicKey) continue;
+          const tronAdapter = getChainAdapter("tron");
+          derived = tronAdapter.deriveAddress(key.publicKey);
         } else {
           if (!key.publicKey) continue;
           const evmAdapter = getChainAdapter("evm");
@@ -358,6 +408,9 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
         return req.params?.account || null;
       case "solana_signMessage":
         return req.params?.pubkey || req.params?.account || null;
+      case "tron_signTransaction":
+      case "tron_signMessage":
+        return req.params?.account || null;
       default:
         return null;
     }
@@ -449,6 +502,13 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
           amount = decodedSolTx.amount || "0";
           nativeSymbol = decodedSolTx.mint ? undefined : "SOL";
           contractAddress = decodedSolTx.mint || undefined;
+        } else if (isTronTx) {
+          const tronTx = request.params?.transaction;
+          const contract = tronTx?.raw_data?.contract?.[0];
+          to = contract?.parameter?.value?.to_address || contract?.parameter?.value?.contract_address || "";
+          amount = contract?.type === "TransferContract" ? String(contract.parameter?.value?.amount || 0) : "0";
+          nativeSymbol = contract?.type === "TransferContract" ? "TRX" : undefined;
+          contractAddress = contract?.type === "TriggerSmartContract" ? contract.parameter?.value?.contract_address : undefined;
         } else if (txParams) {
           to = txParams.to || "";
           amount = txParams.value ? BigInt(txParams.value).toString() : "0";
@@ -473,7 +533,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
     }
 
     // EVM transaction simulation (non-blocking)
-    if (!isSolana && isTx && txParams && chain?.rpcUrl) {
+    if (!isSolana && !isTron && isTx && txParams && chain?.rpcUrl) {
       setSimResult(null);
       simulateEvmTransaction(chain.rpcUrl, {
         from: account.address,
@@ -602,13 +662,57 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
           result = { signature: msgResult.signature };
           break;
         }
+        case "tron_signTransaction": {
+          if (!rpcUrl) throw new Error("No RPC URL for TRON chain");
+          const tronTx = request.params?.transaction as TronTransaction;
+          if (!tronTx?.txID) throw new Error("Missing TRON transaction data");
+          const tronResult = await wcTronSignTransaction(
+            tronTx, kf, account!.address, rpcUrl,
+            (p) => setSigningStepIdx(txPhaseIndex[p]),
+          );
+          result = tronResult.txId;
+          break;
+        }
+        case "tron_signMessage": {
+          setSigningStepIdx(0);
+          const tronMsg = request.params?.message;
+          if (!tronMsg) throw new Error("Missing message data");
+          setSigningStepIdx(1);
+          result = await wcTronSignMessage(tronMsg, kf, account!.address);
+          setSigningStepIdx(2);
+          break;
+        }
         default:
           throw new Error("Unsupported method: " + request.method);
       }
 
       onApprove(result);
 
-      if (isTx && typeof result === "string") {
+      if (isTronTx && typeof result === "string") {
+        // TRON transaction — poll for confirmation
+        setSigningStepIdx(3);
+        setTxResult({ txHash: result, status: "pending" });
+
+        if (account && chain) {
+          const prefix = `cache:bal:${account.address}:${chain.id}:`;
+          for (let i = localStorage.length - 1; i >= 0; i--) {
+            const k = localStorage.key(i);
+            if (k?.startsWith(prefix)) localStorage.removeItem(k);
+          }
+          clearCache(tokenBalancesCacheKey(account.address, chain.id));
+        }
+
+        const rpcUrl = chain?.rpcUrl;
+        if (rpcUrl) {
+          try {
+            const conf = await waitForTronConfirmation(rpcUrl, result, () => {}, 30, 3000);
+            setTxResult({ txHash: result, status: conf.confirmed ? "success" : "pending", blockNumber: conf.blockNumber?.toString() });
+          } catch {
+            // Polling timed out
+          }
+        }
+        setPhase("done");
+      } else if (isTx && !isTronTx && typeof result === "string") {
         // EVM transaction — poll for receipt
         setSigningStepIdx(3);
         setTxResult({ txHash: result, status: "pending" });
@@ -877,7 +981,135 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                 </div>
               )}
 
-              {isTx && !isSolana ? (
+              {isTronTx ? (
+                <>
+                  {/* From */}
+                  <div>
+                    <label className="block text-xs text-text-muted mb-1.5">From</label>
+                    <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5">
+                      <p className={`text-xs font-mono text-text-tertiary ${expert ? "text-[9px]" : "truncate"}`}>{account?.address ?? "—"}</p>
+                      {chain && (
+                        <p className="text-[10px] text-text-muted mt-0.5">{chain.displayName}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* To */}
+                  {tronTo && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <label className="text-xs text-text-muted">To</label>
+                        {isTronSmartContract ? (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 font-medium">
+                            Contract
+                          </span>
+                        ) : (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-medium">
+                            Transfer
+                          </span>
+                        )}
+                      </div>
+                      <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5">
+                        <p className={`text-xs font-mono text-text-tertiary ${expert ? "text-[9px]" : "truncate"}`}>{tronTo}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Amount */}
+                  {isTronNative && (
+                    <div>
+                      <label className="block text-xs text-text-muted mb-1.5">Amount</label>
+                      <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 flex items-center justify-between">
+                        <p className="text-sm text-text-tertiary tabular-nums">{formatSun(tronAmountSun)}</p>
+                        <span className="text-xs text-text-muted shrink-0">TRX</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TRC-20 transfer amount (decoded from call data) */}
+                  {isTrc20Transfer && (() => {
+                    const amountHex = tronCallData.slice(72, 136); // skip selector (8) + padded address (64)
+                    const rawAmount = amountHex ? BigInt("0x" + amountHex) : 0n;
+                    const decimals = tronTokenInfo?.decimals ?? 6;
+                    const divisor = 10n ** BigInt(decimals);
+                    const whole = rawAmount / divisor;
+                    const frac = rawAmount % divisor;
+                    const fracStr = frac.toString().padStart(decimals, "0").replace(/0+$/, "");
+                    const formatted = fracStr ? `${whole}.${fracStr}` : whole.toString();
+                    return (
+                      <div>
+                        <label className="block text-xs text-text-muted mb-1.5">Amount</label>
+                        <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 flex items-center justify-between">
+                          <p className="text-sm text-text-tertiary tabular-nums">{formatted}</p>
+                          <span className="text-xs text-text-muted shrink-0">{tronTokenInfo?.symbol || "tokens"}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Data (for non-transfer smart contract calls) */}
+                  {isTronSmartContract && !isTrc20Transfer && tronCallData && (
+                    <div>
+                      <label className="block text-xs text-text-muted mb-1.5">Data</label>
+                      <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 overflow-auto max-h-20">
+                        <p className={`text-xs font-mono text-text-muted ${expert ? "text-[9px]" : "truncate"}`}>
+                          {expert ? tronCallData : (tronCallData.length > 66 ? tronCallData.slice(0, 66) + "..." : tronCallData)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Expert: TRON details */}
+                  {expert && (
+                    <div className="space-y-2">
+                      <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">Advanced</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5">
+                          <p className="text-[10px] text-text-muted mb-0.5">Bandwidth</p>
+                          <p className="text-xs text-text-primary font-mono tabular-nums">
+                            {tronResources ? tronResources.bandwidthFree.toLocaleString() : "..."}
+                          </p>
+                        </div>
+                        <div className="bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5">
+                          <p className="text-[10px] text-text-muted mb-0.5">Energy</p>
+                          <p className="text-xs text-text-primary font-mono tabular-nums">
+                            {tronResources ? tronResources.energyFree.toLocaleString() : "..."}
+                          </p>
+                        </div>
+                      </div>
+                      {tronFeeLimitSun != null && (
+                        <div>
+                          <label className="block text-xs text-text-muted mb-1">Fee limit</label>
+                          <div className="bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5">
+                            <p className="text-xs text-text-primary font-mono tabular-nums">{formatSun(tronFeeLimitSun)} TRX</p>
+                          </div>
+                        </div>
+                      )}
+                      {request.params?.transaction?.txID && (
+                        <div>
+                          <p className="text-[10px] text-text-muted mb-0.5">Tx ID</p>
+                          <p className="text-[9px] font-mono text-text-muted break-all">{request.params.transaction.txID}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Fee summary */}
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-[10px] text-text-muted">Est. fee</span>
+                    <span className="text-[11px] tabular-nums text-text-secondary">
+                      {tronFeeFormatted === "0" ? "0" : `~${tronFeeFormatted}`} TRX
+                      <span className="text-text-muted ml-1">
+                        ({isTronNative ? "bandwidth" : "energy"})
+                      </span>
+                      {(() => {
+                        const usd = getUsdValue(String(Number(tronEstFeeSun) / 1e6), "TRX", prices);
+                        return usd != null && usd > 0 ? <span className="text-text-muted ml-1">({formatUsd(usd)})</span> : null;
+                      })()}
+                    </span>
+                  </div>
+                </>
+              ) : isTx && !isSolana ? (
                 <>
                   {/* From */}
                   <div>
@@ -1186,7 +1418,154 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
             <>
               <PolicyWarning policyCheck={policyCheck} />
 
-              {isTx && !isSolana ? (
+              {isTronTx ? (
+                <div className="space-y-5">
+                  {/* Value hero */}
+                  {isTronNative ? (
+                    <div className="text-center py-2">
+                      <p className="text-2xl font-semibold tabular-nums text-text-primary">
+                        {formatSun(tronAmountSun)} <span className="text-text-tertiary text-sm">TRX</span>
+                      </p>
+                    </div>
+                  ) : isTrc20Transfer ? (
+                    <div className="text-center py-2">
+                      {(() => {
+                        const amountHex = tronCallData.slice(72, 136);
+                        const rawAmount = amountHex ? BigInt("0x" + amountHex) : 0n;
+                        const decimals = tronTokenInfo?.decimals ?? 6;
+                        const divisor = 10n ** BigInt(decimals);
+                        const whole = rawAmount / divisor;
+                        const frac = rawAmount % divisor;
+                        const fracStr = frac.toString().padStart(decimals, "0").replace(/0+$/, "");
+                        const formatted = fracStr ? `${whole}.${fracStr}` : whole.toString();
+                        return (
+                          <p className="text-2xl font-semibold tabular-nums text-text-primary">
+                            {formatted} <span className="text-text-tertiary text-sm">{tronTokenInfo?.symbol || "tokens"}</span>
+                          </p>
+                        );
+                      })()}
+                    </div>
+                  ) : null}
+
+                  {/* From → To */}
+                  <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
+                    {expert && (
+                      <div className="px-3 py-2.5 flex items-center justify-between">
+                        <span className="text-xs text-text-muted">From</span>
+                        <span className="text-xs font-mono text-text-secondary">{account ? shortAddr(account.address) : "—"}</span>
+                      </div>
+                    )}
+                    {tronTo && (
+                      <div className={`${expert ? "border-t border-border-secondary " : ""}px-3 py-2.5 flex items-center justify-between`}>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-text-muted">To</span>
+                          {expert && isTronSmartContract && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 font-medium">
+                              Contract
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs font-mono text-text-secondary">{shortAddr(tronTo)}</span>
+                      </div>
+                    )}
+                    {isTrc20Transfer && tronTokenInfo && (
+                      <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
+                        <span className="text-xs text-text-muted">Token</span>
+                        <span className="text-xs text-text-secondary">{tronTokenInfo.symbol}</span>
+                      </div>
+                    )}
+                    {expert && isTronSmartContract && !isTrc20Transfer && tronCallData && (
+                      <div className="border-t border-border-secondary px-3 py-2.5">
+                        <span className="text-xs text-text-muted">Data</span>
+                        <pre className="text-[10px] font-mono text-text-muted break-all mt-1 leading-relaxed max-h-24 overflow-auto">
+                          {tronCallData}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Details */}
+                  <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
+                    {expert && chain && (
+                      <div className="px-3 py-2.5 flex items-center justify-between">
+                        <span className="text-xs text-text-muted">Network</span>
+                        <span className="text-xs text-text-secondary">{chain.displayName}</span>
+                      </div>
+                    )}
+                    <div className={`${expert && chain ? "border-t border-border-secondary " : ""}px-3 py-2.5 flex items-center justify-between`}>
+                      <span className="text-xs text-text-muted">Network fee</span>
+                      <span className="text-xs tabular-nums text-text-secondary font-medium">
+                        {(() => {
+                          const usd = getUsdValue(String(Number(tronEstFeeSun) / 1e6), "TRX", prices);
+                          return usd != null && usd > 0 ? formatUsd(usd) : `${tronFeeFormatted === "0" ? "0" : `~${tronFeeFormatted}`} TRX`;
+                        })()}
+                      </span>
+                    </div>
+                    <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
+                      <span className="text-xs text-text-muted">Fee type</span>
+                      <span className="text-xs text-text-muted">{isTronNative ? "Bandwidth (usually free)" : "Energy (~15 TRX)"}</span>
+                    </div>
+                    {expert && tronFeeLimitSun != null && (
+                      <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
+                        <span className="text-xs text-text-muted">Fee limit</span>
+                        <span className="text-xs tabular-nums text-text-muted">{formatSun(tronFeeLimitSun)} TRX</span>
+                      </div>
+                    )}
+                    {expert && tronResources && (
+                      <>
+                        <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
+                          <span className="text-xs text-text-muted">Free bandwidth</span>
+                          <span className="text-xs tabular-nums text-text-muted">{tronResources.bandwidthFree.toLocaleString()}</span>
+                        </div>
+                        <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
+                          <span className="text-xs text-text-muted">Free energy</span>
+                          <span className="text-xs tabular-nums text-text-muted">{tronResources.energyFree.toLocaleString()}</span>
+                        </div>
+                      </>
+                    )}
+                    {(() => {
+                      const totalSun = tronAmountSun + tronEstFeeSun;
+                      const totalUsd = getUsdValue(String(Number(totalSun) / 1e6), "TRX", prices);
+                      return (
+                        <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
+                          <span className="text-xs text-text-muted font-medium">Total cost</span>
+                          <span className="text-xs tabular-nums text-text-primary font-semibold">
+                            {totalUsd != null ? formatUsd(totalUsd) : `${formatSun(totalSun)} TRX`}
+                          </span>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Balance preview */}
+                  {nativeBalance != null && (() => {
+                    const changes: BalanceChange[] = [{
+                      symbol: "TRX",
+                      decimals: 6,
+                      currentBalance: nativeBalance,
+                      delta: -(tronAmountSun + tronEstFeeSun),
+                    }];
+                    // For TRC-20 transfers, also show token balance change
+                    if (isTrc20Transfer) {
+                      const amountHex = tronCallData.slice(72, 136);
+                      const rawAmount = amountHex ? BigInt("0x" + amountHex) : 0n;
+                      const tokenSymbol = tronTokenInfo?.symbol || "tokens";
+                      const tokenDecimals = tronTokenInfo?.decimals ?? 6;
+                      const contractAddr = tronContract?.parameter?.value?.contract_address;
+                      const tokenBal = tokenBalances.find(
+                        (b) => b.asset.contractAddress?.toLowerCase() === contractAddr?.toLowerCase()
+                      );
+                      changes.push({
+                        symbol: tokenSymbol,
+                        decimals: tokenDecimals,
+                        currentBalance: tokenBal?.balance || "0",
+                        delta: -rawAmount,
+                      });
+                    }
+                    return <BalancePreview changes={changes} prices={prices} />;
+                  })()}
+                </div>
+              ) : isTx && !isSolana ? (
                 <div className="space-y-5">
                   {/* Value hero */}
                   {(() => {
@@ -1583,11 +1962,21 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                   <p className="text-lg font-semibold text-text-primary mb-1">
                     {isTx ? "Transaction Confirmed" : "Signed"}
                   </p>
-                  {isTx && !isSolana && txParams?.value && (
+                  {isTx && !isSolana && !isTron && txParams?.value && (
                     <p className="text-sm text-text-muted tabular-nums">
                       {formatWei(BigInt(txParams.value))} {chain?.type === "evm" ? (chain.name?.includes("BASE") ? "ETH" : "ETH") : ""}
                     </p>
                   )}
+                  {isTronTx && (() => {
+                    const contract = request.params?.transaction?.raw_data?.contract?.[0];
+                    if (contract?.type !== "TransferContract") return null;
+                    const amountSun = BigInt(contract.parameter?.value?.amount || 0);
+                    return (
+                      <p className="text-sm text-text-muted tabular-nums">
+                        {formatSun(amountSun)} TRX
+                      </p>
+                    );
+                  })()}
                   {isSolanaTx && decodedSolTx?.amount && (decodedSolTx.type === "sol_transfer" || decodedSolTx.type === "spl_transfer") && (
                     <p className="text-sm text-text-muted tabular-nums">
                       {decodedSolTx.type === "sol_transfer"
@@ -1644,7 +2033,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                     <div className="flex items-center px-3 py-2 border-t border-border-secondary">
                       <span className="text-[11px] text-text-muted shrink-0">{isSolana ? "Slot" : "Block"}</span>
                       <span className="text-xs font-mono text-text-secondary tabular-nums ml-2">
-                        {(isSolana ? Number(txResult.blockNumber) : parseInt(txResult.blockNumber, 16)).toLocaleString()}
+                        {(isSolana || isTron ? Number(txResult.blockNumber) : parseInt(txResult.blockNumber, 16)).toLocaleString()}
                       </span>
                     </div>
                   )}
@@ -1789,6 +2178,32 @@ function formatRequest(request: PendingRequest, expertMode = false): Array<{ lab
         items.push({ label: "Message", value: msgBytes });
       } catch {
         items.push({ label: "Message (base64)", value: request.params?.message || "" });
+      }
+      return items;
+    }
+    case "tron_signTransaction": {
+      const items: Array<{ label: string; value: string }> = [];
+      const tronTx = request.params?.transaction;
+      if (tronTx?.txID) items.push({ label: "Tx ID", value: tronTx.txID });
+      const contract = tronTx?.raw_data?.contract?.[0];
+      if (contract?.type) items.push({ label: "Type", value: contract.type });
+      const to = contract?.parameter?.value?.to_address || contract?.parameter?.value?.contract_address;
+      if (to) items.push({ label: "To", value: to });
+      if (contract?.type === "TransferContract" && contract.parameter?.value?.amount) {
+        items.push({ label: "Amount", value: `${Number(contract.parameter.value.amount) / 1e6} TRX` });
+      }
+      return items;
+    }
+    case "tron_signMessage": {
+      const items: Array<{ label: string; value: string }> = [];
+      const msg = request.params?.message || "";
+      try {
+        const h = msg.startsWith("0x") ? msg.slice(2) : msg;
+        const bytes = new Uint8Array(h.length / 2);
+        for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(h.slice(i * 2, i * 2 + 2), 16);
+        items.push({ label: "Message", value: new TextDecoder().decode(bytes) });
+      } catch {
+        items.push({ label: "Message", value: msg });
       }
       return items;
     }
