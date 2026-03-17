@@ -256,8 +256,9 @@ export function SendDialog({
   const [pendingTxHash, setPendingTxHash] = useState<string | null>(null);
   const [signedRawTx, setSignedRawTx] = useState<string | null>(null);
   const [signatureCount, setSignatureCount] = useState(1);
+  const signingActive = step === "signing";
   const signingDone = signingPhase !== "mpc-signing" && signingPhase !== "loading-keyshare" && signingPhase !== "building-tx";
-  const smoothPct = useProgressBar(signingDurationMs(signatureCount), signingDone);
+  const smoothPct = useProgressBar(signingDurationMs(signatureCount), signingActive, signingDone);
 
   // Passkey guard (triggered on confirm, not on dialog open)
   const [passkeyGuard, setPasskeyGuard] = useState<"idle" | "gate" | "challenge">("idle");

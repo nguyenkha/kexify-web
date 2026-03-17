@@ -56,8 +56,9 @@ export function Sign() {
   const [signingError, setSigningError] = useState<string | null>(null);
   const [signature, setSignature] = useState("");
   const [verified, setVerified] = useState<boolean | null>(null);
+  const signingActive = showDialog && !signature && !signingError;
   const signingDone = signingPhase === "verifying" || !!signature || !!signingError;
-  const smoothPct = useProgressBar(signingDurationMs(1), signingDone);
+  const smoothPct = useProgressBar(signingDurationMs(1), signingActive, signingDone);
 
   // Load browser-stored shares on mount (skip in recovery — key already set)
   useEffect(() => {

@@ -35,7 +35,7 @@ const SIMPLE_TIPS = [
 ];
 
 function CreatingProgressBar({ done }: { done: boolean }) {
-  const pct = useProgressBar(CREATING_DURATION_MS, done);
+  const pct = useProgressBar(CREATING_DURATION_MS, true, done);
   return <ProgressBar pct={pct} />;
 }
 

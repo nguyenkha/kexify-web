@@ -124,8 +124,9 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   const [browserShareError, setBrowserShareError] = useState("");
   const [showBrowserPassphrase, setShowBrowserPassphrase] = useState(false);
   const [signingStepIdx, setSigningStepIdx] = useState(0);
+  const signingActive = phase === "signing";
   const signingDone = signingStepIdx > 1;
-  const smoothPct = useProgressBar(signingDurationMs(1), signingDone);
+  const smoothPct = useProgressBar(signingDurationMs(1), signingActive, signingDone);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fee state (for eth_sendTransaction)

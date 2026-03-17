@@ -3,35 +3,34 @@ import { useState, useEffect, useRef } from "react";
 /**
  * Time-based progress bar hook.
  *
+ * - Only starts ticking when `active` is true.
  * - Linearly fills 0→99% over `totalMs`.
  * - When `done` flips to true, animates remaining → 100% over 1 second.
  * - If it reaches 99% before done, holds at 99% until done.
- * - Resets to 0 when `done` goes back to false (new operation).
+ * - Resets to 0 when `active` goes back to false (new operation).
  */
-export function useProgressBar(totalMs: number, done: boolean): number {
+export function useProgressBar(totalMs: number, active: boolean, done: boolean): number {
   const [pct, setPct] = useState(0);
   const pctRef = useRef(0);
   const doneTriggered = useRef(false);
-  const prevDone = useRef(done);
 
   // Keep ref in sync
   useEffect(() => {
     pctRef.current = pct;
   }, [pct]);
 
-  // Reset when done goes from true → false (new operation)
+  // Reset when active goes false
   useEffect(() => {
-    if (prevDone.current && !done) {
+    if (!active) {
       setPct(0);
       pctRef.current = 0;
       doneTriggered.current = false;
     }
-    prevDone.current = done;
-  }, [done]);
+  }, [active]);
 
   // Phase 1: linear 0→99 over totalMs
   useEffect(() => {
-    if (done) return;
+    if (!active || done) return;
     const msPerPct = totalMs / 99;
     const iv = setInterval(() => {
       setPct((p) => {
@@ -40,11 +39,11 @@ export function useProgressBar(totalMs: number, done: boolean): number {
       });
     }, msPerPct);
     return () => clearInterval(iv);
-  }, [totalMs, done]);
+  }, [totalMs, active, done]);
 
   // Phase 2: when done, animate remaining → 100 over 1s
   useEffect(() => {
-    if (!done || doneTriggered.current) return;
+    if (!active || !done || doneTriggered.current) return;
     doneTriggered.current = true;
     const startPct = pctRef.current;
     const remaining = 100 - startPct;
@@ -63,7 +62,7 @@ export function useProgressBar(totalMs: number, done: boolean): number {
       });
     }, msPerPct);
     return () => clearInterval(iv);
-  }, [done]);
+  }, [active, done]);
 
   return pct;
 }
