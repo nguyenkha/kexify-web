@@ -17,7 +17,7 @@ import { getUserOverrides, setUserOverrides } from "../lib/userOverrides";
 
 type CreateStep = "welcome" | "passkey" | "name" | "creating" | "passphrase" | "backup" | "done";
 
-const TIPS = [
+const EXPERT_TIPS = [
   "You are responsible for your own key share. Keep your downloaded file safe.",
   "Losing your passkey, passphrase, or clearing browser data makes local copies unrecoverable.",
   "Your key share is split between your device and the server — neither side can sign alone.",
@@ -25,7 +25,48 @@ const TIPS = [
   "Key shares stored in the browser are encrypted and never leave this device.",
 ];
 
-function RollingTips() {
+const SIMPLE_TIPS = [
+  "Your wallet key is being split into two halves — one stays on your device, the other on our server.",
+  "Neither half works alone, so your funds stay safe even if one side is compromised.",
+  "This uses the same cryptography that secures billions of dollars in institutional wallets.",
+  "After setup, you'll get a backup file. Keep it safe — it's your recovery lifeline.",
+  "Transactions require both halves to agree, so no one can move your funds without you.",
+];
+
+function CreatingProgressBar({ progress }: { progress: string }) {
+  const [pct, setPct] = useState(0);
+
+  useEffect(() => {
+    // Map progress text to target percentage
+    let target = 5;
+    if (progress.includes("ECDSA") || progress.includes("encryption")) target = 15;
+    if (progress.includes("EdDSA") || progress.includes("Securing")) target = 55;
+    if (progress.includes("Saving")) target = 90;
+
+    // Smoothly animate toward target
+    const iv = setInterval(() => {
+      setPct((p) => {
+        if (p >= target) return p;
+        return p + 1;
+      });
+    }, 200);
+    return () => clearInterval(iv);
+  }, [progress]);
+
+  return (
+    <div className="w-full max-w-[240px] mx-auto">
+      <div className="h-1.5 bg-surface-tertiary rounded-full overflow-hidden">
+        <div
+          className="h-full bg-blue-500 rounded-full transition-all duration-300 ease-out"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function RollingTips({ expert }: { expert: boolean }) {
+  const tips = expert ? EXPERT_TIPS : SIMPLE_TIPS;
   const [index, setIndex] = useState(0);
   const [fade, setFade] = useState(true);
 
@@ -33,7 +74,7 @@ function RollingTips() {
     const interval = setInterval(() => {
       setFade(false);
       setTimeout(() => {
-        setIndex((i) => (i + 1) % TIPS.length);
+        setIndex((i) => (i + 1) % tips.length);
         setFade(true);
       }, 300);
     }, 4000);
@@ -44,7 +85,7 @@ function RollingTips() {
     <p
       className={`text-[11px] text-text-muted text-center leading-relaxed transition-opacity duration-300 min-h-[2rem] flex items-center justify-center ${fade ? "opacity-100" : "opacity-0"}`}
     >
-      {TIPS[index]}
+      {tips[index]}
     </p>
   );
 }
@@ -426,7 +467,12 @@ export function CreateAccountDialog({
               </div>
               <div className="text-center">
                 <p className="text-sm font-medium text-text-secondary">{progress}</p>
+                {!expert && (
+                  <p className="text-[11px] text-text-muted mt-1">This usually takes 10–20 seconds</p>
+                )}
               </div>
+              {/* Smooth progress bar */}
+              <CreatingProgressBar progress={progress} />
               {/* Progress steps */}
               <div className="space-y-2 max-w-[220px] mx-auto">
                 {[
@@ -470,7 +516,7 @@ export function CreateAccountDialog({
                 })}
               </div>
               {/* Rolling tips */}
-              <RollingTips />
+              <RollingTips expert={expert} />
             </div>
           )}
 
