@@ -5,10 +5,13 @@ import { apiUrl } from "../lib/apiBase";
 import {
   listKeyShares,
   hasKeyShare,
+  getKeyShareMode,
+  getKeyShareWithPrf,
+  getKeyShareWithPassphrase,
   saveKeyShareWithPrf,
   saveKeyShareWithPassphrase,
 } from "../lib/keystore";
-import { type KeyFileData, isEncryptedKeyFile, decryptKeyFile } from "../lib/crypto";
+import { type KeyFileData, isEncryptedKeyFile, decryptKeyFile, encryptKeyFile } from "../lib/crypto";
 import { PassphraseInput } from "./PassphraseInput";
 import { RecoveryGuide } from "./RecoveryGuide";
 
@@ -39,6 +42,11 @@ export function RecoveryChecklist() {
   const [escrowUploading, setEscrowUploading] = useState(false);
   const [escrowError, setEscrowError] = useState<string | null>(null);
   const escrowFileRef = useRef<HTMLInputElement>(null);
+
+  // Download from browser state
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [downloadPassphraseId, setDownloadPassphraseId] = useState<string | null>(null);
 
   function fetchAccounts() {
     const browserShares = listKeyShares();
@@ -211,6 +219,64 @@ export function RecoveryChecklist() {
     setEscrowUploading(false);
   }
 
+  // ── Download key share from browser storage ──
+  async function handleDownloadFromBrowser(account: AccountStatus) {
+    setDownloadingId(account.id);
+    setDownloadError(null);
+    setDownloadPassphraseId(null);
+    try {
+      const mode = getKeyShareMode(account.id);
+      let data: KeyFileData | null = null;
+
+      if (mode === "prf") {
+        const result = await authenticatePasskey({ withPrf: true });
+        if (result.prfKey) {
+          data = await getKeyShareWithPrf(account.id, result.prfKey);
+        }
+        if (!data) { setDownloadError("Could not decrypt. Wrong passkey?"); setDownloadingId(null); return; }
+      } else if (mode === "passphrase") {
+        setDownloadPassphraseId(account.id);
+        setDownloadingId(null);
+        return; // will continue via passphrase callback
+      } else {
+        setDownloadError("No browser key share found"); setDownloadingId(null); return;
+      }
+
+      await downloadKeyFile(data, account);
+    } catch (err) {
+      setDownloadError(String(err));
+    }
+    setDownloadingId(null);
+  }
+
+  async function handleDownloadPassphrase(passphrase: string, account: AccountStatus) {
+    setDownloadError(null);
+    setDownloadingId(account.id);
+    try {
+      const data = await getKeyShareWithPassphrase(account.id, passphrase);
+      if (!data) { setDownloadError("Could not decrypt"); setDownloadingId(null); return; }
+      await downloadKeyFile(data, account);
+      setDownloadPassphraseId(null);
+    } catch (err) {
+      setDownloadError(String(err));
+    }
+    setDownloadingId(null);
+  }
+
+  async function downloadKeyFile(data: KeyFileData, account: AccountStatus) {
+    // Encrypt with a new passphrase prompt? For simplicity, encrypt with keyId
+    const encrypted = await encryptKeyFile(data, data.id);
+    const json = JSON.stringify(encrypted, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const safeName = account.name ? account.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") : account.id.slice(0, 8);
+    a.download = `kexify-${safeName}-${account.id.slice(0, 8)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   if (loading) {
     return (
       <div className="space-y-5">
@@ -318,6 +384,39 @@ export function RecoveryChecklist() {
                       {step.label}
                     </p>
                     <p className="text-[10px] text-text-muted mt-0.5 leading-relaxed">{step.detail}</p>
+
+                    {/* Step 1: Download key file from browser (when saved) */}
+                    {step.done && step.key === "browser" && (
+                      <div className="mt-2 space-y-1.5">
+                        {downloadPassphraseId === account.id ? (
+                          <div className="space-y-2">
+                            <p className="text-[10px] text-text-muted">Enter your passphrase to export:</p>
+                            <PassphraseInput
+                              mode="enter"
+                              submitLabel="Decrypt & Download"
+                              onSubmit={(p) => handleDownloadPassphrase(p, account)}
+                            />
+                            <button
+                              onClick={() => setDownloadPassphraseId(null)}
+                              className="text-[10px] text-text-muted hover:text-text-tertiary"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleDownloadFromBrowser(account)}
+                            disabled={downloadingId === account.id}
+                            className="px-3 py-2 rounded-lg text-xs font-medium bg-surface-tertiary hover:bg-border-primary text-text-secondary transition-colors disabled:opacity-50"
+                          >
+                            {downloadingId === account.id ? "Exporting..." : "Download key file"}
+                          </button>
+                        )}
+                        {downloadError && downloadingId === null && downloadPassphraseId !== account.id && (
+                          <p className="text-[10px] text-red-400">{downloadError}</p>
+                        )}
+                      </div>
+                    )}
 
                     {/* Step 1: Import key file */}
                     {!step.done && step.key === "browser" && (
