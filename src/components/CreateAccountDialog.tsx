@@ -83,17 +83,10 @@ export function CreateAccountDialog({
   const canClose = step === "welcome" || step === "passkey" || step === "name" || step === "passphrase" || step === "done" || (step === "backup" && downloaded);
 
   async function chooseMode(isExpert: boolean) {
-    // Save preference + set simpler default chains for non-expert
+    // Save preference
     getMe().then((me) => {
       const overrides = getUserOverrides(me?.id);
-      const prefs = {
-        ...overrides.preferences,
-        expert_mode: isExpert || undefined,
-        // Non-expert: show only major chains by default
-        ...(!isExpert && !overrides.preferences?.default_chains ? {
-          default_chains: ["BITCOIN", "ETHEREUM", "SOLANA"],
-        } : {}),
-      };
+      const prefs = { ...overrides.preferences, expert_mode: isExpert || undefined };
       setUserOverrides({ ...overrides, preferences: Object.keys(prefs).length ? prefs : undefined }, me?.id);
     });
     setExpertContext(isExpert);
