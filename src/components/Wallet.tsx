@@ -10,6 +10,7 @@ import { fetchPasskeys } from "../lib/passkey";
 import { PasskeyGate } from "./PasskeyGate";
 import { PasskeyChallenge } from "./PasskeyChallenge";
 import { PolicyRules } from "./PolicyRules";
+import { useExpertMode } from "../context/ExpertModeContext";
 import { getStoredDisplay, setStoredDisplay, isChainVisible } from "../lib/displayPrefs";
 import { buildAccountRows, type AccountRow } from "../lib/accountRows";
 import { SkeletonRow } from "./SkeletonRow";
@@ -37,6 +38,7 @@ function formatLastUpdated(date: Date): string {
 
 export function Wallet() {
   const frozen = useFrozen();
+  const expert = useExpertMode();
   const { isRecovery, recoveryKeys } = useRecovery();
   const [keys, setKeys] = useState<KeyShare[]>([]);
   const [chainsData, setChainsData] = useState<Chain[]>([]);
@@ -384,7 +386,7 @@ export function Wallet() {
                 </svg>
                 Manage Display
               </button>
-              {!isRecovery && (<>
+              {!isRecovery && expert && (
                 <button
                   onClick={() => { setPolicyKeyId(group.keyId); setMenuKeyId(null); }}
                   className="w-full px-4 py-2.5 text-sm text-text-secondary hover:bg-surface-tertiary transition-colors flex items-center gap-3"
@@ -394,7 +396,15 @@ export function Wallet() {
                   </svg>
                   Policy Rules
                 </button>
-              </>)}
+              )}
+              {!isRecovery && !expert && (
+                <div className="px-4 py-2.5 flex items-center gap-3">
+                  <svg className="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+                  </svg>
+                  <span className="text-sm text-text-muted">Protected by default</span>
+                </div>
+              )}
               {!isRecovery && (
                 <button
                   onClick={() => { toggleKey(group.keyId, false); setMenuKeyId(null); }}

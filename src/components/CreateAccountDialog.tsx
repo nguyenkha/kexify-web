@@ -115,7 +115,7 @@ export function CreateAccountDialog({
       }
 
       setStep("creating");
-      setProgress("Generating ECDSA key...");
+      setProgress(expert ? "Generating ECDSA key..." : "Setting up encryption...");
 
       const keyName = name.trim() || `Account ${keyCount + 1}`;
       const mpc = await getMpcInstance();
@@ -150,7 +150,7 @@ export function CreateAccountDialog({
       const ecdsaInfo = mpc.ecdsa2pKeyInfo(ecdsaKey);
 
       // ── Phase 2: EdDSA key generation ──
-      setProgress("Generating EdDSA key...");
+      setProgress(expert ? "Generating EdDSA key..." : "Securing your account...");
 
       const { transport: eddsaTransport, getServerResult: getEddsaServerResult } = createHttpTransport({
         initUrl: apiUrl("/api/generate/eddsa-init"),
@@ -387,9 +387,17 @@ export function CreateAccountDialog({
               {/* Progress steps */}
               <div className="space-y-2 max-w-[220px] mx-auto">
                 {[
-                  { label: "ECDSA key", match: "ECDSA" },
-                  { label: "EdDSA key", match: "EdDSA" },
-                  { label: "Save securely", match: "Saving" },
+                  ...(expert
+                    ? [
+                        { label: "ECDSA key", match: "ECDSA" },
+                        { label: "EdDSA key", match: "EdDSA" },
+                        { label: "Save securely", match: "Saving" },
+                      ]
+                    : [
+                        { label: "Setting up encryption", match: "ECDSA" },
+                        { label: "Securing your account", match: "EdDSA" },
+                        { label: "Saving", match: "Saving" },
+                      ]),
                 ].map(({ label, match }) => {
                   const isCurrent = progress.includes(match);
                   const isDone = progress.includes(match)

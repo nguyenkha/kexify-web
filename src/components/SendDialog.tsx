@@ -1781,36 +1781,49 @@ message = buildSplTransferMessage({
                 </div>
               </div>
 
-              {/* Fee level selector (not shown for fixed-fee chains) */}
+              {/* Fee level selector — expert: 3-option grid; non-expert: simple fee line */}
               {feeDisplay.hasLevelSelector && (
-              <div className="bg-surface-primary border border-border-primary rounded-lg p-1.5">
-                <div className="grid grid-cols-3 gap-1">
-                  {(["low", "medium", "high"] as FeeLevel[]).map((level) => {
-                    const isActive = feeLevel === level;
-                    const feeText = chain.type === "btc" || chain.type === "ltc"
-                      ? ((chain.type === "btc" ? btcFeeRates : ltcFeeRates)?.[level] != null ? `${(chain.type === "btc" ? btcFeeRates : ltcFeeRates)![level]} sat/vB` : "...")
-                      : (baseGasPrice != null ? `${formatGwei(BigInt(Math.round(Number(baseGasPrice) * EVM_FEE_MULTIPLIER[level])))} Gwei` : "...");
-                    return (
-                      <button
-                        key={level}
-                        onClick={() => setFeeLevel(level)}
-                        className={`flex flex-col items-center py-2 px-1 rounded-md transition-all ${
-                          isActive
-                            ? "bg-surface-tertiary ring-1 ring-blue-500/40"
-                            : "hover:bg-surface-tertiary/50"
-                        }`}
-                      >
-                        <span className={`text-[11px] font-medium ${isActive ? "text-text-primary" : "text-text-muted"}`}>
-                          {FEE_LABELS[level]}
-                        </span>
-                        <span className={`text-[10px] tabular-nums mt-0.5 ${isActive ? "text-text-secondary" : "text-text-muted/70"}`}>
-                          {feeText}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+                expert ? (
+                  <div className="bg-surface-primary border border-border-primary rounded-lg p-1.5">
+                    <div className="grid grid-cols-3 gap-1">
+                      {(["low", "medium", "high"] as FeeLevel[]).map((level) => {
+                        const isActive = feeLevel === level;
+                        const feeText = chain.type === "btc" || chain.type === "ltc"
+                          ? ((chain.type === "btc" ? btcFeeRates : ltcFeeRates)?.[level] != null ? `${(chain.type === "btc" ? btcFeeRates : ltcFeeRates)![level]} sat/vB` : "...")
+                          : (baseGasPrice != null ? `${formatGwei(BigInt(Math.round(Number(baseGasPrice) * EVM_FEE_MULTIPLIER[level])))} Gwei` : "...");
+                        return (
+                          <button
+                            key={level}
+                            onClick={() => setFeeLevel(level)}
+                            className={`flex flex-col items-center py-2 px-1 rounded-md transition-all ${
+                              isActive
+                                ? "bg-surface-tertiary ring-1 ring-blue-500/40"
+                                : "hover:bg-surface-tertiary/50"
+                            }`}
+                          >
+                            <span className={`text-[11px] font-medium ${isActive ? "text-text-primary" : "text-text-muted"}`}>
+                              {FEE_LABELS[level]}
+                            </span>
+                            <span className={`text-[10px] tabular-nums mt-0.5 ${isActive ? "text-text-secondary" : "text-text-muted/70"}`}>
+                              {feeText}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between px-3 py-2 bg-surface-primary border border-border-primary rounded-lg">
+                    <span className="text-xs text-text-muted">Network fee</span>
+                    <span className="text-xs tabular-nums text-text-secondary">
+                      {feeDisplay.usd != null && feeDisplay.usd > 0
+                        ? formatUsd(feeDisplay.usd)
+                        : feeDisplay.formatted != null
+                          ? `${feeDisplay.formatted} ${feeDisplay.symbol}`
+                          : "Estimating..."}
+                    </span>
+                  </div>
+                )
               )}
 
               {/* Expert mode: advanced tx overrides */}
