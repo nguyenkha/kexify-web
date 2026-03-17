@@ -402,16 +402,6 @@
             "chainId": "6621212c-19a5-4b5f-86bb-679658dfbd88"
         },
         {
-            "id": "414ce914-0531-4256-bc13-b742c4b529ee",
-            "symbol": "aEthUSDT",
-            "name": "Aave Ethereum USDT",
-            "decimals": 6,
-            "contractAddress": "0x23878914EFE38d27C4D67Ab83ed1b93A74D4086a",
-            "isNative": false,
-            "iconUrl": "https://static.cx.metamask.io/api/v1/tokenIcons/1/0x23878914efe38d27c4d67ab83ed1b93a74d4086a.png",
-            "chainId": "6621212c-19a5-4b5f-86bb-679658dfbd88"
-        },
-        {
             "id": "22c6395c-2d6c-46d2-b34a-c697801bf812",
             "symbol": "DAI",
             "name": "Dai Stablecoin",
@@ -529,16 +519,6 @@
             "contractAddress": null,
             "isNative": true,
             "iconUrl": "https://assets.coingecko.com/coins/images/279/large/ethereum.png",
-            "chainId": "8dea007b-7016-41a3-9a47-48879d5264a8"
-        },
-        {
-            "id": "fa612252-a953-4051-9f1d-ab95ab7d9b86",
-            "symbol": "aBasUSDC",
-            "name": "Aave Base USDC",
-            "decimals": 6,
-            "contractAddress": "0x4e65fE4DbA92790696d040ac24Aa414708F5c0AB",
-            "isNative": false,
-            "iconUrl": null,
             "chainId": "8dea007b-7016-41a3-9a47-48879d5264a8"
         },
         {
