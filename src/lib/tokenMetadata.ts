@@ -114,7 +114,7 @@ async function findEvmTokenIcon(contractAddress: string, symbol: string, evmChai
     const r = await fetch(`https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(symbol)}`);
     if (r.ok) {
       const data = await r.json();
-      const coin = data.coins?.find((c: any) => c.symbol?.toUpperCase() === symbol.toUpperCase());
+      const coin = data.coins?.find((c: { symbol?: string; thumb?: string }) => c.symbol?.toUpperCase() === symbol.toUpperCase());
       if (coin?.thumb && !coin.thumb.includes("missing")) return coin.thumb;
     }
   } catch { /* no icon */ }
@@ -271,7 +271,7 @@ async function findTronTokenIcon(contractAddress: string, symbol: string): Promi
     const r = await fetch(`https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(symbol)}`);
     if (r.ok) {
       const data = await r.json();
-      const coin = data.coins?.find((c: any) => c.symbol?.toUpperCase() === symbol.toUpperCase());
+      const coin = data.coins?.find((c: { symbol?: string; thumb?: string }) => c.symbol?.toUpperCase() === symbol.toUpperCase());
       if (coin?.thumb && !coin.thumb.includes("missing")) return coin.thumb;
     }
   } catch { /* no icon */ }

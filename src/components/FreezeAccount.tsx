@@ -20,9 +20,9 @@ export function FreezeAccount() {
         throw new Error(data.error || "Failed to freeze account");
       }
       setStatus("success");
-    } catch (err: any) {
+    } catch (err: unknown) {
       setStatus("error");
-      setError(err.message || "Failed to freeze account");
+      setError((err as { message?: string })?.message || "Failed to freeze account");
     }
   }
 

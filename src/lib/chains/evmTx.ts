@@ -69,7 +69,7 @@ function bytesToBigint(bytes: Uint8Array): bigint {
 
 // ── RPC Helper ──────────────────────────────────────────────────
 
-async function ethRpc(rpcUrl: string, method: string, params: unknown[]): Promise<any> {
+async function ethRpc(rpcUrl: string, method: string, params: unknown[]): Promise<unknown> {
   const res = await fetch(rpcUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -83,7 +83,7 @@ async function ethRpc(rpcUrl: string, method: string, params: unknown[]): Promis
 /** Estimate gas for a transaction. Simple ETH transfers (21000) stay fixed; otherwise adds configurable buffer. */
 export async function estimateGas(rpcUrl: string, tx: { from: string; to: string; value?: string; data?: string }, bufferPct?: number): Promise<bigint> {
   const result = await ethRpc(rpcUrl, "eth_estimateGas", [tx]);
-  const estimate = BigInt(result);
+  const estimate = BigInt(result as string);
   if (estimate <= GAS_LIMIT_NATIVE) return GAS_LIMIT_NATIVE;
   const pct = bufferPct ?? getPreference("evm_gas_buffer_pct") ?? 10;
   if (pct <= 0) return estimate;
@@ -93,7 +93,7 @@ export async function estimateGas(rpcUrl: string, tx: { from: string; to: string
 /** Get the next nonce for an address. */
 export async function getTransactionCount(rpcUrl: string, address: string): Promise<number> {
   const result = await ethRpc(rpcUrl, "eth_getTransactionCount", [address, "pending"]);
-  return parseInt(result, 16);
+  return parseInt(result as string, 16);
 }
 
 // ── Transaction Types ───────────────────────────────────────────
@@ -143,11 +143,11 @@ export async function buildTransaction(opts: {
   let finalGasPrice = opts.gasPrice;
   if (finalGasPrice == null) {
     const gasPriceHex = await ethRpc(opts.rpcUrl, "eth_gasPrice", []);
-    finalGasPrice = BigInt(gasPriceHex);
+    finalGasPrice = BigInt(gasPriceHex as string);
   }
 
   return {
-    nonce: BigInt(nonceHex),
+    nonce: BigInt(nonceHex as string),
     gasPrice: finalGasPrice,
     gasLimit: opts.gasLimit,
     to: opts.to,
@@ -226,7 +226,7 @@ export function recoverV(
   for (const recovery of [0, 1]) {
     try {
       const recovered = sig.addRecoveryBit(recovery).recoverPublicKey(hash);
-      const recoveredBytes = (recovered as any).toRawBytes?.(false) ?? recovered.toBytes(false);
+      const recoveredBytes = (recovered as { toRawBytes?: (c: boolean) => Uint8Array }).toRawBytes?.(false) ?? recovered.toBytes(false);
       if (recoveredBytes.length === pubKeyRaw.length &&
           recoveredBytes.every((b: number, i: number) => b === pubKeyRaw[i])) {
         return recovery;
@@ -268,7 +268,7 @@ export function assembleSignedTx(
 
 export async function broadcastTransaction(rpcUrl: string, rawTx: string): Promise<string> {
   const txHash = await ethRpc(rpcUrl, "eth_sendRawTransaction", [rawTx]);
-  return txHash;
+  return txHash as string;
 }
 
 export async function waitForReceipt(
@@ -280,7 +280,7 @@ export async function waitForReceipt(
 ): Promise<{ status: "success" | "failed"; blockNumber: string }> {
   for (let i = 0; i < maxAttempts; i++) {
     onPoll?.(i + 1);
-    const receipt = await ethRpc(rpcUrl, "eth_getTransactionReceipt", [txHash]);
+    const receipt = await ethRpc(rpcUrl, "eth_getTransactionReceipt", [txHash]) as { status: string; blockNumber: string } | null;
     if (receipt) {
       return {
         status: receipt.status === "0x1" ? "success" : "failed",

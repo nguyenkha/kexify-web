@@ -396,10 +396,6 @@ export function ActivityLogPage() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
 
-  useEffect(() => {
-    fetchLogs(1);
-  }, []);
-
   async function fetchLogs(p: number) {
     setLoading(true);
     const res = await fetch(apiUrl(`/api/account/audit?page=${p}&limit=20`), {
@@ -417,6 +413,10 @@ export function ActivityLogPage() {
     }
     setLoading(false);
   }
+
+  useEffect(() => {
+    fetchLogs(1);
+  }, []);
 
   const filtered = expert ? logs : logs.filter((e) => !HIDDEN_ACTIONS.has(e.action));
 

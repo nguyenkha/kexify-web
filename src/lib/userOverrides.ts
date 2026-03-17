@@ -140,5 +140,5 @@ export function getPreference<K extends keyof NonNullable<UserOverrides["prefere
     return undefined;
   }
 
-  return overrides.preferences?.[key] as any;
+  return overrides.preferences?.[key] as NonNullable<UserOverrides["preferences"]>[K];
 }

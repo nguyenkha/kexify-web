@@ -55,8 +55,8 @@ export function RecoveryImport() {
     try {
       const decrypted = await decryptKeyFile(raw, passphrase);
       setPeer({ step: "ready", data: decrypted });
-    } catch (err: any) {
-      setError(err.message || "Decryption failed");
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || "Decryption failed");
     }
   }
 
@@ -69,8 +69,8 @@ export function RecoveryImport() {
     try {
       const decrypted = await decryptHkdfKeyFile(raw, hexKey.trim());
       setPeer({ step: "ready", data: decrypted });
-    } catch (err: any) {
-      setError(err.message || "HKDF decryption failed");
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || "HKDF decryption failed");
     }
   }
 
@@ -98,8 +98,8 @@ export function RecoveryImport() {
     try {
       await enterRecoveryMode(p1, p2);
       navigate("/accounts");
-    } catch (err: any) {
-      setError(err.message || "Failed to enter recovery mode");
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || "Failed to enter recovery mode");
       setEntering(false);
     }
   }

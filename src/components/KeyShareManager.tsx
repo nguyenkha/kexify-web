@@ -8,6 +8,11 @@ import { authHeaders } from "../lib/auth";
 import { apiUrl } from "../lib/apiBase";
 import { useFrozen } from "../context/FrozenContext";
 
+// Extend window for temporary server export data (temp storage during server key download)
+declare global {
+  interface Window { __serverExportData?: KeyFileData; }
+}
+
 interface ServerKey {
   id: string;
   name: string | null;
@@ -54,12 +59,13 @@ export function KeyShareManager() {
       if (e.key !== "Escape") return;
       if (downloadChoiceId) { setDownloadChoiceId(null); return; }
       if (confirmDeleteId) { setConfirmDeleteId(null); return; }
-      if (serverExportStep === "passphrase") { setServerExportStep("idle"); setServerExportId(null); delete (window as any).__serverExportData; return; }
+      if (serverExportStep === "passphrase") { setServerExportStep("idle"); setServerExportId(null); delete window.__serverExportData; return; }
       if (importStep === "decrypt" || importStep === "encrypt") { setImportStep("idle"); setImportData(null); setImportPassphrase(null); return; }
       if (restoreStep === "decrypt" || restoreStep === "encrypt") { setRestoreStep("idle"); setRestoreId(null); setRestoreData(null); return; }
     }
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [confirmDeleteId, serverExportStep, importStep, restoreStep]);
 
   useEffect(() => {
@@ -347,7 +353,7 @@ export function KeyShareManager() {
       const plainShare = await ephDecrypt(encryptedShare);
       const plainEddsaShare = encryptedEddsaShare ? await ephDecrypt(encryptedEddsaShare) : "";
 
-      (window as any).__serverExportData = {
+      window.__serverExportData = {
         id: keyId,
         peer: 2,
         share: plainShare,
@@ -364,7 +370,7 @@ export function KeyShareManager() {
   }
 
   async function downloadServerExport(passphrase: string) {
-    const data = (window as any).__serverExportData as KeyFileData;
+    const data = window.__serverExportData as KeyFileData;
     if (!data) return;
     const encrypted = await encryptKeyFile(data, passphrase);
     const blob = new Blob([JSON.stringify(encrypted, null, 2)], { type: "application/json" });
@@ -376,7 +382,7 @@ export function KeyShareManager() {
     a.download = `kexify-server-${safeServerName}-${data.id.slice(0, 8)}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    delete (window as any).__serverExportData;
+    delete window.__serverExportData;
     setServerExportStep("done");
 
     fetch(apiUrl("/api/keys"), { headers: authHeaders() })
@@ -759,11 +765,11 @@ export function KeyShareManager() {
       {/* Server share export passphrase dialog */}
       {serverExportStep === "passphrase" && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50" onClick={() => { setServerExportStep("idle"); setServerExportId(null); delete (window as any).__serverExportData; }} />
+          <div className="absolute inset-0 bg-black/50" onClick={() => { setServerExportStep("idle"); setServerExportId(null); delete window.__serverExportData; }} />
           <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl">
             <div className="px-5 py-4 border-b border-border-primary flex items-center justify-between">
               <h3 className="text-sm font-semibold text-text-primary">📥 Download Server Key</h3>
-              <button onClick={() => { setServerExportStep("idle"); setServerExportId(null); delete (window as any).__serverExportData; }} className="p-1.5 rounded-md text-text-tertiary hover:text-text-secondary hover:bg-surface-tertiary transition-colors">
+              <button onClick={() => { setServerExportStep("idle"); setServerExportId(null); delete window.__serverExportData; }} className="p-1.5 rounded-md text-text-tertiary hover:text-text-secondary hover:bg-surface-tertiary transition-colors">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>

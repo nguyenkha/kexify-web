@@ -138,6 +138,7 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
     fetchPrices().then(setPrices);
     const iv = setInterval(() => fetchPrices().then(setPrices), pollInterval);
     return () => clearInterval(iv);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const usdValue = getUsdValue(balance, asset.symbol, prices);
@@ -181,6 +182,7 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
     }, pollInterval);
 
     return () => clearInterval(iv);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address, chain, asset]);
 
   function loadMore() {
@@ -225,14 +227,16 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
         fetchFeeRates(apiBase),
       ]);
       // Extract original inputs as UTXOs
-      const utxos = (txRes.vin as any[]).map((inp: any) => ({
-        txid: inp.txid as string,
-        vout: inp.vout as number,
+      type TxInput = { txid: string; vout: number; prevout?: { value: number } };
+      type TxOutput = { scriptpubkey_address: string; value: number };
+      const utxos = (txRes.vin as TxInput[]).map((inp) => ({
+        txid: inp.txid,
+        vout: inp.vout,
         value: inp.prevout?.value as number,
       }));
       // Find recipient output (first output that isn't the sender's address)
-      const vout = txRes.vout as any[];
-      const recipientOut = vout.find((o: any) => o.scriptpubkey_address !== address) ?? vout[0];
+      const vout = txRes.vout as TxOutput[];
+      const recipientOut = vout.find((o) => o.scriptpubkey_address !== address) ?? vout[0];
       const recipientAddr = recipientOut.scriptpubkey_address as string;
       const amountSats = BigInt(recipientOut.value);
       // Calculate original fee rate and require higher

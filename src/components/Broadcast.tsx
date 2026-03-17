@@ -66,8 +66,8 @@ export function Broadcast() {
           throw new Error(`Broadcast not supported for ${selectedChain.type}`);
       }
       setResult({ txHash, explorerUrl: selectedChain.explorerUrl });
-    } catch (err: any) {
-      setError(err.message || String(err));
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || String(err));
     } finally {
       setBroadcasting(false);
     }

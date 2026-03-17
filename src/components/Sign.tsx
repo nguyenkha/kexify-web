@@ -186,9 +186,9 @@ export function Sign() {
           setVerified(false);
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[sign] Error:", err);
-      const msg = err?.message || String(err);
+      const msg = (err as { message?: string })?.message || String(err);
       setSigningError(msg === "passkey_auth_required" ? "Passkey session expired. Please try again." : msg);
     }
   }

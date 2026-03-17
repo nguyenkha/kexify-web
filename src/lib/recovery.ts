@@ -71,7 +71,7 @@ export async function enterRecoveryMode(p1: KeyFileData, p2: KeyFileData): Promi
   const rawFactory = mod.default || mod.createCbMpc || mod;
   const factory = (opts?: Record<string, unknown>) =>
     rawFactory({ ...opts, locateFile: (path: string) => (path.endsWith(".wasm") ? wasmUrl : path) });
-  const mpc1 = await initCbMpc(factory as any);
+  const mpc1 = await initCbMpc(factory as unknown as Parameters<typeof initCbMpc>[0]);
 
   const h: RecoveryHandles = { mpc0, mpc1 };
 

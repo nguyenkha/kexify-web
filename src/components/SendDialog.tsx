@@ -154,8 +154,8 @@ import {
   truncateBalance,
 } from "./sendTypes";
 
-function friendlyError(err: any): string {
-  const msg = err?.message || String(err);
+function friendlyError(err: unknown): string {
+  const msg = (err as { message?: string })?.message || String(err);
   if (msg === "passkey_auth_required") return "Passkey session expired. Please try again.";
   return msg;
 }
@@ -293,7 +293,7 @@ export function SendDialog({
     }
   }
 
-  function onPasskeyComplete(_result?: any) {
+  function onPasskeyComplete(_result?: unknown) {
     setPasskeyGuard("idle");
     pendingSignRef.current?.();
     pendingSignRef.current = null;
@@ -318,6 +318,7 @@ export function SendDialog({
       setResolving(false);
     }, 500);
     return () => { clearTimeout(timer); setResolving(false); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [to, chain.type, chain.rpcUrl]);
 
   // The actual address to send to (resolved name address or raw input)
@@ -328,9 +329,10 @@ export function SendDialog({
     if (txResult && (txResult.status === "success" || txResult.status === "pending") && to) {
       addRecentRecipient(to, chain.type, asset.symbol);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [txResult?.status]);
 
-  // Pre-fill form for RBF speed-up
+  // Pre-fill form for RBF speed-up — intentionally runs once on mount
   useEffect(() => {
     if (!speedUpData) return;
     const utxos: UTXO[] = speedUpData.utxos.map(u => ({
@@ -342,6 +344,7 @@ export function SendDialog({
     setBtcFeeRateOverride(String(speedUpData.minFeeRate));
     setRbfEnabled(true);
     setFeeLevel("high");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Check for browser-stored key share on mount (or load recovery key)
@@ -359,6 +362,7 @@ export function SendDialog({
   // Clear deserialized key handles from memory when dialog closes or keyFile changes
   useEffect(() => {
     return () => { if (keyFile) clearClientKey(keyFile.id); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keyFile?.id]);
 
   async function loadBrowserShare() {
@@ -763,7 +767,7 @@ export function SendDialog({
       setKeyFile(null); setPendingEncrypted(null);
       setStep("result");
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[send] Error:", err);
       setSigningError(friendlyError(err));
     } finally {
@@ -905,7 +909,7 @@ export function SendDialog({
       setKeyFile(null); setPendingEncrypted(null);
       setStep("result");
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[send] BTC Error:", err);
       setSigningError(friendlyError(err));
     } finally {
@@ -1015,7 +1019,7 @@ export function SendDialog({
       setKeyFile(null); setPendingEncrypted(null);
       setStep("result");
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[send] BCH Error:", err);
       setSigningError(friendlyError(err));
     } finally {
@@ -1141,7 +1145,7 @@ export function SendDialog({
       setKeyFile(null); setPendingEncrypted(null);
       setStep("result");
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[send] LTC Error:", err);
       setSigningError(friendlyError(err));
     } finally {
@@ -1232,7 +1236,7 @@ message = buildSplTransferMessage({
       setKeyFile(null); setPendingEncrypted(null);
       setStep("result");
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[send] Solana Error:", err);
       setSigningError(friendlyError(err));
     } finally {
@@ -1353,7 +1357,7 @@ message = buildSplTransferMessage({
       setKeyFile(null); setPendingEncrypted(null);
       setStep("result");
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[send] XRP Error:", err);
       setSigningError(friendlyError(err));
     } finally {
@@ -1471,7 +1475,7 @@ message = buildSplTransferMessage({
       setKeyFile(null); setPendingEncrypted(null);
       setStep("result");
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[send] XLM Error:", err);
       setSigningError(friendlyError(err));
     } finally {
@@ -1567,7 +1571,7 @@ message = buildSplTransferMessage({
       setKeyFile(null); setPendingEncrypted(null);
       setStep("result");
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[send] TRON Error:", err);
       setSigningError(friendlyError(err));
     } finally {
@@ -2761,7 +2765,7 @@ message = buildSplTransferMessage({
                             });
                             if (confirmed) onTxConfirmed?.(txHash);
                             setStep("result");
-                          } catch (err: any) {
+                          } catch (err: unknown) {
                             setSigningError(friendlyError(err));
                           }
                         }}

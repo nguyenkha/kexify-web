@@ -175,6 +175,7 @@ function DashboardLayout() {
     if (!recovery) {
       fetch(apiUrl("/api/health")).then((r) => r.json()).then((d) => setServerVersion(d.version ?? null)).catch(() => {});
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

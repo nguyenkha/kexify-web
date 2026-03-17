@@ -141,6 +141,7 @@ export function WCSessionProposal({ proposal, onApprove, onReject }: Props) {
       setAccounts(allAccounts);
       setLoading(false);
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function toggleAccount(idx: number) {

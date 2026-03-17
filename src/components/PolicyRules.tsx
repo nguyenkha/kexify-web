@@ -61,8 +61,22 @@ export function PolicyRules({
   // Countdown refresh
   const [, setTick] = useState(0);
 
+  async function fetchPolicy() {
+    setLoading(true);
+    const res = await fetch(apiUrl(`/api/keys/${keyId}/rules`), {
+      headers: authHeaders(),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setActive(data.active);
+      setPending(data.pending);
+    }
+    setLoading(false);
+  }
+
   useEffect(() => {
     fetchPolicy();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keyId]);
 
   // Refresh countdown every 30s while pending exists
@@ -82,19 +96,6 @@ export function PolicyRules({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose, draft]);
-
-  async function fetchPolicy() {
-    setLoading(true);
-    const res = await fetch(apiUrl(`/api/keys/${keyId}/rules`), {
-      headers: authHeaders(),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setActive(data.active);
-      setPending(data.pending);
-    }
-    setLoading(false);
-  }
 
   function startEditing() {
     const rules = active?.rules ?? [];

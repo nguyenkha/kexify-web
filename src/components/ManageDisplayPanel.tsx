@@ -222,8 +222,8 @@ export function ManageDisplayPanel({
                     return;
                   }
                   setAddPreview(meta);
-                } catch (err: any) {
-                  setAddError(err.message || "Failed to fetch token info");
+                } catch (err: unknown) {
+                  setAddError((err as { message?: string })?.message || "Failed to fetch token info");
                 } finally {
                   setAddLoading(false);
                 }

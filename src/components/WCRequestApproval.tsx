@@ -29,8 +29,8 @@ import { simulateEvmTransaction, type SimulationResult } from "../lib/txSimulati
 import { useExpertMode } from "../context/ExpertModeContext";
 import { PolicyWarning, ExpertWarnings, SimulationPreview, SigningError } from "./tx";
 
-function friendlyError(err: any): string {
-  const msg = err?.message || String(err);
+function friendlyError(err: unknown): string {
+  const msg = (err as { message?: string })?.message || String(err);
   if (msg === "passkey_auth_required") return "Passkey session expired. Please try again.";
   return msg;
 }
@@ -207,6 +207,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
   // Resolve SPL token info (symbol, decimals) from chain assets
   const [solTokenInfo, setSolTokenInfo] = useState<{ symbol: string; decimals: number } | null>(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!decodedSolTx?.mint || !chain) return;
     fetchAssets(chain.id).then((assets) => {
@@ -218,12 +219,14 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   }, [decodedSolTx?.mint, chain?.id]);
 
   // Fetch TRON account resources (bandwidth/energy) for fee display
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!isTronTx || !account || !chain?.rpcUrl) return;
     estimateTronFee(chain.rpcUrl, account.address).then(setTronResources).catch(() => {});
   }, [isTronTx, account?.address, chain?.rpcUrl]);
 
   // Resolve TRC-20 token info from chain assets
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!isTrc20Transfer || !chain) return;
     const contractAddr = tronContract?.parameter?.value?.contract_address;
@@ -248,6 +251,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   const [currentNonce, setCurrentNonce] = useState<number | null>(null);
 
   // Fetch estimated gas and nonce for EVM transactions
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (isSolana || !isTx || !txParams?.to || !chain?.rpcUrl || !account) return;
     estimateGas(chain.rpcUrl, {
@@ -338,6 +342,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   }, [request]);
 
   // Resolve token info for ERC-20 approve calls
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!isApprove || !txParams?.to || !chain) return;
     fetchAssets(chain.id).then((assets) => {
@@ -360,6 +365,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   }, [isApprove, txParams?.to, chain?.id]);
 
   // Fetch native + token balances for preview
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!account || !chain) return;
     fetchAssets(chain.id).then((assets) => {
@@ -378,6 +384,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   }, [account?.address, chain?.id]);
 
   // Fetch gas price and USD prices (for fee estimation)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!isTx) return;
 
@@ -575,7 +582,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
         return;
       }
       await executeSign(keyFile);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(friendlyError(err));
       setPhase("error");
     }
@@ -783,7 +790,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
         setTxResult({ txHash: "", status: "success" });
         setPhase("done");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(friendlyError(err));
       setPhase("error");
     }

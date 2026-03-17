@@ -46,8 +46,8 @@ export function WalletConnect() {
     try {
       await pair(uri.trim());
       setUri("");
-    } catch (err: any) {
-      setError(err.message || String(err));
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || String(err));
     } finally {
       setPairing(false);
     }
@@ -70,8 +70,8 @@ export function WalletConnect() {
       setPairing(true);
       try {
         await pair(text);
-      } catch (err: any) {
-        setError(err.message || String(err));
+      } catch (err: unknown) {
+        setError((err as { message?: string })?.message || String(err));
       } finally {
         setPairing(false);
       }

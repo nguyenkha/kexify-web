@@ -91,12 +91,14 @@ export function AccountRowView({
       cancelled = true;
       clearInterval(iv);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [row.address, row.chain, row.assets]);
 
   useEffect(() => {
     fetchPrices().then(setPrices);
     const iv = setInterval(() => fetchPrices().then(setPrices), pollInterval);
     return () => clearInterval(iv);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const hasTokenAssets = row.assets.some((a) => !a.isNative && a.contractAddress);
@@ -151,6 +153,7 @@ export function AccountRowView({
       cancelled = true;
       clearInterval(iv);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nativeState, row.address, row.chain, row.assets, hasTokenAssets]);
 
   function refreshAll(e?: React.MouseEvent) {

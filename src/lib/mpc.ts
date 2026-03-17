@@ -27,7 +27,7 @@ export async function getMpcInstance(): Promise<CbMpc> {
           locateFile: (path: string) =>
             path.endsWith(".wasm") ? cbmpcWasmUrl : path,
         });
-      mpcPromise = initCbMpc(factory as any);
+      mpcPromise = initCbMpc(factory as unknown as Parameters<typeof initCbMpc>[0]);
     }
     mpcInstance = await mpcPromise;
   }

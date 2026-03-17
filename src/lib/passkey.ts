@@ -101,6 +101,7 @@ export async function authenticatePasskey(opts?: { withPrf?: boolean }): Promise
   });
   const { options, challengeId } = await optRes.json();
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let credential: any;
 
   if (opts?.withPrf) {
@@ -108,7 +109,7 @@ export async function authenticatePasskey(opts?: { withPrf?: boolean }): Promise
     // extensions through to navigator.credentials.get(), so PRF never reaches
     // the authenticator. We call the WebAuthn API directly and convert the
     // result to the JSON format the server expects.
-    const allowCredentials = options.allowCredentials?.map((c: any) => ({
+    const allowCredentials = options.allowCredentials?.map((c: { id: string; type: string; transports?: string[] }) => ({
       id: base64URLStringToBuffer(c.id),
       type: c.type,
       ...(c.transports ? { transports: c.transports } : {}),

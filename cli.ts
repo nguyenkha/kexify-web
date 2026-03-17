@@ -242,8 +242,8 @@ async function decryptKeyFile(data: KeyFileData, passphrase: string): Promise<Ke
       eddsaShare: await decryptField(data.eddsaShare, key),
       eddsaPublicKey: data.eddsaPublicKey,
     };
-  } catch (err: any) {
-    if (err?.name === "OperationError") throw new Error("Incorrect passphrase");
+  } catch (err: unknown) {
+    if ((err as { name?: string })?.name === "OperationError") throw new Error("Incorrect passphrase");
     throw err;
   }
 }
@@ -264,8 +264,8 @@ async function decryptHkdfKeyFile(data: KeyFileData, hexKey: string): Promise<Ke
       share: await dec(data.share),
       eddsaShare: data.eddsaShare ? await dec(data.eddsaShare) : "",
     };
-  } catch (err: any) {
-    if (err?.name === "OperationError") throw new Error("Invalid HKDF decryption key");
+  } catch (err: unknown) {
+    if ((err as { name?: string })?.name === "OperationError") throw new Error("Invalid HKDF decryption key");
     throw err;
   }
 }
@@ -314,13 +314,13 @@ interface UnsignedTx {
   chainId: number;
 }
 
-async function ethRpc(rpcUrl: string, method: string, params: unknown[]): Promise<any> {
+async function ethRpc(rpcUrl: string, method: string, params: unknown[]): Promise<unknown> {
   const res = await fetch(rpcUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
   });
-  const data: any = await res.json();
+  const data = await res.json() as { error?: { message?: string }; result: unknown };
   if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
   return data.result;
 }
@@ -339,10 +339,10 @@ async function buildTransaction(opts: {
   let finalGasPrice = opts.gasPrice;
   if (finalGasPrice == null) {
     const gasPriceHex = await ethRpc(opts.rpcUrl, "eth_gasPrice", []);
-    finalGasPrice = BigInt(gasPriceHex);
+    finalGasPrice = BigInt(gasPriceHex as string);
   }
   return {
-    nonce: BigInt(nonceHex),
+    nonce: BigInt(nonceHex as string),
     gasPrice: finalGasPrice,
     gasLimit: opts.gasLimit,
     to: opts.to,
@@ -442,7 +442,7 @@ async function broadcastSolanaTransaction(rpcUrl: string, signedTxBase58: string
       params: [signedTxBase58, { encoding: "base58", preflightCommitment: "confirmed" }],
     }),
   });
-  const data: any = await res.json();
+  const data = await res.json() as { error?: { message?: string }; result: string };
   if (data.error) throw new Error(`Broadcast failed: ${data.error.message || JSON.stringify(data.error)}`);
   return data.result;
 }
@@ -800,7 +800,7 @@ async function cmdConnect(share1Path: string, share2Path: string): Promise<void>
   process.stdout.write("\nInitializing WalletConnect... ");
   const core = new Core({ projectId });
   const web3wallet = await Web3Wallet.init({
-    core: core as any,
+    core: core as unknown as Parameters<typeof Web3Wallet.init>[0]["core"],
     metadata: {
       name: "Kexify CLI",
       description: "Self-custodial MPC wallet (recovery mode)",
@@ -890,8 +890,8 @@ async function cmdConnect(share1Path: string, share2Path: string): Promise<void>
       await web3wallet.approveSession({ id: proposal.id, namespaces });
       console.log(`✓ Connected to ${proposer.metadata.name}`);
       console.log("Listening for requests... (Ctrl+C to disconnect)");
-    } catch (err: any) {
-      console.error(`Failed to approve session: ${err.message}`);
+    } catch (err: unknown) {
+      console.error(`Failed to approve session: ${(err as { message?: string })?.message}`);
     }
   });
 
@@ -1032,7 +1032,7 @@ async function cmdConnect(share1Path: string, share2Path: string): Promise<void>
         console.log("✓");
 
         process.stdout.write("  Broadcasting... ");
-        const txHash = await ethRpc(rpcUrl, "eth_sendRawTransaction", [rawTx]);
+        const txHash = await ethRpc(rpcUrl, "eth_sendRawTransaction", [rawTx]) as string;
         console.log(`✓ ${txHash}`);
 
         await web3wallet.respondSessionRequest({
@@ -1179,12 +1179,13 @@ async function cmdConnect(share1Path: string, share2Path: string): Promise<void>
           response: { id, jsonrpc: "2.0", error: { code: 4001, message: `Unsupported method: ${method}` } },
         });
       }
-    } catch (err: any) {
-      console.error(`\n  Error: ${err.message}`);
+    } catch (err: unknown) {
+      const errMsg = (err as { message?: string })?.message ?? "Unknown error";
+      console.error(`\n  Error: ${errMsg}`);
       try {
         await web3wallet.respondSessionRequest({
           topic,
-          response: { id, jsonrpc: "2.0", error: { code: -32000, message: err.message } },
+          response: { id, jsonrpc: "2.0", error: { code: -32000, message: errMsg } },
         });
       } catch { /* session may be gone */ }
     }
@@ -1272,8 +1273,8 @@ async function main(): Promise<void> {
     } else if (command === "connect") {
       await cmdConnect(files[0], files[1]);
     }
-  } catch (err: any) {
-    console.error(`\nError: ${err.message}`);
+  } catch (err: unknown) {
+    console.error(`\nError: ${(err as { message?: string })?.message}`);
     process.exit(1);
   }
 }

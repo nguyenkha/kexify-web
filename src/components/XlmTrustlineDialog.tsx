@@ -79,6 +79,7 @@ export function XlmTrustlineDialog({
   // Clear deserialized key handles from memory when dialog closes or keyFile changes
   useEffect(() => {
     return () => { if (keyFile) clearClientKey(keyFile.id); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keyFile?.id]);
 
   // Fetch existing trustlines so we can indicate which tokens are already enabled
@@ -184,8 +185,8 @@ export function XlmTrustlineDialog({
       setTxResult({ status: result.confirmed ? "success" : "pending", txHash, blockNumber: result.ledger });
       setKeyFile(null); setPendingEncrypted(null);
       setStep("result");
-    } catch (err: any) {
-      setSigningError(err.message || String(err));
+    } catch (err: unknown) {
+      setSigningError((err as { message?: string })?.message || String(err));
     } finally {
       clearClientKey(keyFile.id);
     }
