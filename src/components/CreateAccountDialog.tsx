@@ -14,6 +14,7 @@ import { apiUrl } from "../lib/apiBase";
 import { useExpertMode, useSetExpertMode } from "../context/ExpertModeContext";
 import { getMe } from "../lib/auth";
 import { getUserOverrides, setUserOverrides } from "../lib/userOverrides";
+import { useProgressBar, CREATING_DURATION_MS, ProgressBar } from "./ProgressBar";
 
 type CreateStep = "welcome" | "passkey" | "name" | "creating" | "passphrase" | "backup" | "done";
 
@@ -33,36 +34,9 @@ const SIMPLE_TIPS = [
   "Transactions require both halves to agree, so no one can move your funds without you.",
 ];
 
-function CreatingProgressBar({ progress }: { progress: string }) {
-  const [pct, setPct] = useState(0);
-
-  useEffect(() => {
-    // Map progress text to target percentage
-    let target = 5;
-    if (progress.includes("ECDSA") || progress.includes("encryption")) target = 15;
-    if (progress.includes("EdDSA") || progress.includes("Securing")) target = 55;
-    if (progress.includes("Saving")) target = 90;
-
-    // Smoothly animate toward target
-    const iv = setInterval(() => {
-      setPct((p) => {
-        if (p >= target) return p;
-        return p + 1;
-      });
-    }, 200);
-    return () => clearInterval(iv);
-  }, [progress]);
-
-  return (
-    <div className="w-full max-w-[240px] mx-auto">
-      <div className="h-1.5 bg-surface-tertiary rounded-full overflow-hidden">
-        <div
-          className="h-full bg-blue-500 rounded-full transition-all duration-300 ease-out"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-    </div>
-  );
+function CreatingProgressBar({ done }: { done: boolean }) {
+  const pct = useProgressBar(CREATING_DURATION_MS, done);
+  return <ProgressBar pct={pct} />;
 }
 
 function RollingTips({ expert }: { expert: boolean }) {
@@ -109,6 +83,7 @@ export function CreateAccountDialog({
   const [rawKeyData, setRawKeyData] = useState<KeyFileData | null>(null);
   const [keyFile, setKeyFile] = useState<{ blob: Blob; fileName: string } | null>(null);
   const [downloaded, setDownloaded] = useState(false);
+  const [creatingDone, setCreatingDone] = useState(false);
   const [browserSaveState, setBrowserSaveState] = useState<"idle" | "saving" | "passphrase" | "saved" | "error">("idle");
   const [browserSaveError, setBrowserSaveError] = useState("");
   const [escrowStatus, setEscrowStatus] = useState<"idle" | "uploading" | "done" | "error">("idle");
@@ -166,6 +141,7 @@ export function CreateAccountDialog({
       }
 
       setStep("creating");
+      setCreatingDone(false);
       setProgress(expert ? "Generating ECDSA key..." : "Setting up encryption...");
 
       const keyName = name.trim() || `Account ${keyCount + 1}`;
@@ -261,8 +237,12 @@ export function CreateAccountDialog({
           } catch { /* browser save failed */ }
         }
 
+        setCreatingDone(true);
+        await new Promise((r) => setTimeout(r, 1100));
         setStep("passphrase");
       } else {
+        setCreatingDone(true);
+        await new Promise((r) => setTimeout(r, 1100));
         setStep("passphrase");
       }
     } catch (err) {
@@ -472,7 +452,7 @@ export function CreateAccountDialog({
                 )}
               </div>
               {/* Smooth progress bar */}
-              <CreatingProgressBar progress={progress} />
+              <CreatingProgressBar done={creatingDone} />
               {/* Progress steps */}
               <div className="space-y-2 max-w-[220px] mx-auto">
                 {[

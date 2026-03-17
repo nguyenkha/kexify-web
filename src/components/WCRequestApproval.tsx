@@ -23,6 +23,7 @@ import { fetchNativeBalance, getCachedNativeBalance, fetchTokenBalances } from "
 import { clearCache, tokenBalancesCacheKey } from "../lib/dataCache";
 import type { BalanceResult } from "../lib/balance";
 import { explorerLink } from "../shared/utils";
+import { useProgressBar, signingDurationMs, ProgressBar } from "./ProgressBar";
 import { BalancePreview, type BalanceChange } from "./BalancePreview";
 import { simulateEvmTransaction, type SimulationResult } from "../lib/txSimulation";
 import { useExpertMode } from "../context/ExpertModeContext";
@@ -123,7 +124,8 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   const [browserShareError, setBrowserShareError] = useState("");
   const [showBrowserPassphrase, setShowBrowserPassphrase] = useState(false);
   const [signingStepIdx, setSigningStepIdx] = useState(0);
-  const [smoothPct, setSmoothPct] = useState(0);
+  const signingDone = signingStepIdx > 1;
+  const smoothPct = useProgressBar(signingDurationMs(1), signingDone);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fee state (for eth_sendTransaction)
@@ -777,21 +779,6 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   const requestDisplay = formatRequest(request, expert);
 
   const shortAddr = (addr: string) => expert ? addr : `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-
-  // Smooth signing percentage animation
-  useEffect(() => {
-    if (signingStepIdx !== 1) {
-      setSmoothPct(signingStepIdx > 1 ? 100 : 0);
-      return;
-    }
-    let current = smoothPct;
-    const iv = setInterval(() => {
-      current += 1;
-      if (current >= 98) current = 98;
-      setSmoothPct(current);
-    }, 100);
-    return () => clearInterval(iv);
-  }, [signingStepIdx]);
 
   // Signing progress steps
   const signLabel = isRecoveryMode() ? "Local signing" : "MPC signing";
@@ -1882,24 +1869,15 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
           {/* ── Signing phase ────────────────────────────────────── */}
           {phase === "signing" && (
             <div className="py-6">
-              {/* Spinner */}
-              <div className="flex justify-center mb-6">
-                <div className="relative w-16 h-16">
-                  <svg className="w-16 h-16 animate-spin" viewBox="0 0 50 50" fill="none">
-                    <circle cx="25" cy="25" r="20" stroke="currentColor" strokeWidth="3" className="text-surface-tertiary" />
-                    <path
-                      d="M25 5 A20 20 0 0 1 45 25"
-                      stroke="currentColor" strokeWidth="3" strokeLinecap="round"
-                      className="text-blue-500"
-                    />
-                  </svg>
-                </div>
-              </div>
-
               {/* Phase label */}
               <p className="text-sm font-medium text-text-primary text-center mb-2">
                 {displaySteps[signingStepIdx]?.label ?? "Signing..."}
               </p>
+
+              {/* Progress bar */}
+              <div className="mb-5">
+                <ProgressBar pct={smoothPct} />
+              </div>
 
               {/* Progress steps */}
               <div className="space-y-2 max-w-[260px] mx-auto mt-4">

@@ -11,6 +11,7 @@ import { PassphraseInput } from "./PassphraseInput";
 import { listKeyShares, getKeyShareWithPrf, getKeyShareWithPassphrase, type KeyShareInfo } from "../lib/keystore";
 import { useFrozen } from "../context/FrozenContext";
 import { isRecoveryMode, getRecoveryKeyFile } from "../lib/recovery";
+import { useProgressBar, signingDurationMs, ProgressBar } from "./ProgressBar";
 
 interface KeyFile {
   id: string;
@@ -23,9 +24,10 @@ interface KeyFile {
 
 type SigningPhase = "loading" | "signing" | "verifying";
 
-function getPhaseLabels(): Record<SigningPhase, string> {
+function getPhaseLabels(pct?: number): Record<SigningPhase, string> {
   const signLabel = isRecoveryMode() ? "Local signing" : "MPC signing";
-  return { loading: "Prepare", signing: signLabel, verifying: "Verify" };
+  const signLabelActive = pct != null && pct > 0 ? `${signLabel} ${pct}%` : signLabel;
+  return { loading: "Prepare", signing: signLabelActive, verifying: "Verify" };
 }
 
 const phases: SigningPhase[] = ["loading", "signing", "verifying"];
@@ -54,6 +56,8 @@ export function Sign() {
   const [signingError, setSigningError] = useState<string | null>(null);
   const [signature, setSignature] = useState("");
   const [verified, setVerified] = useState<boolean | null>(null);
+  const signingDone = signingPhase === "verifying" || !!signature || !!signingError;
+  const smoothPct = useProgressBar(signingDurationMs(1), signingDone);
 
   // Load browser-stored shares on mount (skip in recovery — key already set)
   useEffect(() => {
@@ -491,21 +495,17 @@ export function Sign() {
               ) : (
                 /* Signing progress state */
                 <div className="py-6">
-                  <div className="flex justify-center mb-6">
-                    <div className="relative w-16 h-16">
-                      <svg className="w-16 h-16 animate-spin" viewBox="0 0 50 50" fill="none">
-                        <circle cx="25" cy="25" r="20" stroke="currentColor" strokeWidth="3" className="text-surface-tertiary" />
-                        <path d="M25 5 A20 20 0 0 1 45 25" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-blue-500" />
-                      </svg>
-                    </div>
-                  </div>
-
                   <p className="text-sm font-medium text-text-primary text-center mb-1">
-                    {getPhaseLabels()[signingPhase]}
+                    {getPhaseLabels(smoothPct)[signingPhase]}
                   </p>
-                  <p className="text-[11px] text-text-muted text-center mb-6">
+                  <p className="text-[11px] text-text-muted text-center mb-4">
                     {algorithm.toUpperCase()} signing in progress
                   </p>
+
+                  {/* Progress bar */}
+                  <div className="mb-5">
+                    <ProgressBar pct={smoothPct} />
+                  </div>
 
                   <div className="space-y-2 max-w-[220px] mx-auto">
                     {phases.map((phase) => {
@@ -529,7 +529,7 @@ export function Sign() {
                             </div>
                           )}
                           <span className={`text-xs ${isDone ? "text-text-tertiary" : isCurrent ? "text-text-secondary" : "text-text-muted"}`}>
-                            {getPhaseLabels()[phase]}
+                            {getPhaseLabels(smoothPct)[phase]}
                           </span>
                         </div>
                       );
