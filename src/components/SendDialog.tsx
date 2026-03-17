@@ -248,25 +248,28 @@ export function SendDialog({
   const [signingStep, setSigningStep] = useState(0);
   const [smoothPct, setSmoothPct] = useState(0);
 
-  // Smooth signing percentage animation
-  const estTotalSteps = (chain.type === "solana" || chain.type === "xlm") ? 3 : 4;
+  // Smooth signing percentage animation — time-based with step boosts
+  const signingStartRef = useRef(0);
   useEffect(() => {
     if (signingPhase !== "mpc-signing") {
-      // Signing done — snap to 100%
       if (signingPhase === "broadcasting" || signingPhase === "polling") setSmoothPct(100);
       else setSmoothPct(0);
+      signingStartRef.current = 0;
       return;
     }
-    // Target: gradually fill toward the next step boundary
-    const stepPct = Math.round(100 / estTotalSteps);
-    const basePct = Math.min(100, signingStep * stepPct);
-    const ceilPct = Math.min(98, basePct + stepPct - 3); // leave room until next step
-    let current = Math.max(smoothPct, basePct);
+    if (!signingStartRef.current) signingStartRef.current = Date.now();
+    const start = signingStartRef.current;
+
+    // Each step boost adds a fixed jump, time fills in between asymptotically
+    const stepBoost = Math.min(signingStep * 12, 50); // steps contribute up to 50%
+
     const iv = setInterval(() => {
-      current += 1;
-      if (current >= ceilPct) current = ceilPct;
-      setSmoothPct(current);
-    }, 100);
+      const elapsed = (Date.now() - start) / 1000;
+      // Asymptotic curve: approaches 95% over ~30s, never reaches 100
+      const timePct = 95 * (1 - Math.exp(-elapsed / 12));
+      const combined = Math.min(95, Math.max(timePct, stepBoost + timePct * 0.5));
+      setSmoothPct(Math.round(combined));
+    }, 150);
     return () => clearInterval(iv);
   }, [signingStep, signingPhase]);
 
