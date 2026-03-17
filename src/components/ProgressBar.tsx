@@ -81,8 +81,8 @@ export function signingDurationMs(signatureCount: number): number {
   return 6000 + Math.max(0, signatureCount - 1) * 5000;
 }
 
-/** Wallet creation: 8s */
-export const CREATING_DURATION_MS = 8000;
+/** Wallet creation: 10s for ECDSA keygen */
+export const CREATING_DURATION_MS = 10000;
 
 /** Shared progress bar visual component */
 export function ProgressBar({ pct }: { pct: number }) {
