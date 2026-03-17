@@ -220,23 +220,7 @@ export function CreateAccountDialog({
           } catch { /* browser save failed */ }
         }
 
-        // Server escrow backup (stored as JSON — server requires auth to retrieve)
-        try {
-          const encryptedJson = JSON.stringify(newRawKeyData);
-          const headers = sensitiveHeaders();
-          await fetch(apiUrl(`/api/keys/${keyId}/backup`), {
-            method: "POST",
-            headers: { ...headers, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              encryptedData: encryptedJson,
-              publicKey: newRawKeyData.publicKey,
-              eddsaPublicKey: newRawKeyData.eddsaPublicKey,
-            }),
-          });
-          setEscrowStatus("done");
-        } catch { setEscrowStatus("error"); }
-
-        setStep("done");
+        setStep("passphrase");
       } else {
         setStep("passphrase");
       }
@@ -704,7 +688,13 @@ export function CreateAccountDialog({
               )}
 
               <button
-                onClick={() => { onCreated(); onClose(); }}
+                onClick={() => {
+                  if (!expert) {
+                    setStep("done");
+                  } else {
+                    onCreated(); onClose();
+                  }
+                }}
                 disabled={!downloaded}
                 className={`w-full px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   downloaded
@@ -712,7 +702,7 @@ export function CreateAccountDialog({
                     : "bg-surface-tertiary text-text-muted cursor-not-allowed"
                 }`}
               >
-                Done
+                {expert ? "Done" : "Continue"}
               </button>
             </div>
           )}
@@ -727,7 +717,7 @@ export function CreateAccountDialog({
                 </div>
                 <p className="text-sm font-medium text-text-primary mb-1">Your wallet is ready</p>
                 <p className="text-xs text-text-muted leading-relaxed">
-                  Your key is saved securely in this browser{escrowStatus === "done" ? " and backed up to the server" : ""}.
+                  Your key file is downloaded and{browserSaveState === "saved" ? " saved in this browser" : " ready to use"}.
                 </p>
               </div>
 
@@ -764,15 +754,14 @@ export function CreateAccountDialog({
                 </div>
               </div>
 
-              {/* Backup reminder for non-expert */}
-              <div className="bg-yellow-500/5 border border-yellow-500/15 rounded-lg px-3.5 py-2.5 flex items-start gap-2.5 text-left">
-                <svg className="w-4 h-4 text-yellow-500/70 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+              {/* Reminder to keep file safe */}
+              <div className="bg-green-500/5 border border-green-500/15 rounded-lg px-3.5 py-2.5 flex items-start gap-2.5 text-left">
+                <svg className="w-4 h-4 text-green-500/70 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
                 </svg>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[11px] text-yellow-500/80 font-medium">Download a backup when you get a chance</p>
-                  <p className="text-[11px] text-yellow-500/60 leading-relaxed mt-0.5">
-                    Go to Backup & Recovery to download your key file. If you lose access to this browser, you'll need it to recover your wallet.
+                  <p className="text-[11px] text-green-500/80 leading-relaxed">
+                    Keep your downloaded key file and passphrase safe. You can also back up to the server via Backup & Recovery.
                   </p>
                 </div>
               </div>
