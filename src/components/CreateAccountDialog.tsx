@@ -87,6 +87,9 @@ export function CreateAccountDialog({
   const [keyFile, setKeyFile] = useState<{ blob: Blob; fileName: string } | null>(null);
   const [downloaded, setDownloaded] = useState(false);
   const [creatingDone, setCreatingDone] = useState(false);
+
+  // Preload MPC WASM library as soon as dialog opens
+  useEffect(() => { getMpcInstance().catch(() => {}); }, []);
   const [browserSaveState, setBrowserSaveState] = useState<"idle" | "saving" | "passphrase" | "saved" | "error">("idle");
   const [browserSaveError, setBrowserSaveError] = useState("");
   const [escrowStatus, setEscrowStatus] = useState<"idle" | "uploading" | "done" | "error">("idle");
