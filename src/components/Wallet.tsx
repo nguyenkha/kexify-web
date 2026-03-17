@@ -68,10 +68,13 @@ export function Wallet() {
 
         // Apply user config overrides (RPC, explorer, preferences)
         const overrides = getUserOverrides(me?.id);
+        const isExpert = overrides.preferences?.expert_mode ?? false;
         const showTestnet = overrides.preferences?.show_testnet ?? false;
         const mergedChains = c
           .filter((ch: Chain) => showTestnet || !/testnet|sepolia|devnet/i.test(ch.name))
           .map((ch: Chain) => {
+            // Only apply chain overrides (custom RPC/explorer) in expert mode
+            if (!isExpert) return ch;
             const o = overrides.chains?.[ch.name];
             if (!o) return ch;
             return { ...ch, ...o };

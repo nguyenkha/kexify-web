@@ -65,21 +65,39 @@ export function getCustomTokens(): CustomToken[] {
   return [];
 }
 
-/** Get a preference value from any user override entry (scans localStorage if no userId) */
+// Preferences that only take effect in expert mode — return undefined (default) when non-expert
+const EXPERT_ONLY_PREFS: Set<string> = new Set([
+  "confirm_before_broadcast",
+  "evm_gas_buffer_pct",
+]);
+
+/** Get a preference value from any user override entry (scans localStorage if no userId).
+ *  Expert-only preferences return undefined when expert_mode is off. */
 export function getPreference<K extends keyof NonNullable<UserOverrides["preferences"]>>(
   key: K,
   userId?: string,
 ): NonNullable<UserOverrides["preferences"]>[K] | undefined {
-  if (userId) return getUserOverrides(userId).preferences?.[key] as any;
-  // No userId — scan for any kexify:config:* key
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i);
-    if (k?.startsWith("kexify:config:")) {
-      try {
-        const parsed = JSON.parse(localStorage.getItem(k)!) as UserOverrides;
-        if (parsed.preferences?.[key] !== undefined) return parsed.preferences[key] as any;
-      } catch { /* skip */ }
+  // Find the overrides (by userId or scanning)
+  let overrides: UserOverrides | null = null;
+  if (userId) {
+    overrides = getUserOverrides(userId);
+  } else {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k?.startsWith("kexify:config:")) {
+        try {
+          const parsed = JSON.parse(localStorage.getItem(k)!) as UserOverrides;
+          if (parsed.preferences?.[key] !== undefined) { overrides = parsed; break; }
+        } catch { /* skip */ }
+      }
     }
   }
-  return undefined;
+  if (!overrides) return undefined;
+
+  // Expert-only prefs: return undefined when expert mode is off
+  if (EXPERT_ONLY_PREFS.has(key as string) && !overrides.preferences?.expert_mode) {
+    return undefined;
+  }
+
+  return overrides.preferences?.[key] as any;
 }
