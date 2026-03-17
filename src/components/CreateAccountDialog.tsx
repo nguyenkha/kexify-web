@@ -204,21 +204,27 @@ export function CreateAccountDialog({
       if (!expert) {
         // Non-expert: auto-save to browser + server escrow, skip passphrase/download
         setProgress("Saving securely...");
+
+        // Re-authenticate passkey (token from keygen may have expired during MPC rounds)
+        let freshAuth: { prfKey?: CryptoKey; credentialId?: string } | null = null;
         try {
-          // Try browser save with passkey PRF
-          const authResult = await authenticatePasskey({ withPrf: true });
-          if (authResult.prfKey && authResult.credentialId) {
-            await saveKeyShareWithPrf(keyId, newRawKeyData, authResult.prfKey, authResult.credentialId);
+          freshAuth = await authenticatePasskey({ withPrf: true });
+        } catch { /* passkey auth failed — will skip browser save, try escrow with existing token */ }
+
+        // Browser save with passkey PRF
+        if (freshAuth?.prfKey && freshAuth?.credentialId) {
+          try {
+            await saveKeyShareWithPrf(keyId, newRawKeyData, freshAuth.prfKey, freshAuth.credentialId);
             setStoragePreference("browser");
             setBrowserSaveState("saved");
-          }
-        } catch { /* browser save failed — user still has escrow */ }
+          } catch { /* browser save failed */ }
+        }
 
+        // Server escrow backup
         try {
-          // Auto-upload server escrow backup (passphrase-free encrypted copy)
-          const encrypted = await encryptKeyFile(newRawKeyData, keyId); // use keyId as deterministic passphrase for escrow
+          const encrypted = await encryptKeyFile(newRawKeyData, keyId);
           const encryptedJson = JSON.stringify(encrypted, null, 2);
-          const headers = sensitiveHeaders();
+          const headers = sensitiveHeaders(); // uses freshly authenticated token
           await fetch(apiUrl(`/api/keys/${keyId}/backup`), {
             method: "POST",
             headers: { ...headers, "Content-Type": "application/json" },
