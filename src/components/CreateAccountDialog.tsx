@@ -220,11 +220,10 @@ export function CreateAccountDialog({
           } catch { /* browser save failed */ }
         }
 
-        // Server escrow backup
+        // Server escrow backup (stored as JSON — server requires auth to retrieve)
         try {
-          const encrypted = await encryptKeyFile(newRawKeyData, keyId);
-          const encryptedJson = JSON.stringify(encrypted, null, 2);
-          const headers = sensitiveHeaders(); // uses freshly authenticated token
+          const encryptedJson = JSON.stringify(newRawKeyData);
+          const headers = sensitiveHeaders();
           await fetch(apiUrl(`/api/keys/${keyId}/backup`), {
             method: "POST",
             headers: { ...headers, "Content-Type": "application/json" },

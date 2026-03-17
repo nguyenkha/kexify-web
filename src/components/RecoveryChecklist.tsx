@@ -47,6 +47,8 @@ export function RecoveryChecklist() {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [downloadPassphraseId, setDownloadPassphraseId] = useState<string | null>(null);
+  // Holds decrypted data awaiting a passphrase to re-encrypt for download
+  const [pendingDownloadData, setPendingDownloadData] = useState<{ data: KeyFileData; account: AccountStatus } | null>(null);
 
   function fetchAccounts() {
     const browserShares = listKeyShares();
@@ -220,10 +222,13 @@ export function RecoveryChecklist() {
   }
 
   // ── Download key share from browser storage ──
+  // Step 1: Decrypt from browser → hold in pendingDownloadData
+  // Step 2: Ask user for a passphrase → encrypt & download
   async function handleDownloadFromBrowser(account: AccountStatus) {
     setDownloadingId(account.id);
     setDownloadError(null);
     setDownloadPassphraseId(null);
+    setPendingDownloadData(null);
     try {
       const mode = getKeyShareMode(account.id);
       let data: KeyFileData | null = null;
@@ -235,27 +240,32 @@ export function RecoveryChecklist() {
         }
         if (!data) { setDownloadError("Could not decrypt. Wrong passkey?"); setDownloadingId(null); return; }
       } else if (mode === "passphrase") {
+        // Need passphrase to decrypt browser share first
         setDownloadPassphraseId(account.id);
         setDownloadingId(null);
-        return; // will continue via passphrase callback
+        return;
       } else {
         setDownloadError("No browser key share found"); setDownloadingId(null); return;
       }
 
-      await downloadKeyFile(data, account);
+      // Decrypted — now ask for a passphrase to encrypt the download
+      setPendingDownloadData({ data, account });
+      setDownloadingId(null);
     } catch (err) {
       setDownloadError(String(err));
+      setDownloadingId(null);
     }
-    setDownloadingId(null);
   }
 
-  async function handleDownloadPassphrase(passphrase: string, account: AccountStatus) {
+  // Called when user enters passphrase to decrypt a passphrase-encrypted browser share
+  async function handleDecryptBrowserShare(passphrase: string, account: AccountStatus) {
     setDownloadError(null);
     setDownloadingId(account.id);
     try {
       const data = await getKeyShareWithPassphrase(account.id, passphrase);
       if (!data) { setDownloadError("Could not decrypt"); setDownloadingId(null); return; }
-      await downloadKeyFile(data, account);
+      // Decrypted — now ask for a passphrase to encrypt the download
+      setPendingDownloadData({ data, account });
       setDownloadPassphraseId(null);
     } catch (err) {
       setDownloadError(String(err));
@@ -263,9 +273,11 @@ export function RecoveryChecklist() {
     setDownloadingId(null);
   }
 
-  async function downloadKeyFile(data: KeyFileData, account: AccountStatus) {
-    // Encrypt with a new passphrase prompt? For simplicity, encrypt with keyId
-    const encrypted = await encryptKeyFile(data, data.id);
+  // Called when user sets a passphrase to encrypt the downloaded file
+  async function handleEncryptAndDownload(passphrase: string) {
+    if (!pendingDownloadData) return;
+    const { data, account } = pendingDownloadData;
+    const encrypted = await encryptKeyFile(data, passphrase);
     const json = JSON.stringify(encrypted, null, 2);
     const blob = new Blob([json], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -275,6 +287,7 @@ export function RecoveryChecklist() {
     a.download = `kexify-${safeName}-${account.id.slice(0, 8)}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    setPendingDownloadData(null);
   }
 
   if (loading) {
@@ -388,16 +401,33 @@ export function RecoveryChecklist() {
                     {/* Step 1: Download key file from browser (when saved) */}
                     {step.done && step.key === "browser" && (
                       <div className="mt-2 space-y-1.5">
-                        {downloadPassphraseId === account.id ? (
+                        {/* Phase A: Enter passphrase to decrypt passphrase-encrypted browser share */}
+                        {downloadPassphraseId === account.id && !pendingDownloadData ? (
                           <div className="space-y-2">
-                            <p className="text-[10px] text-text-muted">Enter your passphrase to export:</p>
+                            <p className="text-[10px] text-text-muted">Enter your passphrase to unlock:</p>
                             <PassphraseInput
                               mode="enter"
-                              submitLabel="Decrypt & Download"
-                              onSubmit={(p) => handleDownloadPassphrase(p, account)}
+                              submitLabel="Unlock"
+                              onSubmit={(p) => handleDecryptBrowserShare(p, account)}
                             />
                             <button
-                              onClick={() => setDownloadPassphraseId(null)}
+                              onClick={() => { setDownloadPassphraseId(null); setDownloadError(null); }}
+                              className="text-[10px] text-text-muted hover:text-text-tertiary"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : pendingDownloadData?.account.id === account.id ? (
+                          /* Phase B: Set a passphrase to encrypt the downloaded file */
+                          <div className="space-y-2">
+                            <p className="text-[10px] text-text-muted">Set a passphrase to protect the downloaded file:</p>
+                            <PassphraseInput
+                              mode="set"
+                              submitLabel="Encrypt & Download"
+                              onSubmit={handleEncryptAndDownload}
+                            />
+                            <button
+                              onClick={() => setPendingDownloadData(null)}
                               className="text-[10px] text-text-muted hover:text-text-tertiary"
                             >
                               Cancel
@@ -412,7 +442,7 @@ export function RecoveryChecklist() {
                             {downloadingId === account.id ? "Exporting..." : "Download key file"}
                           </button>
                         )}
-                        {downloadError && downloadingId === null && downloadPassphraseId !== account.id && (
+                        {downloadError && downloadingId === null && !downloadPassphraseId && !pendingDownloadData && (
                           <p className="text-[10px] text-red-400">{downloadError}</p>
                         )}
                       </div>
