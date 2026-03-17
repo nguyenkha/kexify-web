@@ -96,7 +96,7 @@ export function CreateAccountDialog({
     raw_message: false,
   });
 
-  const canClose = step === "welcome" || step === "passkey" || step === "name" || step === "passphrase" || step === "done" || (step === "backup" && downloaded);
+  const canClose = step === "welcome" || step === "passkey" || step === "name" || step === "passphrase" || step === "done" || (step === "backup" && downloaded) || (step === "creating" && !!error);
 
   async function chooseMode(isExpert: boolean) {
     // Save preference
@@ -248,7 +248,6 @@ export function CreateAccountDialog({
     } catch (err) {
       console.error("[generate] Error:", err);
       setError(err instanceof Error ? err.message : String(err));
-      setStep("name");
     }
   }
 
@@ -439,64 +438,94 @@ export function CreateAccountDialog({
           {/* Step: Creating */}
           {step === "creating" && (
             <div className="py-6 space-y-5">
-              <div className="flex justify-center">
-                <div className="w-10 h-10 relative">
-                  <div className="absolute inset-0 rounded-full border-2 border-surface-tertiary" />
-                  <div className="absolute inset-0 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+              {error ? (
+                /* Error during creation */
+                <div className="text-center py-4">
+                  <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </div>
+                  <p className="text-sm font-medium text-text-primary mb-1">Creation Failed</p>
+                  <p className="text-xs text-red-400 break-all mb-5 px-4">{error}</p>
+                  <div className="flex gap-3 justify-center">
+                    <button
+                      onClick={onClose}
+                      className="px-4 py-2 rounded-lg text-xs font-medium bg-surface-tertiary text-text-secondary hover:bg-border-primary transition-colors"
+                    >
+                      Close
+                    </button>
+                    <button
+                      onClick={() => { setError(""); create(); }}
+                      className="px-4 py-2 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                    >
+                      Try Again
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-medium text-text-secondary">{progress}</p>
-                {!expert && (
-                  <p className="text-[11px] text-text-muted mt-1">This usually takes 10–20 seconds</p>
-                )}
-              </div>
-              {/* Smooth progress bar */}
-              <CreatingProgressBar done={creatingDone} />
-              {/* Progress steps */}
-              <div className="space-y-2 max-w-[220px] mx-auto">
-                {[
-                  ...(expert
-                    ? [
-                        { label: "ECDSA key", match: "ECDSA" },
-                        { label: "EdDSA key", match: "EdDSA" },
-                        { label: "Save securely", match: "Saving" },
-                      ]
-                    : [
-                        { label: "Setting up encryption", match: "ECDSA" },
-                        { label: "Securing your account", match: "EdDSA" },
-                        { label: "Saving", match: "Saving" },
-                      ]),
-                ].map(({ label, match }) => {
-                  const isCurrent = progress.includes(match);
-                  const isDone = progress.includes(match)
-                    ? false
-                    : (match === "ECDSA" && (progress.includes("EdDSA") || progress.includes("Saving")))
-                      || (match === "EdDSA" && progress.includes("Saving"));
-                  return (
-                    <div key={match} className="flex items-center gap-2.5">
-                      {isDone ? (
-                        <svg className="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      ) : isCurrent ? (
-                        <div className="w-4 h-4 shrink-0 flex items-center justify-center">
-                          <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                        </div>
-                      ) : (
-                        <div className="w-4 h-4 shrink-0 flex items-center justify-center">
-                          <div className="w-1.5 h-1.5 rounded-full bg-surface-tertiary" />
-                        </div>
-                      )}
-                      <span className={`text-xs ${isDone ? "text-text-tertiary" : isCurrent ? "text-text-primary font-medium" : "text-text-muted"}`}>
-                        {label}
-                      </span>
+              ) : (
+                /* Progress state */
+                <>
+                  <div className="flex justify-center">
+                    <div className="w-10 h-10 relative">
+                      <div className="absolute inset-0 rounded-full border-2 border-surface-tertiary" />
+                      <div className="absolute inset-0 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
                     </div>
-                  );
-                })}
-              </div>
-              {/* Rolling tips */}
-              <RollingTips expert={expert} />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-text-secondary">{progress}</p>
+                    {!expert && (
+                      <p className="text-[11px] text-text-muted mt-1">This usually takes 10–20 seconds</p>
+                    )}
+                  </div>
+                  {/* Smooth progress bar */}
+                  <CreatingProgressBar done={creatingDone} />
+                  {/* Progress steps */}
+                  <div className="space-y-2 max-w-[220px] mx-auto">
+                    {[
+                      ...(expert
+                        ? [
+                            { label: "ECDSA key", match: "ECDSA" },
+                            { label: "EdDSA key", match: "EdDSA" },
+                            { label: "Save securely", match: "Saving" },
+                          ]
+                        : [
+                            { label: "Setting up encryption", match: "ECDSA" },
+                            { label: "Securing your account", match: "EdDSA" },
+                            { label: "Saving", match: "Saving" },
+                          ]),
+                    ].map(({ label, match }) => {
+                      const isCurrent = progress.includes(match);
+                      const isDone = progress.includes(match)
+                        ? false
+                        : (match === "ECDSA" && (progress.includes("EdDSA") || progress.includes("Saving")))
+                          || (match === "EdDSA" && progress.includes("Saving"));
+                      return (
+                        <div key={match} className="flex items-center gap-2.5">
+                          {isDone ? (
+                            <svg className="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          ) : isCurrent ? (
+                            <div className="w-4 h-4 shrink-0 flex items-center justify-center">
+                              <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                            </div>
+                          ) : (
+                            <div className="w-4 h-4 shrink-0 flex items-center justify-center">
+                              <div className="w-1.5 h-1.5 rounded-full bg-surface-tertiary" />
+                            </div>
+                          )}
+                          <span className={`text-xs ${isDone ? "text-text-tertiary" : isCurrent ? "text-text-primary font-medium" : "text-text-muted"}`}>
+                            {label}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* Rolling tips */}
+                  <RollingTips expert={expert} />
+                </>
+              )}
             </div>
           )}
 
