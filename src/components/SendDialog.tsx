@@ -2435,23 +2435,21 @@ message = buildSplTransferMessage({
 
               {/* From → To */}
               <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
-                {expert && (
-                  <div className="px-3 py-2.5 flex items-center justify-between">
-                    <span className="text-xs text-text-muted">From</span>
-                    <span className="text-[9px] font-mono text-text-secondary">{address}</span>
-                  </div>
-                )}
-                <div className={`${expert ? "border-t border-border-secondary " : ""}px-3 py-2.5 flex items-center justify-between`}>
+                <div className="px-3 py-2.5 flex items-center justify-between">
+                  <span className="text-xs text-text-muted">From</span>
+                  <span className="text-[9px] font-mono text-text-secondary">{address}</span>
+                </div>
+                <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-xs text-text-muted">To</span>
                     {expert && !asset.isNative && asset.contractAddress && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 font-medium">Contract</span>
                     )}
                   </div>
-                  <span className={`${expert ? "text-[9px]" : "text-xs"} font-mono text-text-secondary`}>
+                  <span className="text-[9px] font-mono text-text-secondary">
                     {expert && !asset.isNative && asset.contractAddress
                       ? asset.contractAddress
-                      : (expert ? to : shortAddrPreview(to))}
+                      : to}
                   </span>
                 </div>
                 {expert && !asset.isNative && asset.contractAddress && (
@@ -2489,13 +2487,11 @@ message = buildSplTransferMessage({
 
               {/* Details */}
               <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
-                {expert && (
-                  <div className="px-3 py-2.5 flex items-center justify-between">
-                    <span className="text-xs text-text-muted">Network</span>
-                    <span className="text-xs text-text-secondary">{chain.displayName}</span>
-                  </div>
-                )}
-                <div className={`${expert ? "border-t border-border-secondary " : ""}px-3 py-2.5 flex items-center justify-between`}>
+                <div className="px-3 py-2.5 flex items-center justify-between">
+                  <span className="text-xs text-text-muted">Network</span>
+                  <span className="text-xs text-text-secondary">{chain.displayName}</span>
+                </div>
+                <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
                   <span className="text-xs text-text-muted">Network fee</span>
                   <span className="text-xs tabular-nums text-text-secondary font-medium">
                     {feeDisplay.usd != null && feeDisplay.usd > 0

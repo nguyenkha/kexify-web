@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useExpertMode } from "../context/ExpertModeContext";
 import { useNavigate } from "react-router-dom";
 import type { AccountRow } from "../lib/accountRows";
 import {
@@ -29,7 +28,6 @@ export function AccountRowView({
   onTokenDecision?: (assetId: string, visible: boolean) => void;
 }) {
   const navigate = useNavigate();
-  const expert = useExpertMode();
   const { hidden } = useHideBalances();
   const [nativeBalance, setNativeBalance] = useState<BalanceResult | null>(null);
   const [nativeState, setNativeState] = useState<"loading" | "loaded" | "error">("loading");
@@ -247,9 +245,9 @@ export function AccountRowView({
             </div>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span
-                className={`text-[11px] text-text-muted font-mono transition-colors ${expert ? "cursor-pointer hover:text-text-tertiary" : ""}`}
-                onClick={expert ? copyAddress : undefined}
-                title={expert ? row.address : undefined}
+                className="text-[11px] text-text-muted font-mono transition-colors cursor-pointer hover:text-text-tertiary"
+                onClick={copyAddress}
+                title={row.address}
               >
                 {copied ? (
                   <span className="text-green-500">Copied!</span>
