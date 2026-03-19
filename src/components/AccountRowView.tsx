@@ -1,176 +1,65 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { AccountRow } from "../lib/accountRows";
-import {
-  fetchNativeBalance,
-  fetchTokenBalances,
-  getCachedNativeBalance,
-  getCachedTokenBalances,
-  type BalanceResult,
-} from "../lib/balance";
-import { clearCache, balanceCacheKey, tokenBalancesCacheKey } from "../lib/dataCache";
-import { fetchPrices, formatUsd, getUsdValue } from "../lib/prices";
+import { usePolledBalance } from "../lib/use-polled-balance";
+import { formatUsd, getUsdValue } from "../lib/prices";
 import { isTokenVisible, findNewTokens } from "../lib/displayPrefs";
 import { explorerLink } from "../shared/utils";
 import { useHideBalances, maskBalance } from "../context/HideBalancesContext";
 
 const DEFAULT_POLL_INTERVAL = 60_000;
 
+/** CSS class for balance change flash animation */
+function changeClass(dir: "up" | "down" | null | undefined): string {
+  if (dir === "up") return "animate-flash-green";
+  if (dir === "down") return "animate-flash-red";
+  return "";
+}
+
 export function AccountRowView({
   row,
   displayPrefs,
   pollInterval = DEFAULT_POLL_INTERVAL,
+  prices,
   onTokenDecision,
 }: {
   row: AccountRow;
   displayPrefs: Record<string, boolean> | null;
   pollInterval?: number;
+  prices: Record<string, number>;
   onTokenDecision?: (assetId: string, visible: boolean) => void;
 }) {
   const navigate = useNavigate();
   const { hidden } = useHideBalances();
-  const [nativeBalance, setNativeBalance] = useState<BalanceResult | null>(null);
-  const [nativeState, setNativeState] = useState<"loading" | "loaded" | "error">("loading");
-  const [tokenBalances, setTokenBalances] = useState<BalanceResult[]>([]);
-  const [tokenState, setTokenState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
   const [copied, setCopied] = useState(false);
-  const [prices, setPrices] = useState<Record<string, number>>({});
   const [dismissedTokens, setDismissedTokens] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    let cancelled = false;
+  const {
+    nativeBalance,
+    nativeState,
+    tokenBalances,
+    tokenState,
+    nativeChanged,
+    tokenChanges,
+    refresh: refreshAll,
+  } = usePolledBalance(row, pollInterval);
 
-    // Show cached balance instantly if available
-    const cached = getCachedNativeBalance(row.address, row.chain, row.assets);
-    if (cached) {
-      setNativeBalance(cached.data);
-      setNativeState("loaded");
-      // If cache is fresh, skip initial fetch
-      if (cached.fresh) {
-        const iv = setInterval(() => {
-          fetchNativeBalance(row.address, row.chain, row.assets)
-            .then((result) => {
-              if (!cancelled) {
-                setNativeBalance(result);
-                setNativeState("loaded");
-              }
-            })
-            .catch(() => {});
-        }, pollInterval);
-        return () => { cancelled = true; clearInterval(iv); };
-      }
-    } else {
-      setNativeState("loading");
-    }
+  const nativeAsset = row.assets.find((a) => a.isNative);
+  const nativeSymbol = nativeBalance?.asset.symbol || nativeAsset?.symbol || "";
 
-    // Fetch fresh data
-    fetchNativeBalance(row.address, row.chain, row.assets)
-      .then((result) => {
-        if (cancelled) return;
-        setNativeBalance(result);
-        setNativeState("loaded");
-      })
-      .catch(() => {
-        if (!cancelled && !cached) setNativeState("error");
-      });
+  function truncateBalance(val: string): string {
+    if (!val.includes(".")) return val;
+    const [int, frac] = val.split(".");
+    const maxFrac = Math.max(0, 10 - int.length);
+    if (maxFrac === 0) return int;
+    const trimmed = frac.slice(0, maxFrac).replace(/0+$/, "");
+    return trimmed ? `${int}.${trimmed}` : int;
+  }
 
-    const iv = setInterval(() => {
-      fetchNativeBalance(row.address, row.chain, row.assets)
-        .then((result) => {
-          if (!cancelled) {
-            setNativeBalance(result);
-            setNativeState("loaded");
-          }
-        })
-        .catch(() => {});
-    }, pollInterval);
-
-    return () => {
-      cancelled = true;
-      clearInterval(iv);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [row.address, row.chain, row.assets]);
-
-  useEffect(() => {
-    fetchPrices().then(setPrices);
-    const iv = setInterval(() => fetchPrices().then(setPrices), pollInterval);
-    return () => clearInterval(iv);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const hasTokenAssets = row.assets.some((a) => !a.isNative && a.contractAddress);
-  useEffect(() => {
-    if (nativeState !== "loaded" || !hasTokenAssets) return;
-    let cancelled = false;
-
-    // Show cached token balances instantly if available
-    const cached = getCachedTokenBalances(row.address, row.chain);
-    if (cached) {
-      setTokenBalances(cached.data);
-      setTokenState("loaded");
-      if (cached.fresh) {
-        const iv = setInterval(() => {
-          fetchTokenBalances(row.address, row.chain, row.assets)
-            .then((results) => {
-              if (!cancelled) {
-                setTokenBalances(results);
-                setTokenState("loaded");
-              }
-            })
-            .catch(() => {});
-        }, pollInterval);
-        return () => { cancelled = true; clearInterval(iv); };
-      }
-    } else {
-      setTokenState("loading");
-    }
-
-    fetchTokenBalances(row.address, row.chain, row.assets)
-      .then((results) => {
-        if (cancelled) return;
-        setTokenBalances(results);
-        setTokenState("loaded");
-      })
-      .catch(() => {
-        if (!cancelled && !cached) setTokenState("error");
-      });
-
-    const iv = setInterval(() => {
-      fetchTokenBalances(row.address, row.chain, row.assets)
-        .then((results) => {
-          if (!cancelled) {
-            setTokenBalances(results);
-            setTokenState("loaded");
-          }
-        })
-        .catch(() => {});
-    }, pollInterval);
-
-    return () => {
-      cancelled = true;
-      clearInterval(iv);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nativeState, row.address, row.chain, row.assets, hasTokenAssets]);
-
-  function refreshAll(e?: React.MouseEvent) {
-    e?.stopPropagation();
-    // Clear cache so fetchNativeBalance/fetchTokenBalances hit the network
-    const nativeAsset = row.assets.find((a) => a.isNative);
-    if (nativeAsset) clearCache(balanceCacheKey(row.address, row.chain.id, nativeAsset.id));
-    clearCache(tokenBalancesCacheKey(row.address, row.chain.id));
-    setNativeState("loading");
-    setTokenState("idle");
-    setTokenBalances([]);
-    fetchNativeBalance(row.address, row.chain, row.assets)
-      .then((result) => {
-        setNativeBalance(result);
-        setNativeState("loaded");
-      })
-      .catch(() => {
-        setNativeState("error");
-      });
+  function handleNativeClick() {
+    if (nativeState !== "loaded" || !nativeAsset) return;
+    const suffix = row.btcAddrType ? `/${row.btcAddrType}` : "";
+    navigate(`/accounts/${row.keyId}/${row.chain.name.toLowerCase()}/${nativeAsset.symbol}${suffix}`);
   }
 
   function copyAddress(e: React.MouseEvent) {
@@ -187,26 +76,6 @@ export function AccountRowView({
 
   const chainColor =
     row.addressType === "evm" ? "bg-blue-500" : row.addressType === "solana" ? "bg-purple-500" : "bg-orange-500";
-
-  const nativeAsset = row.assets.find((a) => a.isNative);
-  const nativeSymbol = nativeBalance?.asset.symbol || nativeAsset?.symbol || "";
-
-
-  /** Truncate a formatted balance to at most ~10 visible digits */
-  function truncateBalance(val: string): string {
-    if (!val.includes(".")) return val;
-    const [int, frac] = val.split(".");
-    const maxFrac = Math.max(0, 10 - int.length);
-    if (maxFrac === 0) return int;
-    const trimmed = frac.slice(0, maxFrac).replace(/0+$/, "");
-    return trimmed ? `${int}.${trimmed}` : int;
-  }
-
-  function handleNativeClick() {
-    if (nativeState !== "loaded" || !nativeAsset) return;
-    const suffix = row.btcAddrType ? `/${row.btcAddrType}` : "";
-    navigate(`/accounts/${row.keyId}/${row.chain.name.toLowerCase()}/${nativeAsset.symbol}${suffix}`);
-  }
 
   const nativeUsd = nativeBalance
     ? getUsdValue(nativeBalance.formatted, nativeSymbol, prices)
@@ -290,12 +159,12 @@ export function AccountRowView({
             )}
             {nativeState === "loaded" && (
               <div>
-                <div className="flex items-baseline justify-end gap-1 text-sm tabular-nums font-medium text-text-primary">
+                <div className={`flex items-baseline justify-end gap-1 text-sm tabular-nums font-medium text-text-primary transition-colors duration-700 ${changeClass(nativeChanged)}`}>
                   <span>{maskBalance(nativeBalance ? truncateBalance(nativeBalance.formatted) : "0", hidden)}</span>
                   <span className="text-[11px] text-text-muted font-normal">{nativeSymbol}</span>
                 </div>
                 {nativeUsd != null && (
-                  <div className="text-[11px] text-text-muted tabular-nums">{hidden ? "••••" : formatUsd(nativeUsd)}</div>
+                  <div className={`text-[11px] text-text-muted tabular-nums transition-colors duration-700 ${changeClass(nativeChanged)}`}>{hidden ? "••••" : formatUsd(nativeUsd)}</div>
                 )}
               </div>
             )}
@@ -308,12 +177,13 @@ export function AccountRowView({
         </div>
       </div>
 
-      {/* Token rows — indented with smaller icon to show hierarchy */}
+      {/* Token rows */}
       {tokenState === "loaded" && tokenBalances.length > 0 &&
         tokenBalances
           .filter((b) => isTokenVisible(b.asset.id, displayPrefs, b.formatted))
           .map((b) => {
             const tokenUsd = getUsdValue(b.formatted, b.asset.symbol, prices);
+            const tokenDir = tokenChanges.get(b.asset.id);
             return (
               <div
                 key={b.asset.id}
@@ -346,12 +216,12 @@ export function AccountRowView({
 
                 <div className="flex items-center gap-3 shrink-0">
                   <div className="text-right min-w-[4rem]">
-                    <div className="flex items-baseline justify-end gap-1 text-xs tabular-nums font-medium text-text-secondary">
+                    <div className={`flex items-baseline justify-end gap-1 text-xs tabular-nums font-medium text-text-secondary transition-colors duration-700 ${changeClass(tokenDir)}`}>
                       <span>{maskBalance(truncateBalance(b.formatted), hidden)}</span>
                       <span className="text-text-muted font-normal">{b.asset.symbol}</span>
                     </div>
                     {tokenUsd != null && (
-                      <div className="text-[10px] text-text-muted tabular-nums">{hidden ? "••••" : formatUsd(tokenUsd)}</div>
+                      <div className={`text-[10px] text-text-muted tabular-nums transition-colors duration-700 ${changeClass(tokenDir)}`}>{hidden ? "••••" : formatUsd(tokenUsd)}</div>
                     )}
                   </div>
                   <svg className="w-4 h-4 text-text-muted/30 group-hover:text-text-muted transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

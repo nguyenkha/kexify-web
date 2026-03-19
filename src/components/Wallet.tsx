@@ -25,6 +25,7 @@ import { ManageDisplayPanel } from "./ManageDisplayPanel";
 import { AccountRowView } from "./AccountRowView";
 import { CreateAccountDialog } from "./CreateAccountDialog";
 import { BackupReminder } from "./backup-reminder";
+import { usePrices } from "../lib/use-prices";
 
 /** Default polling interval for balance/price refresh (ms) — overridden by server setting */
 const DEFAULT_POLL_INTERVAL = 60_000;
@@ -49,6 +50,7 @@ export function Wallet() {
   const [assetsData, setAssetsData] = useState<Asset[]>([]);
   const [defaultChains, setDefaultChains] = useState<string[] | null>(null);
   const [pollInterval, setPollInterval] = useState(DEFAULT_POLL_INTERVAL);
+  const prices = usePrices(pollInterval);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | undefined>();
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -510,6 +512,7 @@ export function Wallet() {
                 row={row}
                 displayPrefs={displayMap[group.keyId] ?? null}
                 pollInterval={pollInterval}
+                prices={prices}
                 onTokenDecision={(assetId, visible) => handleDisplayChange(group.keyId, assetId, visible)}
               />
             ))}

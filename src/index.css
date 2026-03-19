@@ -114,6 +114,18 @@
   min-height: -webkit-fill-available;
 }
 
+/* Balance change flash — brief color highlight on value update */
+@keyframes flash-green {
+  0% { color: #4ade80; }
+  100% { color: inherit; }
+}
+@keyframes flash-red {
+  0% { color: #f87171; }
+  100% { color: inherit; }
+}
+.animate-flash-green { animation: flash-green 1.2s ease-out; }
+.animate-flash-red { animation: flash-red 1.2s ease-out; }
+
 /* RPC health heartbeat — subtle brightness pulse */
 @keyframes heartbeat {
   0%, 100% { opacity: 0.6; }

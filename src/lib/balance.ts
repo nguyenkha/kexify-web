@@ -4,7 +4,18 @@ import { getCache, setCache, getStaleCache, balanceCacheKey, tokenBalancesCacheK
 
 export type { BalanceResult } from "../shared/types";
 
-/** Fetch native balance, using cache if fresh. */
+// In-flight request deduplication: reuse pending promise for same cache key
+const inflight = new Map<string, Promise<unknown>>();
+
+function dedup<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const existing = inflight.get(key) as Promise<T> | undefined;
+  if (existing) return existing;
+  const promise = fn().finally(() => inflight.delete(key));
+  inflight.set(key, promise);
+  return promise;
+}
+
+/** Fetch native balance, using cache if fresh. Deduplicates concurrent requests. */
 export async function fetchNativeBalance(
   address: string,
   chain: Chain,
@@ -21,10 +32,12 @@ export async function fetchNativeBalance(
   const cached = getCache<BalanceResult>(cacheKey);
   if (cached) return cached;
 
-  const adapter = getChainAdapter(chain.type);
-  const result = await adapter.fetchNativeBalance(address, chain, nativeAsset);
-  if (result) setCache(cacheKey, result);
-  return result;
+  return dedup(cacheKey, async () => {
+    const adapter = getChainAdapter(chain.type);
+    const result = await adapter.fetchNativeBalance(address, chain, nativeAsset);
+    if (result) setCache(cacheKey, result);
+    return result;
+  });
 }
 
 /** Get cached native balance (even stale) for instant display. */
@@ -41,7 +54,7 @@ export function getCachedNativeBalance(
   return getStaleCache<BalanceResult>(cacheKey);
 }
 
-/** Fetch ERC-20 / SPL token balances, using cache if fresh. */
+/** Fetch ERC-20 / SPL token balances, using cache if fresh. Deduplicates concurrent requests. */
 export async function fetchTokenBalances(
   address: string,
   chain: Chain,
@@ -58,10 +71,12 @@ export async function fetchTokenBalances(
   const cached = getCache<BalanceResult[]>(cacheKey);
   if (cached) return cached;
 
-  const adapter = getChainAdapter(chain.type);
-  const results = await adapter.fetchTokenBalances(address, chain, tokenAssets);
-  setCache(cacheKey, results);
-  return results;
+  return dedup(cacheKey, async () => {
+    const adapter = getChainAdapter(chain.type);
+    const results = await adapter.fetchTokenBalances(address, chain, tokenAssets);
+    setCache(cacheKey, results);
+    return results;
+  });
 }
 
 /** Get cached token balances (even stale) for instant display. */
