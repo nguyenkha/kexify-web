@@ -27,7 +27,9 @@ import { useSteppedProgress, signingDurationMs, ProgressBar } from "./ProgressBa
 import { BalancePreview, type BalanceChange } from "./BalancePreview";
 import { simulateEvmTransaction, type SimulationResult } from "../lib/txSimulation";
 import { useExpertMode } from "../context/ExpertModeContext";
-import { PolicyWarning, ExpertWarnings, SimulationPreview, SigningError } from "./tx";
+import { PolicyWarning, ExpertWarnings, SimulationPreview, SigningError, SigningStepper } from "./tx";
+import Prism from "prismjs";
+import "prismjs/components/prism-json";
 
 function friendlyError(err: unknown): string {
   const msg = (err as { message?: string })?.message || String(err);
@@ -142,6 +144,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   const [priorityFeeOverride, setPriorityFeeOverride] = useState("");
   const [approveAmountInput, setApproveAmountInput] = useState<string>("");
   const [approveToken, setApproveToken] = useState<{ symbol: string; decimals: number } | null>(null);
+  const [permitToken, setPermitToken] = useState<{ symbol: string; decimals: number } | null>(null);
   const [nativeBalance, setNativeBalance] = useState<string | null>(null); // raw wei as string
   const [tokenBalances, setTokenBalances] = useState<BalanceResult[]>([]);
 
@@ -363,6 +366,24 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
       }
     });
   }, [isApprove, txParams?.to, chain?.id]);
+
+  // Resolve token info for EIP-712 Permit typed data
+  useEffect(() => {
+    if (request.method !== "eth_signTypedData_v4" || !chain) return;
+    try {
+      const parsed = typeof request.params[1] === "string" ? JSON.parse(request.params[1]) : request.params[1];
+      const contract = parsed.domain?.verifyingContract;
+      if (!contract || (parsed.primaryType !== "Permit" && parsed.primaryType !== "PermitSingle" && parsed.primaryType !== "PermitBatch")) return;
+      // For PermitSingle/Batch the token is in details, for Permit the contract IS the token
+      const tokenAddr = parsed.primaryType === "Permit" ? contract : parsed.message?.details?.token;
+      if (!tokenAddr) return;
+      fetchAssets(chain.id).then((assets) => {
+        const token = assets.find((a) => a.contractAddress?.toLowerCase() === tokenAddr.toLowerCase());
+        setPermitToken(token ? { symbol: token.symbol, decimals: token.decimals } : { symbol: "tokens", decimals: 18 });
+      });
+    } catch { /* ignore parse errors */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [request.method, chain?.id]);
 
   // Fetch native + token balances for preview
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -797,7 +818,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   }
 
   // Format request for display
-  const requestDisplay = formatRequest(request, expert);
+  const requestDisplay = formatRequest(request, expert, permitToken);
 
 
   // Signing progress steps
@@ -818,12 +839,15 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   const canClose = phase === "review" || phase === "preview" || phase === "done" || phase === "error"
     || (phase === "signing" && signingStepIdx >= 2);
 
+  // Signing/done/error phases render as a centered popup on all screens
+  const isCompactPhase = phase === "signing" || phase === "done" || phase === "error";
+
   return (
-    <div className="fixed inset-0 z-50 bg-surface-secondary md:bg-transparent md:flex md:items-center md:justify-center md:p-4">
-      <div className="hidden md:block absolute inset-0 bg-black/50" onClick={canClose ? (phase === "done" ? (onDismiss ?? onReject) : onReject) : undefined} />
-      <div className="relative bg-surface-secondary w-full h-full overflow-y-auto md:h-auto md:max-h-[85vh] md:max-w-md md:rounded-2xl md:border md:border-border-primary md:shadow-xl">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border-secondary shrink-0">
+    <div className={`fixed inset-0 z-50 ${isCompactPhase ? "flex items-center justify-center p-4 bg-black/50" : "bg-surface-secondary md:bg-transparent md:flex md:items-center md:justify-center md:p-4"}`}>
+      {!isCompactPhase && <div className="hidden md:block absolute inset-0 bg-black/50" onClick={canClose ? onReject : undefined} />}
+      <div className={`relative bg-surface-secondary flex flex-col ${isCompactPhase ? "w-full max-w-md rounded-2xl border border-border-primary shadow-xl max-h-[85vh]" : "w-full h-full md:h-auto md:max-h-[85vh] md:max-w-md md:rounded-2xl md:border md:border-border-primary md:shadow-xl"}`}>
+        {/* Header — sticky so close button is always reachable */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border-secondary shrink-0 sticky top-0 bg-surface-secondary z-10">
           {phase === "preview" ? (
             <button
               onClick={() => setPhase("review")}
@@ -863,7 +887,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
         </div>
 
         {/* Body */}
-        <div className="px-5 py-5 space-y-4 overflow-y-auto">
+        <div className="px-5 py-5 space-y-4 overflow-y-auto flex-1 min-h-0">
           {/* ── Review phase ────────────────────────────────────── */}
           {phase === "review" && (
             <>
@@ -1207,8 +1231,8 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                     </div>
                   )}
 
-                  {/* Fee level selector */}
-                  <div className="bg-surface-primary border border-border-primary rounded-lg p-1.5">
+                  {/* Fee level selector — expert only, non-expert uses default "medium" */}
+                  {expert && <div className="bg-surface-primary border border-border-primary rounded-lg p-1.5">
                     <div className="grid grid-cols-3 gap-1">
                       {(["low", "medium", "high"] as FeeLevel[]).map((level) => {
                         const isActive = feeLevel === level;
@@ -1236,7 +1260,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                         );
                       })}
                     </div>
-                  </div>
+                  </div>}
 
                   {/* Expert: advanced tx overrides */}
                   {expert && (
@@ -1394,27 +1418,46 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                 </>
               ) : (
                 <>
-                  {/* Method badge + address */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 font-mono">
-                      {request.method}
-                    </span>
-                    {account && (
-                      <span className="text-[10px] text-text-muted font-mono">
-                        {account.address}
-                      </span>
-                    )}
+                  {/* From */}
+                  <div>
+                    <label className="block text-xs text-text-muted mb-1.5">From</label>
+                    <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5">
+                      <p className="text-[9px] font-mono text-text-tertiary break-all">{account?.address ?? "—"}</p>
+                      {chain && (
+                        <p className="text-[10px] text-text-muted mt-0.5">{chain.displayName}</p>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Request details */}
-                  <div className="bg-surface-tertiary rounded-lg p-3 space-y-2 max-h-60 overflow-y-auto">
-                    {requestDisplay.map(({ label, value }, i) => (
-                      <div key={i}>
-                        <p className="text-[10px] text-text-muted uppercase mb-0.5">{label}</p>
-                        <p className="text-xs text-text-primary font-mono break-all">{value}</p>
-                      </div>
-                    ))}
+                  {/* Method */}
+                  <div>
+                    <label className="block text-xs text-text-muted mb-1.5">Method</label>
+                    <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 font-mono">
+                        {request.method}
+                      </span>
+                    </div>
                   </div>
+
+                  {/* Request details — read-only, faded to match transaction fields */}
+                  {requestDisplay.map(({ label, value }, i) => {
+                    const isJson = value.trimStart().startsWith("{") || value.trimStart().startsWith("[");
+                    return (
+                      <div key={i}>
+                        <label className="block text-xs text-text-muted mb-1.5">{label}</label>
+                        <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 overflow-auto max-h-60">
+                          {isJson ? (
+                            <pre
+                              className="text-xs font-mono break-all whitespace-pre-wrap leading-relaxed"
+                              dangerouslySetInnerHTML={{ __html: Prism.highlight(value, Prism.languages.json, "json") }}
+                            />
+                          ) : (
+                            <p className="text-xs text-text-tertiary font-mono break-all whitespace-pre-wrap">{value}</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </>
               )}
             </>
@@ -1458,11 +1501,11 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                   <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
                     <div className="px-3 py-2.5 flex items-center justify-between">
                       <span className="text-xs text-text-muted">From</span>
-                      <span className="text-xs font-mono text-text-secondary">{account ? account.address : "—"}</span>
+                      <span className="text-[9px] font-mono text-text-secondary">{account ? account.address : "—"}</span>
                     </div>
                     {tronTo && (
                       <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 shrink-0">
                           <span className="text-xs text-text-muted">To</span>
                           {expert && isTronSmartContract && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 font-medium">
@@ -1470,7 +1513,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                             </span>
                           )}
                         </div>
-                        <span className="text-xs font-mono text-text-secondary">{tronTo}</span>
+                        <span className="text-[9px] font-mono text-text-secondary">{tronTo}</span>
                       </div>
                     )}
                     {isTrc20Transfer && tronTokenInfo && (
@@ -1533,7 +1576,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                       const totalUsd = getUsdValue(String(Number(totalSun) / 1e6), "TRX", prices);
                       return (
                         <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                          <span className="text-xs text-text-muted font-medium">Total cost</span>
+                          <span className="text-xs text-text-muted font-medium">Total</span>
                           <span className="text-xs tabular-nums text-text-primary font-semibold">
                             {totalUsd != null ? formatUsd(totalUsd) : `${formatSun(totalSun)} TRX`}
                           </span>
@@ -1589,11 +1632,11 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                   <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
                     <div className="px-3 py-2.5 flex items-center justify-between">
                       <span className="text-xs text-text-muted">From</span>
-                      <span className="text-xs font-mono text-text-secondary">{account ? account.address : "—"}</span>
+                      <span className="text-[9px] font-mono text-text-secondary">{account ? account.address : "—"}</span>
                     </div>
                     {request.params[0]?.to && (
                       <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 shrink-0">
                           <span className="text-xs text-text-muted">To</span>
                           {expert && isContractCall && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 font-medium">
@@ -1601,14 +1644,14 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                             </span>
                           )}
                         </div>
-                        <span className="text-xs font-mono text-text-secondary">{request.params[0].to}</span>
+                        <span className="text-[9px] font-mono text-text-secondary">{request.params[0].to}</span>
                       </div>
                     )}
                     {isApprove && approveData && approveToken ? (
                       <>
                         <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
                           <span className="text-xs text-text-muted">Spender</span>
-                          <span className="text-xs font-mono text-text-secondary">{approveData.spender}</span>
+                          <span className="text-[9px] font-mono text-text-secondary">{approveData.spender}</span>
                         </div>
                         <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
                           <span className="text-xs text-text-muted">Approval</span>
@@ -1665,7 +1708,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                       const totalEth = formatEthFee(totalWei);
                       return (
                         <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                          <span className="text-xs text-text-muted font-medium">Total cost</span>
+                          <span className="text-xs text-text-muted font-medium">Total</span>
                           <span className="text-xs tabular-nums text-text-primary font-semibold">
                             {totalUsd != null ? formatUsd(totalUsd) : `${totalEth} ETH`}
                           </span>
@@ -1732,12 +1775,12 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                   <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
                     <div className="px-3 py-2.5 flex items-center justify-between">
                       <span className="text-xs text-text-muted">From</span>
-                      <span className="text-xs font-mono text-text-secondary">{account ? account.address : decodedSolTx.from}</span>
+                      <span className="text-[9px] font-mono text-text-secondary">{account ? account.address : decodedSolTx.from}</span>
                     </div>
                     {decodedSolTx.to && (
                       <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
                         <span className="text-xs text-text-muted">To</span>
-                        <span className="text-xs font-mono text-text-secondary">{decodedSolTx.to}</span>
+                        <span className="text-[9px] font-mono text-text-secondary">{decodedSolTx.to}</span>
                       </div>
                     )}
                     {decodedSolTx.mint && (
@@ -1798,7 +1841,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                       const totalUsd = getUsdValue(String(totalSol), "SOL", prices);
                       return (
                         <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                          <span className="text-xs text-text-muted font-medium">Total cost</span>
+                          <span className="text-xs text-text-muted font-medium">Total</span>
                           <span className="text-xs tabular-nums text-text-primary font-semibold">
                             {totalUsd != null ? formatUsd(totalUsd) : `${totalSol.toFixed(9)} SOL`}
                           </span>
@@ -1855,28 +1898,46 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                   )}
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {/* Method badge */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 font-mono">
-                      {request.method}
-                    </span>
-                    {account && (
-                      <span className="text-[10px] text-text-muted font-mono">
-                        {account.address}
-                      </span>
+                <div className="space-y-5">
+                  {/* From → Network */}
+                  <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
+                    <div className="px-3 py-2.5 flex items-center justify-between">
+                      <span className="text-xs text-text-muted">From</span>
+                      <span className="text-[9px] font-mono text-text-secondary">{account?.address ?? "—"}</span>
+                    </div>
+                    {chain && (
+                      <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
+                        <span className="text-xs text-text-muted">Network</span>
+                        <span className="text-xs text-text-secondary">{chain.displayName}</span>
+                      </div>
                     )}
+                    <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
+                      <span className="text-xs text-text-muted">Method</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 font-mono">
+                        {request.method}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Request details */}
-                  <div className="bg-surface-tertiary rounded-lg p-3 space-y-2 max-h-60 overflow-y-auto">
-                    {requestDisplay.map(({ label, value }, i) => (
-                      <div key={i}>
-                        <p className="text-[10px] text-text-muted uppercase mb-0.5">{label}</p>
-                        <p className="text-xs text-text-primary font-mono break-all">{value}</p>
+                  {requestDisplay.map(({ label, value }, i) => {
+                    const isJson = value.trimStart().startsWith("{") || value.trimStart().startsWith("[");
+                    return (
+                      <div key={i} className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
+                        <div className="px-3 py-2.5">
+                          <span className="text-xs text-text-muted">{label}</span>
+                          {isJson ? (
+                            <pre
+                              className="text-xs font-mono break-all whitespace-pre-wrap mt-1 max-h-60 overflow-auto leading-relaxed"
+                              dangerouslySetInnerHTML={{ __html: Prism.highlight(value, Prism.languages.json, "json") }}
+                            />
+                          ) : (
+                            <p className="text-xs text-text-primary font-mono break-all whitespace-pre-wrap mt-1 max-h-60 overflow-auto">{value}</p>
+                          )}
+                        </div>
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
               )}
             </>
@@ -1896,32 +1957,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
               </div>
 
               {/* Progress steps */}
-              <div className="space-y-2 max-w-[260px] mx-auto mt-4">
-                {displaySteps.map(({ label }, idx) => {
-                  const isDone = signingStepIdx > idx;
-                  const isCurrent = signingStepIdx === idx;
-                  return (
-                    <div key={idx} className="flex items-center gap-2.5">
-                      {isDone ? (
-                        <svg className="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      ) : isCurrent ? (
-                        <div className="w-4 h-4 shrink-0 flex items-center justify-center">
-                          <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                        </div>
-                      ) : (
-                        <div className="w-4 h-4 shrink-0 flex items-center justify-center">
-                          <div className="w-1.5 h-1.5 rounded-full bg-surface-tertiary" />
-                        </div>
-                      )}
-                      <span className={`text-xs ${isDone ? "text-text-tertiary" : isCurrent ? "text-text-primary font-medium" : "text-text-muted"}`}>
-                        {label}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
+              <SigningStepper steps={displaySteps} currentIndex={signingStepIdx} className="mt-4" />
 
               {/* Tx hash card (visible during Confirming step) */}
               {txResult?.txHash && chain && signingStepIdx >= 3 && (
@@ -2117,7 +2153,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
 // ── Helpers ──────────────────────────────────────────────────────
 
-function formatRequest(request: PendingRequest, expertMode = false): Array<{ label: string; value: string }> {
+function formatRequest(request: PendingRequest, expertMode = false, permitTokenInfo?: { symbol: string; decimals: number } | null): Array<{ label: string; value: string }> {
   switch (request.method) {
     case "personal_sign": {
       const msgHex = request.params[0];
@@ -2140,7 +2176,57 @@ function formatRequest(request: PendingRequest, expertMode = false): Array<{ lab
       if (parsed.domain?.name) items.push({ label: "Domain", value: parsed.domain.name });
       if (parsed.domain?.verifyingContract) items.push({ label: "Contract", value: parsed.domain.verifyingContract });
       if (parsed.primaryType) items.push({ label: "Type", value: parsed.primaryType });
-      items.push({ label: "Message", value: JSON.stringify(parsed.message, null, 2) });
+
+      // Parse known message types into human-readable fields
+      const msg = parsed.message;
+      if (parsed.primaryType === "Permit" && msg) {
+        // ERC-20 Permit (EIP-2612)
+        if (msg.spender) items.push({ label: "Spender", value: msg.spender });
+        if (msg.value != null) {
+          const val = BigInt(msg.value);
+          const isUnlimited = val >= BigInt("0xffffffffffffffffffffffffffffffff");
+          const decimals = permitTokenInfo?.decimals ?? 18;
+          const symbol = permitTokenInfo?.symbol ?? "";
+          const formatted = isUnlimited ? "Unlimited" : formatTokenAmount(val, decimals);
+          items.push({ label: `Approval Amount${symbol ? ` (${symbol})` : ""}`, value: formatted });
+        }
+        if (msg.deadline != null) {
+          const ts = Number(msg.deadline);
+          const date = ts > 1e12 ? new Date(ts) : new Date(ts * 1000);
+          items.push({ label: "Deadline", value: date.toLocaleString() });
+        }
+      } else if (parsed.primaryType === "PermitSingle" && msg?.details) {
+        // Permit2 PermitSingle (Uniswap)
+        const d = msg.details;
+        if (d.token) items.push({ label: "Token", value: d.token });
+        if (msg.spender) items.push({ label: "Spender", value: msg.spender });
+        if (d.amount != null) {
+          const val = BigInt(d.amount);
+          const isUnlimited = val >= BigInt("0xffffffffffffffffffffffffffffffff");
+          const decimals = permitTokenInfo?.decimals ?? 18;
+          const symbol = permitTokenInfo?.symbol ?? "";
+          const formatted = isUnlimited ? "Unlimited" : formatTokenAmount(val, decimals);
+          items.push({ label: `Approval Amount${symbol ? ` (${symbol})` : ""}`, value: formatted });
+        }
+        if (d.expiration != null) {
+          const ts = Number(d.expiration);
+          const date = ts > 1e12 ? new Date(ts) : new Date(ts * 1000);
+          items.push({ label: "Expiration", value: date.toLocaleString() });
+        }
+      } else if (parsed.primaryType === "PermitBatch" && msg?.details) {
+        // Permit2 PermitBatch
+        if (msg.spender) items.push({ label: "Spender", value: msg.spender });
+        items.push({ label: "Tokens", value: `${msg.details.length} token${msg.details.length > 1 ? "s" : ""}` });
+      } else {
+        // Unknown type — always show raw message
+        items.push({ label: "Message", value: JSON.stringify(msg, null, 2) });
+      }
+
+      // Expert: show raw message for all typed data
+      if (expertMode) {
+        items.push({ label: "Raw Message", value: JSON.stringify(msg, null, 2) });
+      }
+
       return items;
     }
     case "eth_sendTransaction": {

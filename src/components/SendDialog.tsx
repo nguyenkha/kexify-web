@@ -3,7 +3,7 @@ import type { Chain, Asset } from "../lib/api";
 import { explorerLink, hexToBytes, bytesToHex } from "../shared/utils";
 import { simulateEvmTransaction } from "../lib/txSimulation";
 import { useExpertMode } from "../context/ExpertModeContext";
-import { PolicyWarning, ExpertWarnings, SimulationPreview, SigningError } from "./tx";
+import { PolicyWarning, ExpertWarnings, SimulationPreview, SigningError, SigningStepper } from "./tx";
 import { fetchPrices, formatUsd, getUsdValue } from "../lib/prices";
 import { toBase64, performMpcSign, performBatchMpcSign, clientKeys, restoreKeyHandles, clearClientKey } from "../lib/mpc";
 import { authHeaders } from "../lib/auth";
@@ -2625,44 +2625,13 @@ message = buildSplTransferMessage({
                 </div>
 
                 {/* Progress steps */}
-                <div className="space-y-2 max-w-[260px] mx-auto">
-                  {(confirmBeforeBroadcast && signingPhase !== "broadcasting" && signingPhase !== "polling"
-                    ? [
-                        { idx: 0, label: "Build transaction" },
-                        { idx: 1, label: signLabelActive },
-                      ]
-                    : [
-                        { idx: 0, label: "Build transaction" },
-                        { idx: 1, label: signLabelActive },
-                        { idx: 2, label: "Broadcast" },
-                        { idx: 3, label: "Confirming" },
-                      ]
-                  ).map(({ idx, label }) => {
-                    const currentIdx = phaseIndex[signingPhase];
-                    const isDone = currentIdx > idx;
-                    const isCurrent = currentIdx === idx;
-                    return (
-                      <div key={idx} className="flex items-center gap-2.5">
-                        {isDone ? (
-                          <svg className="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                          </svg>
-                        ) : isCurrent ? (
-                          <div className="w-4 h-4 shrink-0 flex items-center justify-center">
-                            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                          </div>
-                        ) : (
-                          <div className="w-4 h-4 shrink-0 flex items-center justify-center">
-                            <div className="w-1.5 h-1.5 rounded-full bg-surface-tertiary" />
-                          </div>
-                        )}
-                        <span className={`text-xs ${isDone ? "text-text-tertiary" : isCurrent ? "text-text-primary font-medium" : "text-text-muted"}`}>
-                          {label}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
+                <SigningStepper
+                  steps={confirmBeforeBroadcast && signingPhase !== "broadcasting" && signingPhase !== "polling"
+                    ? [{ label: "Build transaction" }, { label: signLabelActive }]
+                    : [{ label: "Build transaction" }, { label: signLabelActive }, { label: "Broadcast" }, { label: "Confirming" }]
+                  }
+                  currentIndex={phaseIndex[signingPhase]}
+                />
 
                 {/* Tx hash card (visible during Confirming step) */}
                 {pendingTxHash && signingPhase === "polling" && (

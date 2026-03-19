@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { Spinner, Button } from "./ui";
 import type { Chain, Asset } from "../lib/api";
 import { explorerLink } from "../shared/utils";
+import { useSteppedProgress, signingDurationMs, ProgressBar } from "./ProgressBar";
+import { SigningError, SigningStepper } from "./tx";
 // Expert mode available via useExpertMode() for future raw data display
 import { formatUsd, getUsdValue } from "../lib/prices";
 import { toBase64, performMpcSign, clientKeys, restoreKeyHandles, clearClientKey } from "../lib/mpc";
@@ -61,6 +63,18 @@ export function XlmTrustlineDialog({
     "loading-keyshare": 0, "building-tx": 0,
     "mpc-signing": 1, "broadcasting": 2, "polling": 3,
   };
+
+  // Stepped progress: 90% for MPC signing, 10% split across broadcast + confirm
+  const progress = useSteppedProgress(
+    step === "signing" ? phaseIndex[signingPhase] : -1,
+    1, // main step = MPC signing (index 1)
+    2, // steps after main: broadcast + confirming
+    signingDurationMs(1), // XLM = 1 EdDSA signature
+    false,
+  );
+  const signLabelActive = progress.phase === "main"
+    ? `${signLabel} ${progress.pct}%`
+    : signLabel;
 
   useEffect(() => {
     if (isRecoveryMode()) {
@@ -501,68 +515,29 @@ export function XlmTrustlineDialog({
         {step === "signing" && (
           <div className="p-5">
             {signingError ? (
-              <div className="text-center py-6">
-                <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </div>
-                <p className="text-sm font-medium text-text-primary mb-1">Transaction Failed</p>
-                <p className="text-xs text-red-400 break-all mb-2">{signingError}</p>
-                <p className="text-[10px] text-text-muted mb-5">Check Activity Log in the Advanced menu for details.</p>
-                <div className="flex gap-3">
-                  <Button variant="secondary" className="flex-1" onClick={onClose}>Close</Button>
-                  <Button variant="primary" className="flex-1" onClick={() => { setSigningError(null); setStep("preview"); }}>Try Again</Button>
-                </div>
-              </div>
+              <SigningError
+                error={signingError}
+                onClose={onClose}
+                onRetry={() => { setSigningError(null); setStep("preview"); }}
+              />
             ) : (
               <div className="py-6">
-                {/* Spinner */}
-                <div className="flex justify-center mb-6">
-                  <Spinner size="lg" />
-                </div>
+                {/* Progress bar */}
+                <ProgressBar {...progress} />
 
                 {/* Phase label */}
                 <p className="text-sm font-medium text-text-primary text-center mb-2">
-                  {signingPhase === "mpc-signing" ? signLabel : signingPhase === "broadcasting" ? "Broadcast" : signingPhase === "polling" ? "Confirming" : "Build transaction"}
+                  {signingPhase === "mpc-signing" ? signLabelActive : signingPhase === "broadcasting" ? "Broadcast" : signingPhase === "polling" ? "Confirming" : "Build transaction"}
                 </p>
                 <p className="text-[11px] text-text-muted text-center mb-6">
                   Enable {selectedAsset?.symbol} trustline
                 </p>
 
                 {/* Progress steps */}
-                <div className="space-y-2 max-w-[260px] mx-auto">
-                  {([
-                    { idx: 0, label: "Build transaction" },
-                    { idx: 1, label: signLabel },
-                    { idx: 2, label: "Broadcast" },
-                    { idx: 3, label: "Confirming" },
-                  ]).map(({ idx, label }) => {
-                    const currentIdx = phaseIndex[signingPhase];
-                    const isDone = currentIdx > idx;
-                    const isCurrent = currentIdx === idx;
-                    return (
-                      <div key={idx} className="flex items-center gap-2.5">
-                        {isDone ? (
-                          <svg className="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                          </svg>
-                        ) : isCurrent ? (
-                          <div className="w-4 h-4 shrink-0 flex items-center justify-center">
-                            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                          </div>
-                        ) : (
-                          <div className="w-4 h-4 shrink-0 flex items-center justify-center">
-                            <div className="w-1.5 h-1.5 rounded-full bg-surface-tertiary" />
-                          </div>
-                        )}
-                        <span className={`text-xs ${isDone ? "text-text-tertiary" : isCurrent ? "text-text-primary font-medium" : "text-text-muted"}`}>
-                          {label}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
+                <SigningStepper
+                  steps={[{ label: "Build transaction" }, { label: signLabelActive }, { label: "Broadcast" }, { label: "Confirming" }]}
+                  currentIndex={phaseIndex[signingPhase]}
+                />
 
                 {/* Tx hash card (visible during Confirming step) */}
                 {pendingTxHash && signingPhase === "polling" && (

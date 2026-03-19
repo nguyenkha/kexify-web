@@ -11,7 +11,6 @@ function git(cmd: string): string {
 
 const gitHash = (process.env.VITE_GIT_HASH || git("git rev-parse --short=7 HEAD")).slice(0, 7);
 const gitTag = process.env.VITE_GIT_TAG || git("git describe --tags --exact-match 2>/dev/null");
-
 export default defineConfig({
   base: "/",
   define: {
@@ -42,6 +41,10 @@ export default defineConfig({
   },
 server: {
     allowedHosts: ["m4.kha.do"],
+    watch: {
+      // Ignore non-frontend files to prevent spurious full-page reloads
+      ignored: ["**/backend/**", "**/plans/**", "**/.claude/**", "**/node_modules/**", "**/db-dump.sql"],
+    },
     proxy: {
       "/api": {
         target: "http://localhost:3000",
