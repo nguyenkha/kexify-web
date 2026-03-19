@@ -152,6 +152,13 @@ export function usePolledBalance(
     }
   }, [row, hasTokenAssets]);
 
+  // Listen for external balance refresh events (e.g. after WC signing)
+  useEffect(() => {
+    function onRefresh() { refresh(); }
+    window.addEventListener("balance-refresh", onRefresh);
+    return () => window.removeEventListener("balance-refresh", onRefresh);
+  }, [refresh]);
+
   return {
     nativeBalance,
     nativeState,

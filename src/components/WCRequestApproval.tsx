@@ -20,7 +20,7 @@ import { decodeSolanaTransaction, formatLamports, formatTokenAmount as formatSpl
 import { formatSun, waitForTronConfirmation, estimateTronFee, type TronTransaction } from "../lib/chains/tronTx";
 import { fetchPrices, getUsdValue, formatUsd } from "../lib/prices";
 import { fetchNativeBalance, getCachedNativeBalance, fetchTokenBalances } from "../lib/balance";
-import { clearCache, tokenBalancesCacheKey } from "../lib/dataCache";
+import { clearCache, tokenBalancesCacheKey, notifyBalanceRefresh } from "../lib/dataCache";
 import type { BalanceResult } from "../lib/balance";
 import { explorerLink } from "../shared/utils";
 import { useSteppedProgress, signingDurationMs, ProgressBar } from "./ProgressBar";
@@ -744,6 +744,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
             if (k?.startsWith(prefix)) localStorage.removeItem(k);
           }
           clearCache(tokenBalancesCacheKey(account.address, chain.id));
+          notifyBalanceRefresh();
         }
 
         const rpcUrl = chain?.rpcUrl;
@@ -768,6 +769,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
             if (k?.startsWith(prefix)) localStorage.removeItem(k);
           }
           clearCache(tokenBalancesCacheKey(account.address, chain.id));
+          notifyBalanceRefresh();
         }
 
         const rpcUrl = chain?.rpcUrl;
@@ -793,6 +795,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
             if (k?.startsWith(prefix)) localStorage.removeItem(k);
           }
           clearCache(tokenBalancesCacheKey(account.address, chain.id));
+          notifyBalanceRefresh();
         }
 
         const rpcUrl = chain?.rpcUrl;

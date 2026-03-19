@@ -95,3 +95,8 @@ export function clearAllTokenBalanceCaches() {
 }
 
 export const PRICES_CACHE_KEY = "prices";
+
+/** Notify listeners that balance caches were cleared and should re-fetch. */
+export function notifyBalanceRefresh() {
+  window.dispatchEvent(new CustomEvent("balance-refresh"));
+}

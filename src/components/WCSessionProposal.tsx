@@ -43,6 +43,7 @@ export function WCSessionProposal({ proposal, onApprove, onReject }: Props) {
   const [accounts, setAccounts] = useState<WCAccount[]>([]);
   const [chains, setChains] = useState<Chain[]>([]);
   const [loading, setLoading] = useState(true);
+  const [approving, setApproving] = useState(false);
 
   // Passkey guard state
   const [passkeyGuard, setPasskeyGuard] = useState<"idle" | "gate" | "challenge">("idle");
@@ -150,9 +151,10 @@ export function WCSessionProposal({ proposal, onApprove, onReject }: Props) {
     );
   }
 
-  function doApprove() {
+  async function doApprove() {
     const selected = accounts.filter((a) => a.selected);
     if (selected.length === 0) return;
+    setApproving(true);
 
     const accountStrings: string[] = [];
 
@@ -197,10 +199,15 @@ export function WCSessionProposal({ proposal, onApprove, onReject }: Props) {
       }
     }
 
-    onApprove(accountStrings);
+    try {
+      await onApprove(accountStrings);
+    } catch {
+      setApproving(false);
+    }
   }
 
   async function handleApprove() {
+    setApproving(true);
     if (isRecoveryMode()) {
       doApprove();
       return;
@@ -411,10 +418,10 @@ export function WCSessionProposal({ proposal, onApprove, onReject }: Props) {
           </button>
           <button
             onClick={handleApprove}
-            disabled={loading || accounts.filter((a) => a.selected).length === 0}
+            disabled={loading || approving || accounts.filter((a) => a.selected).length === 0}
             className="flex-1 px-4 py-2.5 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50"
           >
-            Approve
+            {approving ? "Approving..." : "Approve"}
           </button>
         </div>
       </div>
@@ -426,7 +433,7 @@ export function WCSessionProposal({ proposal, onApprove, onReject }: Props) {
             setPasskeyGuard("idle");
             doApprove();
           }}
-          onCancel={() => setPasskeyGuard("idle")}
+          onCancel={() => { setPasskeyGuard("idle"); setApproving(false); }}
         />
       )}
       {passkeyGuard === "challenge" && (
@@ -437,7 +444,7 @@ export function WCSessionProposal({ proposal, onApprove, onReject }: Props) {
             setPasskeyGuard("idle");
             doApprove();
           }}
-          onCancel={() => setPasskeyGuard("idle")}
+          onCancel={() => { setPasskeyGuard("idle"); setApproving(false); }}
         />
       )}
     </div>

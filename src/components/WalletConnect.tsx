@@ -113,7 +113,7 @@ export function WalletConnect() {
           <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
             <button
               type="button"
-              className="p-1.5 rounded-md text-text-muted hover:text-text-secondary hover:bg-surface-tertiary transition-colors"
+              className="md:hidden p-1.5 rounded-md text-text-muted hover:text-text-secondary hover:bg-surface-tertiary transition-colors"
               onClick={async () => {
                 try {
                   const text = await navigator.clipboard.readText();
@@ -191,8 +191,8 @@ export function WalletConnect() {
         {sessions.length === 0 ? (
           <div className="py-12 text-center">
             <div className="w-10 h-10 rounded-full bg-surface-tertiary flex items-center justify-center mx-auto mb-3">
-              <svg className="w-5 h-5 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-2.354a4.5 4.5 0 00-6.364-6.364L4.5 8.25a4.5 4.5 0 006.364 6.364l4.5-4.5z" />
+              <svg className="w-5 h-5 text-text-muted" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M6.09 9.6c3.26-3.2 8.56-3.2 11.82 0l.39.39c.16.16.16.42 0 .58l-1.34 1.31c-.08.08-.21.08-.3 0l-.54-.53c-2.28-2.23-5.97-2.23-8.24 0l-.58.56c-.08.08-.21.08-.3 0L5.67 10.6c-.16-.16-.16-.42 0-.58l.42-.42Zm14.6 2.72 1.19 1.17c.16.16.16.42 0 .58l-5.38 5.27c-.16.16-.43.16-.59 0l-3.82-3.74c-.04-.04-.1-.04-.15 0l-3.82 3.74c-.16.16-.43.16-.59 0L2.15 14.07c-.16-.16-.16-.42 0-.58l1.19-1.17c.16-.16.43-.16.59 0l3.82 3.74c.04.04.1.04.15 0l3.82-3.74c.16-.16.43-.16.59 0l3.82 3.74c.04.04.1.04.15 0l3.82-3.74c.16-.16.43-.16.59 0Z" />
               </svg>
             </div>
             <p className="text-xs text-text-muted">No active sessions</p>
