@@ -252,7 +252,6 @@ export function SendDialog({
         setHasBackup(key?.hasClientBackup ?? false);
       })
       .catch(() => setHasBackup(null)); // fail-open
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keyId]);
 
   // Signing state

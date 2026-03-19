@@ -22,7 +22,7 @@ export default defineConfig({
       timeout: 30_000,
     },
     {
-      command: "cd ../backend && bun --watch src/index.ts",
+      command: "cd ../backend && bun --env-file .env.test --watch src/index.ts",
       url: "http://localhost:3000/chains",
       reuseExistingServer: !process.env.CI,
       timeout: 15_000,

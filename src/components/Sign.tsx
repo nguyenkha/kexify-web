@@ -70,7 +70,7 @@ export function Sign() {
   // Load browser-stored shares on mount (skip in recovery — key already set)
   useEffect(() => {
     if (!isRecoveryMode()) {
-      setBrowserShares(listKeyShares());
+      setBrowserShares(listKeyShares()); // eslint-disable-line react-hooks/set-state-in-effect -- one-time init from localStorage
     }
   }, []);
 

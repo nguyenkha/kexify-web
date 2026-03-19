@@ -1,14 +1,17 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { requestMagicLink } from "../lib/auth";
+import { Link, useNavigate } from "react-router-dom";
+import { requestMagicLink, verifyCode, setToken } from "../lib/auth";
 import { getStoredTheme, setTheme } from "../lib/theme";
 import { ErrorBox } from "./ui";
 
 export function Login() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [code, setCode] = useState("");
+  const [verifying, setVerifying] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -24,6 +27,21 @@ export function Login() {
     }
   }
 
+  async function handleCodeSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setVerifying(true);
+    setError("");
+    try {
+      const jwt = await verifyCode(email, code);
+      setToken(jwt);
+      navigate("/", { replace: true });
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setVerifying(false);
+    }
+  }
+
   return (
     <div className="min-h-dvh bg-surface-primary text-text-primary flex items-start justify-center pt-[30vh]">
       <div className="max-w-sm w-full px-4">
@@ -34,11 +52,35 @@ export function Login() {
         </div>
 
         {sent ? (
-          <div className="bg-surface-secondary border border-border-primary rounded-lg p-4">
-            <p className="text-green-400 text-sm font-medium mb-1">📬 Check your email</p>
-            <p className="text-text-tertiary text-xs">
-              We sent a login link to <span className="text-text-primary">{email}</span>
-            </p>
+          <div className="space-y-4">
+            <div className="bg-surface-secondary border border-border-primary rounded-lg p-4">
+              <p className="text-green-400 text-sm font-medium mb-1">Check your email</p>
+              <p className="text-text-tertiary text-xs">
+                We sent a login link to <span className="text-text-primary">{email}</span>
+              </p>
+            </div>
+
+            {/* Code input for PWA users */}
+            <form onSubmit={handleCodeSubmit} className="space-y-3">
+              <p className="text-text-muted text-xs text-center">Or enter the 6-digit code from the email</p>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                placeholder="000000"
+                className="w-full bg-surface-secondary border border-border-primary rounded-lg px-3 py-2.5 text-center text-2xl font-mono tracking-[0.3em] text-text-primary placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
+              />
+              <button
+                type="submit"
+                disabled={code.length !== 6 || verifying}
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted disabled:cursor-not-allowed px-4 py-2.5 rounded-lg text-sm font-medium transition-colors text-white"
+              >
+                {verifying ? "Verifying..." : "Verify Code"}
+              </button>
+              {error && <ErrorBox>{error}</ErrorBox>}
+            </form>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">

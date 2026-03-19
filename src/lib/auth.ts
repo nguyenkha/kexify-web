@@ -41,6 +41,20 @@ export async function verifyToken(token: string): Promise<string> {
   return data.token; // JWT
 }
 
+export async function verifyCode(email: string, code: string): Promise<string> {
+  const res = await fetch(apiUrl("/api/auth/verify-code"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, code }),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || "Code verification failed");
+  }
+  const data = await res.json();
+  return data.token; // JWT
+}
+
 export interface MeUser {
   id: string;
   email: string;

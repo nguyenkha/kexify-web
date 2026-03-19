@@ -53,7 +53,7 @@ export const test = base.extend<AuthFixtures>({
 
     await page.goto("/login");
     await page.evaluate((t) => localStorage.setItem("secretkey_token", t), token);
-    await use(page);
+    await use(page); // eslint-disable-line react-hooks/rules-of-hooks -- Playwright fixture `use`, not React hook
   },
 });
 

@@ -10,7 +10,7 @@ export function VerifyToken() {
   useEffect(() => {
     const token = searchParams.get("token");
     if (!token) {
-      setError("Missing token");
+      setError("Missing token"); // eslint-disable-line react-hooks/set-state-in-effect -- error on mount is intentional
       return;
     }
 

@@ -40,6 +40,7 @@ export function useSteppedProgress(
   const [state, setState] = useState<ProgressState>({ pct: 0, phase: "idle", remainingMs: 0 });
   const pctRef = useRef(0);
 
+  /* eslint-disable react-hooks/set-state-in-effect -- animation loop drives state from requestAnimationFrame/setInterval */
   useEffect(() => {
     // Reset when inactive
     if (currentStep < 0) {
@@ -111,6 +112,7 @@ export function useSteppedProgress(
 
     return () => clearInterval(iv);
   }, [currentStep, done, mainStep, stepsAfterMain, mainDurationMs, postStepDurationMs]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   return state;
 }
