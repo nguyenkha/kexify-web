@@ -3,6 +3,8 @@ import { fetchChains, fetchAssets, fetchSettings, type Chain, type Asset } from 
 import type { Settings } from "../shared/types";
 import { getMe } from "../lib/auth";
 import { getUserOverrides, setUserOverrides, clearUserOverrides, type UserOverrides } from "../lib/userOverrides";
+import { authHeaders } from "../lib/auth";
+import { apiUrl } from "../lib/apiBase";
 import { useExpertMode } from "../context/ExpertModeContext";
 import Editor from "react-simple-code-editor";
 import Prism from "prismjs";
@@ -276,6 +278,27 @@ export function ConfigPage() {
       }
     };
     reader.readAsText(file);
+  }
+
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+
+  async function emailConfig() {
+    setEmailSending(true);
+    try {
+      const res = await fetch(apiUrl("/api/settings/backup-email"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ config: overrides }),
+      });
+      if (!res.ok) throw new Error("Failed to send");
+      setEmailSent(true);
+      setTimeout(() => setEmailSent(false), 3000);
+    } catch {
+      // silently fail
+    } finally {
+      setEmailSending(false);
+    }
   }
 
   function resetConfig() {
@@ -632,8 +655,8 @@ export function ConfigPage() {
       {/* ── Address Book ── */}
       <AddressBookPanel />
 
-      {/* ── Backup & Restore (expert only) ── */}
-      {expert && <div>
+      {/* ── Backup & Restore ── */}
+      <div>
         <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-2 px-1">
           Backup & Restore
         </p>
@@ -642,7 +665,10 @@ export function ConfigPage() {
           <div className="px-3 md:px-5 py-4 flex items-center justify-between gap-4">
             <div className="min-w-0">
               <p className="text-sm font-medium text-text-primary">Export config</p>
-              <p className="text-xs text-text-muted mt-0.5">Download or copy your overrides</p>
+              <p className="text-xs text-text-muted mt-0.5">
+                Download, copy, or email your overrides
+                {emailSent && <span className="text-green-400 ml-2">Sent!</span>}
+              </p>
             </div>
             <div className="flex gap-2 shrink-0">
               <button
@@ -652,6 +678,16 @@ export function ConfigPage() {
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+                </svg>
+              </button>
+              <button
+                onClick={emailConfig}
+                disabled={emailSending || !hasOverrides}
+                className="p-2 rounded-lg bg-surface-primary border border-border-primary hover:border-border-secondary text-text-muted hover:text-text-secondary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                title="Email to myself"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
                 </svg>
               </button>
               <button
@@ -703,7 +739,7 @@ export function ConfigPage() {
             </div>
           )}
         </div>
-      </div>}
+      </div>
 
       {/* ── JSON Editor Modal ── */}
       {jsonMode && (

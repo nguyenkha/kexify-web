@@ -247,12 +247,10 @@ function DashboardLayout() {
       >
         <div className="px-5 py-6 border-b border-border-primary flex items-center justify-between">
           <div>
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">kexify</h1>
-              <p className="text-[11px] text-text-muted mt-0.5">
-                <span className={recovery ? "text-orange-400 recovery-accent" : ""}>keys simplified</span>
-              </p>
-            </div>
+            <h1 className="text-3xl font-bold tracking-tight">kexify</h1>
+            <p className="text-[11px] text-text-muted mt-0.5">
+              <span className={recovery ? "text-orange-400 recovery-accent" : ""}>keys simplified</span>
+            </p>
           </div>
           {/* Close on mobile */}
           <button
