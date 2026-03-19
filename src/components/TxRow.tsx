@@ -20,7 +20,7 @@ export function formatTxTime(ts: number): string {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: d.getFullYear() !== now.getFullYear() ? "numeric" : undefined });
 }
 
-export function TxRow({ tx, explorerUrl, onSpeedUp }: { tx: Transaction; explorerUrl: string; onSpeedUp?: () => void }) {
+export function TxRow({ tx, explorerUrl, onSpeedUp, chainName, chainIcon }: { tx: Transaction; explorerUrl: string; onSpeedUp?: () => void; chainName?: string; chainIcon?: string | null }) {
   const isPending = !tx.confirmed;
   const isFailed = !!tx.failed;
   const dirColor = isFailed
@@ -102,8 +102,14 @@ export function TxRow({ tx, explorerUrl, onSpeedUp }: { tx: Transaction; explore
         </div>
       </div>
 
-      {/* Amount */}
+      {/* Amount + chain badge */}
       <div className="text-right shrink-0 ml-3">
+        {chainName && (
+          <div className="flex items-center gap-1 justify-end mb-0.5">
+            {chainIcon && <img src={chainIcon} alt="" className="w-3 h-3 rounded-full" />}
+            <span className="text-[9px] text-text-muted font-medium">{chainName}</span>
+          </div>
+        )}
         <div className={`text-sm tabular-nums font-medium ${dirColor}`}>
           {dirSign}{tx.formatted}
         </div>

@@ -268,14 +268,19 @@ export function AccountRowView({
           })
       }
 
-      {/* Recent transactions preview */}
-      {recentTxs.length > 0 && (
-        <div className="border-t border-border-secondary/50">
-          {recentTxs.map((tx, i) => (
-            <CompactTxPreview key={`${tx.hash}-${i}`} tx={tx} explorerUrl={row.chain.explorerUrl} />
-          ))}
-        </div>
-      )}
+      {/* Recent transactions preview — only show txs from the last hour */}
+      {(() => {
+        const cutoff = Math.floor(Date.now() / 1000) - 3600;
+        const fresh = recentTxs.filter((tx) => tx.timestamp > cutoff);
+        if (fresh.length === 0) return null;
+        return (
+          <div className="border-t border-border-secondary/50">
+            {fresh.map((tx, i) => (
+              <CompactTxPreview key={`${tx.hash}-${i}`} tx={tx} explorerUrl={row.chain.explorerUrl} />
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Token discovery prompts */}
       {tokenState === "loaded" && onTokenDecision && (() => {

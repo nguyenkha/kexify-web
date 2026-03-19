@@ -166,12 +166,14 @@ export const evmAdapter: ChainAdapter = {
 
     let txs: Transaction[];
     if (asset.isNative) {
-      // Filter out ERC-20 transfer calls — they belong in the token's tx list
-      const ERC20_TRANSFER_SELECTOR = "0xa9059cbb";
+      // Filter out ERC-20 transfer calls — they belong in the token transfers list
+      const ERC20_TRANSFER_SELECTORS = ["0xa9059cbb", "0x23b872dd"]; // transfer, transferFrom
       txs = items
         .filter((tx) => {
           const rawInput = tx.raw_input as string | undefined;
-          return !rawInput || !rawInput.startsWith(ERC20_TRANSFER_SELECTOR);
+          if (!rawInput) return true;
+          const sel = rawInput.slice(0, 10).toLowerCase();
+          return !ERC20_TRANSFER_SELECTORS.includes(sel);
         })
         .slice(0, PAGE_SIZE)
         .map((tx) => parseNativeTx(tx, addrLower, asset));
@@ -233,6 +235,62 @@ function parseNativeTx(
     failed: (tx.status as string) === "error" || (tx.result as string) === "error",
     ...(isContractCall ? { isContractCall: true } : {}),
     ...(isApprove ? { isApprove: true } : {}),
+  };
+}
+
+/** Fetch all ERC-20 token transfers for an address (for unified activity view) */
+export async function fetchAllTokenTransfers(
+  address: string,
+  explorerUrl: string,
+): Promise<Transaction[]> {
+  const apiBase = blockscoutApiUrl(explorerUrl);
+  if (!apiBase) return [];
+  try {
+    const res = await fetch(`${apiBase}/api/v2/addresses/${address}/token-transfers?type=ERC-20`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    const items: Record<string, unknown>[] = data.items || [];
+    const addrLower = address.toLowerCase();
+    return items.slice(0, PAGE_SIZE).map((tx) => parseAnyTokenTransfer(tx, addrLower));
+  } catch {
+    return [];
+  }
+}
+
+/** Parse a token transfer using token info from the response itself */
+function parseAnyTokenTransfer(
+  tx: Record<string, unknown>,
+  addrLower: string,
+): Transaction {
+  const from = ((tx.from as Record<string, unknown>)?.hash as string) || "";
+  const to = ((tx.to as Record<string, unknown>)?.hash as string) || "";
+  const fromLower = from.toLowerCase();
+  const toLower = to.toLowerCase();
+  const direction: "in" | "out" | "self" =
+    fromLower === addrLower && toLower === addrLower
+      ? "self"
+      : fromLower === addrLower
+        ? "out"
+        : "in";
+
+  const total = tx.total as Record<string, string> | null;
+  const value = total?.value || "0";
+  const token = tx.token as Record<string, unknown> | null;
+  const decimals = total?.decimals ? parseInt(total.decimals, 10) : (token?.decimals as number) ?? 18;
+  const symbol = (token?.symbol as string) || "???";
+  const tsStr = tx.timestamp as string | null;
+  const timestamp = tsStr ? Math.floor(new Date(tsStr).getTime() / 1000) : Math.floor(Date.now() / 1000);
+
+  return {
+    hash: (tx.transaction_hash as string) || "",
+    from,
+    to,
+    value,
+    formatted: formatTxValue(value, decimals),
+    symbol,
+    timestamp,
+    direction,
+    confirmed: true,
   };
 }
 

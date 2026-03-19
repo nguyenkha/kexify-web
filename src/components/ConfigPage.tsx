@@ -294,8 +294,9 @@ export function ConfigPage() {
       if (!res.ok) throw new Error("Failed to send");
       setEmailSent(true);
       setTimeout(() => setEmailSent(false), 3000);
-    } catch {
-      // silently fail
+    } catch (err) {
+      setEmailSent(false);
+      alert(`Failed to send: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setEmailSending(false);
     }
@@ -682,7 +683,7 @@ export function ConfigPage() {
               </button>
               <button
                 onClick={emailConfig}
-                disabled={emailSending || !hasOverrides}
+                disabled={emailSending}
                 className="p-2 rounded-lg bg-surface-primary border border-border-primary hover:border-border-secondary text-text-muted hover:text-text-secondary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 title="Email to myself"
               >
@@ -692,8 +693,7 @@ export function ConfigPage() {
               </button>
               <button
                 onClick={exportConfig}
-                disabled={!hasOverrides}
-                className="px-3 py-2 rounded-lg bg-surface-primary border border-border-primary hover:border-border-secondary text-xs font-medium text-text-secondary hover:text-text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-3 py-2 rounded-lg bg-surface-primary border border-border-primary hover:border-border-secondary text-xs font-medium text-text-secondary hover:text-text-primary transition-colors"
               >
                 Download
               </button>
@@ -710,7 +710,7 @@ export function ConfigPage() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".json"
+                accept=".json,.txt"
                 className="hidden"
                 onChange={(e) => { if (e.target.files?.[0]) importConfig(e.target.files[0]); }}
               />

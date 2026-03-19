@@ -856,11 +856,11 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   const isCompactPhase = phase === "signing" || phase === "done" || phase === "error";
 
   return (
-    <div className={`fixed inset-0 z-50 ${isCompactPhase ? "flex items-center justify-center p-4 bg-black/50" : "bg-surface-secondary md:bg-transparent md:flex md:items-center md:justify-center md:p-4"}`}>
+    <div className={`fixed inset-0 z-50 ${isCompactPhase ? "flex items-center justify-center p-4 bg-black/50" : "bg-surface-secondary overflow-y-auto md:bg-transparent md:overflow-hidden md:flex md:items-center md:justify-center md:p-4"}`}>
       {!isCompactPhase && <div className="hidden md:block absolute inset-0 bg-black/50" onClick={canClose ? onReject : undefined} />}
-      <div className={`relative bg-surface-secondary flex flex-col ${isCompactPhase ? "w-full max-w-md rounded-2xl border border-border-primary shadow-xl max-h-[85vh]" : "w-full h-full md:h-auto md:max-h-[85vh] md:max-w-md md:rounded-2xl md:border md:border-border-primary md:shadow-xl"}`}>
+      <div className={`relative bg-surface-secondary ${isCompactPhase ? "flex flex-col w-full max-w-md rounded-2xl overflow-hidden border border-border-primary shadow-xl max-h-[85vh]" : "min-h-full pb-[env(safe-area-inset-bottom)] md:min-h-0 md:pb-0 md:max-h-[85vh] md:w-full md:max-w-md md:overflow-y-auto md:rounded-2xl md:overflow-hidden md:border md:border-border-primary md:shadow-xl"}`}>
         {/* Header — sticky so close button is always reachable */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border-secondary shrink-0 sticky top-0 bg-surface-secondary z-10">
+        <div className={`flex items-center justify-between px-5 py-4 border-b border-border-secondary shrink-0 sticky top-0 bg-surface-secondary z-10 ${!isCompactPhase ? "pt-[calc(1rem+env(safe-area-inset-top))] md:pt-4" : ""}`}>
           {phase === "preview" ? (
             <button
               onClick={() => setPhase("review")}
@@ -2124,7 +2124,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
           )}
         </div>
 
-        {/* Footer — review phase */}
+        {/* Footer — review phase (safe-area bottom for PWA) */}
         {phase === "review" && (
           <div className="px-5 py-4 border-t border-border-secondary shrink-0">
             <button

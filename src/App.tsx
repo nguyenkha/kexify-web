@@ -245,7 +245,7 @@ function DashboardLayout() {
           md:sticky md:top-0 md:h-screen md:translate-x-0
         `}
       >
-        <div className="px-5 py-6 border-b border-border-primary flex items-center justify-between">
+        <div className="px-5 pb-6 pt-[calc(1.5rem+env(safe-area-inset-top))] border-b border-border-primary flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">kexify</h1>
             <p className="text-[11px] text-text-muted mt-0.5">
@@ -365,7 +365,7 @@ function DashboardLayout() {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
-        <header className="h-14 border-b border-border-primary flex items-center px-4 md:px-8 shrink-0 gap-3">
+        <header className="border-b border-border-primary flex items-center px-4 md:px-8 shrink-0 gap-3 h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)]">
           {/* Hamburger on mobile */}
           <button
             onClick={() => setSidebarOpen(true)}
@@ -382,6 +382,19 @@ function DashboardLayout() {
             {recovery && <ServerStatus />}
             {/* Toggle buttons visible on mobile header */}
             <div className="flex items-center gap-0.5 md:hidden">
+              <button
+                onClick={() => navigate("/walletconnect?scan=1")}
+                className="p-1.5 rounded-md text-text-tertiary hover:text-text-secondary hover:bg-surface-tertiary transition-colors"
+                title="Scan WalletConnect QR"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 7V5a2 2 0 012-2h2m10 0h2a2 2 0 012 2v2m0 10v2a2 2 0 01-2 2h-2M3 17v2a2 2 0 002 2h2" />
+                  <rect x="7" y="7" width="4" height="4" rx="0.5" />
+                  <rect x="13" y="7" width="4" height="4" rx="0.5" />
+                  <rect x="7" y="13" width="4" height="4" rx="0.5" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 13h4v4h-4" />
+                </svg>
+              </button>
               <HideBalancesToggle />
               {!recovery && <ThemeToggle />}
             </div>

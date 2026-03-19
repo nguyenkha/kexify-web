@@ -5,6 +5,7 @@ import { fetchTransactions } from "../lib/transactions";
 import { getStaleCache, setCache, txCacheKey, evictTxCaches } from "../lib/dataCache";
 import { TxRow } from "./TxRow";
 import { Spinner } from "./ui";
+import { fetchAllTokenTransfers } from "../lib/chains/evmAdapter";
 
 interface ChainTxResult {
   chainName: string;
@@ -27,16 +28,6 @@ function uniqueAddressChains(rows: AccountRow[]) {
   });
 }
 
-function formatLastUpdated(date: Date): string {
-  const now = new Date();
-  const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
-  if (diffSec < 10) return "just now";
-  if (diffSec < 60) return `${diffSec}s ago`;
-  const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin}m ago`;
-  return date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-}
-
 interface WalletActivityProps {
   accountRows: AccountRow[];
   pollInterval: number;
@@ -45,16 +36,8 @@ interface WalletActivityProps {
 export function WalletActivity({ accountRows, pollInterval }: WalletActivityProps) {
   const [results, setResults] = useState<Map<string, ChainTxResult>>(new Map());
   const [loading, setLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [, setTick] = useState(0);
 
   const uniqueRows = uniqueAddressChains(accountRows);
-
-  // Re-render every 10s to update "last updated" label
-  useEffect(() => {
-    const iv = setInterval(() => setTick((t) => t + 1), 10_000);
-    return () => clearInterval(iv);
-  }, []);
 
   // Load stale cache immediately on mount
   useEffect(() => {
@@ -92,17 +75,31 @@ export function WalletActivity({ accountRows, pollInterval }: WalletActivityProp
       const nativeAsset = row.assets.find((a) => a.isNative) ?? row.assets[0];
       if (!nativeAsset) return;
       try {
-        const { transactions, hasMore } = await fetchTransactions(row.address, row.chain, nativeAsset, 1);
-        // Cache the fetched transactions
-        setCache(txCacheKey(row.address, row.chain.id), transactions);
+        // Fetch native transactions + token transfers in parallel for EVM chains
+        const [nativeResult, tokenTxs] = await Promise.all([
+          fetchTransactions(row.address, row.chain, nativeAsset, 1),
+          row.chain.type === "evm"
+            ? fetchAllTokenTransfers(row.address, row.chain.explorerUrl)
+            : Promise.resolve([]),
+        ]);
+
+        // Merge and deduplicate by hash — token transfers first so they
+        // take precedence over native txs that show 0 ETH for the same hash
+        const seen = new Set<string>();
+        const merged = [...tokenTxs, ...nativeResult.transactions]
+          .filter((tx) => { if (seen.has(tx.hash)) return false; seen.add(tx.hash); return true; })
+          .sort((a, b) => b.timestamp - a.timestamp);
+
+        // Cache the merged transactions
+        setCache(txCacheKey(row.address, row.chain.id), merged);
         setResults((prev) => {
           const next = new Map(prev);
           next.set(key, {
             chainName: row.chain.displayName,
             chainIcon: row.chain.iconUrl,
             explorerUrl: row.chain.explorerUrl,
-            txs: transactions,
-            hasMore,
+            txs: merged,
+            hasMore: nativeResult.hasMore,
             page: 1,
             error: false,
           });
@@ -130,7 +127,6 @@ export function WalletActivity({ accountRows, pollInterval }: WalletActivityProp
     await Promise.allSettled(fetches);
     evictTxCaches(50);
     setLoading(false);
-    setLastUpdated(new Date());
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accountRows]);
 
@@ -204,15 +200,8 @@ export function WalletActivity({ accountRows, pollInterval }: WalletActivityProp
       {merged.length > 0 && (
         <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden divide-y divide-border-secondary">
           {merged.map(({ tx, chainName, chainIcon, explorerUrl }, i) => (
-            <div key={`${tx.hash}-${i}`} className="relative">
-              {/* Chain badge — below tx row on mobile, top-right on desktop */}
-              <div className="flex items-center gap-1 px-3 md:px-4 pt-1 md:pt-0 md:absolute md:top-2 md:right-2 md:z-10 md:px-1.5 md:py-0.5 md:rounded md:bg-surface-tertiary/80">
-                {chainIcon && (
-                  <img src={chainIcon} alt={chainName} className="w-3 h-3 rounded-full" />
-                )}
-                <span className="text-[9px] text-text-muted font-medium">{chainName}</span>
-              </div>
-              <TxRow tx={tx} explorerUrl={explorerUrl} />
+            <div key={`${tx.hash}-${i}`}>
+              <TxRow tx={tx} explorerUrl={explorerUrl} chainName={chainName} chainIcon={chainIcon} />
             </div>
           ))}
         </div>
@@ -241,23 +230,6 @@ export function WalletActivity({ accountRows, pollInterval }: WalletActivityProp
         </div>
       )}
 
-      {/* Last updated indicator */}
-      {lastUpdated && !loading && (
-        <div className="flex items-center gap-1.5 px-1 mt-2">
-          <span className="text-[10px] text-text-muted tabular-nums">
-            Updated {formatLastUpdated(lastUpdated)}
-          </span>
-          <button
-            onClick={() => fetchAll()}
-            className="text-text-muted hover:text-text-secondary transition-colors p-0.5 rounded hover:bg-surface-tertiary"
-            title="Refresh"
-          >
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          </button>
-        </div>
-      )}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useWalletConnect } from "../context/WalletConnectContext";
 import { Scanner } from "@yudiel/react-qr-scanner";
 import type { KeyShare } from "../shared/types";
@@ -14,6 +15,15 @@ export function WalletConnect() {
   const [pairing, setPairing] = useState(false);
   const [error, setError] = useState("");
   const [scanning, setScanning] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Auto-start scanner when navigated with ?scan=1
+  useEffect(() => {
+    if (searchParams.get("scan") === "1" && initialized && !frozen) {
+      setSearchParams({}, { replace: true });
+      setScanning(true);
+    }
+  }, [initialized, frozen, searchParams, setSearchParams]);
   const [addressNames, setAddressNames] = useState<Record<string, string>>({});
 
   // Build address → account name map from keys
@@ -171,12 +181,20 @@ export function WalletConnect() {
         <div className="mt-3 rounded-lg overflow-hidden border border-border-primary" style={{ maxWidth: 400 }}>
           <Scanner
             onScan={handleScan}
-            onError={() => {
+            onError={(err) => {
               setScanning(false);
-              setError("Camera access denied");
+              const msg = err instanceof Error ? err.message : String(err);
+              if (msg.includes("NotAllowed") || msg.includes("Permission")) {
+                setError("Camera access denied — check your browser/device settings");
+              } else if (msg.includes("NotFound") || msg.includes("DevicesNotFound")) {
+                setError("No camera found on this device");
+              } else {
+                setError(`Camera error: ${msg}`);
+              }
             }}
             formats={["qr_code"]}
             components={{ finder: true }}
+            constraints={{ facingMode: "environment" }}
             styles={{ container: { width: "100%" } }}
           />
         </div>

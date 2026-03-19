@@ -211,12 +211,12 @@ export function XlmTrustlineDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-surface-secondary md:bg-transparent md:flex md:items-center md:justify-center md:p-4">
+    <div className="fixed inset-0 z-50 bg-surface-secondary overflow-y-auto md:bg-transparent md:overflow-hidden md:flex md:items-center md:justify-center md:p-4">
       <div className="hidden md:block absolute inset-0 bg-black/50" onClick={step === "signing" ? undefined : onClose} />
-      <div className="relative bg-surface-secondary w-full h-full overflow-y-auto md:h-auto md:max-h-[85vh] md:max-w-md md:rounded-2xl md:border md:border-border-primary md:shadow-xl">
+      <div className="relative min-h-full pb-[env(safe-area-inset-bottom)] md:min-h-0 md:pb-0 md:bg-surface-secondary md:max-h-[85vh] md:overflow-y-auto md:w-full md:max-w-md md:rounded-2xl md:border md:border-border-primary md:shadow-xl">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border-secondary shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 pt-[calc(1rem+env(safe-area-inset-top))] md:pt-4 border-b border-border-secondary shrink-0">
           <div className="flex items-center gap-2">
             {(step === "input" || step === "preview") && (
               <button onClick={() => setStep(step === "preview" ? "input" : "select")} className="text-text-muted hover:text-text-secondary transition-colors mr-1">
