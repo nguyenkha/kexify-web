@@ -162,7 +162,7 @@ export async function wcSendTransaction(
   const unsignedTx = await buildTransaction({
     rpcUrl,
     from: address,
-    to: txParams.to,
+    to: txParams.to || "",
     value,
     data: txData,
     gasLimit,
