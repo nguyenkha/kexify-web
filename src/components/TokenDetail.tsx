@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Spinner } from "./ui";
 import type { Chain, Asset } from "../lib/api";
 import { explorerLink } from "../shared/utils";
@@ -636,23 +637,26 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
         />
       )}
 
-      {/* Last updated indicator */}
-      {lastUpdated && (
-        <div className="flex items-center gap-1.5 px-1">
-          <span className="text-[10px] text-text-muted tabular-nums">
-            {formatLastUpdated(lastUpdated, t)}
-          </span>
-          <button
-            onClick={retry}
-            className="text-text-muted hover:text-text-secondary transition-colors p-0.5 rounded hover:bg-surface-tertiary"
-            title={t("common.refresh")}
-          >
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          </button>
-        </div>
-      )}
+      {/* Last updated indicator — portaled into shared footer */}
+      {lastUpdated && document.getElementById("footer-left") &&
+        createPortal(
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-text-muted tabular-nums">
+              {formatLastUpdated(lastUpdated, t)}
+            </span>
+            <button
+              onClick={retry}
+              className="text-text-muted hover:text-text-secondary transition-colors p-0.5 rounded hover:bg-surface-tertiary"
+              title={t("common.refresh")}
+            >
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+          </div>,
+          document.getElementById("footer-left")!,
+        )
+      }
     </div>
   );
 }

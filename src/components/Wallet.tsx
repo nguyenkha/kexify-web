@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import type { KeyShare } from "../shared/types";
@@ -696,9 +697,9 @@ export function Wallet() {
         />
       )}
 
-      {/* Last updated indicator */}
-      {lastUpdated && (
-        <div className="flex flex-col gap-0.5 px-1">
+      {/* Last updated indicator — portaled into shared footer */}
+      {lastUpdated && document.getElementById("footer-left") &&
+        createPortal(
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] text-text-muted tabular-nums">
               {formatLastUpdated(lastUpdated)}
@@ -712,9 +713,10 @@ export function Wallet() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
             </button>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.getElementById("footer-left")!,
+        )
+      }
 
     </div>
   );
