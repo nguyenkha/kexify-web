@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { toHex, sha256, performMpcSign, clientKeys, restoreKeyHandles } from "../lib/mpc";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import { fetchPasskeys, sensitiveHeaders, authenticatePasskey } from "../lib/passkey";
@@ -25,15 +26,16 @@ interface KeyFile {
 
 type SigningPhase = "loading" | "signing" | "verifying";
 
-function getPhaseLabels(pct?: number): Record<SigningPhase, string> {
-  const signLabel = isRecoveryMode() ? "Local signing" : "MPC signing";
+function getPhaseLabels(t: (k: string) => string, pct?: number): Record<SigningPhase, string> {
+  const signLabel = isRecoveryMode() ? t("sign.localSigning") : t("sign.mpcSigning");
   const signLabelActive = pct != null && pct > 0 ? `${signLabel} ${pct}%` : signLabel;
-  return { loading: "Prepare", signing: signLabelActive, verifying: "Verify" };
+  return { loading: t("sign.prepare"), signing: signLabelActive, verifying: t("sign.verify") };
 }
 
 const phases: SigningPhase[] = ["loading", "signing", "verifying"];
 
 export function Sign() {
+  const { t } = useTranslation();
   const frozen = useFrozen();
   const [keyFile, setKeyFile] = useState<KeyFile | null>(() => {
     if (isRecoveryMode()) {
@@ -190,7 +192,7 @@ export function Sign() {
     } catch (err: unknown) {
       console.error("[sign] Error:", err);
       const msg = (err as { message?: string })?.message || String(err);
-      setSigningError(msg === "passkey_auth_required" ? "Passkey session expired. Please try again." : msg);
+      setSigningError(msg === "passkey_auth_required" ? t("sign.passkeyExpired") : msg);
     }
   }
 
@@ -215,9 +217,9 @@ export function Sign() {
     <div className="space-y-5">
       {/* Header */}
       <div className="pt-2 pb-2">
-        <h2 className="text-lg font-semibold text-text-primary">Raw Signing</h2>
+        <h2 className="text-lg font-semibold text-text-primary">{t("sign.title")}</h2>
         <p className="text-xs text-text-muted mt-1">
-          Sign arbitrary messages with your key share and verify the result.
+          {t("sign.desc")}
         </p>
       </div>
 
@@ -225,7 +227,7 @@ export function Sign() {
       <div className="space-y-4">
         {/* Key Share File */}
         <div>
-          <label className="block text-xs text-text-muted mb-1.5">Key Share</label>
+          <label className="block text-xs text-text-muted mb-1.5">{t("sign.keyShare")}</label>
           {!keyFile && !pendingEncrypted ? (
             <div className="space-y-2">
               {/* Browser-stored shares */}
@@ -243,7 +245,7 @@ export function Sign() {
                       </svg>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs text-text-secondary truncate">{s.keyId.slice(0, 8)}...</p>
-                        <p className="text-[10px] text-text-muted">{s.mode === "prf" ? "Passkey encrypted" : "Passphrase encrypted"} · ECDSA + EdDSA</p>
+                        <p className="text-[10px] text-text-muted">{s.mode === "prf" ? t("sign.passkeyEncrypted") : t("sign.passphraseEncrypted")} · ECDSA + EdDSA</p>
                       </div>
                       {browserLoading === s.keyId ? (
                         <Spinner size="xs" />
@@ -261,11 +263,11 @@ export function Sign() {
               {browserPassphrase && (
                 <div className="bg-surface-secondary border border-border-primary rounded-lg p-3">
                   <p className="text-xs text-text-muted mb-2">
-                    <span className="font-mono text-text-tertiary">{browserPassphrase.keyId.slice(0, 8)}...</span> — Enter your passphrase to unlock
+                    <span className="font-mono text-text-tertiary">{browserPassphrase.keyId.slice(0, 8)}...</span> — {t("sign.enterPassphrase")}
                   </p>
                   <PassphraseInput
                     mode="enter"
-                    submitLabel="Decrypt"
+                    submitLabel={t("sign.decrypt")}
                     onSubmit={async (passphrase) => {
                       const data = await getKeyShareWithPassphrase(browserPassphrase.keyId, passphrase);
                       if (data) {
@@ -280,7 +282,7 @@ export function Sign() {
               {/* File upload */}
               {browserShares.length > 0 ? (
                 <label className="block w-full text-center text-[11px] text-text-muted hover:text-text-tertiary transition-colors cursor-pointer">
-                  Or upload a file instead
+                  {t("sign.orUploadFile")}
                   <input
                     type="file"
                     accept=".json"
@@ -293,7 +295,7 @@ export function Sign() {
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
                   </svg>
-                  Choose key share file (.json)
+                  {t("sign.chooseKeyFile")}
                   <input
                     type="file"
                     accept=".json"
@@ -320,7 +322,7 @@ export function Sign() {
                 onClick={() => !isRecoveryMode() && setKeyFile(null)}
                 disabled={isRecoveryMode()}
                 className={`p-1 rounded-md transition-colors ${isRecoveryMode() ? "opacity-40 cursor-not-allowed" : "hover:bg-surface-tertiary"}`}
-                title={isRecoveryMode() ? "Key loaded from recovery" : "Change key share"}
+                title={isRecoveryMode() ? t("sign.keyLoadedRecovery") : t("sign.changeKey")}
               >
                 <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 119 0v3.75M3.75 21.75h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H3.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
@@ -333,11 +335,11 @@ export function Sign() {
           {pendingEncrypted && !keyFile && (
             <div className="bg-surface-secondary border border-border-primary rounded-lg p-3 mt-2">
               <p className="text-xs text-text-muted mb-2">
-                <span className="font-mono text-text-tertiary">{pendingEncrypted.id.slice(0, 8)}...</span> — Enter your passphrase to unlock
+                <span className="font-mono text-text-tertiary">{pendingEncrypted.id.slice(0, 8)}...</span> — {t("sign.enterPassphraseToUnlock")}
               </p>
               <PassphraseInput
                 mode="enter"
-                submitLabel="Decrypt"
+                submitLabel={t("sign.decrypt")}
                 onSubmit={async (passphrase) => {
                   const decrypted = await decryptKeyFile(pendingEncrypted, passphrase);
                   setKeyFile(decrypted as KeyFile);
@@ -351,7 +353,7 @@ export function Sign() {
 
         {/* Algorithm */}
         <div>
-          <label className="block text-xs text-text-muted mb-1.5">Algorithm</label>
+          <label className="block text-xs text-text-muted mb-1.5">{t("sign.algorithm")}</label>
           <div className="flex bg-surface-secondary border border-border-primary rounded-lg p-0.5 gap-0.5 w-fit">
             {(["ecdsa", "eddsa"] as const).map((algo) => (
               <button
@@ -371,11 +373,11 @@ export function Sign() {
 
         {/* Message */}
         <div>
-          <label className="block text-xs text-text-muted mb-1.5">Message</label>
+          <label className="block text-xs text-text-muted mb-1.5">{t("sign.message")}</label>
           <textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Enter message to sign..."
+            placeholder={t("sign.messagePlaceholder")}
             rows={4}
             className="w-full bg-surface-secondary border border-border-primary rounded-lg px-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors resize-none"
           />
@@ -387,7 +389,7 @@ export function Sign() {
           disabled={!canSign || frozen}
           className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted disabled:cursor-not-allowed px-6 py-2.5 rounded-lg font-medium text-sm transition-colors text-white"
         >
-          ✍️ Sign Message
+          ✍️ {t("sign.signButton")}
         </button>
       </div>
 
@@ -421,7 +423,7 @@ export function Sign() {
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-border-secondary">
               <h3 className="text-sm font-semibold text-text-primary">
-                {signingError ? "❌ Signing Failed" : signature ? "✅ Signature Result" : "⏳ Signing"}
+                {signingError ? `❌ ${t("sign.signingFailed")}` : signature ? `✅ ${t("sign.signatureResult")}` : `⏳ ${t("sign.signing")}`}
               </h3>
               {(signature || signingError) && (
                 <button
@@ -445,20 +447,20 @@ export function Sign() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </div>
-                  <p className="text-sm font-medium text-text-primary mb-1">Signing Failed</p>
+                  <p className="text-sm font-medium text-text-primary mb-1">{t("sign.signingFailed")}</p>
                   <p className="text-xs text-red-400 break-all mb-5">{signingError}</p>
                   <div className="flex gap-3 justify-center">
                     <button
                       onClick={closeDialog}
                       className="px-4 py-2 rounded-lg text-xs font-medium bg-surface-tertiary text-text-secondary hover:bg-border-primary transition-colors"
                     >
-                      Close
+                      {t("common.close")}
                     </button>
                     <button
                       onClick={() => { closeDialog(); setTimeout(sign, 100); }}
                       className="px-4 py-2 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors"
                     >
-                      Try Again
+                      {t("common.tryAgain")}
                     </button>
                   </div>
                 </div>
@@ -478,25 +480,25 @@ export function Sign() {
                       )}
                     </div>
                     <p className="text-sm font-semibold text-text-primary">
-                      {verified ? "Signature Verified" : "Verification Failed"}
+                      {verified ? t("sign.signatureVerified") : t("sign.verificationFailed")}
                     </p>
                     <p className="text-[11px] text-text-muted mt-0.5">
-                      {algorithm.toUpperCase()} {verified ? "signature valid" : "signature invalid"}
+                      {algorithm.toUpperCase()} {verified ? t("sign.signatureValid") : t("sign.signatureInvalid")}
                     </p>
                   </div>
 
                   {/* Signature details */}
                   <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
                     <div className="px-3 py-2.5 border-b border-border-secondary">
-                      <p className="text-[10px] text-text-muted mb-1">Message</p>
+                      <p className="text-[10px] text-text-muted mb-1">{t("sign.message")}</p>
                       <p className="text-xs text-text-secondary break-all line-clamp-2">{message}</p>
                     </div>
                     <div className="px-3 py-2.5 border-b border-border-secondary">
-                      <p className="text-[10px] text-text-muted mb-1">Algorithm</p>
+                      <p className="text-[10px] text-text-muted mb-1">{t("sign.algorithm")}</p>
                       <p className="text-xs text-text-secondary">{algorithm.toUpperCase()}</p>
                     </div>
                     <div className="px-3 py-2.5">
-                      <p className="text-[10px] text-text-muted mb-1">Signature</p>
+                      <p className="text-[10px] text-text-muted mb-1">{t("sign.signatureLabel")}</p>
                       <p className="text-[10px] font-mono text-yellow-400 break-all leading-relaxed">{signature}</p>
                     </div>
                   </div>
@@ -505,10 +507,10 @@ export function Sign() {
                 /* Signing progress state */
                 <div className="py-6">
                   <p className="text-sm font-medium text-text-primary text-center mb-1">
-                    {getPhaseLabels(progress.phase === "main" ? progress.pct : undefined)[signingPhase]}
+                    {getPhaseLabels(t, progress.phase === "main" ? progress.pct : undefined)[signingPhase]}
                   </p>
                   <p className="text-[11px] text-text-muted text-center mb-4">
-                    {algorithm.toUpperCase()} signing in progress
+                    {algorithm.toUpperCase()} {t("sign.signingInProgress")}
                   </p>
 
                   {/* Progress bar */}
@@ -538,7 +540,7 @@ export function Sign() {
                             </div>
                           )}
                           <span className={`text-xs ${isDone ? "text-text-tertiary" : isCurrent ? "text-text-secondary" : "text-text-muted"}`}>
-                            {getPhaseLabels(progress.phase === "main" ? progress.pct : undefined)[phase]}
+                            {getPhaseLabels(t, progress.phase === "main" ? progress.pct : undefined)[phase]}
                           </span>
                         </div>
                       );
@@ -555,7 +557,7 @@ export function Sign() {
                   onClick={closeDialog}
                   className="w-full py-2.5 rounded-lg text-xs font-medium bg-surface-tertiary text-text-secondary hover:bg-border-primary transition-colors"
                 >
-                  Done
+                  {t("common.done")}
                 </button>
               </div>
             )}

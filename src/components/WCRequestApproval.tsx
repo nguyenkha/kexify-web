@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useToast } from "../context/ToastContext";
 import { useNavigate } from "react-router-dom";
 import type { PendingRequest } from "../context/WalletConnectContext";
@@ -32,9 +33,9 @@ import { PolicyWarning, ExpertWarnings, SimulationPreview, SigningError, Signing
 import Prism from "prismjs";
 import "prismjs/components/prism-json";
 
-function friendlyError(err: unknown): string {
+function friendlyError(err: unknown, t: (k: string) => string): string {
   const msg = (err as { message?: string })?.message || String(err);
-  if (msg === "passkey_auth_required") return "Passkey session expired. Please try again.";
+  if (msg === "passkey_auth_required") return t("wc.passkeyExpired");
   return msg;
 }
 
@@ -117,6 +118,7 @@ function formatEthFee(wei: bigint): string {
 // ── Component ────────────────────────────────────────────────────
 
 export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: Props) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const expert = useExpertMode();
   const { addToast } = useToast();
@@ -127,7 +129,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   // Toast on completion
   useEffect(() => {
     if (phase === "done" && txResult) {
-      addToast(txResult.status === "success" ? "WalletConnect transaction confirmed" : "Transaction submitted", txResult.status === "success" ? "success" : "info");
+      addToast(txResult.status === "success" ? t("wc.txConfirmed") : t("wc.txSubmitted"), txResult.status === "success" ? "success" : "info");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
@@ -487,9 +489,9 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
             setBrowserShareLoading(false);
             return;
           }
-          setBrowserShareError("Could not decrypt. Wrong passkey?");
+          setBrowserShareError(t("wc.couldNotDecrypt"));
         } else {
-          setBrowserShareError("Passkey does not support encryption. Use file upload.");
+          setBrowserShareError(t("wc.passkeyNoEncrypt"));
         }
       } else if (account.storedMode === "passphrase") {
         setShowBrowserPassphrase(true);
@@ -608,13 +610,13 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
     try {
       if (!keyFile) {
-        setError("Key share not available.");
+        setError(t("wc.keyShareNotAvailable"));
         setPhase("error");
         return;
       }
       await executeSign(keyFile);
     } catch (err: unknown) {
-      setError(friendlyError(err));
+      setError(friendlyError(err, t));
       setPhase("error");
     }
   }
@@ -625,7 +627,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
     try {
       const kf = await getKeyShareWithPassphrase(account.keyId, pw);
       if (!kf) {
-        setBrowserShareError("Failed to decrypt. Wrong passphrase?");
+        setBrowserShareError(t("wc.failedDecrypt"));
         return;
       }
       setKeyFile(kf);
@@ -825,7 +827,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
         setPhase("done");
       }
     } catch (err: unknown) {
-      setError(friendlyError(err));
+      setError(friendlyError(err, t));
       setPhase("error");
     }
   }
@@ -835,13 +837,13 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
 
   // Signing progress steps
-  const signLabel = isRecoveryMode() ? "Local signing" : "MPC signing";
+  const signLabel = isRecoveryMode() ? t("wc.localSigning") : t("wc.mpcSigning");
   const signLabelActive = progress.phase === "main"
     ? `${signLabel} ${progress.pct}%`
     : signLabel;
   const displaySteps = isTx
-    ? [{ label: "Build transaction" }, { label: signLabelActive }, { label: "Broadcast" }, { label: "Confirming" }]
-    : [{ label: "Prepare" }, { label: signLabelActive }, { label: "Verify" }];
+    ? [{ label: t("wc.buildTx") }, { label: signLabelActive }, { label: t("wc.broadcasting") }, { label: t("wc.confirming") }]
+    : [{ label: t("wc.prepare") }, { label: signLabelActive }, { label: t("wc.verify") }];
 
   const txPhaseIndex: Record<WcSignPhase, number> = {
     "building-tx": 0,
@@ -869,22 +871,22 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
-              Edit
+              {t("common.edit")}
             </button>
           ) : (
             <h3 className="text-sm font-semibold text-text-primary">
               {phase === "signing"
-                ? "⏳ Signing"
+                ? `⏳ ${t("wc.signing")}`
                 : phase === "done"
-                  ? (txResult?.status === "success" ? "✅ Success" : txResult?.status === "pending" ? "📡 Broadcast" : "❌ Failed")
+                  ? (txResult?.status === "success" ? `✅ ${t("wc.success")}` : txResult?.status === "pending" ? `📡 ${t("wc.broadcast")}` : `❌ ${t("wc.failed")}`)
                   : isTx
-                    ? (isApprove ? "🔓 Token Approval" : "✍️ Sign Transaction")
-                    : "✍️ Sign Message"}
+                    ? (isApprove ? `🔓 ${t("wc.tokenApproval")}` : `✍️ ${t("wc.signTx")}`)
+                    : `✍️ ${t("wc.signMessage")}`}
             </h3>
           )}
           {phase === "preview" && (
             <h3 className="text-sm font-semibold text-text-primary absolute left-1/2 -translate-x-1/2">
-              👀 Review
+              👀 {t("wc.review")}
             </h3>
           )}
           {canClose && (
@@ -907,7 +909,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
               {/* Key share section — top, consistent with transfer form */}
               {account && (
                 <div>
-                  <label className="block text-xs text-text-muted mb-1.5">Key Share</label>
+                  <label className="block text-xs text-text-muted mb-1.5">{t("wc.keyShare")}</label>
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -932,7 +934,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                         onClick={() => !isRecoveryMode() && setKeyFile(null)}
                         disabled={isRecoveryMode()}
                         className={`p-1 rounded-md transition-colors ${isRecoveryMode() ? "opacity-40 cursor-not-allowed" : "hover:bg-surface-tertiary"}`}
-                        title={isRecoveryMode() ? "Key loaded from recovery" : "Change key share"}
+                        title={isRecoveryMode() ? t("wc.keyLoaded") : t("wc.changeKey")}
                       >
                         <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 119 0v3.75M3.75 21.75h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H3.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
@@ -951,7 +953,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                         </svg>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs text-text-secondary truncate">{account.keyId.slice(0, 8)}...</p>
-                          <p className="text-[10px] text-text-muted">{account.storedMode === "prf" ? "Passkey encrypted" : "Passphrase encrypted"} · ECDSA + EdDSA</p>
+                          <p className="text-[10px] text-text-muted">{account.storedMode === "prf" ? t("wc.passkeyEncrypted") : t("wc.passphraseEncrypted")} · ECDSA + EdDSA</p>
                         </div>
                         {browserShareLoading ? (
                           <div className="w-3 h-3 border border-blue-400 border-t-transparent rounded-full animate-spin shrink-0" />
@@ -968,7 +970,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                         onClick={() => fileInputRef.current?.click()}
                         className="w-full text-[11px] text-text-muted hover:text-text-tertiary transition-colors"
                       >
-                        Or upload a file instead
+                        {t("wc.orUploadFile")}
                       </button>
                     </div>
                   ) : (
@@ -980,10 +982,10 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                         <svg className="w-4 h-4 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
                         </svg>
-                        <span className="text-xs text-text-muted">Upload key share file (.json)</span>
+                        <span className="text-xs text-text-muted">{t("wc.uploadKeyShare")}</span>
                       </button>
                       <p className="text-[10px] text-text-muted text-center">
-                        To restore from a server backup, go to Backup & Recovery.
+                        {t("wc.restoreFromBackup")}
                       </p>
                     </div>
                   )}
@@ -994,11 +996,11 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
               {pendingEncrypted && !keyFile && (
                 <div className="bg-surface-primary border border-border-primary rounded-lg p-3">
                   <p className="text-xs text-text-muted mb-2">
-                    <span className="font-mono text-text-tertiary">{pendingEncrypted.id.slice(0, 8)}...</span> — Enter your passphrase to unlock
+                    <span className="font-mono text-text-tertiary">{pendingEncrypted.id.slice(0, 8)}...</span> — {t("wc.enterPassphrase")}
                   </p>
                   <PassphraseInput
                     mode="enter"
-                    submitLabel="Decrypt"
+                    submitLabel={t("wc.decrypt")}
                     onSubmit={async (pw) => {
                       const decrypted = await decryptKeyFile(pendingEncrypted, pw);
                       setKeyFile(decrypted);
@@ -1012,11 +1014,11 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
               {showBrowserPassphrase && !keyFile && (
                 <div className="bg-surface-primary border border-border-primary rounded-lg p-3">
                   <p className="text-xs text-text-muted mb-2">
-                    Enter your passphrase to unlock this key share
+                    {t("wc.enterPassphraseKey")}
                   </p>
                   <PassphraseInput
                     mode="enter"
-                    submitLabel="Decrypt"
+                    submitLabel={t("wc.decrypt")}
                     onSubmit={handleBrowserPassphraseSubmit}
                   />
                   {browserShareError && (
@@ -1961,7 +1963,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
             <div className="py-6">
               {/* Phase label */}
               <p className="text-sm font-medium text-text-primary text-center mb-2">
-                {displaySteps[signingStepIdx]?.label ?? "Signing..."}
+                {displaySteps[signingStepIdx]?.label ?? t("wc.signing")}
               </p>
 
               {/* Progress bar */}
@@ -2003,7 +2005,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                     </svg>
                   </div>
                   <p className="text-lg font-semibold text-text-primary mb-1">
-                    {isTx ? "Transaction Confirmed" : "Signed"}
+                    {isTx ? t("wc.txConfirmedLabel") : t("wc.signed")}
                   </p>
                   {isTx && !isSolana && !isTron && txParams?.value && (
                     <p className="text-sm text-text-muted tabular-nums">
@@ -2035,13 +2037,13 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
-                  <p className="text-lg font-semibold text-text-primary mb-1">Transaction Broadcast</p>
+                  <p className="text-lg font-semibold text-text-primary mb-1">{t("wc.txBroadcastLabel")}</p>
                   {txParams?.value && (
                     <p className="text-sm text-text-muted tabular-nums mb-1">
                       {formatWei(BigInt(txParams.value))} ETH
                     </p>
                   )}
-                  <p className="text-[11px] text-text-muted">Waiting for network confirmation...</p>
+                  <p className="text-[11px] text-text-muted">{t("wc.waitingConfirmation")}</p>
                 </>
               ) : (
                 <>
@@ -2050,8 +2052,8 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </div>
-                  <p className="text-lg font-semibold text-text-primary mb-1">Transaction Failed</p>
-                  <p className="text-sm text-text-muted">The transaction was reverted on-chain.</p>
+                  <p className="text-lg font-semibold text-text-primary mb-1">{t("wc.txFailed")}</p>
+                  <p className="text-sm text-text-muted">{t("wc.txReverted")}</p>
                 </>
               )}
 
@@ -2074,7 +2076,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                   </a>
                   {txResult.blockNumber && (
                     <div className="flex items-center px-3 py-2 border-t border-border-secondary">
-                      <span className="text-[11px] text-text-muted shrink-0">{isSolana ? "Slot" : "Block"}</span>
+                      <span className="text-[11px] text-text-muted shrink-0">{isSolana ? t("wc.slot") : t("wc.block")}</span>
                       <span className="text-xs font-mono text-text-secondary tabular-nums ml-2">
                         {(isSolana || isTron ? Number(txResult.blockNumber) : parseInt(txResult.blockNumber, 16)).toLocaleString()}
                       </span>
@@ -2108,7 +2110,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                 }}
                 className="w-full bg-surface-tertiary hover:bg-border-primary text-text-secondary text-sm font-medium py-2.5 rounded-lg transition-colors"
               >
-                Done
+                {t("wc.done")}
               </button>
             </div>
           )}
@@ -2117,7 +2119,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
           {phase === "error" && (
             <SigningError
               error={error}
-              title={isTx ? "Transaction Failed" : "Signing Failed"}
+              title={isTx ? t("wc.txFailed") : t("wc.signingFailed")}
               onClose={onReject}
               onRetry={() => { setError(""); setPhase("review"); }}
             />
@@ -2132,7 +2134,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
               disabled={!account || !keyFile || policyChecking}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
             >
-              {policyChecking ? "Checking..." : "👀 Review Transaction"}
+              {policyChecking ? t("wc.checking") : `👀 ${t("wc.reviewTx")}`}
             </button>
           </div>
         )}
@@ -2145,7 +2147,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
               onClick={() => isRecoveryMode() ? onPasskeyAuth({} as PasskeyAuthResult) : setPhase("passkey")}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
             >
-              {policyCheck?.allowed === false ? "\u26D4 Blocked by Policy" : isRecoveryMode() ? "Confirm & Sign" : "\uD83D\uDD10 Confirm & Sign"}
+              {policyCheck?.allowed === false ? `\u26D4 ${t("wc.blockedByPolicy")}` : isRecoveryMode() ? t("wc.confirmSign") : `\uD83D\uDD10 ${t("wc.confirmSign")}`}
             </button>
           </div>
         )}

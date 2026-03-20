@@ -1,13 +1,6 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import type { KeyShare } from "../shared/types";
-
-function formatCountdown(enableAt: string): string {
-  const diff = new Date(enableAt).getTime() - Date.now();
-  if (diff <= 0) return "Enabling soon…";
-  const h = Math.floor(diff / 3600000);
-  const m = Math.floor((diff % 3600000) / 60000);
-  return `Re-enables in ${h}h ${m}m`;
-}
 
 export function DisabledKeyRow({
   keyShare,
@@ -20,12 +13,21 @@ export function DisabledKeyRow({
   onCancelEnable?: (id: string) => void;
   frozen?: boolean;
 }) {
-  const [, setTick] = useState(0);
+  const { t } = useTranslation();
+  const [now, setNow] = useState(() => Date.now());
+
+  function formatCountdown(enableAt: string): string {
+    const diff = new Date(enableAt).getTime() - now;
+    if (diff <= 0) return t("disabledKey.enablingSoon");
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    return t("disabledKey.reEnablesIn", { time: `${h}h ${m}m` });
+  }
 
   // Refresh countdown every 30s while enableAt is set
   useEffect(() => {
     if (!keyShare.enableAt) return;
-    const interval = setInterval(() => setTick((t) => t + 1), 30000);
+    const interval = setInterval(() => setNow(Date.now()), 30000);
     return () => clearInterval(interval);
   }, [keyShare.enableAt]);
 
@@ -55,7 +57,7 @@ export function DisabledKeyRow({
             {keyShare.enableAt ? (
               <span className="text-yellow-400/70">{formatCountdown(keyShare.enableAt)}</span>
             ) : (
-              "Disabled"
+              t("disabledKey.disabled")
             )}
           </p>
         </div>
@@ -66,7 +68,7 @@ export function DisabledKeyRow({
           disabled={frozen}
           className="text-xs text-text-muted hover:text-red-400 px-3 py-1.5 rounded-md hover:bg-red-500/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-text-muted disabled:hover:bg-transparent"
         >
-          Cancel
+          {t("disabledKey.cancel")}
         </button>
       ) : (
         <button
@@ -74,7 +76,7 @@ export function DisabledKeyRow({
           disabled={frozen}
           className="text-xs text-blue-400 hover:text-blue-300 px-3 py-1.5 rounded-md hover:bg-blue-500/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-blue-400 disabled:hover:bg-transparent"
         >
-          Enable
+          {t("disabledKey.enable")}
         </button>
       )}
     </div>

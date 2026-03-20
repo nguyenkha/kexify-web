@@ -1,8 +1,10 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { type KeyFileData, isEncryptedKeyFile, decryptKeyFile, isHkdfEncrypted, decryptHkdfKeyFile } from "../lib/crypto";
 import { enterRecoveryMode } from "../lib/recovery";
 import { ErrorBox } from "./ui";
+import { LangSwitcher } from "./LangSwitcher";
 type PeerState =
   | { step: "idle" }
   | { step: "passphrase"; raw: KeyFileData }
@@ -10,6 +12,7 @@ type PeerState =
   | { step: "ready"; data: KeyFileData };
 
 export function RecoveryImport() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   const [peer1, setPeer1] = useState<PeerState>({ step: "idle" });
@@ -28,7 +31,7 @@ export function RecoveryImport() {
       try {
         const data = JSON.parse(reader.result as string) as KeyFileData;
         if (!data.id || !data.share) {
-          setError("Invalid key share file");
+          setError(t("recovery.invalidKeyShareFile"));
           return;
         }
         if (isHkdfEncrypted(data)) {
@@ -41,7 +44,7 @@ export function RecoveryImport() {
           setPeer({ step: "ready", data });
         }
       } catch {
-        setError("Could not parse file as JSON");
+        setError(t("recovery.couldNotParseJson"));
       }
     };
     reader.readAsText(file);
@@ -57,7 +60,7 @@ export function RecoveryImport() {
       const decrypted = await decryptKeyFile(raw, passphrase);
       setPeer({ step: "ready", data: decrypted });
     } catch (err: unknown) {
-      setError((err as { message?: string })?.message || "Decryption failed");
+      setError((err as { message?: string })?.message || t("recovery.decryptionFailed"));
     }
   }
 
@@ -71,7 +74,7 @@ export function RecoveryImport() {
       const decrypted = await decryptHkdfKeyFile(raw, hexKey.trim());
       setPeer({ step: "ready", data: decrypted });
     } catch (err: unknown) {
-      setError((err as { message?: string })?.message || "HKDF decryption failed");
+      setError((err as { message?: string })?.message || t("recovery.hkdfDecryptionFailed"));
     }
   }
 
@@ -86,11 +89,11 @@ export function RecoveryImport() {
 
     // Integrity check: public keys must match
     if (p1.publicKey !== p2.publicKey) {
-      setError("Public keys do not match — these shares belong to different keys");
+      setError(t("recovery.publicKeysMismatch"));
       return;
     }
     if (p1.eddsaPublicKey !== p2.eddsaPublicKey) {
-      setError("EdDSA public keys do not match — these shares belong to different keys");
+      setError(t("recovery.eddsaKeysMismatch"));
       return;
     }
 
@@ -100,7 +103,7 @@ export function RecoveryImport() {
       await enterRecoveryMode(p1, p2);
       navigate("/accounts");
     } catch (err: unknown) {
-      setError((err as { message?: string })?.message || "Failed to enter recovery mode");
+      setError((err as { message?: string })?.message || t("recovery.failedToEnterRecovery"));
       setEntering(false);
     }
   }
@@ -120,17 +123,16 @@ export function RecoveryImport() {
 
         {/* Recovery header */}
         <div className="recovery-accent bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-4 py-3 mb-6">
-          <p className="text-xs text-yellow-400 recovery-accent font-medium">Wallet Recovery</p>
+          <p className="text-xs text-yellow-400 recovery-accent font-medium">{t("recovery.walletRecovery")}</p>
           <p className="text-[11px] text-yellow-400/70 mt-1 leading-relaxed">
-            Load your two key files to access your wallet without our server.
-            Both files are needed — they will be <span className="text-yellow-400/90 font-medium">combined locally in your browser</span> and never sent anywhere.
+            {t("recovery.recoveryDesc")}
           </p>
         </div>
 
         <div className="space-y-4">
           {/* Peer 1 */}
           <div>
-            <label className="block text-xs text-text-muted mb-1.5">Your key file</label>
+            <label className="block text-xs text-text-muted mb-1.5">{t("recovery.yourKeyFile")}</label>
             <PeerImport
               state={peer1}
               passphrase={pass1}
@@ -145,7 +147,7 @@ export function RecoveryImport() {
 
           {/* Peer 2 */}
           <div>
-            <label className="block text-xs text-text-muted mb-1.5">Server key file</label>
+            <label className="block text-xs text-text-muted mb-1.5">{t("recovery.serverKeyFile")}</label>
             <PeerImport
               state={peer2}
               passphrase={pass2}
@@ -166,7 +168,7 @@ export function RecoveryImport() {
             disabled={!canEnter}
             className="w-full bg-red-900 hover:bg-red-800 disabled:bg-surface-tertiary disabled:text-text-muted disabled:cursor-not-allowed px-4 py-2.5 rounded-lg text-sm font-medium transition-colors text-red-200"
           >
-            {entering ? "Initializing..." : "🔓 Enter Recovery Mode"}
+            {entering ? t("recovery.initializing") : `🔓 ${t("recovery.enterRecoveryMode")}`}
           </button>
         </div>
 
@@ -174,10 +176,14 @@ export function RecoveryImport() {
           onClick={() => navigate("/login")}
           className="w-full mt-3 text-xs text-text-muted hover:text-text-secondary text-center py-2"
         >
-          Back to login
+          {t("recovery.backToLogin")}
         </button>
       </div>
 
+      {/* Language switcher - bottom left */}
+      <div className="fixed bottom-4 left-4">
+        <LangSwitcher />
+      </div>
     </div>
   );
 }
@@ -201,6 +207,7 @@ function PeerImport({
   onHkdfDecrypt: (raw: KeyFileData) => void;
   onClear: () => void;
 }) {
+  const { t } = useTranslation();
   if (state.step === "idle") {
     return (
       <>
@@ -218,7 +225,7 @@ function PeerImport({
           <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
           </svg>
-          Choose .json file
+          {t("recovery.chooseJsonFile")}
         </label>
       </>
     );
@@ -228,14 +235,14 @@ function PeerImport({
     return (
       <div className="bg-surface-secondary border border-border-primary rounded-lg p-3 space-y-2">
         <p className="text-xs text-text-tertiary">
-          File is encrypted. Enter passphrase:
+          {t("recovery.fileIsEncrypted")}
         </p>
         <input
           type="password"
           value={passphrase}
           onChange={(e) => onPassChange(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && passphrase && onDecrypt(state.raw)}
-          placeholder="Passphrase"
+          placeholder={t("common.passphrase")}
           className="w-full bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-text-tertiary transition-colors"
           autoFocus
         />
@@ -245,13 +252,13 @@ function PeerImport({
             disabled={!passphrase}
             className="flex-1 recovery-accent bg-yellow-600 hover:bg-yellow-500 disabled:bg-surface-tertiary disabled:text-text-muted disabled:cursor-not-allowed px-4 py-2.5 rounded-lg text-sm font-medium text-white transition-colors"
           >
-            Decrypt
+            {t("recovery.decrypt")}
           </button>
           <button
             onClick={onClear}
             className="bg-surface-tertiary text-text-secondary hover:bg-border-primary px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
           >
-            Cancel
+            {t("recovery.cancel")}
           </button>
         </div>
       </div>
@@ -262,14 +269,14 @@ function PeerImport({
     return (
       <div className="bg-surface-secondary border border-border-primary rounded-lg p-3 space-y-2">
         <p className="text-xs text-text-tertiary">
-          Server-encrypted backup. Enter the HKDF decryption key (hex) from kexify support:
+          {t("recovery.serverEncryptedBackup")}
         </p>
         <input
           type="text"
           value={passphrase}
           onChange={(e) => onPassChange(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && passphrase && onHkdfDecrypt(state.raw)}
-          placeholder="64-character hex key"
+          placeholder={t("recovery.hexKeyPlaceholder")}
           className="w-full bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 text-sm text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-text-tertiary transition-colors"
           autoFocus
         />
@@ -279,13 +286,13 @@ function PeerImport({
             disabled={!passphrase}
             className="flex-1 recovery-accent bg-yellow-600 hover:bg-yellow-500 disabled:bg-surface-tertiary disabled:text-text-muted disabled:cursor-not-allowed px-4 py-2.5 rounded-lg text-sm font-medium text-white transition-colors"
           >
-            Decrypt
+            {t("recovery.decrypt")}
           </button>
           <button
             onClick={onClear}
             className="bg-surface-tertiary text-text-secondary hover:bg-border-primary px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
           >
-            Cancel
+            {t("recovery.cancel")}
           </button>
         </div>
       </div>
@@ -305,7 +312,7 @@ function PeerImport({
           {state.data.id.slice(0, 8)}...{state.data.id.slice(-4)}
         </p>
         <p className="text-[10px] text-green-500/70 truncate">
-          Key file loaded
+          {t("recovery.keyFileLoaded")}
         </p>
       </div>
       <button

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { Transaction } from "../lib/transactions";
 import { explorerLink } from "../shared/utils";
 
@@ -21,6 +22,7 @@ export function formatTxTime(ts: number): string {
 }
 
 export function TxRow({ tx, explorerUrl, onSpeedUp, chainName, chainIcon }: { tx: Transaction; explorerUrl: string; onSpeedUp?: () => void; chainName?: string; chainIcon?: string | null }) {
+  const { t } = useTranslation();
   const isPending = !tx.confirmed;
   const isFailed = !!tx.failed;
   const dirColor = isFailed
@@ -35,10 +37,10 @@ export function TxRow({ tx, explorerUrl, onSpeedUp, chainName, chainIcon }: { tx
             ? (tx.isApprove ? "text-blue-400" : tx.isContractCall ? "text-orange-400" : "text-red-400")
             : "text-text-muted";
   const dirLabel = isFailed
-    ? "Failed"
+    ? t("tx.failed")
     : isPending
-      ? "Pending"
-      : tx.label ?? (tx.isDeployment ? "Deployed Contract" : tx.direction === "in" ? "Received" : tx.direction === "out" ? (tx.isApprove ? "Approved" : tx.isContractCall ? "Executed Contract" : "Sent") : "Self");
+      ? t("tx.pending")
+      : tx.label ?? (tx.isDeployment ? t("tx.deployedContract") : tx.direction === "in" ? t("tx.received") : tx.direction === "out" ? (tx.isApprove ? t("tx.approved") : tx.isContractCall ? t("tx.executedContract") : t("tx.sent")) : t("tx.self"));
   const dirSign = tx.direction === "in" ? "+" : tx.direction === "out" ? "-" : "";
 
   return (
@@ -106,8 +108,8 @@ export function TxRow({ tx, explorerUrl, onSpeedUp, chainName, chainIcon }: { tx
         </div>
         <div className="text-[11px] text-text-muted font-mono truncate">
           {tx.isDeployment && tx.createdContract
-            ? <span>Contract <span className="text-purple-400/70">{shortAddr(tx.createdContract)}</span></span>
-            : tx.direction === "in" ? `From ${shortAddr(tx.from)}` : `To ${shortAddr(tx.to)}`}
+            ? <span>{t("tx.contractAddr")} <span className="text-purple-400/70">{shortAddr(tx.createdContract)}</span></span>
+            : tx.direction === "in" ? `${t("tx.from")} ${shortAddr(tx.from)}` : `${t("tx.to")} ${shortAddr(tx.to)}`}
           <span className="text-text-muted/50 ml-1.5 hidden sm:inline">{shortAddr(tx.hash)}</span>
         </div>
       </div>
@@ -132,7 +134,7 @@ export function TxRow({ tx, explorerUrl, onSpeedUp, chainName, chainIcon }: { tx
             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
-            Speed Up
+            {t("tx.speedUp")}
           </button>
         )}
       </div>

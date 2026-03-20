@@ -1,5 +1,6 @@
 import { formatUsd } from "../lib/prices";
 import { useHideBalances } from "../context/HideBalancesContext";
+import { useTranslation } from "react-i18next";
 
 interface PortfolioHeaderProps {
   totalUsd: number;
@@ -9,11 +10,12 @@ interface PortfolioHeaderProps {
 /** Displays total portfolio value in USD at the top of the wallet overview */
 export function PortfolioHeader({ totalUsd, loading }: PortfolioHeaderProps) {
   const { hidden } = useHideBalances();
+  const { t } = useTranslation();
 
   return (
     <div className="text-center py-4">
       <p className="text-[11px] text-text-muted uppercase tracking-wider font-semibold mb-1">
-        Portfolio Value
+        {t("wallet.portfolioValue")}
       </p>
       {loading && totalUsd === 0 ? (
         <div className="h-8 w-32 bg-surface-tertiary rounded animate-pulse mx-auto" />

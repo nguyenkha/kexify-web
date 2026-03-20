@@ -5,6 +5,7 @@ import { PasskeyChallenge } from "./PasskeyChallenge";
 import type { PolicyRuleBody, PolicyVersion } from "../shared/types";
 import { useFrozen } from "../context/FrozenContext";
 import { apiUrl } from "../lib/apiBase";
+import { useTranslation } from "react-i18next";
 
 type RuleType = PolicyRuleBody["type"];
 type RuleEffect = PolicyRuleBody["effect"];
@@ -20,18 +21,12 @@ const EMPTY_RULE: PolicyRuleBody = {
   fraudCheck: null,
 };
 
-const FRAUD_LEVEL_LABELS: Record<string, string> = {
-  high: "Standard — sanctions, cybercrime, theft",
-  medium: "Strict — + phishing, laundering, darkweb",
-  low: "Maximum — all flags incl. mixers",
-};
-
-function formatCountdown(effectiveAt: string): string {
+function formatCountdown(effectiveAt: string, t: (key: string, opts?: Record<string, unknown>) => string): string {
   const diff = new Date(effectiveAt).getTime() - Date.now();
-  if (diff <= 0) return "activating soon…";
+  if (diff <= 0) return t("policy.activatingSoon");
   const h = Math.floor(diff / 3600000);
   const m = Math.floor((diff % 3600000) / 60000);
-  return `${h}h ${m}m remaining`;
+  return t("policy.remaining", { h, m });
 }
 
 export function PolicyRules({
@@ -43,6 +38,7 @@ export function PolicyRules({
   keyName?: string | null;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const frozen = useFrozen();
   const [active, setActive] = useState<PolicyVersion | null>(null);
   const [pending, setPending] = useState<PolicyVersion | null>(null);
@@ -194,28 +190,28 @@ export function PolicyRules({
 
         <div className="flex-1 min-w-0 text-xs text-text-secondary">
           {rule.type === "personal_sign" ? (
-            <span>Personal sign (EIP-191)</span>
+            <span>{t("policy.personalSign")}</span>
           ) : rule.type === "typed_message" ? (
-            <span>Typed data (EIP-712)</span>
+            <span>{t("policy.typedData")}</span>
           ) : rule.type === "raw_message" ? (
-            <span>Raw message (catch-all)</span>
+            <span>{t("policy.rawMessage")}</span>
           ) : rule.type === "contract_call" ? (
             <span>
-              Contract call
+              {t("policy.contractCall")}
               {rule.toAddress ? (
                 <span className="text-text-muted font-mono text-[10px]">
                   {" "}contract={rule.toAddress.slice(0, 10)}…
                 </span>
               ) : (
-                <span className="text-text-muted"> (any contract)</span>
+                <span className="text-text-muted"> ({t("policy.anyContract")})</span>
               )}
               {rule.fraudCheck && (
-                <span className={`text-[10px] ${rule.fraudCheck === "low" ? "text-green-400" : rule.fraudCheck === "medium" ? "text-yellow-400" : "text-red-400"}`}> {"\uD83D\uDEE1\uFE0F"} {rule.fraudCheck === "low" ? "max" : rule.fraudCheck === "medium" ? "strict" : "standard"}</span>
+                <span className={`text-[10px] ${rule.fraudCheck === "low" ? "text-green-400" : rule.fraudCheck === "medium" ? "text-yellow-400" : "text-red-400"}`}> {"\uD83D\uDEE1\uFE0F"} {rule.fraudCheck === "low" ? t("policy.fraudMax") : rule.fraudCheck === "medium" ? t("policy.fraudStrict") : t("policy.fraudStandard")}</span>
               )}
             </span>
           ) : (
             <span>
-              Transfer
+              {t("policy.ruleTransfer")}
               {rule.asset && <span className="text-text-muted"> asset={rule.asset}</span>}
               {rule.amountMax && <span className="text-text-muted"> max={rule.amountMax}</span>}
               {rule.usdMax && <span className="text-text-muted"> usd_max=${rule.usdMax}</span>}
@@ -225,7 +221,7 @@ export function PolicyRules({
                 </span>
               )}
               {rule.fraudCheck && (
-                <span className={`text-[10px] ${rule.fraudCheck === "low" ? "text-green-400" : rule.fraudCheck === "medium" ? "text-yellow-400" : "text-red-400"}`}> {"\uD83D\uDEE1\uFE0F"} {rule.fraudCheck === "low" ? "max" : rule.fraudCheck === "medium" ? "strict" : "standard"}</span>
+                <span className={`text-[10px] ${rule.fraudCheck === "low" ? "text-green-400" : rule.fraudCheck === "medium" ? "text-yellow-400" : "text-red-400"}`}> {"\uD83D\uDEE1\uFE0F"} {rule.fraudCheck === "low" ? t("policy.fraudMax") : rule.fraudCheck === "medium" ? t("policy.fraudStrict") : t("policy.fraudStandard")}</span>
               )}
             </span>
           )}
@@ -273,28 +269,28 @@ export function PolicyRules({
       <div className="bg-surface-primary rounded-lg border border-blue-500/30 p-3 space-y-3">
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="text-[10px] text-text-muted block mb-1">Type</label>
+            <label className="text-[10px] text-text-muted block mb-1">{t("policy.type")}</label>
             <select
               value={newRule.type}
               onChange={(e) => setNewRule({ ...newRule, type: e.target.value as RuleType })}
               className="w-full bg-surface-secondary border border-border-primary rounded px-2 py-1.5 text-xs text-text-primary"
             >
-              <option value="transfer">Transfer</option>
-              <option value="contract_call">Contract Call</option>
-              <option value="personal_sign">Personal Sign (EIP-191)</option>
-              <option value="typed_message">Typed Data (EIP-712)</option>
-              <option value="raw_message">Raw Message (catch-all)</option>
+              <option value="transfer">{t("policy.ruleTransfer")}</option>
+              <option value="contract_call">{t("policy.ruleContractCall")}</option>
+              <option value="personal_sign">{t("policy.rulePersonalSign")}</option>
+              <option value="typed_message">{t("policy.ruleTypedMessage")}</option>
+              <option value="raw_message">{t("policy.ruleRawMessage")}</option>
             </select>
           </div>
           <div>
-            <label className="text-[10px] text-text-muted block mb-1">Effect</label>
+            <label className="text-[10px] text-text-muted block mb-1">{t("policy.effect")}</label>
             <select
               value={newRule.effect}
               onChange={(e) => setNewRule({ ...newRule, effect: e.target.value as RuleEffect })}
               className="w-full bg-surface-secondary border border-border-primary rounded px-2 py-1.5 text-xs text-text-primary"
             >
-              <option value="allow">Allow</option>
-              <option value="block">Block</option>
+              <option value="allow">{t("policy.allow")}</option>
+              <option value="block">{t("policy.block")}</option>
             </select>
           </div>
         </div>
@@ -303,7 +299,7 @@ export function PolicyRules({
           <div className="space-y-2">
             <div>
               <label className="text-[10px] text-text-muted block mb-1">
-                Asset <span className="text-text-muted/50">(symbol or * for any)</span>
+                {t("policy.asset")} <span className="text-text-muted/50">({t("policy.assetHint")})</span>
               </label>
               <input
                 value={newRule.asset || ""}
@@ -314,7 +310,7 @@ export function PolicyRules({
             </div>
             <div>
               <label className="text-[10px] text-text-muted block mb-1">
-                Max Amount <span className="text-text-muted/50">(leave empty for unlimited)</span>
+                {t("policy.maxAmount")} <span className="text-text-muted/50">({t("policy.unlimitedHint")})</span>
               </label>
               <input
                 value={newRule.amountMax || ""}
@@ -325,7 +321,7 @@ export function PolicyRules({
             </div>
             <div>
               <label className="text-[10px] text-text-muted block mb-1">
-                Max USD Value <span className="text-text-muted/50">(leave empty for unlimited)</span>
+                {t("policy.maxUsdValue")} <span className="text-text-muted/50">({t("policy.unlimitedHint")})</span>
               </label>
               <input
                 value={newRule.usdMax || ""}
@@ -336,7 +332,7 @@ export function PolicyRules({
             </div>
             <div>
               <label className="text-[10px] text-text-muted block mb-1">
-                To Address <span className="text-text-muted/50">(or * for any)</span>
+                {t("policy.toAddress")} <span className="text-text-muted/50">({t("policy.toAddressHint")})</span>
               </label>
               <input
                 value={newRule.toAddress || ""}
@@ -347,17 +343,17 @@ export function PolicyRules({
             </div>
             <div>
               <label className="text-[10px] text-text-muted block mb-1">
-                Fraud Check <span className="text-text-muted/50">(block flagged addresses)</span>
+                {t("policy.fraudCheck")} <span className="text-text-muted/50">({t("policy.fraudCheckHint")})</span>
               </label>
               <select
                 value={newRule.fraudCheck || ""}
                 onChange={(e) => setNewRule({ ...newRule, fraudCheck: (e.target.value || null) as PolicyRuleBody["fraudCheck"] })}
                 className="w-full bg-surface-secondary border border-border-primary rounded px-2 py-1.5 text-xs text-text-primary"
               >
-                <option value="">Disabled</option>
-                <option value="high">{FRAUD_LEVEL_LABELS.high}</option>
-                <option value="medium">{FRAUD_LEVEL_LABELS.medium}</option>
-                <option value="low">{FRAUD_LEVEL_LABELS.low}</option>
+                <option value="">{t("policy.disabled")}</option>
+                <option value="high">{t("policy.fraudHighDesc")}</option>
+                <option value="medium">{t("policy.fraudMediumDesc")}</option>
+                <option value="low">{t("policy.fraudLowDesc")}</option>
               </select>
             </div>
           </div>
@@ -367,7 +363,7 @@ export function PolicyRules({
           <div className="space-y-2">
             <div>
               <label className="text-[10px] text-text-muted block mb-1">
-                Contract Address <span className="text-text-muted/50">(leave empty for any)</span>
+                {t("policy.contractAddress")} <span className="text-text-muted/50">({t("policy.contractAddressHint")})</span>
               </label>
               <input
                 value={newRule.toAddress || ""}
@@ -378,24 +374,24 @@ export function PolicyRules({
             </div>
             <div>
               <label className="text-[10px] text-text-muted block mb-1">
-                Fraud Check <span className="text-text-muted/50">(block flagged contracts)</span>
+                {t("policy.fraudCheck")} <span className="text-text-muted/50">({t("policy.fraudCheckContracts")})</span>
               </label>
               <select
                 value={newRule.fraudCheck || ""}
                 onChange={(e) => setNewRule({ ...newRule, fraudCheck: (e.target.value || null) as PolicyRuleBody["fraudCheck"] })}
                 className="w-full bg-surface-secondary border border-border-primary rounded px-2 py-1.5 text-xs text-text-primary"
               >
-                <option value="">Disabled</option>
-                <option value="high">{FRAUD_LEVEL_LABELS.high}</option>
-                <option value="medium">{FRAUD_LEVEL_LABELS.medium}</option>
-                <option value="low">{FRAUD_LEVEL_LABELS.low}</option>
+                <option value="">{t("policy.disabled")}</option>
+                <option value="high">{t("policy.fraudHighDesc")}</option>
+                <option value="medium">{t("policy.fraudMediumDesc")}</option>
+                <option value="low">{t("policy.fraudLowDesc")}</option>
               </select>
             </div>
           </div>
         )}
 
         {newRule.amountMax && !newRule.asset && (
-          <p className="text-[10px] text-red-400">Asset is required when max amount is set</p>
+          <p className="text-[10px] text-red-400">{t("policy.assetRequired")}</p>
         )}
         <div className="flex gap-2">
           <button
@@ -403,13 +399,13 @@ export function PolicyRules({
             disabled={!!(newRule.amountMax && !newRule.asset)}
             className="bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs px-3 py-1.5 rounded transition-colors"
           >
-            Add Rule
+            {t("policy.addRuleButton")}
           </button>
           <button
             onClick={() => setAdding(false)}
             className="text-text-tertiary hover:text-text-secondary text-xs px-3 py-1.5 rounded hover:bg-surface-tertiary transition-colors"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
         </div>
       </div>
@@ -436,11 +432,11 @@ export function PolicyRules({
         <div className="flex items-center justify-between px-5 py-4 border-b border-border-primary">
           <div>
             <h3 className="text-sm font-semibold text-text-primary">
-              {draft ? "Edit Policy" : "Policy Rules"}
+              {draft ? t("policy.editPolicy") : t("policy.policyRules")}
             </h3>
             <p className="text-[11px] text-text-muted mt-0.5">
               {keyName || `Account ${keyId.slice(0, 8)}`}
-              {draft ? " — editing draft" : " — first match wins"}
+              {draft ? ` — ${t("policy.editingDraft")}` : ` — ${t("policy.firstMatchWins")}`}
             </p>
           </div>
           <button
@@ -456,13 +452,13 @@ export function PolicyRules({
         {/* Content */}
         <div className="flex-1 overflow-auto p-4 space-y-3">
           {loading ? (
-            <div className="text-xs text-text-muted text-center py-8">Loading…</div>
+            <div className="text-xs text-text-muted text-center py-8">{t("common.loading")}</div>
           ) : draft ? (
             // ── Draft editing mode ──
             <>
               {draft.length === 0 ? (
                 <div className="text-center py-4">
-                  <p className="text-xs text-text-muted">No rules — all signing blocked by default</p>
+                  <p className="text-xs text-text-muted">{t("policy.noRulesSigningBlocked")}</p>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -477,7 +473,7 @@ export function PolicyRules({
                   onClick={() => setAdding(true)}
                   className="w-full text-xs text-blue-400 hover:text-blue-300 py-2 rounded-lg border border-dashed border-border-secondary hover:border-blue-500/30 transition-colors"
                 >
-                  + Add Rule
+                  + {t("policy.addRule")}
                 </button>
               )}
             </>
@@ -489,9 +485,9 @@ export function PolicyRules({
                 <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2.5">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs font-medium text-yellow-400">Pending policy change</p>
+                      <p className="text-xs font-medium text-yellow-400">{t("policy.pendingPolicyChange")}</p>
                       <p className="text-[10px] text-yellow-400/70 mt-0.5">
-                        Activates in {formatCountdown(pending.effectiveAt)}
+                        {t("policy.activatesIn", { time: formatCountdown(pending.effectiveAt, t) })}
                       </p>
                     </div>
                     {!frozen && (
@@ -499,7 +495,7 @@ export function PolicyRules({
                         onClick={cancelPending}
                         className="text-[10px] text-yellow-400 hover:text-yellow-300 px-2 py-1 rounded bg-yellow-500/10 hover:bg-yellow-500/20 transition-colors"
                       >
-                        Cancel
+                        {t("common.cancel")}
                       </button>
                     )}
                   </div>
@@ -514,9 +510,9 @@ export function PolicyRules({
               {/* Active rules */}
               {active ? (
                 <div className="space-y-2">
-                  <p className="text-[10px] text-text-muted uppercase tracking-wide">Active rules</p>
+                  <p className="text-[10px] text-text-muted uppercase tracking-wide">{t("policy.activeRules")}</p>
                   {(active.rules as PolicyRuleBody[]).length === 0 ? (
-                    <p className="text-xs text-text-muted text-center py-4">No rules — all signing blocked</p>
+                    <p className="text-xs text-text-muted text-center py-4">{t("policy.noRulesSigningBlockedView")}</p>
                   ) : (
                     (active.rules as PolicyRuleBody[]).map((rule, idx) =>
                       renderRuleRow(rule, idx),
@@ -525,9 +521,9 @@ export function PolicyRules({
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <p className="text-xs text-text-muted">No policy configured</p>
+                  <p className="text-xs text-text-muted">{t("policy.noPolicyConfigured")}</p>
                   <p className="text-[10px] text-text-muted/60 mt-1">
-                    Without rules, all signing requests are blocked by default
+                    {t("policy.withoutRulesSigningBlocked")}
                   </p>
                 </div>
               )}
@@ -543,8 +539,8 @@ export function PolicyRules({
         <div className="px-5 py-3 border-t border-border-primary flex items-center justify-between">
           <p className="text-[10px] text-text-muted leading-relaxed max-w-[60%]">
             {draft
-              ? "Requires passkey. Takes effect after 24h."
-              : "First match wins. No match = blocked."}
+              ? t("policy.requiresPasskeyFooter")
+              : t("policy.firstMatchNoMatch")}
           </p>
 
           {draft ? (
@@ -553,14 +549,14 @@ export function PolicyRules({
                 onClick={() => setDraft(null)}
                 className="text-text-tertiary hover:text-text-secondary text-xs px-3 py-1.5 rounded hover:bg-surface-tertiary transition-colors"
               >
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 onClick={() => setShowPasskey(true)}
                 disabled={submitting || frozen}
                 className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs px-4 py-1.5 rounded transition-colors"
               >
-                {submitting ? "Submitting…" : "Submit"}
+                {submitting ? t("policy.submitting") : t("policy.submit")}
               </button>
             </div>
           ) : !pending && !frozen ? (
@@ -568,7 +564,7 @@ export function PolicyRules({
               onClick={startEditing}
               className="text-blue-400 hover:text-blue-300 text-xs px-3 py-1.5 rounded hover:bg-blue-500/10 transition-colors"
             >
-              Edit Policy
+              {t("policy.editPolicyButton")}
             </button>
           ) : null}
         </div>

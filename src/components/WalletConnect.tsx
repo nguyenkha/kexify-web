@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { useWalletConnect } from "../context/WalletConnectContext";
 import { Scanner } from "@yudiel/react-qr-scanner";
@@ -9,6 +10,7 @@ import { getChainAdapter } from "../lib/chains/adapter";
 import { useFrozen } from "../context/FrozenContext";
 
 export function WalletConnect() {
+  const { t } = useTranslation();
   const frozen = useFrozen();
   const { initialized, sessions, pair, disconnect } = useWalletConnect();
   const [uri, setUri] = useState("");
@@ -86,7 +88,7 @@ export function WalletConnect() {
         setPairing(false);
       }
     } else {
-      setError("Invalid QR code — expected a WalletConnect URI");
+      setError(t("wc.invalidQr"));
     }
   }
 
@@ -95,7 +97,7 @@ export function WalletConnect() {
       <div className="w-full">
         <h2 className="text-lg font-semibold text-text-primary mb-2">WalletConnect</h2>
         <p className="text-xs text-text-muted leading-relaxed">
-          WalletConnect is not configured. Set <code className="text-text-tertiary">VITE_WC_PROJECT_ID</code> environment variable.
+          {t("wc.notConfigured")}
         </p>
       </div>
     );
@@ -105,7 +107,7 @@ export function WalletConnect() {
     <div className="w-full">
       <h2 className="text-lg font-semibold text-text-primary">WalletConnect</h2>
       <p className="text-xs text-text-muted mt-2 leading-relaxed">
-        Connect your accounts to dApps. Signing requests will appear here for your approval.
+        {t("wc.desc")}
       </p>
 
       {/* Connect — inline row on desktop, stacked on mobile */}
@@ -116,7 +118,7 @@ export function WalletConnect() {
             value={uri}
             onChange={(e) => setUri(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handlePair()}
-            placeholder="Paste wc: URI"
+            placeholder={t("wc.pasteUri")}
             className="w-full bg-surface-secondary border border-border-primary rounded-lg px-3 py-2.5 pr-[4.5rem] text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-blue-500/50 font-mono"
             disabled={pairing}
           />
@@ -130,7 +132,7 @@ export function WalletConnect() {
                   if (text) setUri(text.trim());
                 } catch { /* clipboard denied */ }
               }}
-              title="Paste"
+              title={t("common.paste")}
               disabled={pairing}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -143,7 +145,7 @@ export function WalletConnect() {
                 onClick={startScanning}
                 disabled={pairing || frozen}
                 className="p-1.5 rounded-md text-text-muted hover:text-text-secondary hover:bg-surface-tertiary transition-colors disabled:opacity-40"
-                title="Scan QR code"
+                title={t("wc.scanQr")}
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 7V5a2 2 0 012-2h2m10 0h2a2 2 0 012 2v2m0 10v2a2 2 0 01-2 2h-2M3 17v2a2 2 0 002 2h2" />
@@ -158,7 +160,7 @@ export function WalletConnect() {
                 type="button"
                 onClick={stopScanning}
                 className="p-1.5 rounded-md text-red-400 hover:bg-red-500/10 transition-colors"
-                title="Stop scanning"
+                title={t("wc.stopScanning")}
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -172,7 +174,7 @@ export function WalletConnect() {
           disabled={pairing || !uri.trim() || frozen}
           className="sm:w-auto px-4 py-2.5 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-40"
         >
-          {pairing ? "Connecting..." : "Connect"}
+          {pairing ? t("wc.connecting") : t("wc.connect")}
         </button>
       </div>
 
@@ -185,11 +187,11 @@ export function WalletConnect() {
               setScanning(false);
               const msg = err instanceof Error ? err.message : String(err);
               if (msg.includes("NotAllowed") || msg.includes("Permission")) {
-                setError("Camera access denied — check your browser/device settings");
+                setError(t("wc.cameraAccessDenied"));
               } else if (msg.includes("NotFound") || msg.includes("DevicesNotFound")) {
-                setError("No camera found on this device");
+                setError(t("wc.noCamera"));
               } else {
-                setError(`Camera error: ${msg}`);
+                setError(t("wc.cameraError", { msg }));
               }
             }}
             formats={["qr_code"]}
@@ -213,13 +215,13 @@ export function WalletConnect() {
                 <path d="M6.09 9.6c3.26-3.2 8.56-3.2 11.82 0l.39.39c.16.16.16.42 0 .58l-1.34 1.31c-.08.08-.21.08-.3 0l-.54-.53c-2.28-2.23-5.97-2.23-8.24 0l-.58.56c-.08.08-.21.08-.3 0L5.67 10.6c-.16-.16-.16-.42 0-.58l.42-.42Zm14.6 2.72 1.19 1.17c.16.16.16.42 0 .58l-5.38 5.27c-.16.16-.43.16-.59 0l-3.82-3.74c-.04-.04-.1-.04-.15 0l-3.82 3.74c-.16.16-.43.16-.59 0L2.15 14.07c-.16-.16-.16-.42 0-.58l1.19-1.17c.16-.16.43-.16.59 0l3.82 3.74c.04.04.1.04.15 0l3.82-3.74c.16-.16.43-.16.59 0l3.82 3.74c.04.04.1.04.15 0l3.82-3.74c.16-.16.43-.16.59 0Z" />
               </svg>
             </div>
-            <p className="text-xs text-text-muted">No active sessions</p>
-            <p className="text-[11px] text-text-muted/60 mt-1">Paste a WalletConnect URI from a dApp to connect.</p>
+            <p className="text-xs text-text-muted">{t("wc.noSessions")}</p>
+            <p className="text-[11px] text-text-muted/60 mt-1">{t("wc.noSessionsDesc")}</p>
           </div>
         ) : (
           <>
             <p className="text-[11px] text-text-muted uppercase tracking-wider mb-3">
-              Active Sessions
+              {t("wc.activeSessions")}
             </p>
             <div className="space-y-px bg-surface-secondary border border-border-primary rounded-lg overflow-hidden">
               {sessions.map((session) => {
@@ -278,7 +280,7 @@ export function WalletConnect() {
                     <button
                       onClick={() => disconnect(session.topic)}
                       className="p-1.5 rounded-md text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0"
-                      title="Disconnect"
+                      title={t("wc.disconnect")}
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />

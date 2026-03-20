@@ -18,6 +18,7 @@ import type { SpeedUpData } from "./sendTypes";
 import { mempoolApiUrl, fetchFeeRates } from "../lib/chains/btcTx";
 import { useExpertMode } from "../context/ExpertModeContext";
 import { useToast } from "../context/ToastContext";
+import { useTranslation } from "react-i18next";
 
 export interface PendingTxFromNavigation {
   hash: string;
@@ -42,17 +43,18 @@ interface TokenDetailProps {
 /** Default polling interval for transactions/prices refresh (ms) — overridden by server setting */
 const DEFAULT_POLL_INTERVAL = 60_000;
 
-function formatLastUpdated(date: Date): string {
+function formatLastUpdated(date: Date, t: (key: string, opts?: Record<string, unknown>) => string): string {
   const now = new Date();
   const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
-  if (diffSec < 10) return "just now";
-  if (diffSec < 60) return `${diffSec}s ago`;
+  if (diffSec < 10) return t("wallet.updatedJustNow");
+  if (diffSec < 60) return t("wallet.updatedSecondsAgo", { count: diffSec });
   const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffMin < 60) return t("wallet.updatedMinutesAgo", { count: diffMin });
   return date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 }
 
 export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval: pollIntervalProp, pendingTx, chainAssets }: TokenDetailProps) {
+  const { t } = useTranslation();
   const frozen = useFrozen();
   const expert = useExpertMode();
   const { addToast } = useToast();
@@ -281,7 +283,7 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
         </svg>
-        Accounts
+        {t("common.accounts")}
       </button>
 
       {/* Hero: centered icon + name + balance */}
@@ -324,7 +326,7 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
               </svg>
             </div>
-            <span className="text-[11px] text-text-muted group-hover:text-text-secondary transition-colors">Send</span>
+            <span className="text-[11px] text-text-muted group-hover:text-text-secondary transition-colors">{t("common.send")}</span>
           </button>
           <button
             onClick={() => setShowQr(true)}
@@ -335,7 +337,7 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
               </svg>
             </div>
-            <span className="text-[11px] text-text-muted group-hover:text-text-secondary transition-colors">Receive</span>
+            <span className="text-[11px] text-text-muted group-hover:text-text-secondary transition-colors">{t("common.receive")}</span>
           </button>
           <button
             onClick={copyAddress}
@@ -352,7 +354,7 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
                 </svg>
               )}
             </div>
-            <span className="text-[11px] text-text-muted group-hover:text-text-secondary transition-colors">{copied ? "Copied" : "Copy"}</span>
+            <span className="text-[11px] text-text-muted group-hover:text-text-secondary transition-colors">{copied ? t("common.copied") : t("common.copy")}</span>
           </button>
           {chain.type === "xlm" && asset.isNative && chainAssets && chainAssets.some(a => !a.isNative) && (
             <button
@@ -365,21 +367,21 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                 </svg>
               </div>
-              <span className="text-[11px] text-text-muted group-hover:text-text-secondary transition-colors">Enable</span>
+              <span className="text-[11px] text-text-muted group-hover:text-text-secondary transition-colors">{t("tokenDetail.enable")}</span>
             </button>
           )}
         </div>
       </div>
 
       {/* Address + explorer link */}
-      <div className="flex items-center justify-center gap-2 text-[11px] text-text-muted" title="Your wallet address — share it to receive funds">
+      <div className="flex items-center justify-center gap-2 text-[11px] text-text-muted" title={t("tokenDetail.walletAddressTooltip")}>
         <span className="font-mono">{address.slice(0, 10)}...{address.slice(-8)}</span>
         <a
           href={explorerLink(chain.explorerUrl, `/address/${address}`)}
           target="_blank"
           rel="noopener noreferrer"
           className="hover:text-text-secondary transition-colors shrink-0"
-          title="View on explorer"
+          title={t("common.viewOnExplorer")}
         >
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -391,7 +393,7 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-text-secondary transition-colors shrink-0"
-            title="Revoke token approvals"
+            title={t("common.revokeApprovals")}
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
@@ -406,12 +408,12 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
         const legacyAddr = cashAddrToLegacy(address, testnet);
         return (
           <div className="flex items-center justify-center gap-2 text-[10px] text-text-muted/70 -mt-3">
-            <span className="text-text-muted/50">Legacy:</span>
+            <span className="text-text-muted/50">{t("tokenDetail.legacyAddress")}</span>
             <span className="font-mono">{legacyAddr.slice(0, 8)}...{legacyAddr.slice(-6)}</span>
             <button
               onClick={() => { navigator.clipboard.writeText(legacyAddr); }}
               className="hover:text-text-secondary transition-colors"
-              title="Copy legacy address"
+              title={t("common.copyLegacyAddress")}
             >
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
@@ -442,11 +444,11 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
       <div>
         <div className="flex items-center justify-between mb-2 px-1">
           <h4 className="text-xs text-text-muted uppercase tracking-wider font-semibold">
-            Activity
+            {t("tokenDetail.activity")}
           </h4>
           {transactions.length > 0 && !loading && (
             <span className="text-[10px] text-text-muted tabular-nums">
-              {transactions.length} transaction{transactions.length !== 1 ? "s" : ""}
+              {t(transactions.length !== 1 ? "tokenDetail.transactions_plural" : "tokenDetail.transactions", { count: transactions.length })}
             </span>
           )}
         </div>
@@ -488,12 +490,12 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
           {/* Error */}
           {!loading && error && (
             <div className="px-4 py-6 text-center">
-              <p className="text-xs text-text-tertiary mb-1">Failed to load history</p>
+              <p className="text-xs text-text-tertiary mb-1">{t("tokenDetail.failedToLoadHistory")}</p>
               <button
                 onClick={retry}
                 className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
               >
-                Try again
+                {t("common.tryAgain")}
               </button>
             </div>
           )}
@@ -505,19 +507,19 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
                 /* Zero-balance welcome guidance */
                 <div className="space-y-4">
                   <div>
-                    <p className="text-sm font-medium text-text-secondary mb-1">Welcome to your wallet</p>
+                    <p className="text-sm font-medium text-text-secondary mb-1">{t("tokenDetail.welcomeToYourWallet")}</p>
                     <p className="text-xs text-text-muted leading-relaxed">
-                      Fund it to get started — send crypto from an exchange or another wallet.
+                      {t("tokenDetail.fundItDesc")}
                     </p>
                   </div>
                   <div className="bg-surface-primary border border-border-primary rounded-lg px-3.5 py-3 text-left">
-                    <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-1.5">Your receive address</p>
+                    <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-1.5">{t("tokenDetail.yourReceiveAddress")}</p>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-mono text-text-secondary flex-1 break-all">{address}</span>
                       <button
                         onClick={copyAddress}
                         className="shrink-0 p-1.5 rounded hover:bg-surface-tertiary transition-colors"
-                        title="Copy address"
+                        title={t("common.copy")}
                       >
                         {copied ? (
                           <svg className="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -539,7 +541,7 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                       </svg>
-                      Show QR code
+                      {t("tokenDetail.showQrCode")}
                     </button>
                   </div>
                 </div>
@@ -549,9 +551,9 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
                   <svg className="w-8 h-8 text-text-muted mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
                   </svg>
-                  <p className="text-sm text-text-tertiary">No transactions yet</p>
+                  <p className="text-sm text-text-tertiary">{t("tokenDetail.noTransactionsYet")}</p>
                   {!expert && !frozen && (
-                    <p className="text-xs text-text-muted mt-2">Tap <span className="text-blue-400 font-medium">Send</span> to transfer funds, or <span className="text-text-secondary font-medium">Receive</span> to get your address.</p>
+                    <p className="text-xs text-text-muted mt-2">{t("tokenDetail.tapToGetStarted")}</p>
                   )}
                 </>
               )}
@@ -578,10 +580,10 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
                 {loadingMore ? (
                   <span className="flex items-center justify-center gap-2">
                     <Spinner size="xs" />
-                    Loading...
+                    {t("tokenDetail.loadingMore")}
                   </span>
                 ) : (
-                  "Load more"
+                  t("tokenDetail.loadMore")
                 )}
               </button>
             </div>
@@ -638,12 +640,12 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
       {lastUpdated && (
         <div className="flex items-center gap-1.5 px-1">
           <span className="text-[10px] text-text-muted tabular-nums">
-            Updated {formatLastUpdated(lastUpdated)}
+            {formatLastUpdated(lastUpdated, t)}
           </span>
           <button
             onClick={retry}
             className="text-text-muted hover:text-text-secondary transition-colors p-0.5 rounded hover:bg-surface-tertiary"
-            title="Refresh"
+            title={t("common.refresh")}
           >
             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />

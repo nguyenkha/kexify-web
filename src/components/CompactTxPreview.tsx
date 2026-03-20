@@ -1,22 +1,24 @@
+import { useTranslation } from "react-i18next";
 import type { Transaction } from "../shared/types";
 import { explorerLink } from "../shared/utils";
 import { formatTxTime, shortAddr } from "./TxRow";
 
 /** Compact single-line tx preview for account row (max 3 shown) */
 export function CompactTxPreview({ tx, explorerUrl }: { tx: Transaction; explorerUrl: string }) {
+  const { t } = useTranslation();
   const isPending = !tx.confirmed;
   const isFailed = !!tx.failed;
   const label = isFailed
-    ? "Failed"
+    ? t("tx.failed")
     : isPending
-      ? "Pending"
+      ? t("tx.pending")
       : tx.isDeployment
-        ? "Deployed"
+        ? t("tx.deployed")
         : tx.isApprove
-          ? "Approved"
+          ? t("tx.approved")
           : tx.isContractCall
-            ? "Contract"
-            : tx.direction === "in" ? "Received" : tx.direction === "out" ? "Sent" : "Self";
+            ? t("tx.contract")
+            : tx.direction === "in" ? t("tx.received") : tx.direction === "out" ? t("tx.sent") : t("tx.self");
   const color = isFailed
     ? "text-red-400"
     : isPending
@@ -44,7 +46,7 @@ export function CompactTxPreview({ tx, explorerUrl }: { tx: Transaction; explore
   // For deployments, show contract address; for others show counterparty
   const counterparty = tx.isDeployment && tx.createdContract
     ? shortAddr(tx.createdContract)
-    : tx.direction === "in" ? `from ${shortAddr(tx.from)}` : `to ${shortAddr(tx.to)}`;
+    : tx.direction === "in" ? `${t("tx.from").toLowerCase()} ${shortAddr(tx.from)}` : `${t("tx.to").toLowerCase()} ${shortAddr(tx.to)}`;
 
   // Hide "0 ETH" for deployments and approvals — show gas cost isn't useful here
   const showAmount = !tx.isDeployment && !tx.isApprove;

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import type { Chain, Asset } from "../lib/api";
 import { explorerLink, hexToBytes, bytesToHex } from "../shared/utils";
 import { simulateEvmTransaction } from "../lib/txSimulation";
@@ -154,9 +155,9 @@ import {
   truncateBalance,
 } from "./sendTypes";
 
-function friendlyError(err: unknown): string {
+function friendlyError(err: unknown, t?: (key: string) => string): string {
   const msg = (err as { message?: string })?.message || String(err);
-  if (msg === "passkey_auth_required") return "Passkey session expired. Please try again.";
+  if (msg === "passkey_auth_required") return t ? t("send.passkeySessionExpired") : "Passkey session expired. Please try again.";
   return msg;
 }
 
@@ -181,6 +182,7 @@ export function SendDialog({
   onTxConfirmed?: (txHash: string) => void;
   speedUpData?: SpeedUpData;
 }) {
+  const { t } = useTranslation();
   const { hidden: balancesHidden } = useHideBalances();
   const expert = useExpertMode();
   const [step, setStep] = useState<SendStep>("input");
@@ -392,9 +394,9 @@ export function SendDialog({
             setBrowserShareLoading(false);
             return;
           }
-          setBrowserShareError("Could not decrypt. Wrong passkey?");
+          setBrowserShareError(t("send.couldNotDecryptWrongPasskey"));
         } else {
-          setBrowserShareError("Passkey does not support encryption. Use file upload.");
+          setBrowserShareError(t("send.passkeyNoEncryption"));
         }
       } else if (mode === "passphrase") {
         setShowBrowserPassphrase(true);
@@ -624,7 +626,7 @@ export function SendDialog({
   const toAddr = effectiveTo; // resolved name address or raw input
   const toValid = toAddr.length > 0 && adapter.isValidAddress(toAddr);
   const isNameInput = isResolvableName(to);
-  const toError = toTouched && to.length > 0 && !toValid && !resolving && !isNameInput ? "Invalid address" : null;
+  const toError = toTouched && to.length > 0 && !toValid && !resolving && !isNameInput ? t("send.invalidAddress") : null;
   const toSelf = toValid && (chain.type === "solana" ? toAddr === address : toAddr.toLowerCase() === address.toLowerCase());
   const amountCheck = isValidAmount(amount, balance);
   const amountError = amountTouched && amount.length > 0 && !amountCheck.valid ? amountCheck.error : null;
@@ -782,7 +784,7 @@ export function SendDialog({
 
     } catch (err: unknown) {
       console.error("[send] Error:", err);
-      setSigningError(friendlyError(err));
+      setSigningError(friendlyError(err, t));
     } finally {
       clearClientKey(keyFile.id);
     }
@@ -924,7 +926,7 @@ export function SendDialog({
 
     } catch (err: unknown) {
       console.error("[send] BTC Error:", err);
-      setSigningError(friendlyError(err));
+      setSigningError(friendlyError(err, t));
     } finally {
       clearClientKey(keyFile.id);
     }
@@ -1034,7 +1036,7 @@ export function SendDialog({
 
     } catch (err: unknown) {
       console.error("[send] BCH Error:", err);
-      setSigningError(friendlyError(err));
+      setSigningError(friendlyError(err, t));
     } finally {
       clearClientKey(keyFile.id);
     }
@@ -1160,7 +1162,7 @@ export function SendDialog({
 
     } catch (err: unknown) {
       console.error("[send] LTC Error:", err);
-      setSigningError(friendlyError(err));
+      setSigningError(friendlyError(err, t));
     } finally {
       clearClientKey(keyFile.id);
     }
@@ -1251,7 +1253,7 @@ message = buildSplTransferMessage({
 
     } catch (err: unknown) {
       console.error("[send] Solana Error:", err);
-      setSigningError(friendlyError(err));
+      setSigningError(friendlyError(err, t));
     } finally {
       clearClientKey(keyFile.id);
     }
@@ -1372,7 +1374,7 @@ message = buildSplTransferMessage({
 
     } catch (err: unknown) {
       console.error("[send] XRP Error:", err);
-      setSigningError(friendlyError(err));
+      setSigningError(friendlyError(err, t));
     } finally {
       clearClientKey(keyFile.id);
     }
@@ -1490,7 +1492,7 @@ message = buildSplTransferMessage({
 
     } catch (err: unknown) {
       console.error("[send] XLM Error:", err);
-      setSigningError(friendlyError(err));
+      setSigningError(friendlyError(err, t));
     } finally {
       clearClientKey(keyFile.id);
     }
@@ -1586,7 +1588,7 @@ message = buildSplTransferMessage({
 
     } catch (err: unknown) {
       console.error("[send] TRON Error:", err);
-      setSigningError(friendlyError(err));
+      setSigningError(friendlyError(err, t));
     } finally {
       clearClientKey(keyFile.id);
     }
@@ -1612,17 +1614,17 @@ message = buildSplTransferMessage({
   );
 
   const recovery = isRecoveryMode();
-  const signLabel = recovery ? "Local signing" : "MPC signing";
+  const signLabel = recovery ? t("send.localSigning") : t("send.mpcSigning");
   // Show smooth percentage only during the main MPC signing step
   const signLabelActive = progress.phase === "main"
     ? `${signLabel} ${progress.pct}%`
     : signLabel;
   const phaseLabels: Record<SigningPhase, string> = {
-    "loading-keyshare": "Build transaction",
-    "building-tx": "Build transaction",
+    "loading-keyshare": t("send.buildTx"),
+    "building-tx": t("send.buildTx"),
     "mpc-signing": signLabelActive,
-    "broadcasting": "Broadcast",
-    "polling": "Confirming",
+    "broadcasting": t("send.broadcasting"),
+    "polling": t("send.confirming"),
   };
 
   const isCompact = step === "signing" || step === "result";
@@ -1656,23 +1658,23 @@ message = buildSplTransferMessage({
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
-              Edit
+              {t("send.edit")}
             </button>
           ) : step === "signing" ? (
-            <h3 className="text-sm font-semibold text-text-primary">⏳ Signing</h3>
+            <h3 className="text-sm font-semibold text-text-primary">⏳ {t("send.signing")}</h3>
           ) : step === "result" ? (
             <h3 className="text-sm font-semibold text-text-primary">
-              {txResult?.status === "success" ? "✅ Success" : txResult?.status === "pending" ? "📡 Broadcast" : "❌ Failed"}
+              {txResult?.status === "success" ? `✅ ${t("send.success")}` : txResult?.status === "pending" ? `📡 ${t("send.broadcast")}` : `❌ ${t("send.failed")}`}
             </h3>
           ) : (
             <h3 className="text-sm font-semibold text-text-primary">
-              {speedUpData ? `⚡ Speed Up ${asset.symbol}` : `📤 Send ${asset.symbol}`}
+              {speedUpData ? `⚡ ${t("send.speedUp", { symbol: asset.symbol })}` : `📤 ${t("send.title", { symbol: asset.symbol })}`}
 
             </h3>
           )}
           {step === "preview" && (
             <h3 className="text-sm font-semibold text-text-primary absolute left-1/2 -translate-x-1/2">
-              👀 Review
+              👀 {t("send.review")}
             </h3>
           )}
           {canClose && (
@@ -1693,7 +1695,7 @@ message = buildSplTransferMessage({
             <div className="px-5 pt-3 pb-5 space-y-4">
               {/* Key share file */}
               <div>
-                <label className="block text-xs text-text-muted mb-1.5">Key Share</label>
+                <label className="block text-xs text-text-muted mb-1.5">{t("send.keyShare")}</label>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -1718,7 +1720,7 @@ message = buildSplTransferMessage({
                       onClick={() => !recovery && setKeyFile(null)}
                       disabled={recovery}
                       className={`p-1 rounded-md transition-colors ${recovery ? "opacity-40 cursor-not-allowed" : "hover:bg-surface-tertiary"}`}
-                      title={recovery ? "Key loaded from recovery" : "Change key share"}
+                      title={recovery ? t("send.keyLoaded") : t("send.changeKey")}
                     >
                       <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 119 0v3.75M3.75 21.75h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H3.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
@@ -1737,7 +1739,7 @@ message = buildSplTransferMessage({
                       </svg>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs text-text-secondary truncate">{keyId.slice(0, 8)}...</p>
-                        <p className="text-[10px] text-text-muted">{browserShareMode === "prf" ? "Passkey encrypted" : "Passphrase encrypted"} · ECDSA + EdDSA</p>
+                        <p className="text-[10px] text-text-muted">{browserShareMode === "prf" ? t("send.passkeyEncrypted") : t("send.passphraseEncrypted")} · ECDSA + EdDSA</p>
                       </div>
                       {browserShareLoading ? (
                         <div className="w-3 h-3 border border-blue-400 border-t-transparent rounded-full animate-spin shrink-0" />
@@ -1754,7 +1756,7 @@ message = buildSplTransferMessage({
                       onClick={() => { setBrowserShareMode(null); }}
                       className="w-full text-[11px] text-text-muted hover:text-text-tertiary transition-colors"
                     >
-                      Or upload a file instead
+                      {t("send.orUploadFile")}
                     </button>
                   </div>
                 ) : (
@@ -1766,10 +1768,10 @@ message = buildSplTransferMessage({
                       <svg className="w-4 h-4 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
                       </svg>
-                      <span className="text-xs text-text-muted">Upload key share file (.json)</span>
+                      <span className="text-xs text-text-muted">{t("send.uploadKeyShare")}</span>
                     </button>
                     <p className="text-[10px] text-text-muted text-center">
-                      To restore from a server backup, go to Backup & Recovery.
+                      {t("send.restoreFromBackup")}
                     </p>
                   </div>
                 )}
@@ -1779,11 +1781,11 @@ message = buildSplTransferMessage({
               {pendingEncrypted && !keyFile && (
                 <div className="bg-surface-primary border border-border-primary rounded-lg p-3">
                   <p className="text-xs text-text-muted mb-2">
-                    <span className="font-mono text-text-tertiary">{pendingEncrypted.id.slice(0, 8)}...</span> — Enter your passphrase to unlock
+                    <span className="font-mono text-text-tertiary">{pendingEncrypted.id.slice(0, 8)}...</span> — {t("send.enterPassphrase")}
                   </p>
                   <PassphraseInput
                     mode="enter"
-                    submitLabel="Decrypt"
+                    submitLabel={t("send.decrypt")}
                     onSubmit={async (passphrase) => {
                       const decrypted = await decryptKeyFile(pendingEncrypted, passphrase);
                       setKeyFile(decrypted as KeyFile);
@@ -1797,11 +1799,11 @@ message = buildSplTransferMessage({
               {showBrowserPassphrase && !keyFile && (
                 <div className="bg-surface-primary border border-border-primary rounded-lg p-3">
                   <p className="text-xs text-text-muted mb-2">
-                    Enter your passphrase to unlock this key share
+                    {t("send.enterPassphraseKey")}
                   </p>
                   <PassphraseInput
                     mode="enter"
-                    submitLabel="Decrypt"
+                    submitLabel={t("send.decrypt")}
                     onSubmit={async (passphrase) => {
                       const data = await getKeyShareWithPassphrase(keyId, passphrase);
                       if (data) {
@@ -1815,11 +1817,11 @@ message = buildSplTransferMessage({
 
               {/* From */}
               <div>
-                <label className="block text-xs text-text-muted mb-1.5">From</label>
+                <label className="block text-xs text-text-muted mb-1.5">{t("send.from")}</label>
                 <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5">
                   <p className="text-xs font-mono text-text-tertiary truncate">{address}</p>
                   <p className="text-[10px] text-text-muted mt-0.5">
-                    Balance: {maskBalance(truncateBalance(balance), balancesHidden)} {asset.symbol} &middot; {chain.displayName}
+                    {t("send.balance")}: {maskBalance(truncateBalance(balance), balancesHidden)} {asset.symbol} &middot; {chain.displayName}
                   </p>
                 </div>
               </div>
@@ -1827,22 +1829,22 @@ message = buildSplTransferMessage({
               {/* Speed-up banner */}
               {speedUpData && (
                 <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2">
-                  <p className="text-xs text-yellow-400 font-medium">RBF Replacement</p>
-                  <p className="text-[11px] text-yellow-400/70 mt-0.5">Re-signing with higher fee to replace stuck tx. Same inputs, same recipient.</p>
+                  <p className="text-xs text-yellow-400 font-medium">{t("send.rbfBanner")}</p>
+                  <p className="text-[11px] text-yellow-400/70 mt-0.5">{t("send.rbfDesc")}</p>
                 </div>
               )}
 
               {/* To */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs text-text-muted">To</label>
+                  <label className="block text-xs text-text-muted">{t("send.to")}</label>
                   {toValid && !savingToBook && (
                     <button
                       type="button"
                       onClick={() => setSavingToBook(true)}
                       className="text-[10px] text-text-muted hover:text-blue-400 transition-colors"
                     >
-                      Save to address book
+                      {t("send.saveToBook")}
                     </button>
                   )}
                 </div>
@@ -1852,7 +1854,7 @@ message = buildSplTransferMessage({
                       type="text"
                       value={bookmarkLabel}
                       onChange={(e) => setBookmarkLabel(e.target.value)}
-                      placeholder="Label (e.g. My Coinbase)"
+                      placeholder={t("send.labelPlaceholder")}
                       className="flex-1 bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary placeholder:text-text-muted outline-none focus:border-blue-500"
                       autoFocus
                       onKeyDown={(e) => {
@@ -1877,7 +1879,7 @@ message = buildSplTransferMessage({
                       }}
                       className="text-xs text-blue-400 hover:text-blue-300 shrink-0"
                     >
-                      {bookmarkLabel.trim() ? "Save" : "Cancel"}
+                      {bookmarkLabel.trim() ? t("send.saveBookmark") : t("send.cancelBookmark")}
                     </button>
                   </div>
                 )}
@@ -1904,7 +1906,7 @@ message = buildSplTransferMessage({
                       type="button"
                       className="p-1.5 mr-0.5 rounded-md text-text-muted hover:text-text-secondary hover:bg-surface-tertiary transition-colors shrink-0"
                       onClick={() => setShowSuggestions((v) => !v)}
-                      title="Address book"
+                      title={t("common.addressBook")}
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
@@ -1921,7 +1923,7 @@ message = buildSplTransferMessage({
                         if (text) setTo(text.trim());
                       } catch { /* clipboard denied */ }
                     }}
-                    title="Paste"
+                    title={t("common.paste")}
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -1932,7 +1934,7 @@ message = buildSplTransferMessage({
                     type="button"
                     className="p-1.5 mr-1 rounded-md text-text-muted hover:text-text-secondary hover:bg-surface-tertiary transition-colors shrink-0"
                     onClick={() => setShowAddrScanner((v) => !v)}
-                    title="Scan QR"
+                    title={t("common.scanQr")}
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M3 7V5a2 2 0 012-2h2m10 0h2a2 2 0 012 2v2m0 10v2a2 2 0 01-2 2h-2M3 17v2a2 2 0 002 2h2" />
@@ -2007,7 +2009,7 @@ message = buildSplTransferMessage({
                 {resolving && isResolvableName(to) && (
                   <div className="flex items-center gap-1.5 mt-1.5 px-0.5">
                     <div className="w-3 h-3 border border-blue-400 border-t-transparent rounded-full animate-spin shrink-0" />
-                    <p className="text-[11px] text-text-muted">Resolving {to}...</p>
+                    <p className="text-[11px] text-text-muted">{t("send.resolving", { name: to })}</p>
                   </div>
                 )}
                 {resolvedName?.input === to && (
@@ -2022,20 +2024,20 @@ message = buildSplTransferMessage({
                   </div>
                 )}
                 {!resolving && isResolvableName(to) && !resolvedName && to.length > 0 && (
-                  <p className="text-[11px] text-yellow-500/70 mt-1.5 px-0.5">Could not resolve this name</p>
+                  <p className="text-[11px] text-yellow-500/70 mt-1.5 px-0.5">{t("send.cannotResolve")}</p>
                 )}
                 {toError && (
                   <p className="text-[10px] text-red-400 mt-1">{toError}</p>
                 )}
                 {toSelf && (
-                  <p className="text-[10px] text-yellow-400 mt-1">This is your own address</p>
+                  <p className="text-[10px] text-yellow-400 mt-1">{t("send.ownAddress")}</p>
                 )}
               </div>
 
               {/* Destination Tag (XRP only) */}
               {chain.type === "xrp" && (
               <div>
-                <label className="block text-xs text-text-muted mb-1.5">Destination Tag <span className="text-text-muted/50">(optional)</span></label>
+                <label className="block text-xs text-text-muted mb-1.5">{t("send.destinationTag")} <span className="text-text-muted/50">{t("send.destinationTagOptional")}</span></label>
                 <input
                   type="text"
                   value={destinationTag}
@@ -2048,7 +2050,7 @@ message = buildSplTransferMessage({
                   }`}
                 />
                 {destinationTag && !destTagValid && (
-                  <p className="text-[10px] text-red-400 mt-1">Must be 0–4,294,967,295</p>
+                  <p className="text-[10px] text-red-400 mt-1">{t("send.destinationTagError")}</p>
                 )}
               </div>
               )}
@@ -2056,12 +2058,12 @@ message = buildSplTransferMessage({
               {/* Memo (XLM only) */}
               {chain.type === "xlm" && (
               <div>
-                <label className="block text-xs text-text-muted mb-1.5">Memo <span className="text-text-muted/50">(optional, max 28 chars)</span></label>
+                <label className="block text-xs text-text-muted mb-1.5">{t("send.memo")} <span className="text-text-muted/50">{t("send.memoOptional")}</span></label>
                 <input
                   type="text"
                   value={xlmMemo}
                   onChange={(e) => setXlmMemo(e.target.value.slice(0, 28))}
-                  placeholder="e.g. exchange deposit ID"
+                  placeholder={t("send.memoPlaceholder")}
                   className="w-full bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-blue-500"
                 />
               </div>
@@ -2070,12 +2072,12 @@ message = buildSplTransferMessage({
               {/* Amount */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs text-text-muted">Amount</label>
+                  <label className="text-xs text-text-muted">{t("send.amount")}</label>
                   <button
                     onClick={() => { setAmount(maxSendable); setAmountTouched(true); }}
                     className="text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
                   >
-                    Max
+                    {t("send.max")}
                   </button>
                 </div>
                 <div className="relative">
@@ -2138,13 +2140,13 @@ message = buildSplTransferMessage({
                   </div>
                 ) : (
                   <div className="flex items-center justify-between px-3 py-2 bg-surface-primary border border-border-primary rounded-lg">
-                    <span className="text-xs text-text-muted">Network fee</span>
+                    <span className="text-xs text-text-muted">{t("send.networkFee")}</span>
                     <span className="text-xs tabular-nums text-text-secondary">
                       {feeDisplay.usd != null && feeDisplay.usd > 0
                         ? formatUsd(feeDisplay.usd)
                         : feeDisplay.formatted != null
                           ? `${feeDisplay.formatted} ${feeDisplay.symbol}`
-                          : "Estimating..."}
+                          : t("common.estimating")}
                     </span>
                   </div>
                 )
@@ -2153,10 +2155,10 @@ message = buildSplTransferMessage({
               {/* Expert mode: advanced tx overrides */}
               {expert && chain.type === "evm" && (
                 <div className="space-y-2">
-                  <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">Advanced</p>
+                  <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">{t("common.advanced")}</p>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-xs text-text-muted mb-1">Nonce</label>
+                      <label className="block text-xs text-text-muted mb-1">{t("send.nonce")}</label>
                       <input
                         value={nonceOverride}
                         onChange={(e) => setNonceOverride(e.target.value)}
@@ -2165,7 +2167,7 @@ message = buildSplTransferMessage({
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-text-muted mb-1">Gas limit</label>
+                      <label className="block text-xs text-text-muted mb-1">{t("send.gasLimit")}</label>
                       <input
                         value={gasLimitOverride}
                         onChange={(e) => setGasLimitOverride(e.target.value)}
@@ -2174,7 +2176,7 @@ message = buildSplTransferMessage({
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-text-muted mb-1">Max fee (Gwei)</label>
+                      <label className="block text-xs text-text-muted mb-1">{t("send.maxFee")}</label>
                       <input
                         value={maxFeeOverride}
                         onChange={(e) => setMaxFeeOverride(e.target.value)}
@@ -2183,7 +2185,7 @@ message = buildSplTransferMessage({
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-text-muted mb-1">Priority fee (Gwei)</label>
+                      <label className="block text-xs text-text-muted mb-1">{t("send.priorityFee")}</label>
                       <input
                         value={priorityFeeOverride}
                         onChange={(e) => setPriorityFeeOverride(e.target.value)}
@@ -2197,9 +2199,9 @@ message = buildSplTransferMessage({
 
               {expert && (chain.type === "btc" || chain.type === "ltc" || chain.type === "bch") && (
                 <div className="space-y-2">
-                  <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">Advanced</p>
+                  <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">{t("common.advanced")}</p>
                   <div>
-                    <label className="block text-xs text-text-muted mb-1">Fee rate (sat/vB)</label>
+                    <label className="block text-xs text-text-muted mb-1">{t("send.feeRate")}</label>
                     <input
                       value={btcFeeRateOverride}
                       onChange={(e) => setBtcFeeRateOverride(e.target.value)}
@@ -2216,7 +2218,7 @@ message = buildSplTransferMessage({
                       <div className={`w-7 h-4 rounded-full transition-colors relative ${rbfEnabled ? "bg-blue-500" : "bg-surface-tertiary"}`}>
                         <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${rbfEnabled ? "left-3.5" : "left-0.5"}`} />
                       </div>
-                      <span className="text-xs text-text-secondary">RBF (Replace-By-Fee)</span>
+                      <span className="text-xs text-text-secondary">{t("send.rbf")}</span>
                     </button>
                   )}
                   <button
@@ -2225,34 +2227,34 @@ message = buildSplTransferMessage({
                     className="w-full text-left px-2.5 py-1.5 text-xs text-blue-400 hover:text-blue-300 transition-colors rounded-lg bg-surface-primary border border-border-primary hover:border-border-secondary"
                   >
                     {selectedUtxoKeys.size > 0
-                      ? `${selectedUtxoKeys.size} UTXO${selectedUtxoKeys.size > 1 ? "s" : ""} selected`
-                      : "Select UTXOs..."}
+                      ? t("send.utxosSelected", { count: selectedUtxoKeys.size })
+                      : t("send.selectUtxos")}
                   </button>
                   {showUtxoPicker && (
                     <div className="bg-surface-primary border border-border-primary rounded-xl p-3 space-y-2 max-h-52 overflow-y-auto">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">UTXOs</span>
+                        <span className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">{t("send.utxos")}</span>
                         <div className="flex items-center gap-2">
                           {selectedUtxoKeys.size > 0 && (
                             <button type="button" onClick={() => setSelectedUtxoKeys(new Set())} className="text-[10px] text-text-muted hover:text-text-secondary">
-                              Clear
+                              {t("send.clear")}
                             </button>
                           )}
                           <button type="button" onClick={handleFetchUtxos} disabled={utxoLoading} className="text-[10px] text-blue-400 hover:text-blue-300 disabled:text-text-muted">
-                            {utxoLoading ? "Loading..." : "Refresh"}
+                            {utxoLoading ? t("common.loading") : t("common.refresh")}
                           </button>
                         </div>
                       </div>
                       {utxoLoading && !availableUtxos && (
-                        <p className="text-[10px] text-text-muted animate-pulse py-2 text-center">Fetching UTXOs...</p>
+                        <p className="text-[10px] text-text-muted animate-pulse py-2 text-center">{t("send.fetchingUtxos")}</p>
                       )}
                       {availableUtxos && availableUtxos.length === 0 && (
-                        <p className="text-[10px] text-text-muted py-2 text-center">No UTXOs found</p>
+                        <p className="text-[10px] text-text-muted py-2 text-center">{t("send.noUtxos")}</p>
                       )}
                       {availableUtxos && availableUtxos.length > 0 && (
                         <>
                           <div className="flex items-center justify-between text-[10px] text-text-muted">
-                            <span>{availableUtxos.length} available</span>
+                            <span>{availableUtxos.length} {t("send.available")}</span>
                             <button
                               type="button"
                               onClick={() => {
@@ -2263,7 +2265,7 @@ message = buildSplTransferMessage({
                               }}
                               className="text-blue-400 hover:text-blue-300"
                             >
-                              {selectedUtxoKeys.size === availableUtxos.length ? "Deselect all" : "Select all"}
+                              {selectedUtxoKeys.size === availableUtxos.length ? t("send.deselectAll") : t("send.selectAll")}
                             </button>
                           </div>
                           {[...availableUtxos].sort((a, b) => b.value - a.value).map((utxo) => {
@@ -2292,7 +2294,7 @@ message = buildSplTransferMessage({
                                     </span>
                                   </div>
                                   <span className={`text-[9px] ${utxo.status.confirmed ? "text-green-400" : "text-yellow-400"}`}>
-                                    {utxo.status.confirmed ? "Confirmed" : "Unconfirmed"}
+                                    {utxo.status.confirmed ? t("send.confirmed") : t("send.unconfirmed")}
                                   </span>
                                 </div>
                               </label>
@@ -2300,7 +2302,7 @@ message = buildSplTransferMessage({
                           })}
                           {selectedUtxoKeys.size > 0 && (
                             <div className="flex items-center justify-between pt-1.5 border-t border-border-primary text-[10px]">
-                              <span className="text-text-muted">{selectedUtxoKeys.size} selected</span>
+                              <span className="text-text-muted">{t("send.utxosSelected", { count: selectedUtxoKeys.size })}</span>
                               <span className="font-mono text-text-secondary tabular-nums">
                                 {(availableUtxos.filter(u => selectedUtxoKeys.has(`${u.txid}:${u.vout}`)).reduce((s, u) => s + u.value, 0) / 1e8)
                                   .toFixed(8).replace(/0+$/, "").replace(/\.$/, "")} {asset.symbol}
@@ -2317,7 +2319,7 @@ message = buildSplTransferMessage({
               {/* Fee summary */}
               <div className="flex items-center justify-between px-1">
                 <span className="text-[10px] text-text-muted flex items-center gap-1">
-                  Est. fee
+                  {t("send.estFee")}
                   {!feeDisplay.isFixed && (
                   <span className="text-text-muted/40 tabular-nums">
                     {feeCountdown > 0 ? `\u00b7 ${feeCountdown}s` : "\u00b7 \u27f3"}
@@ -2332,7 +2334,7 @@ message = buildSplTransferMessage({
                     )}
                   </span>
                 ) : (
-                  <span className="text-[10px] text-text-muted animate-pulse">Estimating...</span>
+                  <span className="text-[10px] text-text-muted animate-pulse">{t("common.estimating")}</span>
                 )}
               </div>
             </div>
@@ -2347,7 +2349,7 @@ message = buildSplTransferMessage({
                 onClick={async () => {
                   // Gate large sends on backup completion
                   if (hasBackup === false && (amountUsd ?? 0) > 100) {
-                    setBackupGateError("Back up your wallet before sending more than $100");
+                    setBackupGateError(t("send.backupRequired"));
                     return;
                   }
                   setBackupGateError(null);
@@ -2404,7 +2406,7 @@ message = buildSplTransferMessage({
                 }}
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
               >
-                {policyChecking ? "Checking..." : "Review Transaction"}
+                {policyChecking ? t("wc.checking") : t("send.previewButton")}
               </button>
             </div>
           </>
@@ -2419,7 +2421,7 @@ message = buildSplTransferMessage({
               {chain.type === "evm" && gasEstimateError && (
                 <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
                   <p className="text-xs text-red-400 leading-relaxed">
-                    Gas estimation failed: {gasEstimateError}. This transaction is likely to revert.
+                    {t("send.gasEstFailed")}: {gasEstimateError}
                   </p>
                 </div>
               )}
@@ -2437,14 +2439,14 @@ message = buildSplTransferMessage({
               {/* From → To */}
               <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
                 <div className="px-3 py-2.5 flex items-center justify-between">
-                  <span className="text-xs text-text-muted">From</span>
+                  <span className="text-xs text-text-muted">{t("send.from")}</span>
                   <span className="text-[9px] font-mono text-text-secondary">{address}</span>
                 </div>
                 <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-xs text-text-muted">To</span>
+                    <span className="text-xs text-text-muted">{t("send.to")}</span>
                     {expert && !asset.isNative && asset.contractAddress && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 font-medium">Contract</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 font-medium">{t("send.contract")}</span>
                     )}
                   </div>
                   <span className="text-[9px] font-mono text-text-secondary">
@@ -2455,14 +2457,14 @@ message = buildSplTransferMessage({
                 </div>
                 {expert && !asset.isNative && asset.contractAddress && (
                   <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                    <span className="text-xs text-text-muted">Recipient</span>
+                    <span className="text-xs text-text-muted">{t("send.to")}</span>
                     <span className="text-[9px] font-mono text-text-secondary">{to}</span>
                   </div>
                 )}
                 {expert && !asset.isNative && asset.contractAddress && (
                   <div className="border-t border-border-secondary px-3 py-2.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-text-muted">Data</span>
+                      <span className="text-xs text-text-muted">{t("send.data")}</span>
                     </div>
                     <pre className="text-[10px] font-mono text-text-muted break-all mt-1 leading-relaxed max-h-20 overflow-auto">
                       {"0x" + bytesToHex(encodeErc20Transfer(to, parseUnits(amount, asset.decimals)) as Uint8Array)}
@@ -2471,29 +2473,29 @@ message = buildSplTransferMessage({
                 )}
                 {destinationTag && (
                 <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                  <span className="text-xs text-text-muted">Destination Tag</span>
+                  <span className="text-xs text-text-muted">{t("send.destinationTag")}</span>
                   <span className="text-xs tabular-nums text-text-secondary">{destinationTag}</span>
                 </div>
                 )}
                 {chain.type === "xlm" && xlmMemo && (
                 <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                  <span className="text-xs text-text-muted">Memo</span>
+                  <span className="text-xs text-text-muted">{t("send.memo")}</span>
                   <span className="text-xs text-text-secondary">{xlmMemo}</span>
                 </div>
                 )}
               </div>
               {chain.type === "xlm" && xlmDestExists === false && (
-                <p className="text-[10px] text-yellow-400 -mt-3">New account — a Create Account operation will be used to activate this address.</p>
+                <p className="text-[10px] text-yellow-400 -mt-3">{t("send.xlmDestNotActive")}</p>
               )}
 
               {/* Details */}
               <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
                 <div className="px-3 py-2.5 flex items-center justify-between">
-                  <span className="text-xs text-text-muted">Network</span>
+                  <span className="text-xs text-text-muted">{t("send.network")}</span>
                   <span className="text-xs text-text-secondary">{chain.displayName}</span>
                 </div>
                 <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                  <span className="text-xs text-text-muted">Network fee</span>
+                  <span className="text-xs text-text-muted">{t("send.networkFee")}</span>
                   <span className="text-xs tabular-nums text-text-secondary font-medium">
                     {feeDisplay.usd != null && feeDisplay.usd > 0
                       ? formatUsd(feeDisplay.usd)
@@ -2502,34 +2504,34 @@ message = buildSplTransferMessage({
                 </div>
                 {expert && feeDisplay.rateLabel != null && (
                   <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                    <span className="text-xs text-text-muted">{chain.type === "btc" || chain.type === "ltc" || chain.type === "bch" ? "Fee rate" : chain.type === "xlm" ? "Base fee" : "Gas price"}</span>
+                    <span className="text-xs text-text-muted">{chain.type === "btc" || chain.type === "ltc" || chain.type === "bch" ? t("send.feeRate") : chain.type === "xlm" ? t("send.baseFee") : t("send.maxFee")}</span>
                     <span className="text-xs tabular-nums text-text-muted">{feeDisplay.rateLabel}</span>
                   </div>
                 )}
                 {expert && chain.type === "evm" && (
                   <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                    <span className="text-xs text-text-muted">Gas limit</span>
+                    <span className="text-xs text-text-muted">{t("send.gasLimit")}</span>
                     <span className="text-xs tabular-nums text-text-muted">{gasLimit.toLocaleString()}</span>
                   </div>
                 )}
                 {expert && manualUtxos && (chain.type === "btc" || chain.type === "ltc" || chain.type === "bch") && (
                   <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                    <span className="text-xs text-text-muted">UTXOs</span>
+                    <span className="text-xs text-text-muted">{t("send.utxos")}</span>
                     <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-blue-500/10 text-blue-400">
-                      {manualUtxos.length} selected
+                      {t("send.utxosSelected", { count: manualUtxos.length })}
                     </span>
                   </div>
                 )}
                 {expert && (chain.type === "btc" || chain.type === "ltc") && (
                   <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                    <span className="text-xs text-text-muted">RBF</span>
+                    <span className="text-xs text-text-muted">{t("send.rbf")}</span>
                     <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${rbfEnabled ? "bg-blue-500/10 text-blue-400" : "bg-surface-tertiary text-text-muted"}`}>
-                      {rbfEnabled ? "Enabled" : "Disabled"}
+                      {rbfEnabled ? t("xlm.enabled") : t("wallet.disabled")}
                     </span>
                   </div>
                 )}
                 <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                  <span className="text-xs text-text-muted font-medium">Total</span>
+                  <span className="text-xs text-text-muted font-medium">{t("send.total")}</span>
                   <span className="text-xs tabular-nums text-text-primary font-semibold">
                     {totalUsd > 0 ? formatUsd(totalUsd) : `${amount} ${asset.symbol}`}
                   </span>
@@ -2595,7 +2597,7 @@ message = buildSplTransferMessage({
                 }}
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
               >
-                {policyCheck?.allowed === false ? "\u26D4 Blocked by Policy" : "\uD83D\uDD10 Confirm & Sign"}
+                {policyCheck?.allowed === false ? `\u26D4 ${t("send.blockedByPolicy")}` : `\uD83D\uDD10 ${t("send.confirmSend")}`}
               </button>
             </div>
           </>
@@ -2628,8 +2630,8 @@ message = buildSplTransferMessage({
                 {/* Progress steps */}
                 <SigningStepper
                   steps={confirmBeforeBroadcast && signingPhase !== "broadcasting" && signingPhase !== "polling"
-                    ? [{ label: "Build transaction" }, { label: signLabelActive }]
-                    : [{ label: "Build transaction" }, { label: signLabelActive }, { label: "Broadcast" }, { label: "Confirming" }]
+                    ? [{ label: t("send.buildTx") }, { label: signLabelActive }]
+                    : [{ label: t("send.buildTx") }, { label: signLabelActive }, { label: t("send.broadcasting") }, { label: t("send.confirming") }]
                   }
                   currentIndex={phaseIndex[signingPhase]}
                 />
@@ -2643,7 +2645,7 @@ message = buildSplTransferMessage({
                     className="flex items-center justify-between mt-5 mx-auto max-w-[260px] px-3 py-2.5 rounded-lg bg-surface-primary/60 border border-border-secondary hover:border-blue-500/30 transition-colors group"
                   >
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-[11px] text-text-muted shrink-0">Tx</span>
+                      <span className="text-[11px] text-text-muted shrink-0">{t("send.txHash")}</span>
                       <span className="text-xs font-mono text-text-secondary truncate">{shortAddrPreview(pendingTxHash)}</span>
                     </div>
                     <svg className="w-3.5 h-3.5 text-text-muted group-hover:text-blue-400 shrink-0 ml-2 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -2666,11 +2668,9 @@ message = buildSplTransferMessage({
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
-                  <p className="text-lg font-semibold text-text-primary mb-1">Transaction Signed</p>
+                  <p className="text-lg font-semibold text-text-primary mb-1">{t("send.rawTx")}</p>
                   <p className="text-xs text-text-muted mb-3">
-                    {confirmBeforeBroadcast
-                      ? "Review the signed transaction before broadcasting."
-                      : "Copy the signed transaction and broadcast it manually."}
+                    {t("send.copyRaw")}
                   </p>
                   <div className="text-left bg-surface-secondary rounded-lg border border-border-primary p-3 max-h-32 overflow-auto">
                     <p className="text-[11px] font-mono text-text-secondary break-all select-all">{signedRawTx}</p>
@@ -2680,7 +2680,7 @@ message = buildSplTransferMessage({
                       onClick={() => { navigator.clipboard.writeText(signedRawTx); }}
                       className="text-xs text-text-muted hover:text-text-secondary transition-colors font-medium"
                     >
-                      Copy
+                      {t("common.copy")}
                     </button>
                     {confirmBeforeBroadcast && (
                       <button
@@ -2755,13 +2755,13 @@ message = buildSplTransferMessage({
                             if (confirmed) onTxConfirmed?.(txHash);
                             setStep("result");
                           } catch (err: unknown) {
-                            setSigningError(friendlyError(err));
+                            setSigningError(friendlyError(err, t));
                           }
                         }}
                         disabled={false}
                         className="px-4 py-1.5 rounded-lg text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:opacity-50 transition-colors"
                       >
-                        📡 Broadcast
+                        📡 {t("send.broadcast")}
                       </button>
                     )}
                   </div>
@@ -2773,7 +2773,7 @@ message = buildSplTransferMessage({
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
-                  <p className="text-lg font-semibold text-text-primary mb-1">Transaction Confirmed</p>
+                  <p className="text-lg font-semibold text-text-primary mb-1">{t("send.txSuccess")}</p>
                   <p className="text-sm text-text-muted tabular-nums">
                     {amount} {asset.symbol}
                   </p>
@@ -2785,11 +2785,11 @@ message = buildSplTransferMessage({
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
-                  <p className="text-lg font-semibold text-text-primary mb-1">Transaction Broadcast</p>
+                  <p className="text-lg font-semibold text-text-primary mb-1">{t("send.txBroadcast")}</p>
                   <p className="text-sm text-text-muted tabular-nums mb-1">
                     {amount} {asset.symbol}
                   </p>
-                  <p className="text-[11px] text-text-muted">Waiting for network confirmation...</p>
+                  <p className="text-[11px] text-text-muted">{t("send.confirming")}...</p>
                 </>
               ) : (
                 <>
@@ -2798,8 +2798,8 @@ message = buildSplTransferMessage({
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </div>
-                  <p className="text-lg font-semibold text-text-primary mb-1">Transaction Failed</p>
-                  <p className="text-sm text-text-muted">The transaction was reverted on-chain.</p>
+                  <p className="text-lg font-semibold text-text-primary mb-1">{t("send.txFailed")}</p>
+                  <p className="text-sm text-text-muted">{t("send.failed")}</p>
                 </>
               )}
 
@@ -2821,7 +2821,7 @@ message = buildSplTransferMessage({
                 </a>
                 {txResult.blockNumber && (
                   <div className="flex items-center px-3 py-2 border-t border-border-secondary">
-                    <span className="text-[11px] text-text-muted shrink-0">Block</span>
+                    <span className="text-[11px] text-text-muted shrink-0">{t("wc.block")}</span>
                     <span className="text-xs font-mono text-text-secondary tabular-nums ml-2">
                       {(typeof txResult.blockNumber === "number" ? txResult.blockNumber : parseInt(txResult.blockNumber, 16)).toLocaleString()}
                     </span>
@@ -2835,7 +2835,7 @@ message = buildSplTransferMessage({
                 onClick={onClose}
                 className="w-full bg-surface-tertiary hover:bg-border-primary text-text-secondary text-sm font-medium py-2.5 rounded-lg transition-colors"
               >
-                Done
+                {t("common.done")}
               </button>
             </div>
           </div>

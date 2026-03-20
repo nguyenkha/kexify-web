@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import type { AccountRow } from "../lib/accountRows";
 import type { Transaction } from "../shared/types";
 import { usePolledBalance } from "../lib/use-polled-balance";
@@ -36,6 +37,7 @@ export function AccountRowView({
   onBalanceUpdate?: (rowKey: string, usdTotal: number) => void;
 }) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { hidden } = useHideBalances();
   const [copied, setCopied] = useState(false);
   const [dismissedTokens, setDismissedTokens] = useState<Set<string>>(new Set());
@@ -154,7 +156,7 @@ export function AccountRowView({
                 title={row.address}
               >
                 {copied ? (
-                  <span className="text-green-500">Copied!</span>
+                  <span className="text-green-500">{t("common.copied")}</span>
                 ) : (
                   shortAddr
                 )}
@@ -165,7 +167,7 @@ export function AccountRowView({
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
                 className="text-text-muted/40 hover:text-text-tertiary transition-colors"
-                title="View on explorer"
+                title={t("common.viewOnExplorer")}
               >
                 <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -189,7 +191,7 @@ export function AccountRowView({
                 onClick={(e) => refreshAll(e)}
                 className="text-xs text-red-500 hover:text-red-400"
               >
-                Failed - retry
+                {t("account.failedRetry")}
               </button>
             )}
             {nativeState === "loaded" && (
@@ -294,8 +296,7 @@ export function AccountRowView({
           >
             <div className="flex items-center justify-between">
               <p className="text-[11px] text-text-muted">
-                <span className="text-text-secondary font-medium">{token.symbol}</span>
-                {" "}found
+                {t("account.tokenFound", { symbol: token.symbol })}
                 <span className="tabular-nums ml-1">({maskBalance(token.balance, hidden)})</span>
               </p>
               <div className="flex items-center gap-3 shrink-0 mr-8">
@@ -306,7 +307,7 @@ export function AccountRowView({
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
                   </svg>
-                  Hide
+                  {t("account.hide")}
                 </button>
                 <button
                   onClick={() => setDismissedTokens((prev) => new Set(prev).add(token.id))}
@@ -315,7 +316,7 @@ export function AccountRowView({
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  Later
+                  {t("account.later")}
                 </button>
                 <button
                   onClick={() => onTokenDecision(token.id, true)}
@@ -325,7 +326,7 @@ export function AccountRowView({
                     <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
-                  Show
+                  {t("account.show")}
                 </button>
               </div>
             </div>

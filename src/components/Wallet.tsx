@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import type { KeyShare } from "../shared/types";
 import { fetchChains, fetchAssets, fetchSettings, type Chain, type Asset, type Settings } from "../lib/api";
 import staticConfig from "../config.json";
@@ -32,20 +33,21 @@ import { PortfolioHeader } from "./PortfolioHeader";
 /** Default polling interval for balance/price refresh (ms) — overridden by server setting */
 const DEFAULT_POLL_INTERVAL = 60_000;
 
-function formatLastUpdated(date: Date): string {
-  const now = new Date();
-  const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
-  if (diffSec < 10) return "just now";
-  if (diffSec < 60) return `${diffSec}s ago`;
-  const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin}m ago`;
-  return date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-}
-
 export function Wallet() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const frozen = useFrozen();
   const expert = useExpertMode();
+
+  function formatLastUpdated(date: Date): string {
+    const now = new Date();
+    const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
+    if (diffSec < 10) return t("wallet.updatedJustNow");
+    if (diffSec < 60) return t("wallet.updatedSecondsAgo", { count: diffSec });
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return t("wallet.updatedMinutesAgo", { count: diffMin });
+    return t("wallet.updated", { time: date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) });
+  }
   const { isRecovery, recoveryKeys } = useRecovery();
   const [keys, setKeys] = useState<KeyShare[]>([]);
   const [chainsData, setChainsData] = useState<Chain[]>([]);
@@ -332,25 +334,25 @@ export function Wallet() {
             />
           </svg>
         </div>
-        <p className="text-base font-medium text-text-primary mb-1.5">Welcome to kexify</p>
+        <p className="text-base font-medium text-text-primary mb-1.5">{t("wallet.welcome")}</p>
         <p className="text-sm text-text-muted mb-6 max-w-xs leading-relaxed">
-          Create your first wallet to send, receive, and manage crypto across multiple chains.
+          {t("wallet.welcomeDesc")}
         </p>
         <button
           onClick={() => guardedAction(() => setShowCreateDialog(true), true)}
           disabled={frozen}
           className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-6 py-2.5 rounded-lg font-medium transition-colors disabled:bg-surface-tertiary disabled:text-text-muted disabled:cursor-not-allowed mb-8"
         >
-          Create Your Wallet
+          {t("wallet.createWallet")}
         </button>
 
         {/* How it works — quick overview for new users */}
         <div className="w-full max-w-sm space-y-3 text-left">
-          <p className="text-[10px] text-text-tertiary font-semibold uppercase tracking-wider px-1">How it works</p>
+          <p className="text-[10px] text-text-tertiary font-semibold uppercase tracking-wider px-1">{t("wallet.howItWorks")}</p>
           {[
-            { icon: "M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z", label: "Secure key generation", desc: "Your key is split between this device and our server — neither side can sign alone" },
-            { icon: "M7.864 4.243A7.5 7.5 0 0119.5 10.5c0 2.92-.556 5.709-1.568 8.268M5.742 6.364A7.465 7.465 0 004 10.5a7.464 7.464 0 01-1.15 3.993m1.989 3.559A11.209 11.209 0 008.25 10.5a3.75 3.75 0 117.5 0c0 .527-.021 1.049-.064 1.565M12 10.5a14.94 14.94 0 01-3.6 9.75m6.633-4.596a18.666 18.666 0 01-2.485 5.33", label: "Passkey protection", desc: "Use your fingerprint, face, or PIN to authorize transactions — no passwords needed" },
-            { icon: "M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z", label: "Built-in fraud protection", desc: "Risky addresses are automatically flagged before you send" },
+            { icon: "M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z", label: t("wallet.secureKeyGen"), desc: t("wallet.secureKeyGenDesc") },
+            { icon: "M7.864 4.243A7.5 7.5 0 0119.5 10.5c0 2.92-.556 5.709-1.568 8.268M5.742 6.364A7.465 7.465 0 004 10.5a7.464 7.464 0 01-1.15 3.993m1.989 3.559A11.209 11.209 0 008.25 10.5a3.75 3.75 0 117.5 0c0 .527-.021 1.049-.064 1.565M12 10.5a14.94 14.94 0 01-3.6 9.75m6.633-4.596a18.666 18.666 0 01-2.485 5.33", label: t("wallet.passkeyProtection"), desc: t("wallet.passkeyProtectionDesc") },
+            { icon: "M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z", label: t("wallet.fraudProtection"), desc: t("wallet.fraudProtectionDesc") },
           ].map(({ icon, label, desc }) => (
             <div key={label} className="flex items-start gap-3 bg-surface-secondary border border-border-primary rounded-lg px-3.5 py-3">
               <div className="w-8 h-8 rounded-full bg-surface-tertiary flex items-center justify-center shrink-0 mt-0.5">
@@ -427,7 +429,7 @@ export function Wallet() {
                   : "text-text-muted hover:text-text-secondary"
               }`}
             >
-              {tab === "accounts" ? "Accounts" : "Activity"}
+              {tab === "accounts" ? t("common.accounts") : t("common.activity")}
             </button>
           ))}
         </div>
@@ -454,7 +456,7 @@ export function Wallet() {
                   onClick={() => setBadgeExplain(badgeExplain === `sc-${group.keyId}` ? null : `sc-${group.keyId}`)}
                   className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 transition-colors whitespace-nowrap shrink-0"
                 >
-                  Self-custody
+                  {t("wallet.selfCustody")}
                 </button>
               )}
             <button
@@ -477,7 +479,7 @@ export function Wallet() {
           {/* Badge explanations */}
           {badgeExplain === `sc-${group.keyId}` && (
             <p className="text-right px-1 mb-2 text-[10px] text-purple-400/80 leading-relaxed">
-              You hold both key shares and can recover your wallet without our server.
+              {t("wallet.selfCustodyDesc")}
             </p>
           )}
 
@@ -491,7 +493,7 @@ export function Wallet() {
                 <svg className="w-4 h-4 text-text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
                 </svg>
-                Account Info
+                {t("wallet.accountInfo")}
               </button>
               <button
                 onClick={() => {
@@ -504,7 +506,7 @@ export function Wallet() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
-                Manage Display
+                {t("wallet.manageDisplay")}
               </button>
               {!isRecovery && expert && (
                 <button
@@ -514,7 +516,7 @@ export function Wallet() {
                   <svg className="w-4 h-4 text-text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
                   </svg>
-                  Policy Rules
+                  {t("wallet.policyRules")}
                 </button>
               )}
               {!isRecovery && !expert && (
@@ -522,7 +524,7 @@ export function Wallet() {
                   <svg className="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
                   </svg>
-                  <span className="text-sm text-text-muted">Protected by default</span>
+                  <span className="text-sm text-text-muted">{t("wallet.protectedByDefault")}</span>
                 </div>
               )}
               {!isRecovery && (
@@ -534,7 +536,7 @@ export function Wallet() {
                   <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
                   </svg>
-                  Disable Account
+                  {t("wallet.disableAccount")}
                 </button>
               )}
             </div>
@@ -609,7 +611,7 @@ export function Wallet() {
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
-          Add Account
+          {t("wallet.addAccount")}
         </button>
       )}
 
@@ -629,8 +631,7 @@ export function Wallet() {
             />
           </svg>
           <p className="text-xs text-yellow-500/80 leading-relaxed">
-            {incompleteKeys.length} key
-            {incompleteKeys.length !== 1 ? "s" : ""} with incomplete generation.
+            {t(incompleteKeys.length !== 1 ? "wallet.incompleteKeys_plural" : "wallet.incompleteKeys", { count: incompleteKeys.length })}
           </p>
         </div>
       )}
@@ -638,7 +639,7 @@ export function Wallet() {
       {disabledKeys.length > 0 && (
         <div>
           <h3 className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-2 px-1">
-            Disabled
+            {t("wallet.disabled")}
           </h3>
           <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden divide-y divide-border-secondary">
             {disabledKeys.map((key) => (
@@ -700,12 +701,12 @@ export function Wallet() {
         <div className="flex flex-col gap-0.5 px-1">
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] text-text-muted tabular-nums">
-              Updated {formatLastUpdated(lastUpdated)}
+              {formatLastUpdated(lastUpdated)}
             </span>
             <button
               onClick={loadData}
               className="text-text-muted hover:text-text-secondary transition-colors p-0.5 rounded hover:bg-surface-tertiary"
-              title="Refresh"
+              title={t("common.refresh")}
             >
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />

@@ -1,10 +1,12 @@
 // Shared simulation result display for Send/WC preview
 // Uses same visual format as BalancePreview for consistency
 
+import { useTranslation } from "react-i18next";
 import type { SimulationResult } from "../../lib/txSimulation";
 import { getUsdValue, formatUsd } from "../../lib/prices";
 
 export function SimulationPreview({ simResult, prices }: { simResult: SimulationResult; prices?: Record<string, number> }) {
+  const { t } = useTranslation();
   if (simResult.changes.length === 0) return null;
 
   return (
@@ -32,7 +34,7 @@ export function SimulationPreview({ simResult, prices }: { simResult: Simulation
         })}
       </div>
       <p className="text-[10px] text-text-muted/50 mt-1.5 text-right">
-        Simulated via {simResult.provider.charAt(0).toUpperCase() + simResult.provider.slice(1)}
+        {t("send.simulatedVia", { provider: simResult.provider.charAt(0).toUpperCase() + simResult.provider.slice(1) })}
       </p>
     </div>
   );

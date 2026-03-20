@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { registerPasskey, authenticatePasskey } from "../lib/passkey";
 import { ErrorBox } from "./ui";
 
@@ -18,6 +19,7 @@ export function PasskeyGate({
   onCancel: () => void;
   inline?: boolean;
 }) {
+  const { t } = useTranslation();
   const [registering, setRegistering] = useState(false);
   const [error, setError] = useState("");
 
@@ -53,13 +55,10 @@ export function PasskeyGate({
         </svg>
       </div>
       <p className="text-sm font-medium text-text-primary mb-2">
-        {inline ? "Add fingerprint or Face ID" : "Set up a passkey to continue"}
+        {inline ? "Add fingerprint or Face ID" : t("passkey.gate.title")}
       </p>
       <p className="text-xs text-text-muted leading-relaxed mb-2 max-w-[300px] mx-auto">
-        Approve transactions with a quick tap instead of passwords. Uses your device's built-in security — Face ID, fingerprint, or PIN.
-      </p>
-      <p className="text-[11px] text-text-muted/70 leading-relaxed mb-6 max-w-[280px] mx-auto">
-        No passwords to remember. Your device handles it securely.
+        {t("passkey.gate.desc")}
       </p>
 
       {error && <ErrorBox className="mb-4">{error}</ErrorBox>}
@@ -71,7 +70,7 @@ export function PasskeyGate({
             disabled={registering}
             className="px-4 py-2.5 rounded-lg text-xs font-medium bg-surface-tertiary text-text-secondary hover:bg-border-primary transition-colors disabled:opacity-40"
           >
-            Cancel
+            {t("passkey.gate.cancel")}
           </button>
         )}
         <button
@@ -79,7 +78,7 @@ export function PasskeyGate({
           disabled={registering}
           className={`px-5 py-2.5 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-60 ${inline ? "w-full" : ""}`}
         >
-          {registering ? "Setting up..." : inline ? "Set Up Passkey" : "Add Passkey"}
+          {registering ? t("passkey.gate.authenticating") : t("passkey.gate.authenticate")}
         </button>
       </div>
       {inline && (
@@ -88,7 +87,7 @@ export function PasskeyGate({
           disabled={registering}
           className="mt-3 text-xs text-text-muted hover:text-text-tertiary transition-colors disabled:opacity-40"
         >
-          Skip for now
+          {t("passkey.gate.cancel")}
         </button>
       )}
     </div>
@@ -102,7 +101,7 @@ export function PasskeyGate({
       <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border-secondary">
-          <h3 className="text-sm font-semibold text-text-primary">Passkey Required</h3>
+          <h3 className="text-sm font-semibold text-text-primary">{t("passkey.gate.title")}</h3>
         </div>
 
         {/* Body */}

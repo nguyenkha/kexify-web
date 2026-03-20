@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { authHeaders } from "../lib/auth";
 import { sensitiveHeaders, authenticatePasskey } from "../lib/passkey";
 import { Spinner } from "./ui";
@@ -26,6 +27,7 @@ interface AccountStatus {
 }
 
 export function RecoveryChecklist() {
+  const { t } = useTranslation();
   const [accounts, setAccounts] = useState<AccountStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [hkdfDownloadingId, setHkdfDownloadingId] = useState<string | null>(null);
@@ -83,7 +85,7 @@ export function RecoveryChecklist() {
       const res = await fetch(apiUrl(`/api/keys/${account.id}/backup/server-share-hkdf`), { headers });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setHkdfError(data.error || "Download failed");
+        setHkdfError(data.error || t("recovery.downloadFailed"));
         setHkdfDownloadingId(null);
         return;
       }
@@ -114,11 +116,11 @@ export function RecoveryChecklist() {
       try {
         const parsed = JSON.parse(reader.result as string) as KeyFileData;
         if (!parsed.id || !parsed.share || !parsed.publicKey) {
-          setImportError("Invalid key share file");
+          setImportError(t("recovery.invalidKeyShareFile"));
           return;
         }
         if (importAccountId && parsed.id !== importAccountId) {
-          setImportError("This key file belongs to a different account");
+          setImportError(t("recovery.keyFileDifferentAccount"));
           return;
         }
         if (isEncryptedKeyFile(parsed)) {
@@ -128,7 +130,7 @@ export function RecoveryChecklist() {
           saveImport(parsed);
         }
       } catch {
-        setImportError("Could not parse key share file");
+        setImportError(t("recovery.couldNotParseKeyFile"));
       }
     };
     reader.readAsText(file);
@@ -142,7 +144,7 @@ export function RecoveryChecklist() {
       const decrypted = await decryptKeyFile(importData, passphrase);
       await saveImport(decrypted);
     } catch {
-      setImportError("Incorrect passphrase");
+      setImportError(t("recovery.incorrectPassphrase"));
     }
   }
 
@@ -176,17 +178,17 @@ export function RecoveryChecklist() {
       try {
         const parsed = JSON.parse(reader.result as string) as KeyFileData;
         if (!parsed.id || !parsed.share || !parsed.publicKey) {
-          setEscrowError("Invalid key share file");
+          setEscrowError(t("recovery.invalidKeyShareFile"));
           return;
         }
         if (escrowAccountId && parsed.id !== escrowAccountId) {
-          setEscrowError("This key file belongs to a different account");
+          setEscrowError(t("recovery.keyFileDifferentAccount"));
           return;
         }
         // Upload the file as-is (already encrypted with user's passphrase)
         uploadEscrow(parsed);
       } catch {
-        setEscrowError("Could not parse key share file");
+        setEscrowError(t("recovery.couldNotParseKeyFile"));
       }
     };
     reader.readAsText(file);
@@ -211,7 +213,7 @@ export function RecoveryChecklist() {
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        setEscrowError(d.error || "Upload failed");
+        setEscrowError(d.error || t("recovery.uploadFailed"));
       } else {
         setEscrowAccountId(null);
         fetchAccounts();
@@ -239,14 +241,14 @@ export function RecoveryChecklist() {
         if (result.prfKey) {
           data = await getKeyShareWithPrf(account.id, result.prfKey);
         }
-        if (!data) { setDownloadError("Could not decrypt. Wrong passkey?"); setDownloadingId(null); return; }
+        if (!data) { setDownloadError(t("recovery.couldNotDecryptWrongPasskey")); setDownloadingId(null); return; }
       } else if (mode === "passphrase") {
         // Need passphrase to decrypt browser share first
         setDownloadPassphraseId(account.id);
         setDownloadingId(null);
         return;
       } else {
-        setDownloadError("No browser key share found"); setDownloadingId(null); return;
+        setDownloadError(t("recovery.noBrowserKeyShare")); setDownloadingId(null); return;
       }
 
       // Decrypted — now ask for a passphrase to encrypt the download
@@ -264,7 +266,7 @@ export function RecoveryChecklist() {
     setDownloadingId(account.id);
     try {
       const data = await getKeyShareWithPassphrase(account.id, passphrase);
-      if (!data) { setDownloadError("Could not decrypt"); setDownloadingId(null); return; }
+      if (!data) { setDownloadError(t("recovery.couldNotDecrypt")); setDownloadingId(null); return; }
       // Decrypted — now ask for a passphrase to encrypt the download
       setPendingDownloadData({ data, account });
       setDownloadPassphraseId(null);
@@ -294,8 +296,8 @@ export function RecoveryChecklist() {
   if (loading) {
     return (
       <div className="space-y-5">
-        <h2 className="text-lg font-semibold text-text-primary">Backup & Recovery</h2>
-        <div className="text-xs text-text-muted text-center py-8">Loading...</div>
+        <h2 className="text-lg font-semibold text-text-primary">{t("recovery.title")}</h2>
+        <div className="text-xs text-text-muted text-center py-8">{t("common.loading")}</div>
       </div>
     );
   }
@@ -308,25 +310,25 @@ export function RecoveryChecklist() {
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-lg font-semibold text-text-primary">Backup & Recovery</h2>
+        <h2 className="text-lg font-semibold text-text-primary">{t("recovery.title")}</h2>
         <p className="text-xs text-text-muted mt-1">
-          Keep your wallet safe. Complete these steps so you can recover your accounts if needed.
+          {t("recovery.description")}
         </p>
       </div>
 
       {/* Overall status */}
       {overallReady ? (
         <div className="bg-green-500/10 border border-green-500/20 rounded-lg px-4 py-3">
-          <p className="text-xs text-green-400 font-medium">All set! Your wallet is fully backed up.</p>
+          <p className="text-xs text-green-400 font-medium">{t("recovery.allSet")}</p>
           <p className="text-[11px] text-green-400/70 mt-1">
-            You can recover all your accounts even if you lose access to this device or our server goes down.
+            {t("recovery.allSetDesc")}
           </p>
         </div>
       ) : (
         <div className="bg-yellow-500/5 border border-yellow-500/15 rounded-lg px-4 py-3">
-          <p className="text-xs text-yellow-500 font-medium">Some backup steps are incomplete</p>
+          <p className="text-xs text-yellow-500 font-medium">{t("recovery.someIncomplete")}</p>
           <p className="text-[11px] text-yellow-500/70 mt-1">
-            Complete the checklist below to ensure you can always recover your wallet.
+            {t("recovery.incompleteDesc")}
           </p>
         </div>
       )}
@@ -342,24 +344,24 @@ export function RecoveryChecklist() {
         const steps = [
           {
             key: "browser",
-            label: "Key saved in this browser",
-            detail: "Your key is encrypted and stored locally so you can sign transactions.",
+            label: t("recovery.keySavedInBrowser"),
+            detail: t("recovery.browserDetail"),
             done: account.hasBrowserShare,
           },
           {
             key: "escrow",
-            label: "Key backed up on server",
-            detail: "An encrypted copy of your key is stored on our server. You can restore it on any device.",
+            label: t("recovery.keyBackedUpOnServer"),
+            detail: t("recovery.escrowDetail"),
             done: account.hasClientBackup,
           },
           {
             key: "server",
-            label: "Server key downloaded",
+            label: t("recovery.serverKeyDownloaded"),
             detail: serverKeyDone
               ? account.selfCustodyAt
-                ? "You hold a self-custody copy of the server's key share."
-                : "You have a server-encrypted backup. Contact kexify support to decrypt it in an emergency."
-              : "Download a backup of the server's key share. It's encrypted by the server — in an emergency, contact us to decrypt it.",
+                ? t("recovery.serverDetailSelfCustody")
+                : t("recovery.serverDetailHkdf")
+              : t("recovery.serverDetailDownload"),
             done: serverKeyDone,
           },
         ];
@@ -405,33 +407,33 @@ export function RecoveryChecklist() {
                         {/* Phase A: Enter passphrase to decrypt passphrase-encrypted browser share */}
                         {downloadPassphraseId === account.id && !pendingDownloadData ? (
                           <div className="space-y-2">
-                            <p className="text-[10px] text-text-muted">Enter your passphrase to unlock:</p>
+                            <p className="text-[10px] text-text-muted">{t("recovery.enterPassphraseToUnlock")}</p>
                             <PassphraseInput
                               mode="enter"
-                              submitLabel="Unlock"
+                              submitLabel={t("recovery.unlock")}
                               onSubmit={(p) => handleDecryptBrowserShare(p, account)}
                             />
                             <button
                               onClick={() => { setDownloadPassphraseId(null); setDownloadError(null); }}
                               className="text-[10px] text-text-muted hover:text-text-tertiary"
                             >
-                              Cancel
+                              {t("common.cancel")}
                             </button>
                           </div>
                         ) : pendingDownloadData?.account.id === account.id ? (
                           /* Phase B: Set a passphrase to encrypt the downloaded file */
                           <div className="space-y-2">
-                            <p className="text-[10px] text-text-muted">Set a passphrase to protect the downloaded file:</p>
+                            <p className="text-[10px] text-text-muted">{t("recovery.setPassphraseForDownload")}</p>
                             <PassphraseInput
                               mode="set"
-                              submitLabel="Encrypt & Download"
+                              submitLabel={t("recovery.encryptAndDownload")}
                               onSubmit={handleEncryptAndDownload}
                             />
                             <button
                               onClick={() => setPendingDownloadData(null)}
                               className="text-[10px] text-text-muted hover:text-text-tertiary"
                             >
-                              Cancel
+                              {t("common.cancel")}
                             </button>
                           </div>
                         ) : (
@@ -440,7 +442,7 @@ export function RecoveryChecklist() {
                             disabled={downloadingId === account.id}
                             className="px-3 py-2 rounded-lg text-xs font-medium bg-surface-tertiary hover:bg-border-primary text-text-secondary transition-colors disabled:opacity-50"
                           >
-                            {downloadingId === account.id ? "Exporting..." : "Download key file"}
+                            {downloadingId === account.id ? t("recovery.exporting") : t("recovery.importKeyFile")}
                           </button>
                         )}
                         {downloadError && downloadingId === null && !downloadPassphraseId && !pendingDownloadData && (
@@ -454,31 +456,31 @@ export function RecoveryChecklist() {
                       <div className="mt-2 space-y-1.5">
                         {importStep === "decrypt" && importAccountId === account.id ? (
                           <div className="space-y-2">
-                            <p className="text-[10px] text-text-muted">Enter passphrase to decrypt:</p>
+                            <p className="text-[10px] text-text-muted">{t("recovery.enterPassphraseToDecrypt")}</p>
                             <PassphraseInput
                               mode="enter"
-                              submitLabel="Decrypt & Save"
+                              submitLabel={t("recovery.decryptAndSave")}
                               onSubmit={handleImportDecrypt}
                             />
                           </div>
                         ) : importStep === "saving" && importAccountId === account.id ? (
                           <div className="flex items-center gap-2">
                             <Spinner size="xs" />
-                            <span className="text-[10px] text-text-muted">Saving...</span>
+                            <span className="text-[10px] text-text-muted">{t("recovery.saving")}</span>
                           </div>
                         ) : (
                           <button
                             onClick={() => { setImportAccountId(account.id); setImportError(null); fileInputRef.current?.click(); }}
                             className="px-3 py-2 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors"
                           >
-                            Import key file
+                            {t("recovery.importKeyFile")}
                           </button>
                         )}
                         {importError && importAccountId === account.id && (
                           <p className="text-[10px] text-red-400">{importError}</p>
                         )}
                         <p className="text-[10px] text-text-muted leading-relaxed">
-                          More options available in Expert mode.
+                          {t("recovery.moreOptionsInExpertMode")}
                         </p>
                       </div>
                     )}
@@ -491,13 +493,13 @@ export function RecoveryChecklist() {
                           disabled={escrowUploading}
                           className="px-3 py-2 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50"
                         >
-                          {escrowUploading && escrowAccountId === account.id ? "Uploading..." : "Upload key file as backup"}
+                          {escrowUploading && escrowAccountId === account.id ? t("recovery.uploading") : t("recovery.uploadKeyFileAsBackup")}
                         </button>
                         {escrowError && escrowAccountId === account.id && (
                           <p className="text-[10px] text-red-400">{escrowError}</p>
                         )}
                         <p className="text-[10px] text-text-muted leading-relaxed">
-                          More options available in Expert mode.
+                          {t("recovery.moreOptionsInExpertMode")}
                         </p>
                       </div>
                     )}
@@ -510,13 +512,13 @@ export function RecoveryChecklist() {
                           disabled={hkdfDownloadingId === account.id}
                           className="px-3 py-2 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50"
                         >
-                          {hkdfDownloadingId === account.id ? "Downloading..." : "Download server key backup"}
+                          {hkdfDownloadingId === account.id ? t("recovery.downloading") : t("recovery.downloadServerKeyBackup")}
                         </button>
                         {hkdfError && hkdfDownloadingId === null && (
                           <p className="text-[10px] text-red-400">{hkdfError}</p>
                         )}
                         <p className="text-[10px] text-text-muted leading-relaxed">
-                          For full self-custody, use Expert mode in Config.
+                          {t("recovery.fullSelfCustodyExpert")}
                         </p>
                       </div>
                     )}

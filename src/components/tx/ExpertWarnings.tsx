@@ -1,5 +1,7 @@
 // Shared expert mode warnings for gas limit / gas price
 
+import { useTranslation } from "react-i18next";
+
 interface ExpertWarningsProps {
   gasLimitOverride?: string;
   maxFeeOverride?: string;
@@ -15,11 +17,12 @@ export function ExpertWarnings({
   baseGasPrice,
   lowMultiplier = 0.8,
 }: ExpertWarningsProps) {
+  const { t } = useTranslation();
   const warnings: { text: string; level: "red" | "yellow" }[] = [];
 
   if (gasLimitOverride && /^\d+$/.test(gasLimitOverride) && estimatedGas && BigInt(gasLimitOverride) < estimatedGas) {
     warnings.push({
-      text: `Gas limit ${gasLimitOverride} is below estimated ${estimatedGas.toString()}. Transaction may fail.`,
+      text: t("send.gasLimitBelowEstimate", { limit: gasLimitOverride, estimate: estimatedGas.toString() }),
       level: "red",
     });
   }
@@ -28,7 +31,7 @@ export function ExpertWarnings({
     const lowGwei = Number(baseGasPrice) * lowMultiplier / 1e9;
     if (parseFloat(maxFeeOverride) < lowGwei) {
       warnings.push({
-        text: `Max fee ${maxFeeOverride} Gwei is below network minimum (~${lowGwei.toFixed(2)} Gwei). Transaction may not be confirmed.`,
+        text: t("send.maxFeeBelowNetwork", { fee: maxFeeOverride, min: lowGwei.toFixed(2) }),
         level: "yellow",
       });
     }

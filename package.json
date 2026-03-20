@@ -23,10 +23,12 @@
     "@yudiel/react-qr-scanner": "^2.5.1",
     "cb-mpc": "^0.1.5",
     "ethers": "^6.16.0",
+    "i18next": "^25.8.20",
     "prismjs": "^1.30.0",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-i18next": "^16.5.8",
     "react-router-dom": "^7.13.1",
     "react-simple-code-editor": "^0.14.1"
   },

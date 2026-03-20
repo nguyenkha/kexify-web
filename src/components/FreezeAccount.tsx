@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { apiUrl } from "../lib/apiBase";
 import { Spinner, Button } from "./ui";
 
 export function FreezeAccount() {
+  const { t } = useTranslation();
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const token = params.get("token");
@@ -40,18 +42,17 @@ export function FreezeAccount() {
             <h1 className="text-3xl font-bold tracking-tight text-text-primary mb-1">kexify</h1>
             <p className="text-[11px] text-text-muted mb-6">keys simplified</p>
             <p className="text-sm text-text-secondary mb-2">
-              Freeze your account?
+              {t("freeze.title")}
             </p>
             <p className="text-xs text-text-muted mb-6 leading-relaxed">
-              This will immediately block all signing, key generation, and account changes.
-              Unfreezing requires passkey verification and a 24-hour cooling period.
+              {t("freeze.description")}
             </p>
             <Button variant="danger" fullWidth onClick={handleFreeze}>
-              🥶 Freeze My Account
+              🥶 {t("freeze.freezeMyAccount")}
             </Button>
             <div className="mt-3">
               <Button variant="secondary" fullWidth onClick={() => navigate("/login")}>
-                Cancel
+                {t("freeze.cancel")}
               </Button>
             </div>
           </>
@@ -62,8 +63,8 @@ export function FreezeAccount() {
             <div className="flex justify-center mb-4">
               <Spinner size="lg" />
             </div>
-            <p className="text-sm font-medium text-text-secondary">Freezing your account…</p>
-            <p className="text-xs text-text-muted mt-1">This may take a few seconds.</p>
+            <p className="text-sm font-medium text-text-secondary">{t("freeze.freezing")}</p>
+            <p className="text-xs text-text-muted mt-1">{t("freeze.mayTakeSeconds")}</p>
           </>
         )}
 
@@ -74,16 +75,15 @@ export function FreezeAccount() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
               </svg>
             </div>
-            <p className="text-lg font-semibold text-text-primary mb-1">Account frozen</p>
+            <p className="text-lg font-semibold text-text-primary mb-1">{t("freeze.accountFrozen")}</p>
             <p className="text-xs text-text-muted mb-6">
-              All signing, key generation, and account changes have been blocked.
-              You can unfreeze from your account settings (requires passkey + 24h cooling period).
+              {t("freeze.frozenDescription")}
             </p>
             <button
               onClick={() => navigate("/accounts")}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
             >
-              Go to dashboard
+              {t("freeze.goToDashboard")}
             </button>
           </>
         )}
@@ -95,10 +95,10 @@ export function FreezeAccount() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </div>
-            <p className="text-sm font-medium text-text-primary mb-1">Couldn't freeze account</p>
+            <p className="text-sm font-medium text-text-primary mb-1">{t("freeze.couldntFreeze")}</p>
             <p className="text-xs text-red-400 break-all mb-5">{error}</p>
             <Button variant="secondary" onClick={() => navigate("/login")}>
-              Go to login
+              {t("freeze.goToLogin")}
             </Button>
           </>
         )}

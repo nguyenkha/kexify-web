@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { getUsdValue, formatUsd } from "../lib/prices";
 
 export interface BalanceChange {
@@ -30,6 +31,7 @@ export function BalancePreview({
   changes: BalanceChange[];
   prices: Record<string, number>;
 }) {
+  const { t } = useTranslation();
   if (changes.length === 0) return null;
 
   return (
@@ -60,7 +62,7 @@ export function BalancePreview({
                   </div>
                 )}
                 {afterBal < 0n && (
-                  <div className="text-[10px] text-red-400">Insufficient</div>
+                  <div className="text-[10px] text-red-400">{t("send.insufficient")}</div>
                 )}
               </div>
             </div>

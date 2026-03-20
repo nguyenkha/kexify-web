@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { authenticatePasskey, type PasskeyAuthResult } from "../lib/passkey";
 
 /**
@@ -17,6 +18,7 @@ export function PasskeyChallenge({
   /** Start authentication immediately on mount (caller must ensure user gesture context). */
   autoStart?: boolean;
 }) {
+  const { t } = useTranslation();
   const [error, setError] = useState("");
   const [authenticating, setAuthenticating] = useState(!!autoStart);
   const startedRef = useRef(false);
@@ -54,7 +56,7 @@ export function PasskeyChallenge({
       <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border-secondary">
-          <h3 className="text-sm font-semibold text-text-primary">🔑 Verify Identity</h3>
+          <h3 className="text-sm font-semibold text-text-primary">🔑 {t("passkey.challenge.title")}</h3>
           {!authenticating && (
             <button
               onClick={onCancel}
@@ -84,13 +86,13 @@ export function PasskeyChallenge({
                     onClick={onCancel}
                     className="px-4 py-2.5 rounded-lg text-xs font-medium bg-surface-tertiary text-text-secondary hover:bg-border-primary transition-colors"
                   >
-                    Cancel
+                    {t("passkey.challenge.cancel")}
                   </button>
                   <button
                     onClick={doAuth}
                     className="px-4 py-2.5 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors"
                   >
-                    Try Again
+                    {t("common.retry")}
                   </button>
                 </div>
               </>
@@ -102,8 +104,8 @@ export function PasskeyChallenge({
                     <path strokeLinecap="round" strokeLinejoin="round" d="M7.864 4.243A7.5 7.5 0 0119.5 10.5c0 2.92-.556 5.709-1.568 8.268M5.742 6.364A7.465 7.465 0 004 10.5a7.464 7.464 0 01-1.15 3.993m1.989 3.559A11.209 11.209 0 008.25 10.5a3.75 3.75 0 117.5 0c0 .527-.021 1.049-.064 1.565M12 10.5a14.94 14.94 0 01-3.6 9.75m6.633-4.596a18.666 18.666 0 01-2.485 5.33" />
                   </svg>
                 </div>
-                <p className="text-sm font-medium text-text-primary mb-1">Authenticate with your passkey</p>
-                <p className="text-xs text-text-muted">Follow the prompt from your browser or device.</p>
+                <p className="text-sm font-medium text-text-primary mb-1">{t("passkey.challenge.title")}</p>
+                <p className="text-xs text-text-muted">{t("passkey.challenge.desc")}</p>
               </>
             ) : (
               <>
@@ -113,20 +115,20 @@ export function PasskeyChallenge({
                     <path strokeLinecap="round" strokeLinejoin="round" d="M7.864 4.243A7.5 7.5 0 0119.5 10.5c0 2.92-.556 5.709-1.568 8.268M5.742 6.364A7.465 7.465 0 004 10.5a7.464 7.464 0 01-1.15 3.993m1.989 3.559A11.209 11.209 0 008.25 10.5a3.75 3.75 0 117.5 0c0 .527-.021 1.049-.064 1.565M12 10.5a14.94 14.94 0 01-3.6 9.75m6.633-4.596a18.666 18.666 0 01-2.485 5.33" />
                   </svg>
                 </div>
-                <p className="text-sm font-medium text-text-primary mb-2">Verify your identity</p>
-                <p className="text-xs text-text-muted mb-5">Use your passkey to confirm this action.</p>
+                <p className="text-sm font-medium text-text-primary mb-2">{t("passkey.challenge.title")}</p>
+                <p className="text-xs text-text-muted mb-5">{t("passkey.challenge.desc")}</p>
                 <div className="flex gap-3 justify-center">
                   <button
                     onClick={onCancel}
                     className="px-4 py-2.5 rounded-lg text-xs font-medium bg-surface-tertiary text-text-secondary hover:bg-border-primary transition-colors"
                   >
-                    Cancel
+                    {t("passkey.challenge.cancel")}
                   </button>
                   <button
                     onClick={doAuth}
                     className="px-5 py-2.5 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors"
                   >
-                    Verify
+                    {t("passkey.challenge.confirm")}
                   </button>
                 </div>
               </>

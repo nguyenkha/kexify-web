@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { Spinner, Button } from "./ui";
 import type { Chain, Asset } from "../lib/api";
 import { explorerLink } from "../shared/utils";
@@ -40,6 +41,7 @@ export function XlmTrustlineDialog({
 }: {
   keyId: string; address: string; balance: string; chain: Chain; chainAssets: Asset[]; prices: Record<string, number>; onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const { addToast } = useToast();
   const [step, setStep] = useState<"select" | "input" | "preview" | "signing" | "result">("select");
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
@@ -59,7 +61,7 @@ export function XlmTrustlineDialog({
   const [xlmFeeRate, setXlmFeeRate] = useState(100);
   const [enabledAssets, setEnabledAssets] = useState<Set<string>>(new Set());
   const recovery = isRecoveryMode();
-  const signLabel = recovery ? "Local signing" : "MPC signing";
+  const signLabel = recovery ? t("xlm.localSigning") : t("xlm.mpcSigning");
 
   const phaseIndex: Record<SigningPhase, number> = {
     "loading-keyshare": 0, "building-tx": 0,
@@ -200,7 +202,7 @@ export function XlmTrustlineDialog({
       setSigningPhase("polling");
       const result = await waitForXlmConfirmation(chain.rpcUrl, txHash, () => {}, 30, 3000);
       setTxResult({ status: result.confirmed ? "success" : "pending", txHash, blockNumber: result.ledger });
-      if (result.confirmed) addToast("Token enabled successfully", "success");
+      if (result.confirmed) addToast(t("xlm.tokenEnabledToast"), "success");
       setKeyFile(null); setPendingEncrypted(null);
       setStep("result");
     } catch (err: unknown) {
@@ -230,11 +232,11 @@ export function XlmTrustlineDialog({
               </button>
             )}
             <h3 className="text-sm font-semibold text-text-primary">
-              {step === "select" ? "Enable Token"
-                : step === "input" ? `Enable ${selectedAsset?.symbol}`
-                : step === "preview" ? "👀 Review"
-                : step === "result" ? "Done"
-                : `Enable ${selectedAsset?.symbol}`}
+              {step === "select" ? t("xlm.enableToken")
+                : step === "input" ? t("xlm.enableSymbol", { symbol: selectedAsset?.symbol })
+                : step === "preview" ? `👀 ${t("xlm.reviewTitle")}`
+                : step === "result" ? t("xlm.done")
+                : t("xlm.enableSymbol", { symbol: selectedAsset?.symbol })}
             </h3>
           </div>
           {step !== "signing" && (
@@ -249,7 +251,7 @@ export function XlmTrustlineDialog({
         {/* Select step */}
         {step === "select" && (
           <div className="p-5 overflow-y-auto flex-1 min-h-0">
-            <p className="text-xs text-text-muted mb-3">Select a token to enable on your Stellar account.</p>
+            <p className="text-xs text-text-muted mb-3">{t("xlm.selectToken")}</p>
             <div className="space-y-2">
               {chainAssets.map((a) => {
                 const isEnabled = enabledAssets.has(`${a.symbol}:${a.contractAddress}`);
@@ -269,7 +271,7 @@ export function XlmTrustlineDialog({
                       <p className="text-[11px] text-text-muted truncate">{a.name.replace(/\s*\(?\s*(testnet|devnet)\s*\)?\s*/gi, " ").trim()}</p>
                     </div>
                     {isEnabled ? (
-                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-green-500/10 text-green-500 shrink-0">Enabled</span>
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-green-500/10 text-green-500 shrink-0">{t("xlm.enabled")}</span>
                     ) : (
                       <svg className="w-4 h-4 text-text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -300,7 +302,7 @@ export function XlmTrustlineDialog({
 
               {/* Key Share */}
               <div>
-                <label className="block text-xs text-text-muted mb-1.5">Key Share</label>
+                <label className="block text-xs text-text-muted mb-1.5">{t("xlm.keyShare")}</label>
                 {keyFile ? (
                   <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 flex items-center gap-2.5">
                     <div className="w-7 h-7 rounded-full bg-green-500/10 flex items-center justify-center flex-shrink-0">
@@ -315,7 +317,7 @@ export function XlmTrustlineDialog({
                     <button
                       onClick={() => !recovery && setKeyFile(null)} disabled={recovery}
                       className={`p-1 rounded-md transition-colors ${recovery ? "opacity-40 cursor-not-allowed" : "hover:bg-surface-tertiary"}`}
-                      title={recovery ? "Key loaded from recovery" : "Change key share"}
+                      title={recovery ? t("xlm.keyLoaded") : t("xlm.changeKey")}
                     >
                       <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 119 0v3.75M3.75 21.75h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H3.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
@@ -333,7 +335,7 @@ export function XlmTrustlineDialog({
                       </svg>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs text-text-secondary truncate">{keyId.slice(0, 8)}...</p>
-                        <p className="text-[10px] text-text-muted">{browserShareMode === "prf" ? "Passkey encrypted" : "Passphrase encrypted"} · ECDSA + EdDSA</p>
+                        <p className="text-[10px] text-text-muted">{browserShareMode === "prf" ? t("xlm.passkeyEncrypted") : t("xlm.passphraseEncrypted")} · ECDSA + EdDSA</p>
                       </div>
                       {browserShareLoading
                         ? <Spinner size="xs" />
@@ -342,7 +344,7 @@ export function XlmTrustlineDialog({
                     </button>
                     {browserShareError && <p className="text-[11px] text-red-400 text-center">{browserShareError}</p>}
                     <button onClick={() => setBrowserShareMode(null)} className="w-full text-[11px] text-text-muted hover:text-text-tertiary transition-colors">
-                      Or upload a file instead
+                      {t("xlm.orUploadFile")}
                     </button>
                   </div>
                 ) : (
@@ -354,7 +356,7 @@ export function XlmTrustlineDialog({
                       <svg className="w-4 h-4 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
                       </svg>
-                      <span className="text-xs text-text-muted">Upload key share file (.json)</span>
+                      <span className="text-xs text-text-muted">{t("xlm.uploadKeyShare")}</span>
                     </button>
                   </div>
                 )}
@@ -363,9 +365,9 @@ export function XlmTrustlineDialog({
               {pendingEncrypted && !keyFile && (
                 <div className="bg-surface-primary border border-border-primary rounded-lg p-3">
                   <p className="text-xs text-text-muted mb-2">
-                    <span className="font-mono text-text-tertiary">{pendingEncrypted.id.slice(0, 8)}...</span> — Enter your passphrase to unlock
+                    <span className="font-mono text-text-tertiary">{pendingEncrypted.id.slice(0, 8)}...</span> — {t("xlm.enterPassphrase")}
                   </p>
-                  <PassphraseInput mode="enter" submitLabel="Decrypt" onSubmit={async (passphrase) => {
+                  <PassphraseInput mode="enter" submitLabel={t("xlm.decrypt")} onSubmit={async (passphrase) => {
                     const decrypted = await decryptKeyFile(pendingEncrypted, passphrase);
                     setKeyFile(decrypted as KeyFile);
                     setPendingEncrypted(null);
@@ -374,8 +376,8 @@ export function XlmTrustlineDialog({
               )}
               {showBrowserPassphrase && !keyFile && (
                 <div className="bg-surface-primary border border-border-primary rounded-lg p-3">
-                  <p className="text-xs text-text-muted mb-2">Enter your passphrase to unlock this key share</p>
-                  <PassphraseInput mode="enter" submitLabel="Decrypt" onSubmit={async (passphrase) => {
+                  <p className="text-xs text-text-muted mb-2">{t("xlm.enterPassphrase")}</p>
+                  <PassphraseInput mode="enter" submitLabel={t("xlm.decrypt")} onSubmit={async (passphrase) => {
                     const data = await getKeyShareWithPassphrase(keyId, passphrase);
                     if (data) { setKeyFile(data as KeyFile); setShowBrowserPassphrase(false); }
                   }} />
@@ -384,7 +386,7 @@ export function XlmTrustlineDialog({
 
               {/* From */}
               <div>
-                <label className="block text-xs text-text-muted mb-1.5">From</label>
+                <label className="block text-xs text-text-muted mb-1.5">{t("xlm.from")}</label>
                 <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5">
                   <p className="text-xs font-mono text-text-tertiary truncate">{address}</p>
                   <p className="text-[10px] text-text-muted mt-0.5">{chain.displayName}</p>
@@ -393,7 +395,7 @@ export function XlmTrustlineDialog({
 
               {/* Token being enabled */}
               <div>
-                <label className="block text-xs text-text-muted mb-1.5">Token</label>
+                <label className="block text-xs text-text-muted mb-1.5">{t("xlm.token")}</label>
                 <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 flex items-center gap-2.5">
                   {selectedAsset.iconUrl ? (
                     <img src={selectedAsset.iconUrl} alt={selectedAsset.symbol} className="w-7 h-7 rounded-full bg-surface-tertiary shrink-0" />
@@ -409,13 +411,13 @@ export function XlmTrustlineDialog({
 
               {/* Fee summary — matches Send dialog bottom */}
               <div className="flex items-center justify-between px-1">
-                <span className="text-[10px] text-text-muted">Est. fee</span>
+                <span className="text-[10px] text-text-muted">{t("xlm.estFee")}</span>
                 {xlmFeeRate > 0 ? (
                   <span className="text-[11px] tabular-nums text-text-secondary">
                     {(xlmFeeRate / 1e7).toFixed(7)} XLM
                   </span>
                 ) : (
-                  <span className="text-[10px] text-text-muted animate-pulse">Estimating...</span>
+                  <span className="text-[10px] text-text-muted animate-pulse">{t("common.estimating")}</span>
                 )}
               </div>
             </div>
@@ -423,7 +425,7 @@ export function XlmTrustlineDialog({
             {/* Footer */}
             <div className="px-5 py-4 border-t border-border-secondary shrink-0">
               <Button variant="primary" fullWidth disabled={!keyFile} onClick={() => setStep("preview")}>
-                👀 Review
+                👀 {t("xlm.reviewButton")}
               </Button>
             </div>
           </>
@@ -440,16 +442,16 @@ export function XlmTrustlineDialog({
                     <img src={selectedAsset.iconUrl} alt={selectedAsset.symbol} className="w-6 h-6 rounded-full bg-surface-tertiary shrink-0" />
                   )}
                   <p className="text-2xl font-semibold text-text-primary">
-                    Enable <span className="text-text-tertiary text-sm">{selectedAsset.symbol}</span>
+                    {t("xlm.enable")} <span className="text-text-tertiary text-sm">{selectedAsset.symbol}</span>
                   </p>
                 </div>
-                <p className="text-sm text-text-muted">Establish trustline</p>
+                <p className="text-sm text-text-muted">{t("xlm.establishTrustline")}</p>
               </div>
 
               {/* Account — mirrors From/To in Send review */}
               <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
                 <div className="px-3 py-2.5 flex items-center justify-between">
-                  <span className="text-xs text-text-muted">Account</span>
+                  <span className="text-xs text-text-muted">{t("xlm.account")}</span>
                   <span className="text-xs font-mono text-text-secondary">{address.slice(0, 8)}...{address.slice(-6)}</span>
                 </div>
               </div>
@@ -462,22 +464,22 @@ export function XlmTrustlineDialog({
                 return (
                   <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
                     <div className="px-3 py-2.5 flex items-center justify-between">
-                      <span className="text-xs text-text-muted">Network</span>
+                      <span className="text-xs text-text-muted">{t("xlm.network")}</span>
                       <span className="text-xs text-text-secondary">{chain.displayName}</span>
                     </div>
                     <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                      <span className="text-xs text-text-muted">Estimated fee</span>
+                      <span className="text-xs text-text-muted">{t("xlm.estimatedFee")}</span>
                       <div className="text-right">
                         <span className="text-xs tabular-nums text-text-secondary font-medium">{feeStr} XLM</span>
                         {feeUsd != null && <span className="text-[10px] text-text-muted ml-1.5">({formatUsd(feeUsd)})</span>}
                       </div>
                     </div>
                     <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                      <span className="text-xs text-text-muted">Base fee</span>
+                      <span className="text-xs text-text-muted">{t("xlm.baseFee")}</span>
                       <span className="text-xs tabular-nums text-text-muted">{xlmFeeRate} stroops</span>
                     </div>
                     <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                      <span className="text-xs text-text-muted font-medium">Total cost</span>
+                      <span className="text-xs text-text-muted font-medium">{t("xlm.totalCost")}</span>
                       <span className="text-xs tabular-nums text-text-primary font-semibold">
                         {feeUsd != null ? formatUsd(feeUsd) : `${feeStr} XLM`}
                       </span>
@@ -501,7 +503,7 @@ export function XlmTrustlineDialog({
                       </span>
                     </div>
                     <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                      <span className="text-xs text-text-muted">Change</span>
+                      <span className="text-xs text-text-muted">{t("xlm.change")}</span>
                       <span className="text-xs tabular-nums text-red-400 font-medium">
                         -{feeXlm.toFixed(7)} XLM{feeUsd != null ? ` (${formatUsd(feeUsd)})` : ""}
                       </span>
@@ -513,7 +515,7 @@ export function XlmTrustlineDialog({
 
             <div className="px-5 py-4 border-t border-border-secondary shrink-0">
               <Button variant="primary" fullWidth onClick={() => guardedSign(executeTrustlineFlow)}>
-                🔐 Confirm &amp; Enable
+                🔐 {t("xlm.confirmEnable")}
               </Button>
             </div>
           </>
@@ -534,10 +536,10 @@ export function XlmTrustlineDialog({
 
                 {/* Phase label */}
                 <p className="text-sm font-medium text-text-primary text-center mb-2">
-                  {signingPhase === "mpc-signing" ? signLabelActive : signingPhase === "broadcasting" ? "Broadcast" : signingPhase === "polling" ? "Confirming" : "Build transaction"}
+                  {signingPhase === "mpc-signing" ? signLabelActive : signingPhase === "broadcasting" ? t("xlm.broadcasting") : signingPhase === "polling" ? t("xlm.confirming") : t("xlm.buildTx")}
                 </p>
                 <p className="text-[11px] text-text-muted text-center mb-6">
-                  Enable {selectedAsset?.symbol} trustline
+                  {t("xlm.enableTrustline", { symbol: selectedAsset?.symbol })}
                 </p>
 
                 {/* Progress steps */}

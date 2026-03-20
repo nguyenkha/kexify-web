@@ -1,18 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 import type { MeUser } from "../lib/auth";
 import { PasskeyChallenge } from "./PasskeyChallenge";
 import { sensitiveHeaders } from "../lib/passkey";
 import { apiUrl } from "../lib/apiBase";
 import { ErrorBox, Button } from "./ui";
-
-function formatCountdown(target: string): string {
-  const diff = new Date(target).getTime() - Date.now();
-  if (diff <= 0) return "Unfreezing soon…";
-  const h = Math.floor(diff / 3_600_000);
-  const m = Math.floor((diff % 3_600_000) / 60_000);
-  return `${h}h ${m}m`;
-}
 
 type Action = "idle" | "freeze-confirm" | "unfreeze-challenge" | "cancel-challenge";
 
@@ -23,10 +16,19 @@ export function FrozenBanner({
   user: MeUser;
   onUpdate: () => void;
 }) {
+  const { t } = useTranslation();
   const [action, setAction] = useState<Action>("idle");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [, setTick] = useState(0);
+
+  function formatCountdown(target: string): string {
+    const diff = new Date(target).getTime() - Date.now();
+    if (diff <= 0) return t("freeze.unfreeze") + "…";
+    const h = Math.floor(diff / 3_600_000);
+    const m = Math.floor((diff % 3_600_000) / 60_000);
+    return `${h}h ${m}m`;
+  }
 
   const frozen = !!user.frozenAt;
   const pendingUnfreeze = frozen && !!user.unfreezeAt;
@@ -62,7 +64,7 @@ export function FrozenBanner({
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Failed to freeze");
+        throw new Error(data.error || t("freeze.failedToFreeze"));
       }
       onUpdate();
       setAction("idle");
@@ -83,7 +85,7 @@ export function FrozenBanner({
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Failed to schedule unfreeze");
+        throw new Error(data.error || t("freeze.failedToUnfreeze"));
       }
       onUpdate();
       setAction("idle");
@@ -104,7 +106,7 @@ export function FrozenBanner({
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Failed to cancel unfreeze");
+        throw new Error(data.error || t("freeze.failedToCancelUnfreeze"));
       }
       onUpdate();
       setAction("idle");
@@ -128,23 +130,22 @@ export function FrozenBanner({
                 </svg>
               </div>
               <h1 className="text-3xl font-bold tracking-tight text-text-primary mb-1">kexify</h1>
-              <p className="text-[11px] text-text-muted mb-6">keys simplified</p>
+              <p className="text-[11px] text-text-muted mb-6">{t("login.tagline")}</p>
               <p className="text-sm text-text-secondary mb-2">
-                Freeze your account?
+                {t("freeze.title")}
               </p>
               <p className="text-xs text-text-muted mb-6 leading-relaxed">
-                This will immediately block all signing, key generation, and account changes.
-                Unfreezing requires passkey verification and a 24-hour cooling period.
+                {t("freeze.description")}
               </p>
 
               {error && <ErrorBox className="mb-4">{error}</ErrorBox>}
 
               <Button variant="danger" fullWidth onClick={confirmFreeze} disabled={loading}>
-                {loading ? "Freezing…" : "🥶 Freeze My Account"}
+                {loading ? t("freeze.freezing") : `🥶 ${t("freeze.freezeMyAccount")}`}
               </Button>
               <div className="mt-3">
                 <Button variant="secondary" fullWidth onClick={dismiss} disabled={loading}>
-                  Cancel
+                  {t("freeze.cancel")}
                 </Button>
               </div>
             </div>
@@ -154,9 +155,9 @@ export function FrozenBanner({
         <button
           onClick={() => setAction("freeze-confirm")}
           className="w-full text-left px-3 py-2 rounded-md text-xs text-text-tertiary hover:text-text-primary hover:bg-surface-tertiary transition-colors"
-          title="Freeze your account — blocks all operations immediately"
+          title={t("freeze.freezeTooltip")}
         >
-          🥶 Freeze Account
+          🥶 {t("freeze.freezeAccount")}
         </button>
       </>
     );
@@ -171,7 +172,7 @@ export function FrozenBanner({
           <div className="absolute inset-0 bg-black/50" onClick={dismiss} />
           <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl">
             <div className="px-5 py-4 border-b border-border-primary flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-text-primary">🔓 Unfreeze account</h3>
+              <h3 className="text-sm font-semibold text-text-primary">🔓 {t("freeze.unfreezeAccount")}</h3>
               <button
                 onClick={dismiss}
                 className="p-1.5 rounded-md text-text-tertiary hover:text-text-secondary hover:bg-surface-tertiary transition-colors"
@@ -183,7 +184,7 @@ export function FrozenBanner({
             </div>
             <div className="px-5 py-5 space-y-4">
               <p className="text-sm text-text-secondary">
-                Verify with your passkey to schedule an unfreeze. Your account will unfreeze after 24 hours.
+                {t("freeze.unfreezePasskeyDesc")}
               </p>
               <PasskeyChallenge
                 onAuthenticated={() => doUnfreeze()}
@@ -200,7 +201,7 @@ export function FrozenBanner({
           <div className="absolute inset-0 bg-black/50" onClick={dismiss} />
           <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl">
             <div className="px-5 py-4 border-b border-border-primary flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-text-primary">🥶 Cancel unfreeze</h3>
+              <h3 className="text-sm font-semibold text-text-primary">🥶 {t("freeze.cancelUnfreeze")}</h3>
               <button
                 onClick={dismiss}
                 className="p-1.5 rounded-md text-text-tertiary hover:text-text-secondary hover:bg-surface-tertiary transition-colors"
@@ -212,7 +213,7 @@ export function FrozenBanner({
             </div>
             <div className="px-5 py-5 space-y-4">
               <p className="text-sm text-text-secondary">
-                Verify with your passkey to cancel the scheduled unfreeze. Your account will remain frozen.
+                {t("freeze.cancelUnfreezePasskeyDesc")}
               </p>
               <PasskeyChallenge
                 onAuthenticated={() => doCancelUnfreeze()}
@@ -231,9 +232,9 @@ export function FrozenBanner({
           </svg>
           <div className="flex-1 min-w-0">
             <p className="text-xs text-red-400 leading-relaxed">
-              Account frozen — all signing, key generation, and account changes are blocked.
+              {t("freeze.accountFrozenBanner")}
               {pendingUnfreeze && (
-                <span className="text-text-tertiary"> Unfreezes in {formatCountdown(user.unfreezeAt!)}.</span>
+                <span className="text-text-tertiary"> {t("freeze.unfreezeIn", { time: formatCountdown(user.unfreezeAt!) })}</span>
               )}
             </p>
             {error && <p className="text-xs text-red-400 mt-1">{error}</p>}
@@ -245,7 +246,7 @@ export function FrozenBanner({
                 disabled={loading}
                 className="text-xs text-blue-400 hover:text-blue-300 transition-colors disabled:text-text-muted disabled:cursor-not-allowed"
               >
-                Cancel
+                {t("freeze.cancel")}
               </button>
             ) : (
               <button
@@ -253,7 +254,7 @@ export function FrozenBanner({
                 disabled={loading}
                 className="text-xs text-blue-400 hover:text-blue-300 transition-colors disabled:text-text-muted disabled:cursor-not-allowed"
               >
-                Unfreeze
+                {t("freeze.unfreeze")}
               </button>
             )}
           </div>

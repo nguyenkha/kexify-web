@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { authHeaders } from "../lib/auth";
 import { apiUrl } from "../lib/apiBase";
 import { useExpertMode } from "../context/ExpertModeContext";
@@ -391,6 +392,7 @@ function EntryRow({ entry, showAccount, expert }: { entry: AuditEntry; showAccou
 
 /** Full-page activity log for all accounts (used in Advanced menu) */
 export function ActivityLogPage() {
+  const { t } = useTranslation();
   const expert = useExpertMode();
   const [logs, setLogs] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -436,9 +438,9 @@ export function ActivityLogPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-lg font-semibold text-text-primary">Activity Log</h2>
+        <h2 className="text-lg font-semibold text-text-primary">{t("activity.title")}</h2>
         <p className="text-xs text-text-muted mt-1">
-          Signing activity, security events, and policy blocks across all accounts.
+          {t("activity.description")}
         </p>
       </div>
 
@@ -456,8 +458,8 @@ export function ActivityLogPage() {
         </div>
       ) : filtered.length === 0 ? (
         <EmptyState
-          title="No activity yet"
-          description="Activity will appear here after you sign transactions or make account changes."
+          title={t("activity.noActivityYet")}
+          description={t("activity.noActivityDesc")}
         />
       ) : (
         <div className="space-y-4">
@@ -480,7 +482,7 @@ export function ActivityLogPage() {
               disabled={loading}
               className="w-full text-xs text-blue-400 hover:text-blue-300 py-2.5 rounded-lg border border-dashed border-border-primary hover:border-blue-500/30 transition-colors disabled:opacity-50"
             >
-              {loading ? "Loading..." : "Load more"}
+              {loading ? t("activity.loading") : t("activity.loadMore")}
             </button>
           )}
         </div>

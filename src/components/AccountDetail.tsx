@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { authHeaders } from "../lib/auth";
 import { fetchChains, fetchAssets, fetchSettings, type Chain, type Asset } from "../lib/api";
 import { applyChainOverrides } from "../lib/userOverrides";
@@ -19,6 +20,7 @@ export function AccountDetail() {
     assetSymbol: string;
     btcAddrType: string;
   }>();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const pendingTx = (location.state as { pendingTx?: PendingTxFromNavigation } | null)?.pendingTx;
@@ -113,7 +115,7 @@ export function AccountDetail() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="text-xs text-text-muted">Loading...</div>
+        <div className="text-xs text-text-muted">{t("common.loading")}</div>
       </div>
     );
   }
@@ -121,12 +123,12 @@ export function AccountDetail() {
   if (error || !chain || !asset || !address || !keyId) {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">
-        <p className="text-sm text-text-secondary mb-2">Account not found</p>
+        <p className="text-sm text-text-secondary mb-2">{t("account.notFound")}</p>
         <button
           onClick={() => navigate("/accounts")}
           className="text-xs text-blue-400 hover:text-blue-300"
         >
-          Back to accounts
+          {t("account.backToAccounts")}
         </button>
       </div>
     );

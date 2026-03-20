@@ -1,9 +1,11 @@
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 
 const REPO_URL: string = (import.meta.env.VITE_REPO_URL as string | undefined) || "https://github.com/nguyenkha/kexify-web";
 const RECOVERY_URL = typeof window !== "undefined" ? `${window.location.origin}/recovery` : "/recovery";
 
 export function RecoveryGuide() {
+  const { t } = useTranslation();
   const downloadHandbook = useCallback(() => {
     const md = `# kexify Recovery Handbook
 
@@ -90,38 +92,33 @@ Generated on ${new Date().toLocaleDateString()} by kexify
       {/* How to recover */}
       <div>
         <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-2 px-1">
-          How to recover
+          {t("recovery.howToRecover")}
         </p>
         <div className="bg-surface-secondary rounded-xl border border-border-primary overflow-hidden divide-y divide-border-secondary">
           <div className="px-3 md:px-5 py-3 flex items-start gap-3">
             <span className="text-sm shrink-0 mt-0.5">1</span>
             <div>
-              <p className="text-xs font-medium text-text-primary">Get both key files</p>
+              <p className="text-xs font-medium text-text-primary">{t("recovery.getBothKeyFiles")}</p>
               <p className="text-[10px] text-text-muted mt-0.5 leading-relaxed">
-                You need your key file and the server key file. Both should be saved as .json files.
+                {t("recovery.getBothKeyFilesDesc")}
               </p>
             </div>
           </div>
           <div className="px-3 md:px-5 py-3 flex items-start gap-3">
             <span className="text-sm shrink-0 mt-0.5">2</span>
             <div>
-              <p className="text-xs font-medium text-text-primary">Open the recovery page</p>
+              <p className="text-xs font-medium text-text-primary">{t("recovery.openRecoveryPage")}</p>
               <p className="text-[10px] text-text-muted mt-0.5 leading-relaxed">
-                Go to{" "}
-                <a href={RECOVERY_URL} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">
-                  {RECOVERY_URL}
-                </a>
-                {" "}and load both files. The app works offline — no server needed.
+                {t("recovery.openRecoveryPageDesc", { url: RECOVERY_URL })}
               </p>
             </div>
           </div>
           <div className="px-3 md:px-5 py-3 flex items-start gap-3">
             <span className="text-sm shrink-0 mt-0.5">3</span>
             <div>
-              <p className="text-xs font-medium text-text-primary">Move your funds</p>
+              <p className="text-xs font-medium text-text-primary">{t("recovery.moveFunds")}</p>
               <p className="text-[10px] text-text-muted mt-0.5 leading-relaxed">
-                Once in recovery mode, send your funds to a new wallet for best security.
-                You can also use WalletConnect to interact with any dApp.
+                {t("recovery.moveFundsDesc")}
               </p>
             </div>
           </div>
@@ -131,11 +128,11 @@ Generated on ${new Date().toLocaleDateString()} by kexify
       {/* Important links */}
       <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden divide-y divide-border-secondary">
         <div className="px-3 py-2.5">
-          <p className="text-[10px] text-text-muted mb-1">Recovery page</p>
+          <p className="text-[10px] text-text-muted mb-1">{t("recovery.recoveryPage")}</p>
           <p className="text-xs font-mono text-text-secondary break-all">{RECOVERY_URL}</p>
         </div>
         <div className="px-3 py-2.5">
-          <p className="text-[10px] text-text-muted mb-1">Source code (in case app is unavailable)</p>
+          <p className="text-[10px] text-text-muted mb-1">{t("recovery.sourceCodeDesc")}</p>
           <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className="text-xs font-mono text-blue-400 hover:text-blue-300 break-all">
             {REPO_URL}
           </a>
@@ -150,7 +147,7 @@ Generated on ${new Date().toLocaleDateString()} by kexify
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
         </svg>
-        Download Recovery Handbook
+        {t("recovery.downloadHandbook")}
       </button>
     </>
   );

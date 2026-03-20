@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import type { Chain, Asset } from "../lib/api";
 import { QRCodeSVG } from "qrcode.react";
 
 export function QrModal({ address, asset, chain, onClose }: { address: string; asset: Asset; chain: Chain; onClose: () => void }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
   function copyAddr() {
@@ -24,7 +26,7 @@ export function QrModal({ address, asset, chain, onClose }: { address: string; a
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-xs shadow-xl">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border-secondary">
-          <h3 className="text-sm font-semibold text-text-primary">📱 Receive</h3>
+          <h3 className="text-sm font-semibold text-text-primary">📱 {t("common.qrReceive")}</h3>
           <button
             onClick={onClose}
             className="p-1 rounded-md text-text-tertiary hover:text-text-primary hover:bg-surface-tertiary transition-colors"
@@ -52,9 +54,9 @@ export function QrModal({ address, asset, chain, onClose }: { address: string; a
           <button
             onClick={copyAddr}
             className="w-full max-w-[280px] rounded-lg bg-surface-primary/60 border border-border-secondary px-2 py-2 text-[10px] font-mono text-center hover:bg-surface-tertiary/50 transition-colors cursor-pointer truncate"
-            title="Copy address"
+            title={t("common.copy")}
           >
-            {copied ? <span className="text-green-500">Copied!</span> : <span className="text-text-secondary">{address}</span>}
+            {copied ? <span className="text-green-500">{t("common.copied")}</span> : <span className="text-text-secondary">{address}</span>}
           </button>
         </div>
       </div>

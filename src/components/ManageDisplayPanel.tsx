@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import type { Chain, Asset } from "../shared/types";
 import type { AccountRow } from "../lib/accountRows";
 import { ToggleSwitch } from "./ToggleSwitch";
@@ -21,6 +22,7 @@ export function ManageDisplayPanel({
   onToggle: (key: string, visible: boolean) => void;
   onTokenAdded?: () => void;
 }) {
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [showAddToken, setShowAddToken] = useState(false);
   const [addChainId, setAddChainId] = useState("");
@@ -73,7 +75,7 @@ export function ManageDisplayPanel({
     <div className="mb-2 bg-surface-secondary rounded-lg border border-border-primary overflow-hidden">
       <div className="px-4 py-2.5 border-b border-border-secondary">
         <p className="text-[11px] text-text-muted">
-          Choose which chains and tokens to display.
+          {t("manageDisplay.description")}
         </p>
       </div>
 
@@ -82,7 +84,7 @@ export function ManageDisplayPanel({
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Filter..."
+            placeholder={t("manageDisplay.filter")}
             className="w-full bg-surface-primary border border-border-primary rounded-lg px-3 py-1.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
           />
         </div>
@@ -119,7 +121,7 @@ export function ManageDisplayPanel({
           <>
             {(!query || filteredChains.length > 0) && (
               <div className="px-4 py-1.5 bg-surface-tertiary/20">
-                <span className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">Tokens</span>
+                <span className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">{t("manageDisplay.tokens")}</span>
               </div>
             )}
             {filteredTokens.map(({ asset, chainLabel }) => {
@@ -161,7 +163,7 @@ export function ManageDisplayPanel({
 
         {query && filteredChains.length === 0 && filteredTokens.length === 0 && (
           <div className="px-4 py-4 text-center">
-            <p className="text-xs text-text-muted">No matches</p>
+            <p className="text-xs text-text-muted">{t("manageDisplay.noMatches")}</p>
           </div>
         )}
       </div>
@@ -176,13 +178,13 @@ export function ManageDisplayPanel({
             onClick={() => { setShowAddToken(true); setAddSuccess(""); }}
             className="w-full px-4 py-2.5 text-xs text-blue-400 hover:text-blue-300 hover:bg-surface-tertiary/30 transition-colors text-left"
           >
-            + Add custom token
+            + {t("manageDisplay.addCustomToken")}
           </button>
         ) : (
           <div className="px-4 py-3 space-y-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">Add Token</span>
-              <button onClick={() => { setShowAddToken(false); setAddPreview(null); setAddError(""); setAddContract(""); }} className="text-[10px] text-text-muted hover:text-text-secondary">Cancel</button>
+              <span className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">{t("manageDisplay.addToken")}</span>
+              <button onClick={() => { setShowAddToken(false); setAddPreview(null); setAddError(""); setAddContract(""); }} className="text-[10px] text-text-muted hover:text-text-secondary">{t("manageDisplay.cancel")}</button>
             </div>
 
             {/* Chain selector */}
@@ -191,7 +193,7 @@ export function ManageDisplayPanel({
               onChange={(e) => { setAddChainId(e.target.value); setAddPreview(null); setAddError(""); }}
               className="w-full bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary focus:outline-none focus:border-blue-500 transition-colors"
             >
-              <option value="">Select network...</option>
+              <option value="">{t("manageDisplay.selectNetwork")}</option>
               {uniqueChains
                 .filter(({ chain }) => chain.type === "evm" || chain.type === "solana" || chain.type === "xlm" || chain.type === "tron")
                 .map(({ chain }) => (
@@ -203,7 +205,7 @@ export function ManageDisplayPanel({
             <input
               value={addContract}
               onChange={(e) => { setAddContract(e.target.value); setAddPreview(null); setAddError(""); }}
-              placeholder={addChainId && uniqueChains.find(c => c.chain.id === addChainId)?.chain.type === "xlm" ? "CODE:ISSUER_ADDRESS" : addChainId && uniqueChains.find(c => c.chain.id === addChainId)?.chain.type === "tron" ? "TRC-20 contract address (T...)" : "Contract address"}
+              placeholder={t("manageDisplay.contractAddress")}
               className="w-full bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
             />
 
@@ -235,7 +237,7 @@ export function ManageDisplayPanel({
               }}
               disabled={!addChainId || !addContract.trim() || addLoading}
             >
-              {addLoading ? "Fetching..." : "Fetch token info"}
+              {addLoading ? t("manageDisplay.fetching") : t("manageDisplay.fetchTokenInfo")}
             </Button>
 
             {addError && <p className="text-[11px] text-red-400">{addError}</p>}
@@ -252,7 +254,7 @@ export function ManageDisplayPanel({
                   <span className="text-xs font-medium text-text-primary">{addPreview.symbol}</span>
                   <span className="text-[10px] text-text-muted">{addPreview.name}</span>
                 </div>
-                <p className="text-[10px] text-text-muted">Decimals: {addPreview.decimals}</p>
+                <p className="text-[10px] text-text-muted">{t("manageDisplay.decimals")}: {addPreview.decimals}</p>
                 <Button
                   size="sm"
                   fullWidth
@@ -291,7 +293,7 @@ export function ManageDisplayPanel({
                     onTokenAdded?.();
                   }}
                 >
-                  Add {addPreview.symbol}
+                  {t("manageDisplay.addToken")} {addPreview.symbol}
                 </Button>
               </div>
             )}

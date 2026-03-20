@@ -38,12 +38,15 @@ import { ActivityLogPage } from "./components/AuditLog";
 import { ConfigPage } from "./components/ConfigPage";
 import { WalletConnect as WalletConnectPage } from "./components/WalletConnect";
 import { WalletConnectProvider } from "./context/WalletConnectContext";
+import { useTranslation } from "react-i18next";
 import { usePullToRefresh } from "./lib/use-pull-to-refresh";
 import { notifyBalanceRefresh, clearAllTokenBalanceCaches, clearAllTxCaches } from "./lib/dataCache";
 import { ToastProvider } from "./context/ToastContext";
 import { WCRequestQueue } from "./components/WCRequestQueue";
 import { FreezeAccount } from "./components/FreezeAccount";
 import { RecoveryImport } from "./components/RecoveryImport";
+import { LangSwitcher } from "./components/LangSwitcher";
+import { setLanguage } from "./i18n/i18n";
 import { Broadcast as BroadcastPage } from "./components/Broadcast";
 import { RecoveryProvider } from "./context/RecoveryContext";
 import { isRecoveryMode, getRecoveryKeys, exitRecoveryMode } from "./lib/recovery";
@@ -55,17 +58,17 @@ const WalletConnectIcon = () => (
 );
 
 const mainNavItems = [
-  { path: "/accounts", label: "💼 Accounts" },
-  { path: "/walletconnect", label: "WalletConnect", icon: WalletConnectIcon },
+  { path: "/accounts", labelKey: "nav.accounts", emoji: "💼" },
+  { path: "/walletconnect", labelKey: "nav.walletconnect", icon: WalletConnectIcon },
 ];
 
-const advancedNavItems: { path: string; label: string; expertOnly?: boolean }[] = [
-  { path: "/backup-recovery", label: "🗄️ Backup & Recovery" },
-  { path: "/activity", label: "📋 Activity Log" },
-  { path: "/config", label: "⚙️ Config" },
-  { path: "/passkeys", label: "🔑 Passkeys" },
-  { path: "/sign", label: "✍️ Raw Signing", expertOnly: true },
-  { path: "/broadcast", label: "📡 Broadcast Tx", expertOnly: true },
+const advancedNavItems: { path: string; labelKey: string; emoji?: string; expertOnly?: boolean }[] = [
+  { path: "/backup-recovery", labelKey: "nav.backupRecovery", emoji: "🗄️" },
+  { path: "/activity", labelKey: "nav.activityLog", emoji: "📋" },
+  { path: "/config", labelKey: "nav.config", emoji: "⚙️" },
+  { path: "/passkeys", labelKey: "nav.passkeys", emoji: "🔑" },
+  { path: "/sign", labelKey: "nav.rawSigning", emoji: "✍️", expertOnly: true },
+  { path: "/broadcast", labelKey: "nav.broadcastTx", emoji: "📡", expertOnly: true },
 ];
 
 
@@ -120,6 +123,7 @@ function HideBalancesToggle() {
 }
 
 function ServerStatus() {
+  const { t } = useTranslation();
   const [serverOnline, setServerOnline] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -137,24 +141,25 @@ function ServerStatus() {
       />
       {serverOnline ? (
         <a href="/login" className="text-[10px] text-text-muted hover:text-text-secondary">
-          Server online
+          {t("common.serverOnline")}
         </a>
       ) : (
-        <span className="text-[10px] text-text-muted">Offline</span>
+        <span className="text-[10px] text-text-muted">{t("common.offline")}</span>
       )}
     </div>
   );
 }
 
 function RecoveryBanner() {
+  const { t } = useTranslation();
   return (
     <div className="mb-6">
       <div className="recovery-accent bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-4 py-3">
-        <p className="text-xs text-yellow-400 recovery-accent font-medium">Recovery mode — your wallet keys are loaded in this browser</p>
+        <p className="text-xs text-yellow-400 recovery-accent font-medium">{t("recovery.banner")}</p>
         <p className="text-[11px] text-yellow-400/70 mt-1 leading-relaxed">
-          Your two key files have been combined and loaded locally. You can sign transactions and connect to dApps without our server.
-          <span className="text-red-400 font-medium"> Move your funds to a new wallet after recovery.</span>
-          <span className="text-yellow-400/90 font-medium"> Keep your key files stored safely</span> in a separate location.
+          {t("recovery.bannerDesc")}
+          <span className="text-red-400 font-medium"> {t("recovery.bannerWarning")}</span>
+          <span className="text-yellow-400/90 font-medium"> {t("recovery.bannerKeep")}</span> {t("recovery.bannerKeepDesc")}
         </p>
       </div>
     </div>
@@ -217,7 +222,8 @@ function DashboardLayout() {
   const activeNav = filteredAll.find((item) =>
     location.pathname.startsWith(item.path)
   );
-  const pageTitle = activeNav?.label ?? "Accounts";
+  const { t } = useTranslation();
+  const pageTitle = activeNav ? t(activeNav.labelKey) : t("nav.accounts");
 
   function selectNav(path: string) {
     setSidebarOpen(false);
@@ -249,7 +255,7 @@ function DashboardLayout() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">kexify</h1>
             <p className="text-[11px] text-text-muted mt-0.5">
-              <span className={recovery ? "text-orange-400 recovery-accent" : ""}>keys simplified</span>
+              <span className={recovery ? "text-orange-400 recovery-accent" : ""}>{t("login.tagline")}</span>
             </p>
           </div>
           {/* Close on mobile */}
@@ -277,7 +283,7 @@ function DashboardLayout() {
                       : "text-text-tertiary hover:text-text-primary hover:bg-surface-tertiary"
                   }`}
                 >
-                  {item.icon ? <><item.icon />{item.label}</> : item.label}
+                  {item.icon ? <><item.icon />{t(item.labelKey)}</> : `${item.emoji ?? ""} ${t(item.labelKey)}`}
                 </button>
               );
             })}
@@ -289,7 +295,7 @@ function DashboardLayout() {
               onClick={() => setAdvancedOpen((v) => !v)}
               className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] text-text-muted uppercase tracking-wider hover:text-text-tertiary transition-colors"
             >
-              Advanced
+              {t("nav.advanced")}
               <svg
                 className={`w-3 h-3 transition-transform ${advancedOpen ? "rotate-180" : ""}`}
                 fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
@@ -311,7 +317,7 @@ function DashboardLayout() {
                           : "text-text-tertiary hover:text-text-primary hover:bg-surface-tertiary"
                       }`}
                     >
-                      {item.label}
+                      {item.emoji ?? ""} {t(item.labelKey)}
                     </button>
                   );
                 })}
@@ -326,12 +332,12 @@ function DashboardLayout() {
         {recovery ? (
           <div className="p-4 border-t border-border-primary flex items-center justify-between">
             <div className="min-w-0 flex-1">
-              <p className="text-xs text-orange-400 recovery-accent truncate">Recovery Mode</p>
+              <p className="text-xs text-orange-400 recovery-accent truncate">{t("nav.recoveryMode")}</p>
               <button
                 onClick={() => { exitRecoveryMode(); navigate("/login"); }}
                 className="text-xs text-text-muted hover:text-text-secondary mt-1"
               >
-                Exit
+                {t("nav.exitRecovery")}
               </button>
             </div>
             <HideBalancesToggle />
@@ -353,7 +359,7 @@ function DashboardLayout() {
                 }}
                 className="text-xs text-text-muted hover:text-text-secondary mt-1"
               >
-                Logout
+                {t("nav.signOut")}
               </button>
             </div>
             <HideBalancesToggle />
@@ -395,6 +401,7 @@ function DashboardLayout() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M13 13h4v4h-4" />
                 </svg>
               </button>
+              <LangSwitcher />
               <HideBalancesToggle />
               {!recovery && <ThemeToggle />}
             </div>
@@ -440,10 +447,30 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+const SUPPORTED_LANGS = ["en", "vi"];
+
+function LangFromUrl() {
+  const location = useLocation();
+  const [applied, setApplied] = useState(false);
+
+  useEffect(() => {
+    if (applied) return;
+    const params = new URLSearchParams(location.search);
+    const lang = params.get("lang");
+    if (lang && SUPPORTED_LANGS.includes(lang)) {
+      setLanguage(lang);
+    }
+    setApplied(true);
+  }, [location.search, applied]);
+
+  return null;
+}
+
 function App() {
   return (
     <Sentry.ErrorBoundary fallback={<p>Something went wrong.</p>}>
     <BrowserRouter>
+      <LangFromUrl />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/recovery" element={<RecoveryImport />} />

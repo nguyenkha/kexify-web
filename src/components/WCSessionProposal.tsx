@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import type { Web3WalletTypes } from "@walletconnect/web3wallet";
 import type { KeyShare, Chain } from "../shared/types";
 import { authHeaders } from "../lib/auth";
@@ -40,6 +41,7 @@ interface WCAccount {
 }
 
 export function WCSessionProposal({ proposal, onApprove, onReject }: Props) {
+  const { t } = useTranslation();
   const [accounts, setAccounts] = useState<WCAccount[]>([]);
   const [chains, setChains] = useState<Chain[]>([]);
   const [loading, setLoading] = useState(true);
@@ -238,7 +240,7 @@ export function WCSessionProposal({ proposal, onApprove, onReject }: Props) {
       <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl max-h-[85vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border-secondary shrink-0">
-          <h3 className="text-sm font-semibold text-text-primary">Session Request</h3>
+          <h3 className="text-sm font-semibold text-text-primary">{t("wc.sessionRequest")}</h3>
           <button
             onClick={onReject}
             className="p-1 rounded-md text-text-tertiary hover:text-text-primary hover:bg-surface-tertiary transition-colors"
@@ -275,7 +277,7 @@ export function WCSessionProposal({ proposal, onApprove, onReject }: Props) {
           {/* Requested chains */}
           {allRequestedChains.length > 0 && (
             <div>
-              <p className="text-[11px] text-text-muted mb-1.5">Requested chains</p>
+              <p className="text-[11px] text-text-muted mb-1.5">{t("wc.requestedChains")}</p>
               <div className="flex flex-wrap gap-1">
                 {uniqueEvmChains.map((chain) => {
                   const chainId = parseInt(chain.split(":")[1]);
@@ -301,11 +303,11 @@ export function WCSessionProposal({ proposal, onApprove, onReject }: Props) {
 
           {/* Account selection */}
           <div>
-            <p className="text-[11px] text-text-muted mb-1.5">Select accounts to connect</p>
+            <p className="text-[11px] text-text-muted mb-1.5">{t("wc.selectAccounts")}</p>
             {loading ? (
               <div className="h-12 bg-surface-tertiary rounded-lg animate-pulse" />
             ) : accounts.length === 0 ? (
-              <p className="text-xs text-text-muted">No accounts available.</p>
+              <p className="text-xs text-text-muted">{t("wc.noAccounts")}</p>
             ) : (
               <div className="space-y-1">
                 {evmAccounts.length > 0 && (solanaAccounts.length > 0 || tronAccounts.length > 0) && (
@@ -414,14 +416,14 @@ export function WCSessionProposal({ proposal, onApprove, onReject }: Props) {
             onClick={onReject}
             className="flex-1 px-4 py-2.5 rounded-lg text-xs font-medium bg-surface-tertiary text-text-secondary hover:bg-border-primary transition-colors"
           >
-            Reject
+            {t("wc.reject")}
           </button>
           <button
             onClick={handleApprove}
             disabled={loading || approving || accounts.filter((a) => a.selected).length === 0}
             className="flex-1 px-4 py-2.5 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50"
           >
-            {approving ? "Approving..." : "Approve"}
+            {approving ? t("wc.approving") : t("wc.approve")}
           </button>
         </div>
       </div>

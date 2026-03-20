@@ -17,6 +17,8 @@ function highlightCode(code: string): string {
 import { checkBtcHealth, checkBchHealth, checkXlmHealth } from "../lib/providerDetect";
 import { AddressBookPanel } from "./AddressBookPanel";
 import { useSetExpertMode } from "../context/ExpertModeContext";
+import { useTranslation } from "react-i18next";
+import { setLanguage, getStoredLanguage } from "../i18n/i18n";
 
 type RpcStatus = "checking" | "ok" | "error";
 
@@ -83,6 +85,7 @@ const REFRESH_OPTIONS = [
 ];
 
 export function ConfigPage() {
+  const { t } = useTranslation();
   const expert = useExpertMode();
   const setExpertContext = useSetExpertMode();
   const [chains, setChains] = useState<Chain[]>([]);
@@ -347,7 +350,7 @@ export function ConfigPage() {
       save(parsed);
       setJsonMode(false);
     } catch {
-      setJsonError("Invalid JSON");
+      setJsonError(t("config.invalidJson"));
       setJsonTab("edit");
     }
   }
@@ -358,7 +361,7 @@ export function ConfigPage() {
       setJsonError("");
       setJsonTab("preview");
     } catch {
-      setJsonError("Invalid JSON — fix before previewing");
+      setJsonError(t("config.invalidJsonFix"));
     }
   }
 
@@ -368,8 +371,8 @@ export function ConfigPage() {
   if (loading) {
     return (
       <div className="space-y-5">
-        <h2 className="text-lg font-semibold text-text-primary">Config</h2>
-        <div className="text-xs text-text-muted text-center py-8">Loading...</div>
+        <h2 className="text-lg font-semibold text-text-primary">{t("config.title")}</h2>
+        <div className="text-xs text-text-muted text-center py-8">{t("common.loading")}</div>
       </div>
     );
   }
@@ -379,10 +382,10 @@ export function ConfigPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-text-primary">Config</h2>
+          <h2 className="text-lg font-semibold text-text-primary">{t("config.title")}</h2>
           <p className="text-xs text-text-muted mt-1">
-            Customize networks, preferences, and RPC endpoints. Changes apply instantly.
-            {saved && <span className="text-green-400 ml-2">Saved</span>}
+            {t("config.description")}
+            {saved && <span className="text-green-400 ml-2">{t("config.saved")}</span>}
           </p>
         </div>
         {expert && (
@@ -394,7 +397,7 @@ export function ConfigPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 010-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.28z" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-            JSON
+            {t("config.json")}
           </button>
         )}
       </div>
@@ -402,15 +405,18 @@ export function ConfigPage() {
       {/* ── Preferences ── */}
       <div>
         <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-2 px-1">
-          Preferences
+          {t("config.preferences")}
         </p>
         <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden divide-y divide-border-secondary">
+          {/* Language selector */}
+          <LanguageSelector />
+
           {/* Expert mode — first row, always visible */}
           <div className="px-3 md:px-5 py-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-text-primary">Expert mode</p>
-                <p className="text-xs text-text-muted mt-0.5">Show advanced transaction controls, raw data, and detailed logs</p>
+                <p className="text-sm font-medium text-text-primary">{t("config.expertMode")}</p>
+                <p className="text-xs text-text-muted mt-0.5">{t("config.expertModeDesc")}</p>
               </div>
               <button
                 onClick={() => setExpertMode(!getExpertMode())}
@@ -429,8 +435,8 @@ export function ConfigPage() {
           {expert && <div className="px-3 md:px-5 py-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-text-primary">Show test networks</p>
-                <p className="text-xs text-text-muted mt-0.5">Display testnet and devnet chains</p>
+                <p className="text-sm font-medium text-text-primary">{t("config.showTestNetworks")}</p>
+                <p className="text-xs text-text-muted mt-0.5">{t("config.showTestNetworksDesc")}</p>
               </div>
               <button
                 onClick={() => setShowTestnet(!getShowTestnet())}
@@ -449,8 +455,8 @@ export function ConfigPage() {
           {expert && <div className="px-3 md:px-5 py-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-text-primary">Confirm before broadcast</p>
-                <p className="text-xs text-text-muted mt-0.5">Review signed transaction before sending to the network</p>
+                <p className="text-sm font-medium text-text-primary">{t("config.confirmBeforeBroadcast")}</p>
+                <p className="text-xs text-text-muted mt-0.5">{t("config.confirmBeforeBroadcastDesc")}</p>
               </div>
               <button
                 onClick={() => setConfirmBeforeBroadcast(!getConfirmBeforeBroadcast())}
@@ -469,8 +475,8 @@ export function ConfigPage() {
           {expert && <div className="px-3 md:px-5 py-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-text-primary">EVM gas buffer</p>
-                <p className="text-xs text-text-muted mt-0.5">Extra gas added to estimates for ETH/ERC-20 transactions</p>
+                <p className="text-sm font-medium text-text-primary">{t("config.evmGasBuffer")}</p>
+                <p className="text-xs text-text-muted mt-0.5">{t("config.evmGasBufferDesc")}</p>
               </div>
               <div className="flex items-center gap-2">
                 <input
@@ -499,8 +505,8 @@ export function ConfigPage() {
           <div className="px-3 md:px-5 py-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-text-primary">Refresh interval</p>
-                <p className="text-xs text-text-muted mt-0.5">How often balances and prices update</p>
+                <p className="text-sm font-medium text-text-primary">{t("config.refreshInterval")}</p>
+                <p className="text-xs text-text-muted mt-0.5">{t("config.refreshIntervalDesc")}</p>
               </div>
               <div className="flex bg-surface-primary border border-border-primary rounded-lg p-0.5 gap-0.5">
                 {REFRESH_OPTIONS.map((opt) => (
@@ -522,8 +528,8 @@ export function ConfigPage() {
 
           {/* Default chains */}
           <div className="px-3 md:px-5 py-4">
-            <p className="text-sm font-medium text-text-primary">Default chains</p>
-            <p className="text-xs text-text-muted mt-0.5 mb-3">Chains shown by default for new accounts</p>
+            <p className="text-sm font-medium text-text-primary">{t("config.defaultChains")}</p>
+            <p className="text-xs text-text-muted mt-0.5 mb-3">{t("config.defaultChainsDesc")}</p>
             <div className="flex flex-wrap gap-2">
               {chains.filter((c) => !/testnet|sepolia|devnet/i.test(c.name)).map((chain) => {
                 const selected = getDefaultChains().includes(chain.name);
@@ -552,7 +558,7 @@ export function ConfigPage() {
       {/* ── Networks (expert only) ── */}
       {expert && <div>
         <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-2 px-1">
-          Networks
+          {t("config.networks")}
         </p>
         <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden divide-y divide-border-secondary">
           {visibleChains.map((chain) => {
@@ -579,7 +585,7 @@ export function ConfigPage() {
                         <span className="text-[10px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">testnet</span>
                       ) : null}
                       {hasFieldOverrides && (
-                        <span className="text-[10px] px-1 py-0.5 rounded bg-blue-500/10 text-blue-400 font-medium">custom</span>
+                        <span className="text-[10px] px-1 py-0.5 rounded bg-blue-500/10 text-blue-400 font-medium">{t("config.custom")}</span>
                       )}
                     </div>
                     <div className="flex items-center gap-1.5 mt-0.5">
@@ -602,19 +608,19 @@ export function ConfigPage() {
                 {expanded && (
                   <div className="px-3 md:px-5 pb-4 pt-1 space-y-3">
                     <div>
-                      <label className="block text-xs text-text-muted mb-1.5">RPC URL</label>
+                      <label className="block text-xs text-text-muted mb-1.5">{t("config.rpcUrl")}</label>
                       <div className="relative">
                         <input
                           value={getChainField(chain.name, "rpcUrl")}
                           onChange={(e) => setChainField(chain.name, "rpcUrl", e.target.value)}
-                          placeholder={chain.rpcUrl || "No default RPC"}
+                          placeholder={chain.rpcUrl || t("config.noDefaultRpc")}
                           className="w-full bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 pr-8 text-sm text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
                         />
                         {getChainField(chain.name, "rpcUrl") && (
                           <button
                             onClick={() => setChainField(chain.name, "rpcUrl", "")}
                             className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-text-secondary transition-colors"
-                            title="Clear"
+                            title={t("config.clear")}
                           >
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -624,7 +630,7 @@ export function ConfigPage() {
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs text-text-muted mb-1.5">Explorer URL</label>
+                      <label className="block text-xs text-text-muted mb-1.5">{t("config.explorerUrl")}</label>
                       <div className="relative">
                         <input
                           value={getChainField(chain.name, "explorerUrl")}
@@ -636,7 +642,7 @@ export function ConfigPage() {
                           <button
                             onClick={() => setChainField(chain.name, "explorerUrl", "")}
                             className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-text-secondary transition-colors"
-                            title="Clear"
+                            title={t("config.clear")}
                           >
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -659,23 +665,23 @@ export function ConfigPage() {
       {/* ── Backup & Restore ── */}
       <div>
         <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-2 px-1">
-          Backup & Restore
+          {t("config.backupRestore")}
         </p>
         <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden divide-y divide-border-secondary">
           {/* Export */}
           <div className="px-3 md:px-5 py-4 flex items-center justify-between gap-4">
             <div className="min-w-0">
-              <p className="text-sm font-medium text-text-primary">Export config</p>
+              <p className="text-sm font-medium text-text-primary">{t("config.exportConfig")}</p>
               <p className="text-xs text-text-muted mt-0.5">
-                Download, copy, or email your overrides
-                {emailSent && <span className="text-green-400 ml-2">Sent!</span>}
+                {t("config.exportConfigDesc")}
+                {emailSent && <span className="text-green-400 ml-2">{t("config.sent")}</span>}
               </p>
             </div>
             <div className="flex gap-2 shrink-0">
               <button
                 onClick={copyConfig}
                 className="p-2 rounded-lg bg-surface-primary border border-border-primary hover:border-border-secondary text-text-muted hover:text-text-secondary transition-colors"
-                title="Copy to clipboard"
+                title={t("config.copyToClipboard")}
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
@@ -685,7 +691,7 @@ export function ConfigPage() {
                 onClick={emailConfig}
                 disabled={emailSending}
                 className="p-2 rounded-lg bg-surface-primary border border-border-primary hover:border-border-secondary text-text-muted hover:text-text-secondary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                title="Email to myself"
+                title={t("config.emailToMyself")}
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
@@ -695,7 +701,7 @@ export function ConfigPage() {
                 onClick={exportConfig}
                 className="px-3 py-2 rounded-lg bg-surface-primary border border-border-primary hover:border-border-secondary text-xs font-medium text-text-secondary hover:text-text-primary transition-colors"
               >
-                Download
+                {t("config.download")}
               </button>
             </div>
           </div>
@@ -703,8 +709,8 @@ export function ConfigPage() {
           {/* Import */}
           <div className="px-3 md:px-5 py-4 flex items-center justify-between gap-4">
             <div className="min-w-0">
-              <p className="text-sm font-medium text-text-primary">Import config</p>
-              <p className="text-xs text-text-muted mt-0.5">Upload a previously exported file</p>
+              <p className="text-sm font-medium text-text-primary">{t("config.importConfig")}</p>
+              <p className="text-xs text-text-muted mt-0.5">{t("config.importConfigDesc")}</p>
             </div>
             <div>
               <input
@@ -718,7 +724,7 @@ export function ConfigPage() {
                 onClick={() => fileInputRef.current?.click()}
                 className="px-3 py-2 rounded-lg bg-surface-primary border border-border-primary hover:border-border-secondary text-xs font-medium text-text-secondary hover:text-text-primary transition-colors"
               >
-                Upload
+                {t("config.upload")}
               </button>
             </div>
           </div>
@@ -727,14 +733,14 @@ export function ConfigPage() {
           {hasOverrides && (
             <div className="px-3 md:px-5 py-4 flex items-center justify-between gap-4">
               <div className="min-w-0">
-                <p className="text-sm font-medium text-text-primary">Reset to defaults</p>
-                <p className="text-xs text-text-muted mt-0.5">Clear all custom overrides</p>
+                <p className="text-sm font-medium text-text-primary">{t("config.resetToDefaults")}</p>
+                <p className="text-xs text-text-muted mt-0.5">{t("config.resetToDefaultsDesc")}</p>
               </div>
               <button
                 onClick={resetConfig}
                 className="px-3 py-2 rounded-lg text-xs font-medium text-red-400 hover:bg-red-500/10 transition-colors"
               >
-                Reset
+                {t("config.reset")}
               </button>
             </div>
           )}
@@ -749,7 +755,7 @@ export function ConfigPage() {
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-border-primary">
               <div className="flex items-center gap-3">
-                <h3 className="text-sm font-semibold text-text-primary">JSON Config</h3>
+                <h3 className="text-sm font-semibold text-text-primary">{t("config.jsonConfig")}</h3>
                 <div className="flex bg-surface-primary border border-border-primary rounded-lg p-0.5 gap-0.5">
                   <button
                     onClick={() => setJsonTab("edit")}
@@ -757,7 +763,7 @@ export function ConfigPage() {
                       jsonTab === "edit" ? "bg-surface-tertiary text-text-primary shadow-sm" : "text-text-muted hover:text-text-secondary"
                     }`}
                   >
-                    Edit
+                    {t("config.edit")}
                   </button>
                   <button
                     onClick={() => setJsonTab("preview")}
@@ -765,7 +771,7 @@ export function ConfigPage() {
                       jsonTab === "preview" ? "bg-surface-tertiary text-text-primary shadow-sm" : "text-text-muted hover:text-text-secondary"
                     }`}
                   >
-                    Preview
+                    {t("config.preview")}
                   </button>
                 </div>
               </div>
@@ -783,7 +789,7 @@ export function ConfigPage() {
             <div className="px-5 py-5 flex-1 overflow-auto">
               {jsonTab === "edit" ? (
                 <>
-                  <p className="text-xs text-text-muted mb-2">Your overrides (changes only)</p>
+                  <p className="text-xs text-text-muted mb-2">{t("config.yourOverrides")}</p>
                   <div className="w-full h-72 bg-surface-primary border border-border-primary rounded-lg overflow-auto focus-within:border-blue-500 transition-colors">
                     <Editor
                       value={jsonText}
@@ -799,7 +805,7 @@ export function ConfigPage() {
                 </>
               ) : (
                 <>
-                  <p className="text-xs text-text-muted mb-2">Preview merged config — verify before saving</p>
+                  <p className="text-xs text-text-muted mb-2">{t("config.previewMergedDesc")}</p>
                   {pendingMergedConfig ? (
                     <div className="w-full h-72 bg-surface-primary border border-border-primary rounded-lg overflow-auto">
                       <pre
@@ -809,7 +815,7 @@ export function ConfigPage() {
                     </div>
                   ) : (
                     <div className="w-full h-72 bg-surface-primary border border-red-500/30 rounded-lg flex items-center justify-center">
-                      <p className="text-xs text-red-400">Invalid JSON — go back to fix</p>
+                      <p className="text-xs text-red-400">{t("config.invalidJsonGoBack")}</p>
                     </div>
                   )}
                 </>
@@ -822,14 +828,14 @@ export function ConfigPage() {
                 onClick={() => setJsonMode(false)}
                 className="bg-surface-tertiary text-text-secondary hover:bg-border-primary px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
               >
-                Cancel
+                {t("common.cancel")}
               </button>
               {jsonTab === "edit" ? (
                 <button
                   onClick={previewJsonEditor}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
                 >
-                  👀 Preview
+                  {t("config.preview")}
                 </button>
               ) : (
                 <>
@@ -837,14 +843,14 @@ export function ConfigPage() {
                     onClick={() => setJsonTab("edit")}
                     className="bg-surface-tertiary text-text-secondary hover:bg-border-primary px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
                   >
-                    Back
+                    {t("common.back")}
                   </button>
                   <button
                     onClick={saveJsonEditor}
                     disabled={!pendingMergedConfig}
                     className="bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
                   >
-                    Save
+                    {t("common.save")}
                   </button>
                 </>
               )}
@@ -852,6 +858,46 @@ export function ConfigPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+const LANGUAGES = [
+  { code: "en", label: "English" },
+  { code: "vi", label: "Tiếng Việt" },
+];
+
+function LanguageSelector() {
+  const { t } = useTranslation();
+  const [lang, setLang] = useState(getStoredLanguage);
+
+  function handleChange(code: string) {
+    setLanguage(code);
+    setLang(code);
+  }
+
+  return (
+    <div className="px-3 md:px-5 py-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-text-primary">{t("config.language")}</p>
+        </div>
+        <div className="flex bg-surface-primary border border-border-primary rounded-lg p-0.5 gap-0.5">
+          {LANGUAGES.map((l) => (
+            <button
+              key={l.code}
+              onClick={() => handleChange(l.code)}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                lang === l.code
+                  ? "bg-surface-tertiary text-text-primary shadow-sm"
+                  : "text-text-muted hover:text-text-secondary"
+              }`}
+            >
+              {l.label}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

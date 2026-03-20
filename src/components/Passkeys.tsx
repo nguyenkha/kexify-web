@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
   fetchPasskeys,
   registerPasskey,
@@ -7,18 +8,6 @@ import {
   type PasskeyInfo,
 } from "../lib/passkey";
 import { ErrorBox } from "./ui";
-
-function formatTimeAgo(dateStr: string | null): string {
-  if (!dateStr) return "Never";
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString(undefined, {
@@ -78,11 +67,24 @@ function PasskeyNameLabel({
 }
 
 export function Passkeys() {
+  const { t } = useTranslation();
   const [passkeys, setPasskeys] = useState<PasskeyInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  function formatTimeAgo(dateStr: string | null): string {
+    if (!dateStr) return t("passkey.never");
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60_000);
+    if (mins < 1) return t("passkey.justNow");
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  }
 
   async function loadData() {
     try {
@@ -171,16 +173,16 @@ export function Passkeys() {
             />
           </svg>
         </div>
-        <p className="text-sm font-medium text-text-secondary mb-1">No passkeys yet</p>
+        <p className="text-sm font-medium text-text-secondary mb-1">{t("passkey.noPasskeysYet")}</p>
         <p className="text-xs text-text-muted mb-4">
-          Add a passkey to verify your identity when signing or creating accounts.
+          {t("passkey.addFirst")}
         </p>
         <button
           onClick={handleAdd}
           disabled={adding}
           className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-60"
         >
-          {adding ? "Registering..." : "🔑 Add Your First Passkey"}
+          {adding ? t("passkey.registering") : `🔑 ${t("passkey.addFirstButton")}`}
         </button>
         {error && <ErrorBox className="mt-4">{error}</ErrorBox>}
       </div>
@@ -190,9 +192,9 @@ export function Passkeys() {
   return (
     <div className="space-y-4">
       <div className="pt-2 pb-2">
-        <h2 className="text-lg font-semibold text-text-primary">Passkeys</h2>
+        <h2 className="text-lg font-semibold text-text-primary">{t("passkey.title")}</h2>
         <p className="text-xs text-text-muted mt-1">
-          Passkeys verify your identity when signing transactions or creating accounts.
+          {t("passkey.description")}
         </p>
       </div>
 
@@ -223,18 +225,18 @@ export function Passkeys() {
             <div className="flex-1 min-w-0">
               {deletingId === pk.id ? (
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-text-muted">Delete this passkey?</span>
+                  <span className="text-xs text-text-muted">{t("passkey.deleteThisPasskey")}</span>
                   <button
                     onClick={() => setDeletingId(null)}
                     className="text-[10px] px-2 py-1 rounded bg-surface-tertiary text-text-secondary hover:bg-border-primary transition-colors"
                   >
-                    Cancel
+                    {t("passkey.cancel")}
                   </button>
                   <button
                     onClick={() => handleDelete(pk.id)}
                     className="text-[10px] px-2 py-1 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
                   >
-                    Delete
+                    {t("passkey.delete")}
                   </button>
                 </div>
               ) : (
@@ -245,10 +247,10 @@ export function Passkeys() {
                   />
                   <div className="flex items-center gap-3 mt-0.5">
                     <span className="text-[11px] text-text-muted">
-                      Created {formatDate(pk.createdAt)}
+                      {t("passkey.createdOn")} {formatDate(pk.createdAt)}
                     </span>
                     <span className="text-[11px] text-text-muted">
-                      Last used: {formatTimeAgo(pk.lastUsedAt)}
+                      {t("passkey.lastUsed")}: {formatTimeAgo(pk.lastUsedAt)}
                     </span>
                   </div>
                 </>
@@ -283,7 +285,7 @@ export function Passkeys() {
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
         </svg>
-        {adding ? "Registering..." : "Add Passkey"}
+        {adding ? t("passkey.registering") : t("passkey.addPasskey")}
       </button>
     </div>
   );

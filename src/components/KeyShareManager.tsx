@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 import { listKeyShares, deleteKeyShare, saveKeyShareWithPrf, saveKeyShareWithPassphrase, hasKeyShare, getKeyShareFromStoredShare, type KeyShareInfo } from "../lib/keystore";
 import { authenticatePasskey, sensitiveHeaders } from "../lib/passkey";
 import { encryptKeyFile, decryptKeyFile, type KeyFileData } from "../lib/crypto";
@@ -24,6 +25,7 @@ interface ServerKey {
 
 export function KeyShareManager() {
   const frozen = useFrozen();
+  const { t } = useTranslation();
   const [shares, setShares] = useState<KeyShareInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -116,11 +118,11 @@ export function KeyShareManager() {
       try {
         const parsed = JSON.parse(reader.result as string) as KeyFileData;
         if (!parsed.id || !parsed.share || !parsed.publicKey) {
-          setError("Invalid key share file");
+          setError(t("keyShare.invalidFile"));
           return;
         }
         if (hasKeyShare(parsed.id)) {
-          setError("This key share is already stored in the browser");
+          setError(t("keyShare.alreadyStored"));
           return;
         }
         if (parsed.encrypted) {
@@ -133,7 +135,7 @@ export function KeyShareManager() {
           setImportStep("encrypt");
         }
       } catch {
-        setError("Could not parse key share file");
+        setError(t("keyShare.couldNotParse"));
       }
     };
     reader.readAsText(file);
@@ -149,7 +151,7 @@ export function KeyShareManager() {
       setImportPassphrase(passphrase);
       setImportStep("encrypt");
     } catch {
-      setError("Incorrect passphrase");
+      setError(t("keyShare.incorrectPassphrase"));
     }
   }
 
@@ -200,7 +202,7 @@ export function KeyShareManager() {
       const res = await fetch(apiUrl(`/api/keys/${keyId}/backup`), { headers });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError(data.error || "Failed to download backup");
+        setError(data.error || t("keyShare.failedToDownload"));
         setRestoreStep("idle");
         setRestoreId(null);
         return;
@@ -212,14 +214,14 @@ export function KeyShareManager() {
       if (parsed.mode === "prf" && parsed.ciphertext) {
         const prfAuth = await authenticatePasskey({ withPrf: true });
         if (!prfAuth.prfKey) {
-          setError("Passkey PRF not supported — cannot decrypt this backup");
+          setError(t("keyShare.prfNotSupported"));
           setRestoreStep("idle");
           setRestoreId(null);
           return;
         }
         const decrypted = await getKeyShareFromStoredShare(parsed, prfAuth.prfKey);
         if (!decrypted) {
-          setError("Failed to decrypt backup — passkey may not match");
+          setError(t("keyShare.decryptFailed"));
           setRestoreStep("idle");
           setRestoreId(null);
           return;
@@ -247,7 +249,7 @@ export function KeyShareManager() {
       setRestoreData(decrypted);
       setRestoreStep("encrypt");
     } catch {
-      setError("Incorrect passphrase");
+      setError(t("keyShare.incorrectPassphrase"));
     }
   }
 
@@ -296,7 +298,7 @@ export function KeyShareManager() {
       const res = await fetch(apiUrl(`/api/keys/${keyId}/backup/server-share-hkdf`), { headers });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setServerExportError(data.error || "Download failed");
+        setServerExportError(data.error || t("keyShare.downloadFailed"));
         setHkdfDownloading(false);
         return;
       }
@@ -353,7 +355,7 @@ export function KeyShareManager() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setServerExportError(data.error || "Export failed");
+        setServerExportError(data.error || t("keyShare.exportFailed"));
         setServerExportStep("error");
         return;
       }
@@ -423,13 +425,13 @@ export function KeyShareManager() {
   return (
     <div className="space-y-5">
       <div className="pt-2 pb-2">
-        <h2 className="text-lg font-semibold text-text-primary">Browser Storage</h2>
+        <h2 className="text-lg font-semibold text-text-primary">{t("keyShare.browserStorage")}</h2>
         <p className="text-[11px] text-text-muted mt-2 leading-relaxed">
-          Your client key share (1 of 2) is encrypted and stored in this browser only. It never leaves your device.
+          {t("keyShare.browserStorageDesc")}
         </p>
         <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2 mt-2">
           <p className="text-[11px] text-yellow-500">
-            Lost access? Restore from a backup file or server escrow.
+            {t("keyShare.lostAccessHint")}
           </p>
         </div>
       </div>
@@ -444,7 +446,7 @@ export function KeyShareManager() {
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
         </svg>
-        Choose key share file (.json)
+        {t("keyShare.chooseFile")}
       </label>
 
       {error && <ErrorBox>{error}</ErrorBox>}
@@ -460,8 +462,8 @@ export function KeyShareManager() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m6 4.125l2.25 2.25m0 0l2.25 2.25M12 13.875l2.25-2.25M12 13.875l-2.25 2.25M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
             </svg>
           </div>
-          <p className="text-sm text-text-secondary">No key shares stored in this browser</p>
-          <p className="text-[11px] text-text-muted mt-1">Save a key share during account creation or import one here.</p>
+          <p className="text-sm text-text-secondary">{t("keyShare.noShares")}</p>
+          <p className="text-[11px] text-text-muted mt-1">{t("keyShare.noSharesHint")}</p>
         </div>
       ) : (
         <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden divide-y divide-border-secondary">
@@ -478,13 +480,13 @@ export function KeyShareManager() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-text-secondary truncate">{serverKeys.find((k) => k.id === s.keyId)?.name || s.keyId.slice(0, 8) + "..." + s.keyId.slice(-4)}</p>
-                <p className="text-[10px] text-text-muted mt-0.5">{s.mode === "prf" ? "Passkey encrypted" : "Passphrase encrypted"} · {new Date(s.storedAt).toLocaleDateString()}</p>
+                <p className="text-[10px] text-text-muted mt-0.5">{s.mode === "prf" ? t("keyShare.passkeyEncrypted") : t("keyShare.passphraseEncrypted")} · {new Date(s.storedAt).toLocaleDateString()}</p>
               </div>
               <button
                 onClick={() => confirmDelete(s.keyId)}
                 disabled={deletingId === s.keyId}
                 className="p-1.5 rounded-md text-text-muted hover:text-red-400 hover:bg-surface-tertiary transition-colors md:opacity-0 md:group-hover:opacity-100 disabled:opacity-50 shrink-0"
-                title="Remove from browser"
+                title={t("keyShare.removeFromBrowser")}
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
@@ -503,13 +505,13 @@ export function KeyShareManager() {
         return (
           <>
             <div className="pt-4 border-t border-border-primary">
-              <h2 className="text-lg font-semibold text-text-primary">Server Backup</h2>
+              <h2 className="text-lg font-semibold text-text-primary">{t("keyShare.serverBackup")}</h2>
               <p className="text-[11px] text-text-muted mt-2 leading-relaxed">
-                An encrypted copy of your client key share is stored on the server as a recovery backup. The server cannot read it — only you can decrypt it with your passphrase.
+                {t("keyShare.serverBackupDesc")}
               </p>
               <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2 mt-2">
                 <p className="text-[11px] text-yellow-500">
-                  Download it to restore signing access if you lose this browser's storage.
+                  {t("keyShare.serverBackupHint")}
                 </p>
               </div>
             </div>
@@ -524,14 +526,14 @@ export function KeyShareManager() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-text-secondary truncate">{k.name || `Key ${k.id.slice(0, 8)}`}</p>
-                      <p className="text-[10px] text-text-muted mt-0.5">Backup available on server</p>
+                      <p className="text-[10px] text-text-muted mt-0.5">{t("keyShare.backupAvailable")}</p>
                     </div>
                     <button
                       onClick={() => handleRestoreFromEscrow(k.id)}
                       disabled={(restoreId === k.id && restoreStep === "loading") || frozen}
                       className="px-2.5 py-1.5 rounded-md text-[11px] font-medium bg-surface-tertiary text-text-secondary hover:bg-border-primary transition-colors disabled:opacity-50 shrink-0"
                     >
-                      {restoreId === k.id && restoreStep === "loading" ? "..." : "📥 Download"}
+                      {restoreId === k.id && restoreStep === "loading" ? "..." : `📥 ${t("keyShare.download")}`}
                     </button>
                   </div>
 
@@ -539,7 +541,7 @@ export function KeyShareManager() {
                   {restoreId === k.id && restoreStep === "saving" && (
                     <div className="px-3 md:px-5 pb-3 flex items-center gap-2">
                       <Spinner size="sm" />
-                      <span className="text-xs text-text-muted">Saving...</span>
+                      <span className="text-xs text-text-muted">{t("keyShare.saving")}</span>
                     </div>
                   )}
                 </div>
@@ -553,13 +555,13 @@ export function KeyShareManager() {
       {serverKeys.length > 0 && (
         <>
           <div className="pt-4 border-t border-border-primary">
-            <h2 className="text-lg font-semibold text-text-primary">Server Key Share</h2>
+            <h2 className="text-lg font-semibold text-text-primary">{t("keyShare.serverKeyShare")}</h2>
             <p className="text-[11px] text-text-muted mt-2 leading-relaxed">
-              The server holds its key share (2 of 2) to co-sign transactions. Under normal operation, you do not need to download it.
+              {t("keyShare.serverKeyDesc")}
             </p>
             <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2 mt-2">
               <p className="text-[11px] text-yellow-500">
-                Only download this if you need to recover your wallet without our service. Holding both shares removes the security benefit of two-party signing.
+                {t("keyShare.serverKeyWarning")}
               </p>
             </div>
           </div>
@@ -583,7 +585,7 @@ export function KeyShareManager() {
                           onClick={() => setBadgeExplain(badgeExplain === `sc-${k.id}` ? null : `sc-${k.id}`)}
                           className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 transition-colors"
                         >
-                          Self-custody
+                          {t("keyShare.selfCustody")}
                         </button>
                       )}
                       {k.hkdfDownloadedAt && !k.selfCustodyAt && (
@@ -591,7 +593,7 @@ export function KeyShareManager() {
                           onClick={() => setBadgeExplain(badgeExplain === `hkdf-${k.id}` ? null : `hkdf-${k.id}`)}
                           className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors"
                         >
-                          Server backup
+                          {t("keyShare.serverBackupBadge")}
                         </button>
                       )}
                       {k.hasClientBackup && (
@@ -599,7 +601,7 @@ export function KeyShareManager() {
                           onClick={() => setBadgeExplain(badgeExplain === `bu-${k.id}` ? null : `bu-${k.id}`)}
                           className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-colors"
                         >
-                          Key escrowed
+                          {t("keyShare.keyEscrowed")}
                         </button>
                       )}
                     </div>
@@ -609,24 +611,24 @@ export function KeyShareManager() {
                     disabled={(serverExportId === k.id && serverExportStep === "loading") || frozen}
                     className="px-2.5 py-1.5 rounded-md text-[11px] font-medium bg-surface-tertiary text-text-secondary hover:bg-border-primary transition-colors disabled:opacity-50 shrink-0"
                   >
-                    {serverExportId === k.id && serverExportStep === "loading" ? "..." : "📥 Download"}
+                    {serverExportId === k.id && serverExportStep === "loading" ? "..." : `📥 ${t("keyShare.download")}`}
                   </button>
                 </div>
 
                 {/* Badge explanations */}
                 {badgeExplain === `sc-${k.id}` && (
                   <p className="px-3 md:px-5 pb-3 text-[10px] text-purple-400/80 leading-relaxed">
-                    You hold both key shares and can recover your wallet without our server.
+                    {t("keyShare.selfCustodyExplain")}
                   </p>
                 )}
                 {badgeExplain === `hkdf-${k.id}` && (
                   <p className="px-3 md:px-5 pb-3 text-[10px] text-blue-400/80 leading-relaxed">
-                    You downloaded a copy of the server's key. It's encrypted — contact kexify support to decrypt it in an emergency.
+                    {t("keyShare.hkdfExplain")}
                   </p>
                 )}
                 {badgeExplain === `bu-${k.id}` && (
                   <p className="px-3 md:px-5 pb-3 text-[10px] text-green-400/80 leading-relaxed">
-                    Your client key is escrowed on our server. Restore it on any device using your passphrase.
+                    {t("keyShare.escrowExplain")}
                   </p>
                 )}
 
@@ -635,7 +637,7 @@ export function KeyShareManager() {
                     <svg className="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                     </svg>
-                    <p className="text-xs text-green-400">Server share exported. Store it safely.</p>
+                    <p className="text-xs text-green-400">{t("keyShare.exportSuccess")}</p>
                   </div>
                 )}
 
@@ -655,7 +657,7 @@ export function KeyShareManager() {
           <div className="absolute inset-0 bg-black/50" onClick={() => setDownloadChoiceId(null)} />
           <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl">
             <div className="px-5 py-4 border-b border-border-primary flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-text-primary">📥 Download Server Key</h3>
+              <h3 className="text-sm font-semibold text-text-primary">{t("keyShare.downloadServerKey")}</h3>
               <button onClick={() => setDownloadChoiceId(null)} className="p-1.5 rounded-md text-text-tertiary hover:text-text-secondary hover:bg-surface-tertiary transition-colors">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -664,7 +666,7 @@ export function KeyShareManager() {
             </div>
             <div className="px-5 py-5 space-y-3">
               <p className="text-xs text-text-secondary leading-relaxed">
-                Choose how you want to download the server's key share.
+                {t("keyShare.downloadChoice")}
               </p>
 
               {/* Option 1: HKDF backup */}
@@ -681,10 +683,10 @@ export function KeyShareManager() {
                   </div>
                   <div>
                     <p className="text-xs font-medium text-text-primary group-hover:text-blue-400 transition-colors">
-                      {hkdfDownloading ? "Downloading..." : "Safe backup (recommended)"}
+                      {hkdfDownloading ? t("keyShare.downloading") : t("keyShare.safeBackup")}
                     </p>
                     <p className="text-[10px] text-text-muted mt-0.5 leading-relaxed">
-                      Encrypted by the server. You keep a backup copy, but cannot decrypt it on your own. In an emergency, contact kexify support to get the decryption key.
+                      {t("keyShare.safeBackupDesc")}
                     </p>
                   </div>
                 </div>
@@ -702,9 +704,9 @@ export function KeyShareManager() {
                     </svg>
                   </div>
                   <div>
-                    <p className="text-xs font-medium text-text-primary group-hover:text-text-secondary transition-colors">Full self-custody</p>
+                    <p className="text-xs font-medium text-text-primary group-hover:text-text-secondary transition-colors">{t("keyShare.fullSelfCustody")}</p>
                     <p className="text-[10px] text-text-muted mt-0.5 leading-relaxed">
-                      Decrypted and re-encrypted with your passphrase. You hold both key shares and no longer depend on us. Use this only if you understand the security implications.
+                      {t("keyShare.fullSelfCustodyDesc")}
                     </p>
                   </div>
                 </div>
@@ -716,13 +718,13 @@ export function KeyShareManager() {
                   <svg className="w-4 h-4 text-yellow-500/70 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                   </svg>
-                  <p className="text-[10px] text-yellow-500/80 font-semibold">Key safety tips</p>
+                  <p className="text-[10px] text-yellow-500/80 font-semibold">{t("keyShare.safetyTips")}</p>
                 </div>
                 <ul className="text-[10px] text-text-muted leading-relaxed space-y-1 pl-6">
-                  <li>Never share your key file or passphrase with anyone</li>
-                  <li>Store backups in a secure offline location (USB drive, safe)</li>
-                  <li>Anyone with both key shares can access your funds</li>
-                  <li>kexify will never ask for your passphrase or key file</li>
+                  <li>{t("keyShare.tip1")}</li>
+                  <li>{t("keyShare.tip2")}</li>
+                  <li>{t("keyShare.tip3")}</li>
+                  <li>{t("keyShare.tip4")}</li>
                 </ul>
               </div>
 
@@ -739,7 +741,7 @@ export function KeyShareManager() {
           <div className="absolute inset-0 bg-black/50" onClick={() => setConfirmDeleteId(null)} />
           <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl">
             <div className="px-5 py-4 border-b border-border-primary flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-text-primary">🗑️ Remove from Browser</h3>
+              <h3 className="text-sm font-semibold text-text-primary">{t("keyShare.removeTitle")}</h3>
               <button onClick={() => setConfirmDeleteId(null)} className="p-1.5 rounded-md text-text-tertiary hover:text-text-secondary hover:bg-surface-tertiary transition-colors">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -753,12 +755,12 @@ export function KeyShareManager() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                   </svg>
                   <p className="text-xs text-red-400 leading-relaxed">
-                    This key share is not backed up on the server. Removing it without a backup file means you will permanently lose access to this account.
+                    {t("keyShare.removeWarning")}
                   </p>
                 </div>
               )}
               <p className="text-xs text-text-secondary leading-relaxed">
-                <span className="font-medium text-text-primary">{serverKeys.find((k) => k.id === confirmDeleteId)?.name || confirmDeleteId.slice(0, 8) + "..."}</span> will be removed from this browser. You can re-import it later from a backup file or server backup.
+                {t("keyShare.removeDesc", { name: serverKeys.find((k) => k.id === confirmDeleteId)?.name || (confirmDeleteId ? confirmDeleteId.slice(0, 8) + "..." : "") })}
               </p>
               <label className="flex items-start gap-2.5 cursor-pointer">
                 <input
@@ -767,7 +769,7 @@ export function KeyShareManager() {
                   onChange={(e) => setConfirmDeleteChecked(e.target.checked)}
                   className="mt-0.5 shrink-0 accent-blue-500"
                 />
-                <span className="text-xs text-text-secondary leading-relaxed">I have a backup file or server backup enabled for this key</span>
+                <span className="text-xs text-text-secondary leading-relaxed">{t("keyShare.removeConfirmCheck")}</span>
               </label>
             </div>
             <div className="px-5 py-4 border-t border-border-primary flex gap-3 justify-end">
@@ -775,14 +777,14 @@ export function KeyShareManager() {
                 onClick={() => setConfirmDeleteId(null)}
                 className="px-4 py-2.5 rounded-lg text-sm font-medium bg-surface-tertiary text-text-secondary hover:bg-border-primary transition-colors"
               >
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 onClick={handleDelete}
                 disabled={!confirmDeleteChecked}
                 className="px-4 py-2.5 rounded-lg text-sm font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors disabled:bg-surface-tertiary disabled:text-text-muted disabled:cursor-not-allowed"
               >
-                🗑️ Delete
+                {t("keyShare.deleteButton")}
               </button>
             </div>
           </div>
@@ -796,7 +798,7 @@ export function KeyShareManager() {
           <div className="absolute inset-0 bg-black/50" onClick={() => { setServerExportStep("idle"); setServerExportId(null); delete window.__serverExportData; }} />
           <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl">
             <div className="px-5 py-4 border-b border-border-primary flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-text-primary">📥 Download Server Key</h3>
+              <h3 className="text-sm font-semibold text-text-primary">{t("keyShare.downloadServerKey")}</h3>
               <button onClick={() => { setServerExportStep("idle"); setServerExportId(null); delete window.__serverExportData; }} className="p-1.5 rounded-md text-text-tertiary hover:text-text-secondary hover:bg-surface-tertiary transition-colors">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -806,13 +808,13 @@ export function KeyShareManager() {
             <div className="px-5 py-5 space-y-3">
               <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2.5">
                 <p className="text-xs text-yellow-400 leading-relaxed">
-                  Choose a passphrase to encrypt this file. You will need it to use the file later. There is no way to recover a forgotten passphrase.
+                  {t("keyShare.passphrasePrompt")}
                 </p>
               </div>
               <PassphraseInput
                 mode="set"
                 hideHint
-                submitLabel="📥 Encrypt & Download"
+                submitLabel={t("keyShare.encryptAndDownload")}
                 onSubmit={downloadServerExport}
               />
             </div>
@@ -826,7 +828,7 @@ export function KeyShareManager() {
           <div className="absolute inset-0 bg-black/50" onClick={() => { setRestoreStep("idle"); setRestoreId(null); setRestoreData(null); }} />
           <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl">
             <div className="px-5 py-4 border-b border-border-primary flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-text-primary">🔓 Decrypt Backup</h3>
+              <h3 className="text-sm font-semibold text-text-primary">{t("keyShare.decryptBackup")}</h3>
               <button onClick={() => { setRestoreStep("idle"); setRestoreId(null); setRestoreData(null); }} className="p-1.5 rounded-md text-text-tertiary hover:text-text-secondary hover:bg-surface-tertiary transition-colors">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -835,11 +837,11 @@ export function KeyShareManager() {
             </div>
             <div className="px-5 py-5 space-y-3">
               <p className="text-xs text-text-muted leading-relaxed">
-                Enter the passphrase you chose when this key was created.
+                {t("keyShare.enterCreationPassphrase")}
               </p>
               <PassphraseInput
                 mode="enter"
-                submitLabel="🔓 Decrypt"
+                submitLabel={t("keyShare.decryptButton")}
                 onSubmit={handleRestoreDecrypt}
               />
             </div>
@@ -853,7 +855,7 @@ export function KeyShareManager() {
           <div className="absolute inset-0 bg-black/50" onClick={() => { setRestoreStep("idle"); setRestoreId(null); setRestoreData(null); }} />
           <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl">
             <div className="px-5 py-4 border-b border-border-primary flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-text-primary">🔐 Save Key Share</h3>
+              <h3 className="text-sm font-semibold text-text-primary">{t("keyShare.saveKeyShare")}</h3>
               <button onClick={() => { setRestoreStep("idle"); setRestoreId(null); setRestoreData(null); }} className="p-1.5 rounded-md text-text-tertiary hover:text-text-secondary hover:bg-surface-tertiary transition-colors">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -862,18 +864,18 @@ export function KeyShareManager() {
             </div>
             <div className="px-5 py-5 space-y-3">
               <p className="text-xs text-text-muted leading-relaxed">
-                Key share <span className="font-mono">{restoreData.id.slice(0, 8)}...</span> decrypted. Choose how to protect it in this browser.
+                {t("keyShare.decryptedChoose", { id: restoreData.id.slice(0, 8) })}
               </p>
               <button
                 onClick={saveRestoreWithPrf}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
               >
-                🔑 Save with Passkey (PRF)
+                {t("keyShare.saveWithPasskey")}
               </button>
-              <p className="text-[10px] text-text-muted text-center">or encrypt with a passphrase:</p>
+              <p className="text-[10px] text-text-muted text-center">{t("keyShare.orEncryptWithPassphrase")}</p>
               <PassphraseInput
                 mode="set"
-                submitLabel="🔐 Save with Passphrase"
+                submitLabel={t("keyShare.saveWithPassphrase")}
                 onSubmit={saveRestoreWithPassphrase}
               />
             </div>
@@ -887,7 +889,7 @@ export function KeyShareManager() {
           <div className="absolute inset-0 bg-black/50" onClick={() => { setImportStep("idle"); setImportData(null); setImportPassphrase(null); }} />
           <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl">
             <div className="px-5 py-4 border-b border-border-primary flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-text-primary">🔓 Decrypt Key File</h3>
+              <h3 className="text-sm font-semibold text-text-primary">{t("keyShare.decryptBackup")}</h3>
               <button onClick={() => { setImportStep("idle"); setImportData(null); setImportPassphrase(null); }} className="p-1.5 rounded-md text-text-tertiary hover:text-text-secondary hover:bg-surface-tertiary transition-colors">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -896,11 +898,11 @@ export function KeyShareManager() {
             </div>
             <div className="px-5 py-5 space-y-3">
               <p className="text-xs text-text-muted leading-relaxed">
-                Enter the passphrase you used to encrypt this file.
+                {t("keyShare.enterFilePassphrase")}
               </p>
               <PassphraseInput
                 mode="enter"
-                submitLabel="🔓 Decrypt"
+                submitLabel={t("keyShare.decryptButton")}
                 onSubmit={handleImportDecrypt}
               />
             </div>
@@ -914,7 +916,7 @@ export function KeyShareManager() {
           <div className="absolute inset-0 bg-black/50" onClick={() => { setImportStep("idle"); setImportData(null); setImportPassphrase(null); }} />
           <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl">
             <div className="px-5 py-4 border-b border-border-primary flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-text-primary">🔐 Save Key Share</h3>
+              <h3 className="text-sm font-semibold text-text-primary">{t("keyShare.saveKeyShare")}</h3>
               <button onClick={() => { setImportStep("idle"); setImportData(null); setImportPassphrase(null); }} className="p-1.5 rounded-md text-text-tertiary hover:text-text-secondary hover:bg-surface-tertiary transition-colors">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -923,36 +925,36 @@ export function KeyShareManager() {
             </div>
             <div className="px-5 py-5 space-y-3">
               <p className="text-xs text-text-muted leading-relaxed">
-                Key share <span className="font-mono">{importData.id.slice(0, 8)}...</span> decrypted. Choose how to protect it in this browser.
+                {t("keyShare.decryptedChoose", { id: importData.id.slice(0, 8) })}
               </p>
               <button
                 onClick={saveImportWithPrf}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
               >
-                🔑 Save with Passkey (PRF)
+                {t("keyShare.saveWithPasskey")}
               </button>
               {importPassphrase ? (
                 <>
-                  <p className="text-[10px] text-text-muted text-center">or save with passphrase:</p>
+                  <p className="text-[10px] text-text-muted text-center">{t("keyShare.orSaveWithPassphrase")}</p>
                   <button
                     onClick={() => saveImportWithPassphrase(importPassphrase)}
                     className="w-full bg-surface-tertiary text-text-secondary hover:bg-border-primary px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
                   >
-                    🔐 Keep Current Passphrase
+                    {t("keyShare.keepCurrentPassphrase")}
                   </button>
-                  <p className="text-[10px] text-text-muted text-center">or set a new one:</p>
+                  <p className="text-[10px] text-text-muted text-center">{t("keyShare.orSetNewOne")}</p>
                   <PassphraseInput
                     mode="set"
-                    submitLabel="🔐 Save with New Passphrase"
+                    submitLabel={t("keyShare.saveWithNewPassphrase")}
                     onSubmit={saveImportWithPassphrase}
                   />
                 </>
               ) : (
                 <>
-                  <p className="text-[10px] text-text-muted text-center">or encrypt with a passphrase:</p>
+                  <p className="text-[10px] text-text-muted text-center">{t("keyShare.orEncryptWithPassphrase")}</p>
                   <PassphraseInput
                     mode="set"
-                    submitLabel="🔐 Save with Passphrase"
+                    submitLabel={t("keyShare.saveWithPassphrase")}
                     onSubmit={saveImportWithPassphrase}
                   />
                 </>
@@ -969,7 +971,7 @@ export function KeyShareManager() {
           <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl">
             <div className="px-5 py-8 flex items-center justify-center gap-3">
               <Spinner size="sm" />
-              <span className="text-sm text-text-secondary">Saving key share...</span>
+              <span className="text-sm text-text-secondary">{t("keyShare.savingKeyShare")}</span>
             </div>
           </div>
         </div>,

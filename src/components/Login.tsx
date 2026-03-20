@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { requestMagicLink, verifyCode, setToken } from "../lib/auth";
 import { getStoredTheme, setTheme } from "../lib/theme";
 import { ErrorBox } from "./ui";
+import { LangSwitcher } from "./LangSwitcher";
 
 export function Login() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
@@ -48,21 +51,21 @@ export function Login() {
         {/* Logo + branding */}
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold tracking-tight">kexify</h1>
-          <p className="text-[11px] text-text-muted mt-0.5">keys simplified</p>
+          <p className="text-[11px] text-text-muted mt-0.5">{t("login.tagline")}</p>
         </div>
 
         {sent ? (
           <div className="space-y-4">
             <div className="bg-surface-secondary border border-border-primary rounded-lg p-4">
-              <p className="text-green-400 text-sm font-medium mb-1">Check your email</p>
+              <p className="text-green-400 text-sm font-medium mb-1">{t("login.checkEmail")}</p>
               <p className="text-text-tertiary text-xs">
-                We sent a login link to <span className="text-text-primary">{email}</span>
+                {t("login.sentTo")} <span className="text-text-primary">{email}</span>
               </p>
             </div>
 
             {/* Code input for PWA users */}
             <form onSubmit={handleCodeSubmit} className="space-y-3">
-              <p className="text-text-muted text-xs text-center">Or enter the 6-digit code from the email</p>
+              <p className="text-text-muted text-xs text-center">{t("login.codePrompt")}</p>
               <input
                 type="text"
                 inputMode="numeric"
@@ -77,7 +80,7 @@ export function Login() {
                 disabled={code.length !== 6 || verifying}
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted disabled:cursor-not-allowed px-4 py-2.5 rounded-lg text-sm font-medium transition-colors text-white"
               >
-                {verifying ? "Verifying..." : "Verify Code"}
+                {verifying ? t("login.verifying") : t("login.verifyCode")}
               </button>
               {error && <ErrorBox>{error}</ErrorBox>}
             </form>
@@ -86,7 +89,7 @@ export function Login() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="email" className="block text-xs text-text-muted mb-1.5">
-                Email
+                {t("login.email")}
               </label>
               <input
                 id="email"
@@ -95,7 +98,7 @@ export function Login() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="w-full bg-surface-secondary border border-border-primary rounded-lg px-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
-                placeholder="you@example.com"
+                placeholder={t("login.emailPlaceholder")}
               />
             </div>
 
@@ -104,7 +107,7 @@ export function Login() {
               disabled={loading}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted disabled:cursor-not-allowed px-4 py-2.5 rounded-lg text-sm font-medium transition-colors text-white"
             >
-              {loading ? "Sending..." : "✉️ Send Magic Link"}
+              {loading ? t("login.sending") : `✉️ ${t("login.sendMagicLink")}`}
             </button>
 
             {error && <ErrorBox>{error}</ErrorBox>}
@@ -117,23 +120,25 @@ export function Login() {
             to="/recovery"
             className="text-xs text-text-muted hover:text-orange-400 transition-colors"
           >
-            Recovery Mode
+            {t("login.recoveryMode")}
           </Link>
           <p className="text-[10px] text-text-muted/60 mt-1">
-            Import key shares to use your wallet without server
+            {t("login.recoveryDesc")}
           </p>
         </div>
       </div>
 
-      {/* Theme toggle - bottom left */}
-      <div className="fixed bottom-4 left-4">
+      {/* Theme & language toggle - bottom left */}
+      <div className="fixed bottom-4 left-4 flex items-center gap-1">
         <ThemeToggle />
+        <LangSwitcher />
       </div>
     </div>
   );
 }
 
 function ThemeToggle() {
+  const { t } = useTranslation();
   const [current, setCurrent] = useState(getStoredTheme);
 
   function toggle() {
@@ -146,7 +151,7 @@ function ThemeToggle() {
     <button
       onClick={toggle}
       className="p-2 rounded-md text-text-muted hover:text-text-secondary hover:bg-surface-tertiary transition-colors"
-      title={`Switch to ${current === "dark" ? "light" : "dark"} mode`}
+      title={current === "dark" ? t("login.switchToLight") : t("login.switchToDark")}
     >
       {current === "dark" ? (
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
