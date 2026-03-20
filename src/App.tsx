@@ -346,6 +346,7 @@ function DashboardLayout() {
           <div className="px-4 py-1.5 text-[10px] text-text-muted/40 font-mono space-y-0.5">
             <p>Client: {CLIENT_VERSION}</p>
             <p>Server: {serverVersion ?? "..."}</p>
+            <p className="pt-1">&copy; {new Date().getFullYear()} Kha Do</p>
           </div>
           <div className="p-4 border-t border-border-primary flex items-center justify-between">
             <div className="min-w-0 flex-1">
