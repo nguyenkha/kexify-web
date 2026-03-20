@@ -70,7 +70,7 @@ export function Wallet() {
     if (isRecovery) {
       // Recovery mode: use static config only, never call server APIs
       const overrides = getUserOverrides();
-      const showTestnet = getPreference("show_testnet") ?? false;
+      const showTestnet = getPreference("show_testnet");
       const c = (staticConfig.chains as Chain[]).filter(
         (ch) => showTestnet || !/testnet|sepolia|devnet/i.test(ch.name),
       );
@@ -96,7 +96,7 @@ export function Wallet() {
 
         // Apply user config overrides (RPC, explorer, preferences)
         const overrides = getUserOverrides(me?.id);
-        const showTestnet = getPreference("show_testnet", me?.id) ?? false;
+        const showTestnet = getPreference("show_testnet", me?.id);
         const mergedChains = applyChainOverrides(
           c.filter((ch: Chain) => showTestnet || !/testnet|sepolia|devnet/i.test(ch.name)),
           me?.id,

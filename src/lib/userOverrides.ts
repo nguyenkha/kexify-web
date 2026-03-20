@@ -69,20 +69,39 @@ export function clearUserOverrides(userId?: string): void {
   localStorage.removeItem(storageKey(userId));
 }
 
+/** Extract userId from JWT in localStorage (synchronous, no network call) */
+function currentUserId(): string | undefined {
+  try {
+    const token = localStorage.getItem("secretkey_token");
+    if (!token) return undefined;
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload.sub;
+  } catch { return undefined; }
+}
+
+/** Find the current user's overrides — by userId, JWT, or scanning localStorage */
+function findOverrides(userId?: string): UserOverrides {
+  // 1. Explicit userId
+  if (userId) return getUserOverrides(userId);
+  // 2. Derive from JWT token
+  const jwtId = currentUserId();
+  if (jwtId) return getUserOverrides(jwtId);
+  // 3. Fallback: scan localStorage
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k?.startsWith("kexify:config:")) {
+      try { return JSON.parse(localStorage.getItem(k)!) as UserOverrides; } catch { /* skip */ }
+    }
+  }
+  return {};
+}
+
 /** Apply chain overrides (RPC/explorer URL) — only in expert mode */
 export function applyChainOverrides<T extends { name: string; rpcUrl: string; explorerUrl: string }>(
   chains: T[],
   userId?: string,
 ): T[] {
-  const overrides = userId ? getUserOverrides(userId) : (() => {
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k?.startsWith("kexify:config:")) {
-        try { return JSON.parse(localStorage.getItem(k)!) as UserOverrides; } catch { /* skip */ }
-      }
-    }
-    return {} as UserOverrides;
-  })();
+  const overrides = findOverrides(userId);
   if (!overrides.preferences?.expert_mode) return chains;
   return chains.map(ch => {
     const o = overrides.chains?.[ch.name];
@@ -93,52 +112,32 @@ export function applyChainOverrides<T extends { name: string; rpcUrl: string; ex
 
 /** Get all custom tokens from any user override entry */
 export function getCustomTokens(): CustomToken[] {
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i);
-    if (k?.startsWith("kexify:config:")) {
-      try {
-        const parsed = JSON.parse(localStorage.getItem(k)!) as UserOverrides;
-        if (parsed.customTokens?.length) return parsed.customTokens;
-      } catch { /* skip */ }
-    }
-  }
-  return [];
+  const overrides = findOverrides();
+  return overrides.customTokens ?? [];
 }
 
-// Preferences that only take effect in expert mode — return undefined (default) when non-expert
-const EXPERT_ONLY_PREFS: Set<string> = new Set([
-  "show_testnet",
-  "confirm_before_broadcast",
-  "evm_gas_buffer_pct",
-]);
+// Expert-only preferences: return their default value when expert_mode is off,
+// regardless of what is stored in localStorage.
+const EXPERT_PREF_DEFAULTS: Partial<Record<string, unknown>> = {
+  show_testnet: false,
+  confirm_before_broadcast: false,
+  evm_gas_buffer_pct: 10,
+};
 
-/** Get a preference value from any user override entry (scans localStorage if no userId).
- *  Expert-only preferences return undefined when expert_mode is off. */
+/** Get a preference value, gated by expert mode for expert-only preferences.
+ *  When expert_mode is off, expert-only prefs return their default value. */
 export function getPreference<K extends keyof NonNullable<UserOverrides["preferences"]>>(
   key: K,
   userId?: string,
-): NonNullable<UserOverrides["preferences"]>[K] | undefined {
-  // Find the overrides (by userId or scanning)
-  let overrides: UserOverrides | null = null;
-  if (userId) {
-    overrides = getUserOverrides(userId);
-  } else {
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k?.startsWith("kexify:config:")) {
-        try {
-          const parsed = JSON.parse(localStorage.getItem(k)!) as UserOverrides;
-          if (parsed.preferences?.[key] !== undefined) { overrides = parsed; break; }
-        } catch { /* skip */ }
-      }
-    }
-  }
-  if (!overrides) return undefined;
+): NonNullable<UserOverrides["preferences"]>[K] {
+  const overrides = findOverrides(userId);
+  const defaultVal = EXPERT_PREF_DEFAULTS[key as string];
+  const isExpertOnly = key as string in EXPERT_PREF_DEFAULTS;
 
-  // Expert-only prefs: return undefined when expert mode is off
-  if (EXPERT_ONLY_PREFS.has(key as string) && !overrides.preferences?.expert_mode) {
-    return undefined;
+  // Expert-only prefs: return default when expert mode is off
+  if (isExpertOnly && !overrides.preferences?.expert_mode) {
+    return defaultVal as NonNullable<UserOverrides["preferences"]>[K];
   }
 
-  return overrides.preferences?.[key] as NonNullable<UserOverrides["preferences"]>[K];
+  return (overrides.preferences?.[key] ?? defaultVal) as NonNullable<UserOverrides["preferences"]>[K];
 }

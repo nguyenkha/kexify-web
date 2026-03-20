@@ -194,7 +194,8 @@ export function SendDialog({
   const [priorityFeeOverride, setPriorityFeeOverride] = useState("");
   const [btcFeeRateOverride, setBtcFeeRateOverride] = useState("");
   const [rbfEnabled, setRbfEnabled] = useState(true);
-  const confirmBeforeBroadcast = getPreference("confirm_before_broadcast") ?? false;
+  // getPreference returns default (false) when expert_mode is off
+  const confirmBeforeBroadcast = expert && !!getPreference("confirm_before_broadcast");
 
   // UTXO manual selection (expert mode)
   const [showUtxoPicker, setShowUtxoPicker] = useState(false);
