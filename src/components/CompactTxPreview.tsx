@@ -51,6 +51,12 @@ export function CompactTxPreview({ tx, explorerUrl }: { tx: Transaction; explore
   // Hide "0 ETH" for deployments and approvals — show gas cost isn't useful here
   const showAmount = !tx.isDeployment && !tx.isApprove;
 
+  // Truncate to 8 decimal places for compact display (e.g. 0.000344447119101489 → 0.00034444)
+  const dotIdx = tx.formatted.indexOf(".");
+  const shortAmount = dotIdx >= 0 && tx.formatted.length > dotIdx + 9
+    ? tx.formatted.slice(0, dotIdx + 9)
+    : tx.formatted;
+
   return (
     <a
       href={explorerLink(explorerUrl, `/tx/${tx.hash}`)}
@@ -70,8 +76,8 @@ export function CompactTxPreview({ tx, explorerUrl }: { tx: Transaction; explore
 
       {/* Amount + time */}
       {showAmount && (
-        <span className={`text-[11px] tabular-nums font-medium truncate max-w-[45%] text-right ${color}`}>
-          {sign}{tx.formatted} {tx.symbol}
+        <span className={`text-[11px] tabular-nums font-medium shrink-0 ${color}`}>
+          {sign}{shortAmount} {tx.symbol}
         </span>
       )}
       <span className="text-[10px] text-text-muted/50 shrink-0 w-12 text-right">
