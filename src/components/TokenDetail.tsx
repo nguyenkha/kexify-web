@@ -14,6 +14,7 @@ import { QrModal } from "./QrModal";
 import { TxRow } from "./TxRow";
 import { SendDialog } from "./SendDialog";
 import { XlmTrustlineDialog } from "./XlmTrustlineDialog";
+import { AlgoOptInDialog } from "./AlgoOptInDialog";
 import { truncateBalance } from "./sendTypes";
 import type { SpeedUpData } from "./sendTypes";
 import { mempoolApiUrl, fetchFeeRates } from "../lib/chains/btcTx";
@@ -129,6 +130,7 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
   const [showSend, setShowSend] = useState(false);
   const [speedUpData, setSpeedUpData] = useState<SpeedUpData | undefined>();
   const [showXlmTrustline, setShowXlmTrustline] = useState(false);
+  const [showAlgoOptIn, setShowAlgoOptIn] = useState(false);
   const [prices, setPrices] = useState<Record<string, number>>({});
 
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -357,9 +359,9 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
             </div>
             <span className="text-[11px] text-text-muted group-hover:text-text-secondary transition-colors">{copied ? t("common.copied") : t("common.copy")}</span>
           </button>
-          {chain.type === "xlm" && asset.isNative && chainAssets && chainAssets.some(a => !a.isNative) && (
+          {(chain.type === "xlm" || chain.type === "algo") && asset.isNative && chainAssets && chainAssets.some(a => !a.isNative) && (
             <button
-              onClick={() => setShowXlmTrustline(true)}
+              onClick={() => chain.type === "algo" ? setShowAlgoOptIn(true) : setShowXlmTrustline(true)}
               disabled={frozen}
               className="flex flex-col items-center gap-1.5 group disabled:opacity-40 disabled:cursor-not-allowed"
             >
@@ -438,6 +440,18 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
           chainAssets={chainAssets.filter(a => !a.isNative)}
           prices={prices}
           onClose={() => setShowXlmTrustline(false)}
+        />
+      )}
+
+      {showAlgoOptIn && chainAssets && (
+        <AlgoOptInDialog
+          keyId={keyId}
+          address={address}
+          balance={balance}
+          chain={chain}
+          chainAssets={chainAssets.filter(a => !a.isNative)}
+          prices={prices}
+          onClose={() => setShowAlgoOptIn(false)}
         />
       )}
 

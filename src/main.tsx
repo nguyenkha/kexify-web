@@ -1,3 +1,6 @@
+import { Buffer } from 'buffer'
+globalThis.Buffer = Buffer
+
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
@@ -5,9 +8,11 @@ import './i18n/i18n'
 import App from './App.tsx'
 import { initTheme } from './lib/theme'
 import { initSentry } from './lib/sentry'
+import { initAlgoAdapter } from './lib/chains/algoAdapter'
 
 initSentry()
 initTheme()
+initAlgoAdapter()
 
 declare const __BUILD_TIME__: string;
 declare const __GIT_HASH__: string;

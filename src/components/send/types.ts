@@ -197,6 +197,8 @@ export interface PreviewStepProps {
     executeXrp: () => void;
     executeXlm: () => void;
     executeTron: () => void;
+    executeTon: () => void;
+    executeAlgo: () => void;
   };
   setSigningError: (e: string | null) => void;
 

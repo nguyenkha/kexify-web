@@ -61,6 +61,13 @@ async function broadcastAndConfirm(
       txHash = await broadcastXlmTransaction(chain.rpcUrl, rawTx);
     } else if (chain.type === "tron") {
       txHash = await broadcastTronTransaction(chain.rpcUrl, rawTx);
+    } else if (chain.type === "ton") {
+      const tonTx = await import("../../lib/chains/tonTx");
+      txHash = await tonTx.broadcastTonTransaction(chain.rpcUrl, rawTx);
+    } else if (chain.type === "algo") {
+      const algoTx = await import("../../lib/chains/algoTx");
+      const txBytes = Uint8Array.from(atob(rawTx), c => c.charCodeAt(0));
+      txHash = await algoTx.broadcastAlgoTransaction(chain.rpcUrl, txBytes);
     } else {
       throw new Error(`Unsupported chain type: ${chain.type}`);
     }
@@ -98,6 +105,13 @@ async function broadcastAndConfirm(
     } else if (chain.type === "tron") {
       const r = await waitForTronConfirmation(chain.rpcUrl, txHash, () => {}, 30, 3000);
       confirmed = r.confirmed; blockHeight = r.blockNumber;
+    } else if (chain.type === "ton") {
+      // For TON retry, we can't easily check seqno without the address — just mark as pending
+      confirmed = false;
+    } else if (chain.type === "algo") {
+      const algoTx = await import("../../lib/chains/algoTx");
+      const r = await algoTx.waitForAlgoConfirmation(chain.rpcUrl, txHash, () => {}, 30, 3000);
+      confirmed = r.confirmed;
     }
 
     setTxResult({

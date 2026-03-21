@@ -83,6 +83,17 @@ export function computeFeeDisplay(p: ComputeFeeDisplayParams): FeeDisplay {
       isFixed: true,
     };
   }
+  if (chain.type === "algo") {
+    const feeAlgo = (1000 / 1e6).toFixed(6).replace(/\.?0+$/, "");
+    return {
+      formatted: feeAlgo,
+      symbol: "ALGO",
+      usd: getUsdValue(feeAlgo, "ALGO", prices),
+      rateLabel: "1000 microAlgos",
+      hasLevelSelector: false,
+      isFixed: true,
+    };
+  }
   if (chain.type === "xlm") {
     const xlmFeeRate = p.xlmFeeRates?.[feeLevel] ?? null;
     const feeXlm = xlmFeeRate != null ? (xlmFeeRate / 1e7).toFixed(7).replace(/\.?0+$/, "") : null;
@@ -167,6 +178,8 @@ export function computeMaxSendable(p: ComputeMaxSendableParams): string {
     feeBaseUnits = BigInt(p.ltcEstimatedFee);
   } else if (chain.type === "xlm" && p.xlmFeeRates != null) {
     feeBaseUnits = BigInt(p.xlmFeeRates[feeLevel]);
+  } else if (chain.type === "algo") {
+    feeBaseUnits = 1000n; // 0.001 ALGO flat fee
   }
 
   if (feeBaseUnits == null) return balance;

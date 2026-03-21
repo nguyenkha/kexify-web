@@ -279,6 +279,22 @@ async function findTronTokenIcon(contractAddress: string, symbol: string): Promi
   return null;
 }
 
+// ── Algorand (ASA) ──────────────────────────────────────────────
+
+export async function fetchAlgoTokenMetadata(assetId: string, rpcUrl: string): Promise<TokenMetadata> {
+  const res = await fetch(`${rpcUrl}/v2/assets/${assetId}`);
+  if (!res.ok) throw new Error(`Failed to fetch ASA #${assetId}`);
+  const data = await res.json();
+  const params = data.params;
+  if (!params) throw new Error(`ASA #${assetId} not found`);
+
+  const symbol = params["unit-name"] || `ASA${assetId.slice(0, 4)}`;
+  const name = params.name || symbol;
+  const decimals = params.decimals ?? 0;
+
+  return { symbol, name, decimals, contractAddress: assetId, iconUrl: null };
+}
+
 // ── Unified fetcher ────────────────────────────────────────────
 
 export async function fetchTokenMetadata(
@@ -301,6 +317,8 @@ export async function fetchTokenMetadata(
     }
     case "tron":
       return fetchTronTokenMetadata(contractAddress, rpcUrl);
+    case "algo":
+      return fetchAlgoTokenMetadata(contractAddress, rpcUrl);
     default:
       throw new Error(`Custom tokens not supported for ${chainType}`);
   }

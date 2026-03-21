@@ -340,6 +340,50 @@
             "rpcUrl": "https://nile.trongrid.io",
             "explorerUrl": "https://nile.tronscan.org",
             "iconUrl": "https://assets.coingecko.com/coins/images/1094/large/tron-logo.png"
+        },
+        {
+            "id": "d4e5f6a7-b8c9-0123-defa-234567890abc",
+            "name": "TON",
+            "displayName": "TON",
+            "type": "ton",
+            "coinType": 607,
+            "evmChainId": null,
+            "rpcUrl": "https://toncenter.com/api/v2",
+            "explorerUrl": "https://tonscan.org",
+            "iconUrl": "https://assets.coingecko.com/coins/images/17980/large/ton_symbol.png"
+        },
+        {
+            "id": "e5f6a7b8-c9d0-1234-efab-345678901bcd",
+            "name": "TON_TESTNET",
+            "displayName": "TON (Testnet)",
+            "type": "ton",
+            "coinType": 607,
+            "evmChainId": null,
+            "rpcUrl": "https://testnet.toncenter.com/api/v2",
+            "explorerUrl": "https://testnet.tonscan.org",
+            "iconUrl": "https://assets.coingecko.com/coins/images/17980/large/ton_symbol.png"
+        },
+        {
+            "id": "a7b8c9d0-e1f2-3456-bcda-567890123456",
+            "name": "ALGORAND",
+            "displayName": "Algorand",
+            "type": "algo",
+            "coinType": 283,
+            "evmChainId": null,
+            "rpcUrl": "https://mainnet-api.algonode.cloud",
+            "explorerUrl": "https://explorer.perawallet.app",
+            "iconUrl": "https://assets.coingecko.com/coins/images/4380/large/download.png"
+        },
+        {
+            "id": "b8c9d0e1-f2a3-4567-cdeb-678901234567",
+            "name": "ALGORAND_TESTNET",
+            "displayName": "Algorand (Testnet)",
+            "type": "algo",
+            "coinType": 283,
+            "evmChainId": null,
+            "rpcUrl": "https://testnet-api.algonode.cloud",
+            "explorerUrl": "https://testnet.explorer.perawallet.app",
+            "iconUrl": "https://assets.coingecko.com/coins/images/4380/large/download.png"
         }
     ],
     "assets": [
@@ -962,7 +1006,16 @@
         {"id":"t0000001-0002-4001-8001-000000000001","symbol":"USDT","name":"Tether USD (TRC-20)","decimals":6,"contractAddress":"TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t","isNative":false,"iconUrl":"https://assets.coingecko.com/coins/images/325/large/Tether.png","chainId":"a1b2c3d4-e5f6-7890-abcd-ef1234567890"},
         {"id":"t0000001-0003-4001-8001-000000000001","symbol":"USDC","name":"USD Coin (TRC-20)","decimals":6,"contractAddress":"TEkxiTehnzSmSe2XqrBj4w32RUN966rdz8","isNative":false,"iconUrl":"https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png","chainId":"a1b2c3d4-e5f6-7890-abcd-ef1234567890"},
         {"id":"t0000002-0001-4001-8001-000000000001","symbol":"TRX","name":"Shasta Testnet TRX","decimals":6,"contractAddress":null,"isNative":true,"iconUrl":"https://assets.coingecko.com/coins/images/1094/large/tron-logo.png","chainId":"b2c3d4e5-f6a7-8901-bcde-f12345678901"},
-        {"id":"t0000003-0001-4001-8001-000000000001","symbol":"TRX","name":"Nile Testnet TRX","decimals":6,"contractAddress":null,"isNative":true,"iconUrl":"https://assets.coingecko.com/coins/images/1094/large/tron-logo.png","chainId":"c3d4e5f6-a7b8-9012-cdef-123456789012"}
+        {"id":"t0000003-0001-4001-8001-000000000001","symbol":"TRX","name":"Nile Testnet TRX","decimals":6,"contractAddress":null,"isNative":true,"iconUrl":"https://assets.coingecko.com/coins/images/1094/large/tron-logo.png","chainId":"c3d4e5f6-a7b8-9012-cdef-123456789012"},
+        {"id":"n0000001-0001-4001-8001-000000000001","symbol":"TON","name":"Toncoin","decimals":9,"contractAddress":null,"isNative":true,"iconUrl":"https://assets.coingecko.com/coins/images/17980/large/ton_symbol.png","chainId":"d4e5f6a7-b8c9-0123-defa-234567890abc"},
+        {"id":"n0000001-0002-4001-8001-000000000001","symbol":"USDT","name":"Tether USD (Jetton)","decimals":6,"contractAddress":"EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs","isNative":false,"iconUrl":"https://assets.coingecko.com/coins/images/325/large/Tether.png","chainId":"d4e5f6a7-b8c9-0123-defa-234567890abc"},
+        {"id":"n0000001-0003-4001-8001-000000000001","symbol":"NOT","name":"Notcoin","decimals":9,"contractAddress":"EQAvlWFDxGF2lXm67y4yzC17wYKD9A0guwPkMs1gOsM__NOT","isNative":false,"iconUrl":"https://assets.coingecko.com/coins/images/33772/large/notcoin.jpg","chainId":"d4e5f6a7-b8c9-0123-defa-234567890abc"},
+        {"id":"n0000002-0001-4001-8001-000000000001","symbol":"TON","name":"Testnet Toncoin","decimals":9,"contractAddress":null,"isNative":true,"iconUrl":"https://assets.coingecko.com/coins/images/17980/large/ton_symbol.png","chainId":"e5f6a7b8-c9d0-1234-efab-345678901bcd"},
+        {"id":"g0000001-0001-4001-8001-000000000001","symbol":"ALGO","name":"Algorand","decimals":6,"contractAddress":null,"isNative":true,"iconUrl":"https://assets.coingecko.com/coins/images/4380/large/download.png","chainId":"a7b8c9d0-e1f2-3456-bcda-567890123456"},
+        {"id":"g0000001-0002-4001-8001-000000000001","symbol":"USDC","name":"USD Coin (ASA)","decimals":6,"contractAddress":"31566704","isNative":false,"iconUrl":"https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png","chainId":"a7b8c9d0-e1f2-3456-bcda-567890123456"},
+        {"id":"g0000001-0003-4001-8001-000000000001","symbol":"USDT","name":"Tether USD (ASA)","decimals":6,"contractAddress":"312769","isNative":false,"iconUrl":"https://assets.coingecko.com/coins/images/325/large/Tether.png","chainId":"a7b8c9d0-e1f2-3456-bcda-567890123456"},
+        {"id":"g0000002-0001-4001-8001-000000000001","symbol":"ALGO","name":"Testnet Algorand","decimals":6,"contractAddress":null,"isNative":true,"iconUrl":"https://assets.coingecko.com/coins/images/4380/large/download.png","chainId":"b8c9d0e1-f2a3-4567-cdeb-678901234567"},
+        {"id":"g0000002-0002-4001-8001-000000000001","symbol":"USDC","name":"USD Coin (Testnet ASA)","decimals":6,"contractAddress":"10458941","isNative":false,"iconUrl":"https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png","chainId":"b8c9d0e1-f2a3-4567-cdeb-678901234567"}
     ],
     "preferences": {
         "default_chains": [

@@ -67,6 +67,8 @@ import {
   executeXrpSigningFlow,
   executeXlmSigningFlow,
   executeTronSigningFlow,
+  executeTonSigningFlow,
+  executeAlgoSigningFlow,
   handleFetchUtxos,
   type SigningContext,
   type UtxoFetchContext,
@@ -835,6 +837,8 @@ export function SendDialog({
               executeXrp: () => executeXrpSigningFlow(buildSigningCtx()),
               executeXlm: () => executeXlmSigningFlow(buildSigningCtx()),
               executeTron: () => executeTronSigningFlow(buildSigningCtx()),
+              executeTon: () => executeTonSigningFlow(buildSigningCtx()),
+              executeAlgo: () => executeAlgoSigningFlow(buildSigningCtx()),
             }}
             setSigningError={setSigningError}
             t={t}

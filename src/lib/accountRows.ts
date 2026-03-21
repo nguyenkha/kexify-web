@@ -167,6 +167,30 @@ export function buildAccountRows(
       }
     }
 
+    const tonChains = chains.filter((c) => c.type === "ton");
+    if (tonChains.length > 0) {
+      const tonAdapt = getChainAdapter("ton");
+      let tonAddr: string;
+      try {
+        tonAddr = tonAdapt.deriveAddress(key.eddsaPublicKey);
+      } catch {
+        tonAddr = "";
+      }
+      if (tonAddr) {
+        for (const chain of tonChains) {
+          const chainAssets = assets.filter((a) => a.chainId === chain.id);
+          rows.push({
+            keyId: key.id,
+            address: tonAddr,
+            addressType: "ton",
+            label: chain.displayName,
+            chain,
+            assets: chainAssets,
+          });
+        }
+      }
+    }
+
     const xlmChains = chains.filter((c) => c.type === "xlm");
     if (xlmChains.length > 0) {
       const xlmAdapt = getChainAdapter("xlm");
@@ -181,6 +205,30 @@ export function buildAccountRows(
           chain,
           assets: chainAssets,
         });
+      }
+    }
+
+    const algoChains = chains.filter((c) => c.type === "algo");
+    if (algoChains.length > 0) {
+      const algoAdapt = getChainAdapter("algo");
+      let algoAddr: string;
+      try {
+        algoAddr = algoAdapt.deriveAddress(key.eddsaPublicKey);
+      } catch {
+        algoAddr = "";
+      }
+      if (algoAddr) {
+        for (const chain of algoChains) {
+          const chainAssets = assets.filter((a) => a.chainId === chain.id);
+          rows.push({
+            keyId: key.id,
+            address: algoAddr,
+            addressType: "algo",
+            label: chain.displayName,
+            chain,
+            assets: chainAssets,
+          });
+        }
       }
     }
   }

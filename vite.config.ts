@@ -33,6 +33,12 @@ export default defineConfig({
       disable: !process.env.SENTRY_AUTH_TOKEN,
     }),
   ],
+  optimizeDeps: {
+    include: ["buffer", "@ton/core"],
+    esbuildOptions: {
+      inject: ["./src/buffer-shim.ts"],
+    },
+  },
   build: {
     sourcemap: true,
     rollupOptions: {

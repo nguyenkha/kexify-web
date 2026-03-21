@@ -68,3 +68,5 @@ export { executeSolanaSigningFlow } from "./sign-solana";
 export { executeXrpSigningFlow } from "./sign-xrp";
 export { executeXlmSigningFlow } from "./sign-xlm";
 export { executeTronSigningFlow } from "./sign-tron";
+export { executeTonSigningFlow } from "./sign-ton";
+export { executeAlgoSigningFlow } from "./sign-algo";

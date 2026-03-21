@@ -195,7 +195,7 @@ export function ManageDisplayPanel({
             >
               <option value="">{t("manageDisplay.selectNetwork")}</option>
               {uniqueChains
-                .filter(({ chain }) => chain.type === "evm" || chain.type === "solana" || chain.type === "xlm" || chain.type === "tron")
+                .filter(({ chain }) => chain.type === "evm" || chain.type === "solana" || chain.type === "xlm" || chain.type === "tron" || chain.type === "ton" || chain.type === "algo")
                 .map(({ chain }) => (
                   <option key={chain.id} value={chain.id}>{chain.displayName}</option>
                 ))}

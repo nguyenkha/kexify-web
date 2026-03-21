@@ -86,7 +86,7 @@ export function AccountDetail() {
 
         const adapter = getChainAdapter(foundChain.type);
         let addr: string;
-        if (foundChain.type === "solana" || foundChain.type === "xlm") {
+        if (foundChain.type === "solana" || foundChain.type === "xlm" || foundChain.type === "ton" || foundChain.type === "algo") {
           if (!key.eddsaPublicKey) {
             setError(true);
             return;
