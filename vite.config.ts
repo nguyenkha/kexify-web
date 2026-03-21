@@ -3,8 +3,8 @@ import { execSync } from "child_process";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import wasm from "vite-plugin-wasm";
+import inject from "@rollup/plugin-inject";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
-
 
 function git(cmd: string): string {
   try { return execSync(cmd, { encoding: "utf8" }).trim(); } catch { return ""; }
@@ -44,11 +44,11 @@ export default defineConfig({
     sourcemap: true,
     rollupOptions: {
       external: [/^node:/, /^bun:/],
-      output: {
-        // Inject Buffer polyfill at the very start of each chunk, before any module code runs.
-        // This is needed because @ton/core uses Buffer at module-level evaluation time.
-        banner: `import{Buffer as __B}from"buffer";globalThis.Buffer=__B;`,
-      },
+      plugins: [
+        // Auto-inject `import { Buffer } from 'buffer'` wherever Buffer is used.
+        // This ensures @ton/core gets Buffer resolved by Rollup (not bare specifier).
+        inject({ Buffer: ["buffer", "Buffer"] }),
+      ],
     },
   },
 server: {
