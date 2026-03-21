@@ -39,6 +39,7 @@
     "emailPlaceholder": "you@example.com",
     "sendMagicLink": "Send Magic Link",
     "sending": "Sending...",
+    "captchaRequired": "Please complete the captcha verification",
     "checkEmail": "Check your email",
     "sentTo": "We sent a login link to",
     "codePrompt": "Or enter the 6-digit code from the email",

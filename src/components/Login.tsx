@@ -1,10 +1,12 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { requestMagicLink, verifyCode, setToken } from "../lib/auth";
 import { getStoredTheme, setTheme } from "../lib/theme";
 import { ErrorBox } from "./ui";
 import { LangSwitcher } from "./LangSwitcher";
+
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
 
 /** Detect in-app browsers (Facebook, Instagram, TikTok, etc.) */
 function isInAppBrowser(): boolean {
@@ -23,16 +25,56 @@ export function Login() {
   const [verifying, setVerifying] = useState(false);
   const inApp = useMemo(isInAppBrowser, []);
   const [copied, setCopied] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<HTMLDivElement>(null);
+  const widgetIdRef = useRef<string | null>(null);
+
+  // Load Turnstile script and render widget
+  const renderTurnstile = useCallback(() => {
+    if (!TURNSTILE_SITE_KEY || !turnstileRef.current) return;
+    const w = window as unknown as { turnstile?: { render: (el: HTMLElement, opts: Record<string, unknown>) => string; reset: (id: string) => void; remove: (id: string) => void } };
+    if (!w.turnstile) return;
+    if (widgetIdRef.current) w.turnstile.remove(widgetIdRef.current);
+    widgetIdRef.current = w.turnstile.render(turnstileRef.current, {
+      sitekey: TURNSTILE_SITE_KEY,
+      theme: "dark",
+      callback: (token: string) => setCaptchaToken(token),
+      "expired-callback": () => setCaptchaToken(null),
+      "error-callback": () => setCaptchaToken(null),
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!TURNSTILE_SITE_KEY) return;
+    // Load Turnstile script if not already loaded
+    if (document.querySelector('script[src*="turnstile"]')) {
+      renderTurnstile();
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+    script.async = true;
+    script.onload = renderTurnstile;
+    document.head.appendChild(script);
+  }, [renderTurnstile]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (TURNSTILE_SITE_KEY && !captchaToken) {
+      setError(t("login.captchaRequired"));
+      return;
+    }
     setLoading(true);
     setError("");
     try {
-      await requestMagicLink(email);
+      await requestMagicLink(email, captchaToken ?? undefined);
       setSent(true);
     } catch (err) {
       setError(String(err));
+      // Reset captcha on failure so user can retry
+      setCaptchaToken(null);
+      const w = window as unknown as { turnstile?: { reset: (id: string) => void } };
+      if (widgetIdRef.current && w.turnstile) w.turnstile.reset(widgetIdRef.current);
     } finally {
       setLoading(false);
     }
@@ -127,9 +169,13 @@ export function Login() {
               />
             </div>
 
+            {TURNSTILE_SITE_KEY && (
+              <div ref={turnstileRef} className="flex justify-center" />
+            )}
+
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || (!!TURNSTILE_SITE_KEY && !captchaToken)}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted disabled:cursor-not-allowed px-4 py-2.5 rounded-lg text-sm font-medium transition-colors text-white"
             >
               {loading ? t("login.sending") : `✉️ ${t("login.sendMagicLink")}`}

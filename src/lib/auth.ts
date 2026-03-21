@@ -28,13 +28,13 @@ async function safeJson(res: Response): Promise<Record<string, unknown> | null> 
   }
 }
 
-export async function requestMagicLink(email: string): Promise<void> {
+export async function requestMagicLink(email: string, captchaToken?: string): Promise<void> {
   let res: Response;
   try {
     res = await fetch(apiUrl("/api/auth/request"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email, captchaToken }),
     });
   } catch {
     throw new Error("Server unreachable. Check your connection.");

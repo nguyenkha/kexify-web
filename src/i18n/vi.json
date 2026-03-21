@@ -39,6 +39,7 @@
     "emailPlaceholder": "ban@email.com",
     "sendMagicLink": "Gửi liên kết đăng nhập",
     "sending": "Đang gửi...",
+    "captchaRequired": "Vui lòng hoàn thành xác minh captcha",
     "checkEmail": "Kiểm tra email",
     "sentTo": "Chúng tôi đã gửi liên kết đăng nhập tới",
     "codePrompt": "Hoặc nhập mã 6 chữ số từ email",
