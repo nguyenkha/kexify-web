@@ -77,7 +77,8 @@ export function WalletActivity({ accountRows, pollInterval }: WalletActivityProp
       const nativeAsset = row.assets.find((a) => a.isNative) ?? row.assets[0];
       if (!nativeAsset) return;
       try {
-        // Fetch native transactions + token transfers in parallel for EVM chains
+        // Fetch native transactions + token transfers in parallel
+        const tokenAssets = row.assets.filter((a) => !a.isNative && a.contractAddress);
         const [nativeResult, tokenTxs] = await Promise.all([
           fetchTransactions(row.address, row.chain, nativeAsset, 1),
           row.chain.type === "evm"
@@ -85,10 +86,23 @@ export function WalletActivity({ accountRows, pollInterval }: WalletActivityProp
             : Promise.resolve([]),
         ]);
 
+        // Fetch token transactions for non-EVM chains (TON Jettons, etc.)
+        let extraTokenTxs: Transaction[] = [];
+        if (row.chain.type !== "evm" && tokenAssets.length > 0) {
+          const results = await Promise.all(
+            tokenAssets.map((asset) =>
+              fetchTransactions(row.address, row.chain, asset, 1)
+                .then((r) => r.transactions)
+                .catch(() => [] as Transaction[])
+            )
+          );
+          extraTokenTxs = results.flat();
+        }
+
         // Merge and deduplicate by hash — token transfers first so they
         // take precedence over native txs that show 0 ETH for the same hash
         const seen = new Set<string>();
-        const merged = [...tokenTxs, ...nativeResult.transactions]
+        const merged = [...tokenTxs, ...extraTokenTxs, ...nativeResult.transactions]
           .filter((tx) => { if (seen.has(tx.hash)) return false; seen.add(tx.hash); return true; })
           .sort((a, b) => b.timestamp - a.timestamp);
 
