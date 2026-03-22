@@ -1,5 +1,5 @@
 import type { ChainAdapter, Chain, BalanceResult, Transaction } from "../../shared/types";
-import { hexToBytes } from "../../shared/utils";
+import { hexToBytes, base64ToHex } from "../../shared/utils";
 import { beginCell, Cell, contractAddress } from "@ton/core";
 
 // ── Wallet V4R2 code cell (constant for all v4r2 wallets) ───────
@@ -126,6 +126,63 @@ async function tonApi(chain: Chain, method: string, params: Record<string, strin
   return data.result;
 }
 
+// ── Jetton transaction history (v3 API) ─────────────────────────
+
+async function fetchJettonTransactions(
+  ownerAddress: string,
+  chain: Chain,
+  asset: { decimals: number; symbol: string; contractAddress?: string | null },
+  page: number,
+): Promise<{ transactions: Transaction[]; hasMore: boolean }> {
+  try {
+    const baseUrl = (chain.rpcUrl || "https://toncenter.com/api/v2").replace(/\/api\/v2\/?$/, "");
+    const url = new URL(`${baseUrl}/api/v3/jetton/transfers`);
+    url.searchParams.set("owner_address", ownerAddress);
+    url.searchParams.set("jetton_master", asset.contractAddress!);
+    url.searchParams.set("direction", "both");
+    url.searchParams.set("limit", String(PAGE_SIZE + 1));
+    url.searchParams.set("offset", String((page - 1) * PAGE_SIZE));
+    url.searchParams.set("sort", "desc");
+
+    const res = await tonQueuedFetch(url.toString());
+    if (!res.ok) return { transactions: [], hasMore: false };
+    const data = await res.json();
+    const transfers = data.jetton_transfers;
+    if (!Array.isArray(transfers)) return { transactions: [], hasMore: false };
+
+    const hasMore = transfers.length > PAGE_SIZE;
+    const slice = transfers.slice(0, PAGE_SIZE);
+    // address_book maps raw addresses to user-friendly format
+    const addrBook = (data.address_book ?? {}) as Record<string, { user_friendly?: string }>;
+    const friendly = (raw: string) => addrBook[raw]?.user_friendly ?? raw;
+
+    const txs: Transaction[] = slice.map((t: {
+      source: string; destination: string; amount: string;
+      transaction_hash: string; transaction_now: number;
+    }) => {
+      const fromFriendly = friendly(t.source);
+      const toFriendly = friendly(t.destination);
+      const isOutgoing = fromFriendly === ownerAddress
+        || fromFriendly.replace(/-/g, "+").replace(/_/g, "/") === ownerAddress.replace(/-/g, "+").replace(/_/g, "/");
+      return {
+        hash: base64ToHex(t.transaction_hash),
+        from: fromFriendly,
+        to: toFriendly,
+        value: t.amount,
+        formatted: formatBalance(BigInt(t.amount), asset.decimals),
+        symbol: asset.symbol,
+        timestamp: t.transaction_now,
+        direction: isOutgoing ? "out" as const : "in" as const,
+        confirmed: true,
+      };
+    });
+
+    return { transactions: txs, hasMore };
+  } catch {
+    return { transactions: [], hasMore: false };
+  }
+}
+
 // ── Adapter ─────────────────────────────────────────────────────
 
 export const tonAdapter: ChainAdapter = {
@@ -193,12 +250,17 @@ export const tonAdapter: ChainAdapter = {
 
   async fetchTransactions(address, chain, asset, page) {
     try {
+      // For Jetton tokens, use v3 API to fetch transfer events
+      if (!asset.isNative && asset.contractAddress) {
+        return fetchJettonTransactions(address, chain, asset, page);
+      }
+
       const result = await tonApi(chain, "getTransactions", {
         address,
         limit: String(PAGE_SIZE + 1),
         offset: String((page - 1) * PAGE_SIZE),
       }) as {
-        hash: string;
+        transaction_id: { hash: string };
         utime: number;
         in_msg?: { source: string; destination: string; value: string; bounced?: boolean };
         out_msgs?: { source: string; destination: string; value: string }[];
@@ -213,7 +275,7 @@ export const tonAdapter: ChainAdapter = {
 
       const txs: Transaction[] = [];
       for (const tx of slice) {
-        if (!asset.isNative) continue; // Jetton tx parsing requires BOC — deferred
+        const hash = base64ToHex(tx.transaction_id?.hash);
 
         // Outgoing: out_msgs with value > threshold
         const hasOutgoing = tx.out_msgs?.some((m) => BigInt(m.value || "0") > DUST_THRESHOLD);
@@ -222,7 +284,7 @@ export const tonAdapter: ChainAdapter = {
             const val = BigInt(msg.value || "0");
             if (val > DUST_THRESHOLD) {
               txs.push({
-                hash: tx.hash,
+                hash,
                 from: msg.source,
                 to: msg.destination,
                 value: msg.value,
@@ -241,7 +303,7 @@ export const tonAdapter: ChainAdapter = {
           const val = BigInt(tx.in_msg.value || "0");
           if (val > DUST_THRESHOLD) {
             txs.push({
-              hash: tx.hash,
+              hash,
               from: tx.in_msg.source,
               to: tx.in_msg.destination,
               value: tx.in_msg.value,
