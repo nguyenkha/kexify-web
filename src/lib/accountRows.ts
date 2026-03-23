@@ -236,14 +236,15 @@ export function buildAccountRows(
     const adaChains = chains.filter((c) => c.type === "ada");
     if (adaChains.length > 0) {
       const adaAdapt = getChainAdapter("ada");
-      let adaAddr: string;
-      try {
-        adaAddr = adaAdapt.deriveAddress(key.eddsaPublicKey);
-      } catch {
-        adaAddr = "";
-      }
-      if (adaAddr) {
-        for (const chain of adaChains) {
+      for (const chain of adaChains) {
+        const testnet = chain.name.includes("TESTNET") || chain.name.includes("PREPROD");
+        let adaAddr: string;
+        try {
+          adaAddr = adaAdapt.deriveAddress(key.eddsaPublicKey, { testnet });
+        } catch {
+          adaAddr = "";
+        }
+        if (adaAddr) {
           const chainAssets = assets.filter((a) => a.chainId === chain.id);
           rows.push({
             keyId: key.id,

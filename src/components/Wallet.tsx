@@ -99,7 +99,7 @@ export function Wallet() {
         const overrides = getUserOverrides(me?.id);
         const showTestnet = getPreference("show_testnet", me?.id);
         const mergedChains = applyChainOverrides(
-          c.filter((ch: Chain) => showTestnet || !/testnet|sepolia|devnet/i.test(ch.name)),
+          c.filter((ch: Chain) => showTestnet || !/testnet|sepolia|devnet|preprod/i.test(ch.name)),
           me?.id,
         );
         setChainsData(mergedChains);

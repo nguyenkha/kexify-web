@@ -531,7 +531,7 @@ export function ConfigPage() {
             <p className="text-sm font-medium text-text-primary">{t("config.defaultChains")}</p>
             <p className="text-xs text-text-muted mt-0.5 mb-3">{t("config.defaultChainsDesc")}</p>
             <div className="flex flex-wrap gap-2">
-              {chains.filter((c) => !/testnet|sepolia|devnet/i.test(c.name)).map((chain) => {
+              {chains.filter((c) => !/testnet|sepolia|devnet|preprod/i.test(c.name)).map((chain) => {
                 const selected = getDefaultChains().includes(chain.name);
                 return (
                   <button
