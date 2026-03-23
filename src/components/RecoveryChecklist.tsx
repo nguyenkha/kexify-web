@@ -12,6 +12,7 @@ import {
   getKeyShareWithPassphrase,
   saveKeyShareWithPrf,
   saveKeyShareWithPassphrase,
+  getKeyShareFromStoredShare,
 } from "../lib/keystore";
 import { type KeyFileData, isEncryptedKeyFile, decryptKeyFile, encryptKeyFile } from "../lib/crypto";
 import { PassphraseInput } from "./PassphraseInput";
@@ -45,6 +46,11 @@ export function RecoveryChecklist() {
   const [escrowUploading, setEscrowUploading] = useState(false);
   const [escrowError, setEscrowError] = useState<string | null>(null);
   const escrowFileRef = useRef<HTMLInputElement>(null);
+
+  // Restore from server escrow state
+  const [restoreId, setRestoreId] = useState<string | null>(null);
+  const [restoreStep, setRestoreStep] = useState<"idle" | "loading" | "saving">("idle");
+  const [restoreError, setRestoreError] = useState<string | null>(null);
 
   // Download from browser state
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -227,6 +233,69 @@ export function RecoveryChecklist() {
       setEscrowError(String(err));
     }
     setEscrowUploading(false);
+  }
+
+  // ── Restore from server escrow ──
+  async function handleRestoreFromEscrow(accountId: string) {
+    setRestoreId(accountId);
+    setRestoreStep("loading");
+    setRestoreError(null);
+    try {
+      // Step 1: Authenticate and download backup
+      await authenticatePasskey({});
+      const headers = sensitiveHeaders();
+      const res = await fetch(apiUrl(`/api/keys/${accountId}/backup`), { headers });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setRestoreError(d.error || t("recovery.restoreFailed"));
+        setRestoreStep("idle");
+        setRestoreId(null);
+        return;
+      }
+      const { encryptedData } = await res.json();
+      const parsed = JSON.parse(encryptedData);
+
+      setRestoreStep("saving");
+
+      // Step 2: Decrypt with PRF and re-save
+      const prfAuth = await authenticatePasskey({ withPrf: true });
+      if (!prfAuth.prfKey || !prfAuth.credentialId) {
+        setRestoreError(t("recovery.prfNotSupported"));
+        setRestoreStep("idle");
+        setRestoreId(null);
+        return;
+      }
+
+      let keyData: KeyFileData;
+
+      if (parsed.mode === "prf" && parsed.ciphertext) {
+        // PRF-encrypted escrow: decrypt first, then re-encrypt to save
+        const decrypted = await getKeyShareFromStoredShare(parsed, prfAuth.prfKey);
+        if (!decrypted) {
+          setRestoreError(t("recovery.restoreFailed"));
+          setRestoreStep("idle");
+          setRestoreId(null);
+          return;
+        }
+        keyData = decrypted;
+      } else if (parsed.share) {
+        // Raw KeyFileData (unencrypted or passphrase-encrypted but stored as-is)
+        keyData = parsed as KeyFileData;
+      } else {
+        setRestoreError(t("recovery.unknownBackupFormat"));
+        setRestoreStep("idle");
+        setRestoreId(null);
+        return;
+      }
+
+      // Save to browser with PRF encryption
+      await saveKeyShareWithPrf(accountId, keyData, prfAuth.prfKey, prfAuth.credentialId);
+      fetchAccounts();
+    } catch (err) {
+      setRestoreError(String(err));
+    }
+    setRestoreStep("idle");
+    setRestoreId(null);
   }
 
   // ── Download key share from browser storage ──
@@ -459,7 +528,7 @@ export function RecoveryChecklist() {
                       </div>
                     )}
 
-                    {/* Step 1: Import key file */}
+                    {/* Step 1: Import key file or restore from server */}
                     {!step.done && step.key === "browser" && (
                       <div className="mt-2 space-y-1.5">
                         {importStep === "decrypt" && importAccountId === account.id ? (
@@ -476,16 +545,34 @@ export function RecoveryChecklist() {
                             <Spinner size="xs" />
                             <span className="text-[10px] text-text-muted">{t("recovery.saving")}</span>
                           </div>
+                        ) : restoreStep !== "idle" && restoreId === account.id ? (
+                          <div className="flex items-center gap-2">
+                            <Spinner size="xs" />
+                            <span className="text-[10px] text-text-muted">{restoreStep === "loading" ? t("recovery.downloading") : t("recovery.saving")}</span>
+                          </div>
                         ) : (
-                          <button
-                            onClick={() => { setImportAccountId(account.id); setImportError(null); fileInputRef.current?.click(); }}
-                            className="px-3 py-2 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors"
-                          >
-                            {t("recovery.importKeyFile")}
-                          </button>
+                          <div className="flex items-center gap-2">
+                            {account.hasClientBackup && (
+                              <button
+                                onClick={() => handleRestoreFromEscrow(account.id)}
+                                className="px-3 py-2 rounded-lg text-xs font-medium bg-green-600 hover:bg-green-700 text-white transition-colors"
+                              >
+                                {t("recovery.restoreFromServer")}
+                              </button>
+                            )}
+                            <button
+                              onClick={() => { setImportAccountId(account.id); setImportError(null); fileInputRef.current?.click(); }}
+                              className="px-3 py-2 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                            >
+                              {t("recovery.importKeyFile")}
+                            </button>
+                          </div>
                         )}
                         {importError && importAccountId === account.id && (
                           <p className="text-[10px] text-red-400">{importError}</p>
+                        )}
+                        {restoreError && restoreId === account.id && (
+                          <p className="text-[10px] text-red-400">{restoreError}</p>
                         )}
                         <p className="text-[10px] text-text-muted leading-relaxed">
                           {t("recovery.moreOptionsInExpertMode")}
