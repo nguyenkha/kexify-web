@@ -19,6 +19,7 @@ const COINGECKO_IDS: Record<string, string> = {
   TRX: "tron",
   LTC: "litecoin",
   ALGO: "algorand",
+  ADA: "cardano",
 };
 
 // In-memory fallback (survives within same session even if localStorage fails)

@@ -69,6 +69,7 @@ import {
   executeTronSigningFlow,
   executeTonSigningFlow,
   executeAlgoSigningFlow,
+  executeAdaSigningFlow,
   handleFetchUtxos,
   type SigningContext,
   type UtxoFetchContext,
@@ -841,6 +842,7 @@ export function SendDialog({
               executeTron: () => executeTronSigningFlow(buildSigningCtx()),
               executeTon: () => executeTonSigningFlow(buildSigningCtx()),
               executeAlgo: () => executeAlgoSigningFlow(buildSigningCtx()),
+              executeAda: () => executeAdaSigningFlow(buildSigningCtx()),
             }}
             setSigningError={setSigningError}
             t={t}

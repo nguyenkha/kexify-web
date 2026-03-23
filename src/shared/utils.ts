@@ -37,5 +37,11 @@ export function explorerLink(explorerUrl: string, path: string): string {
     return `${base}${mapped}${query}`;
   }
 
+  // Cardanoscan uses /transaction/ instead of /tx/
+  if (base.includes("cardanoscan.io")) {
+    const mapped = path.replace(/^\/tx\//, "/transaction/");
+    return `${base}${mapped}${query}`;
+  }
+
   return `${base}${path}${query}`;
 }

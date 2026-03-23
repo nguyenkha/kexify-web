@@ -228,7 +228,7 @@ export function PreviewStep({
         <button
           disabled={policyCheck?.allowed === false}
           onClick={() => {
-            const { executeEvm, executeBtc, executeLtc, executeBch, executeSolana, executeXrp, executeXlm, executeTron, executeTon, executeAlgo } = signingFlows;
+            const { executeEvm, executeBtc, executeLtc, executeBch, executeSolana, executeXrp, executeXlm, executeTron, executeTon, executeAlgo, executeAda } = signingFlows;
             const flows: Record<string, () => void> = {
               solana: executeSolana,
               btc: executeBtc,
@@ -240,6 +240,7 @@ export function PreviewStep({
               tron: executeTron,
               ton: executeTon,
               algo: executeAlgo,
+              ada: executeAda,
             };
             const flow = flows[chain.type];
             if (flow) guardedSign(flow);

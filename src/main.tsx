@@ -9,10 +9,12 @@ import App from './App.tsx'
 import { initTheme } from './lib/theme'
 import { initSentry } from './lib/sentry'
 import { initAlgoAdapter } from './lib/chains/algoAdapter'
+import { initAdaAdapter } from './lib/chains/adaAdapter'
 
 initSentry()
 initTheme()
 initAlgoAdapter()
+initAdaAdapter()
 
 declare const __BUILD_TIME__: string;
 declare const __GIT_HASH__: string;

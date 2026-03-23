@@ -384,6 +384,28 @@
             "rpcUrl": "https://testnet-api.algonode.cloud",
             "explorerUrl": "https://testnet.explorer.perawallet.app",
             "iconUrl": "https://assets.coingecko.com/coins/images/4380/large/download.png"
+        },
+        {
+            "id": "h0000001-0001-4001-8001-000000000001",
+            "name": "CARDANO",
+            "displayName": "Cardano",
+            "type": "ada",
+            "coinType": 1815,
+            "evmChainId": null,
+            "rpcUrl": "https://cardano-mainnet.gateway.tatum.io",
+            "explorerUrl": "https://cardanoscan.io",
+            "iconUrl": "https://assets.coingecko.com/coins/images/975/large/cardano.png"
+        },
+        {
+            "id": "h0000002-0001-4001-8001-000000000001",
+            "name": "CARDANO_PREPROD",
+            "displayName": "Cardano (PreProd)",
+            "type": "ada",
+            "coinType": 1815,
+            "evmChainId": null,
+            "rpcUrl": "https://cardano-preprod.gateway.tatum.io",
+            "explorerUrl": "https://preprod.cardanoscan.io",
+            "iconUrl": "https://assets.coingecko.com/coins/images/975/large/cardano.png"
         }
     ],
     "assets": [
@@ -1015,7 +1037,9 @@
         {"id":"g0000001-0002-4001-8001-000000000001","symbol":"USDC","name":"USD Coin (ASA)","decimals":6,"contractAddress":"31566704","isNative":false,"iconUrl":"https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png","chainId":"a7b8c9d0-e1f2-3456-bcda-567890123456"},
         {"id":"g0000001-0003-4001-8001-000000000001","symbol":"USDT","name":"Tether USD (ASA)","decimals":6,"contractAddress":"312769","isNative":false,"iconUrl":"https://assets.coingecko.com/coins/images/325/large/Tether.png","chainId":"a7b8c9d0-e1f2-3456-bcda-567890123456"},
         {"id":"g0000002-0001-4001-8001-000000000001","symbol":"ALGO","name":"Testnet Algorand","decimals":6,"contractAddress":null,"isNative":true,"iconUrl":"https://assets.coingecko.com/coins/images/4380/large/download.png","chainId":"b8c9d0e1-f2a3-4567-cdeb-678901234567"},
-        {"id":"g0000002-0002-4001-8001-000000000001","symbol":"USDC","name":"USD Coin (Testnet ASA)","decimals":6,"contractAddress":"10458941","isNative":false,"iconUrl":"https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png","chainId":"b8c9d0e1-f2a3-4567-cdeb-678901234567"}
+        {"id":"g0000002-0002-4001-8001-000000000001","symbol":"USDC","name":"USD Coin (Testnet ASA)","decimals":6,"contractAddress":"10458941","isNative":false,"iconUrl":"https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png","chainId":"b8c9d0e1-f2a3-4567-cdeb-678901234567"},
+        {"id":"h0000001-0001-4001-8001-000000000002","symbol":"ADA","name":"Cardano","decimals":6,"contractAddress":null,"isNative":true,"iconUrl":"https://assets.coingecko.com/coins/images/975/large/cardano.png","chainId":"h0000001-0001-4001-8001-000000000001"},
+        {"id":"h0000002-0001-4001-8001-000000000002","symbol":"ADA","name":"Testnet Cardano","decimals":6,"contractAddress":null,"isNative":true,"iconUrl":"https://assets.coingecko.com/coins/images/975/large/cardano.png","chainId":"h0000002-0001-4001-8001-000000000001"}
     ],
     "preferences": {
         "default_chains": [

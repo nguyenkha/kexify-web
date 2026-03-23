@@ -19,6 +19,7 @@ import { ethers } from "ethers";
 import { keccak_256 } from "@noble/hashes/sha3";
 import { sha256 } from "@noble/hashes/sha256";
 import { sha512_256 } from "@noble/hashes/sha2";
+import { blake2b } from "@noble/hashes/blake2b";
 import { ripemd160 } from "@noble/hashes/ripemd160";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import { base58, bech32, base58check } from "@scure/base";
@@ -288,6 +289,18 @@ function deriveAlgoAddress(eddsaPubKeyHex: string): string {
   }
   if (bits > 0) output += B32[(value << (5 - bits)) & 31];
   return output;
+}
+
+function deriveAdaAddress(eddsaPubKeyHex: string, testnet = false): string {
+  const key32 = extractEd25519Key(eddsaPubKeyHex);
+  const keyHash = blake2b(key32, { dkLen: 28 }); // Blake2b-224
+  // Enterprise address: type 6 (0110) | network (0=testnet, 1=mainnet)
+  const header = testnet ? 0x60 : 0x61;
+  const payload = new Uint8Array(29);
+  payload[0] = header;
+  payload.set(keyHash, 1);
+  const prefix = testnet ? "addr_test" : "addr";
+  return bech32.encode(prefix, bech32.toWords(payload));
 }
 
 // Legacy P2PKH address derivation (BTC/LTC)
@@ -850,6 +863,7 @@ async function cmdRecover(share1Path: string, share2Path: string): Promise<void>
   const xlmAddr = deriveXlmAddress(share1.eddsaPublicKey);
   const tonAddr = deriveTonAddress(share1.eddsaPublicKey);
   const algoAddr = deriveAlgoAddress(share1.eddsaPublicKey);
+  const adaAddr = deriveAdaAddress(share1.eddsaPublicKey);
 
   console.log("\nRecovered addresses:");
   console.log(`  Ethereum (EVM):    ${evmAddr}`);
@@ -864,13 +878,14 @@ async function cmdRecover(share1Path: string, share2Path: string): Promise<void>
   console.log(`  Stellar (XLM):     ${xlmAddr}`);
   console.log(`  TON:               ${tonAddr}`);
   console.log(`  Algorand:          ${algoAddr}`);
+  console.log(`  Cardano (ADA):     ${adaAddr}`);
 
   // Interactive menu
   initReadline();
   while (true) {
     console.log("\nOptions:");
     console.log("  1. Export ECDSA private key (hex) — EVM/BTC/BCH/LTC/XRP/TRON");
-    console.log("  2. Export EdDSA private key (hex) — Solana/XLM/TON/ALGO");
+    console.log("  2. Export EdDSA private key (hex) — Solana/XLM/TON/ALGO/ADA");
     console.log("  3. Export private key (WIF — Bitcoin)");
     console.log("  4. Exit");
 
@@ -945,6 +960,7 @@ async function cmdConnect(share1Path: string, share2Path: string): Promise<void>
   console.log(`Stellar (XLM):    ${deriveXlmAddress(share1.eddsaPublicKey)}`);
   console.log(`TON:              ${deriveTonAddress(share1.eddsaPublicKey)}`);
   console.log(`Algorand:         ${deriveAlgoAddress(share1.eddsaPublicKey)}`);
+  console.log(`Cardano (ADA):    ${deriveAdaAddress(share1.eddsaPublicKey)}`);
 
   // Initialize WalletConnect
   process.stdout.write("\nInitializing WalletConnect... ");

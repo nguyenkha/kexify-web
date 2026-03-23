@@ -107,6 +107,18 @@ export function computeFeeDisplay(p: ComputeFeeDisplayParams): FeeDisplay {
       isFixed: true,
     };
   }
+  if (chain.type === "ada") {
+    // Typical Cardano simple payment fee: ~0.17 ADA (minFeeA*300 + minFeeB ≈ 168581 lovelace)
+    const feeAda = "~0.17";
+    return {
+      formatted: feeAda,
+      symbol: "ADA",
+      usd: getUsdValue("0.17", "ADA", prices),
+      rateLabel: null,
+      hasLevelSelector: false,
+      isFixed: true,
+    };
+  }
   if (chain.type === "xlm") {
     const xlmFeeRate = p.xlmFeeRates?.[feeLevel] ?? null;
     const feeXlm = xlmFeeRate != null ? (xlmFeeRate / 1e7).toFixed(7).replace(/\.?0+$/, "") : null;
@@ -195,6 +207,8 @@ export function computeMaxSendable(p: ComputeMaxSendableParams): string {
     feeBaseUnits = 1000n; // 0.001 ALGO flat fee
   } else if (chain.type === "ton") {
     feeBaseUnits = 5_000_000n; // ~0.005 TON (native only; tokens use full balance)
+  } else if (chain.type === "ada") {
+    feeBaseUnits = 200_000n; // ~0.2 ADA conservative estimate
   }
 
   if (feeBaseUnits == null) return balance;

@@ -70,3 +70,4 @@ export { executeXlmSigningFlow } from "./sign-xlm";
 export { executeTronSigningFlow } from "./sign-tron";
 export { executeTonSigningFlow } from "./sign-ton";
 export { executeAlgoSigningFlow } from "./sign-algo";
+export { executeAdaSigningFlow } from "./sign-ada";

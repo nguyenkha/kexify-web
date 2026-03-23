@@ -231,6 +231,31 @@ export function buildAccountRows(
         }
       }
     }
+
+    // ADA (Cardano) — Ed25519
+    const adaChains = chains.filter((c) => c.type === "ada");
+    if (adaChains.length > 0) {
+      const adaAdapt = getChainAdapter("ada");
+      let adaAddr: string;
+      try {
+        adaAddr = adaAdapt.deriveAddress(key.eddsaPublicKey);
+      } catch {
+        adaAddr = "";
+      }
+      if (adaAddr) {
+        for (const chain of adaChains) {
+          const chainAssets = assets.filter((a) => a.chainId === chain.id);
+          rows.push({
+            keyId: key.id,
+            address: adaAddr,
+            addressType: "ada",
+            label: chain.displayName,
+            chain,
+            assets: chainAssets,
+          });
+        }
+      }
+    }
   }
   return rows;
 }

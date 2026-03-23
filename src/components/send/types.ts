@@ -199,6 +199,7 @@ export interface PreviewStepProps {
     executeTron: () => void;
     executeTon: () => void;
     executeAlgo: () => void;
+    executeAda: () => void;
   };
   setSigningError: (e: string | null) => void;
 
