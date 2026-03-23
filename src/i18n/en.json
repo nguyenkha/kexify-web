@@ -850,6 +850,8 @@
     "noActivityDesc": "Operations performed with your wallet will appear here.",
     "loadMore": "Load more",
     "loading": "Loading...",
+    "login": "Logged in",
+    "loginDetail": "A new session was started from this device.",
     "txSigned": "Transaction signed",
     "accountCreated": "Account created",
     "accountCreatedDetail": "A new account was set up successfully.",

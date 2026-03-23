@@ -146,6 +146,22 @@ function formatTxValue(raw: string, decimals: number): string {
   return fracPart ? `${fmt}.${fracPart}` : fmt;
 }
 
+// ── Rate-limit queue (TronGrid free tier: ~15 req/min) ──────────
+let tronApiQueue: Promise<void> = Promise.resolve();
+
+function tronQueuedFetch(url: string, init?: RequestInit): Promise<Response> {
+  return new Promise<Response>((resolve, reject) => {
+    tronApiQueue = tronApiQueue.then(async () => {
+      try {
+        resolve(await fetch(url, init));
+      } catch (err) {
+        reject(err);
+      }
+      await new Promise((r) => setTimeout(r, 4_000)); // 4s between requests
+    });
+  });
+}
+
 // ── Chain adapter ───────────────────────────────────────────────
 
 export const tronAdapter: ChainAdapter = {
@@ -162,7 +178,7 @@ export const tronAdapter: ChainAdapter = {
 
   async fetchNativeBalance(address, chain, nativeAsset): Promise<BalanceResult | null> {
     try {
-      const res = await fetch(`${chain.rpcUrl}/wallet/getaccount`, {
+      const res = await tronQueuedFetch(`${chain.rpcUrl}/wallet/getaccount`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ address, visible: true }),
@@ -195,7 +211,7 @@ export const tronAdapter: ChainAdapter = {
         const addrBytes20 = addressHex.slice(2); // strip "41" prefix -> 40 hex chars (20 bytes)
         const parameter = addrBytes20.padStart(64, "0");
 
-        const res = await fetch(`${chain.rpcUrl}/wallet/triggerconstantcontract`, {
+        const res = await tronQueuedFetch(`${chain.rpcUrl}/wallet/triggerconstantcontract`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -229,7 +245,7 @@ export const tronAdapter: ChainAdapter = {
   async fetchTransactions(address, chain, asset, page) {
     try {
       const marker = page > 1 ? `&fingerprint=${page}` : "";
-      const res = await fetch(
+      const res = await tronQueuedFetch(
         `${chain.rpcUrl}/v1/accounts/${address}/transactions?limit=${PAGE_SIZE}${marker}`,
       );
       const data = await res.json();

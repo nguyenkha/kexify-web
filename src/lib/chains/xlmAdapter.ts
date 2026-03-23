@@ -107,6 +107,22 @@ function horizonUrl(chain: Chain): string {
   return chain.rpcUrl || "https://horizon.stellar.org";
 }
 
+// ── Account-not-found cache (avoid spamming 404s for unfunded accounts) ──
+// Maps "address" → expiry timestamp (ms). While cached, skip all Horizon calls.
+const xlmNotFoundCache = new Map<string, number>();
+const XLM_NOT_FOUND_TTL = 5 * 60 * 1000; // 5 minutes
+
+function isXlmAccountMissing(address: string): boolean {
+  const expiry = xlmNotFoundCache.get(address);
+  if (!expiry) return false;
+  if (Date.now() > expiry) { xlmNotFoundCache.delete(address); return false; }
+  return true;
+}
+
+function markXlmAccountMissing(address: string) {
+  xlmNotFoundCache.set(address, Date.now() + XLM_NOT_FOUND_TTL);
+}
+
 // ── Adapter ──────────────────────────────────────────────────────
 
 export const xlmAdapter: ChainAdapter = {
@@ -122,9 +138,13 @@ export const xlmAdapter: ChainAdapter = {
   },
 
   async fetchNativeBalance(address: string, chain: Chain, nativeAsset: Asset): Promise<BalanceResult | null> {
+    if (isXlmAccountMissing(address)) {
+      return { asset: nativeAsset, chain, balance: "0", formatted: "0" };
+    }
     try {
       const res = await fetch(`${horizonUrl(chain)}/accounts/${address}`);
       if (res.status === 404) {
+        markXlmAccountMissing(address);
         return { asset: nativeAsset, chain, balance: "0", formatted: "0" };
       }
       if (!res.ok) return null;
@@ -143,9 +163,10 @@ export const xlmAdapter: ChainAdapter = {
   },
 
   async fetchTokenBalances(address: string, chain: Chain, tokenAssets: Asset[]): Promise<BalanceResult[]> {
-    if (tokenAssets.length === 0) return [];
+    if (tokenAssets.length === 0 || isXlmAccountMissing(address)) return [];
     try {
       const res = await fetch(`${horizonUrl(chain)}/accounts/${address}`);
+      if (res.status === 404) { markXlmAccountMissing(address); return []; }
       if (!res.ok) return [];
       const data = await res.json();
       const balances: { asset_type: string; asset_code?: string; asset_issuer?: string; balance: string }[] =
@@ -173,6 +194,7 @@ export const xlmAdapter: ChainAdapter = {
     asset: Asset,
     page: number,
   ): Promise<{ transactions: Transaction[]; hasMore: boolean }> {
+    if (isXlmAccountMissing(address)) return { transactions: [], hasMore: false };
     try {
       const limit = 20;
       const cursor = page > 1 ? `&cursor=${(page - 1) * limit}` : "";

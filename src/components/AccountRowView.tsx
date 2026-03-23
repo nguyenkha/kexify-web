@@ -9,7 +9,7 @@ import { isTokenVisible, findNewTokens } from "../lib/displayPrefs";
 import { explorerLink } from "../shared/utils";
 import { useHideBalances, maskBalance } from "../context/HideBalancesContext";
 import { fetchTransactions } from "../lib/transactions";
-import { getCache, setCache, txCacheKey } from "../lib/dataCache";
+import { getStaleCache, setCache, txCacheKey } from "../lib/dataCache";
 import { CompactTxPreview } from "./CompactTxPreview";
 import { truncateBalance } from "./sendTypes";
 
@@ -49,13 +49,16 @@ export function AccountRowView({
   useEffect(() => {
     if (!nativeAssetForTx) return;
     const cacheK = txCacheKey(row.address, row.chain.id);
-    const cached = getCache<Transaction[]>(cacheK);
-    if (cached) { setRecentTxs(cached.slice(0, 3)); return; }
+    const cached = getStaleCache<Transaction[]>(cacheK);
+    if (cached) {
+      setRecentTxs(cached.data.slice(0, 3));
+      if (cached.fresh) return; // Skip fetch if cache is still fresh
+    }
+    // Fetch in background (non-blocking if we have stale data)
     fetchTransactions(row.address, row.chain, nativeAssetForTx, 1)
       .then(({ transactions }) => {
-        const top3 = transactions.slice(0, 3);
         setCache(cacheK, transactions);
-        setRecentTxs(top3);
+        setRecentTxs(transactions.slice(0, 3));
       })
       .catch(() => {}); // silently hide on error
   // eslint-disable-next-line react-hooks/exhaustive-deps

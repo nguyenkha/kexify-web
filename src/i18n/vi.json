@@ -850,6 +850,8 @@
     "noActivityDesc": "Các thao tác với ví sẽ hiển thị ở đây.",
     "loadMore": "Tải thêm",
     "loading": "Đang tải...",
+    "login": "Đã đăng nhập",
+    "loginDetail": "Một phiên mới đã được bắt đầu từ thiết bị này.",
     "txSigned": "Giao dịch đã ký",
     "accountCreated": "Tài khoản đã tạo",
     "accountCreatedDetail": "Tài khoản mới đã được thiết lập thành công.",

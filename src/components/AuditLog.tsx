@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { authHeaders } from "../lib/auth";
 import { apiUrl } from "../lib/apiBase";
 import { useExpertMode } from "../context/ExpertModeContext";
+import { getStaleCache, setCache } from "../lib/dataCache";
+import { getIdentityId } from "../lib/auth";
 import { EmptyState } from "./ui";
 import Prism from "prismjs";
 import "prismjs/components/prism-json";
@@ -12,6 +14,7 @@ interface AuditEntry {
   action: string;
   keyShareId?: string | null;
   keyName?: string | null;
+  ip?: string | null;
   meta: Record<string, unknown> | null;
   createdAt: string;
 }
@@ -74,6 +77,14 @@ function KeyIcon({ className }: { className?: string }) {
   );
 }
 
+function LoginIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+    </svg>
+  );
+}
+
 function SendIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -102,6 +113,23 @@ function describeEntry(entry: AuditEntry, t: TFn): EntryDesc {
   const transfer = meta.transfer as Record<string, string> | undefined;
 
   switch (entry.action) {
+    case "auth.login":
+    case "auth.standalone_login": {
+      const device = meta.device as string | undefined;
+      const location = meta.location as string | undefined;
+      const subtitleParts: string[] = [];
+      if (device) subtitleParts.push(device);
+      if (location) subtitleParts.push(location);
+      if (entry.ip && entry.ip !== "unknown") subtitleParts.push(entry.ip);
+      return {
+        title: t("activity.login"),
+        subtitle: subtitleParts.join(" · "),
+        detail: t("activity.loginDetail"),
+        icon: LoginIcon,
+        iconBg: "bg-blue-500/10",
+        iconColor: "text-blue-400",
+      };
+    }
     case "sign.init":
       return {
         title: t("activity.txSigned"),
@@ -360,36 +388,64 @@ function EntryRow({ entry, showAccount, expert }: { entry: AuditEntry; showAccou
 
 // ── Page Component ──────────────────────────────────────────
 
+function auditCacheKey(): string {
+  const id = getIdentityId();
+  return id ? `audit:${id}` : "audit:anon";
+}
+
+/** Merge fresh logs into existing list, dedup by id, keep chronological order */
+function mergeLogs(existing: AuditEntry[], incoming: AuditEntry[]): AuditEntry[] {
+  const seen = new Set(existing.map((e) => e.id));
+  const merged = [...existing];
+  for (const entry of incoming) {
+    if (!seen.has(entry.id)) {
+      merged.push(entry);
+      seen.add(entry.id);
+    }
+  }
+  return merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
 /** Full-page activity log for all accounts (used in Advanced menu) */
 export function ActivityLogPage() {
   const { t } = useTranslation();
   const expert = useExpertMode();
-  const [logs, setLogs] = useState<AuditEntry[]>([]);
+  const [logs, setLogs] = useState<AuditEntry[]>(() => {
+    const cached = getStaleCache<AuditEntry[]>(auditCacheKey());
+    return cached?.data ?? [];
+  });
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
+  const isCacheHit = useRef(false);
 
-  async function fetchLogs(p: number) {
+  const fetchLogs = useCallback(async (p: number) => {
     setLoading(true);
     const res = await fetch(apiUrl(`/api/account/audit?page=${p}&limit=20`), {
       headers: authHeaders(),
     });
     if (res.ok) {
       const data = await res.json();
-      if (p === 1) {
-        setLogs(data.logs);
-      } else {
-        setLogs((prev) => [...prev, ...data.logs]);
-      }
+      setLogs((prev) => {
+        const updated = p === 1 ? mergeLogs(prev, data.logs) : mergeLogs(prev, data.logs);
+        setCache(auditCacheKey(), updated);
+        return updated;
+      });
       setHasMore(data.hasMore);
       setPage(p);
     }
     setLoading(false);
-  }
+  }, []);
 
   useEffect(() => {
+    // If we have cached data, show it immediately and still refresh
+    const cached = getStaleCache<AuditEntry[]>(auditCacheKey());
+    if (cached?.data?.length) {
+      isCacheHit.current = true;
+      setLoading(false); // don't show skeleton, we have data
+    }
     fetchLogs(1);
-  }, []);
+  }, [fetchLogs]);
 
   const filtered = expert ? logs : logs.filter((e) => !HIDDEN_ACTIONS.has(e.action));
 

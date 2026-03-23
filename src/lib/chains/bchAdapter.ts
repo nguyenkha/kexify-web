@@ -359,10 +359,25 @@ export const bchAdapter: ChainAdapter = {
           displayValue = BigInt(tx.fee ?? 0);
         }
 
+        // UTXO counterparty: if all inputs share one address, show as sender
+        let from = address;
+        let to = address;
+        if (direction === "in") {
+          const inputAddrs = new Set(inputs.map((i) => i.recipient).filter(Boolean));
+          if (inputAddrs.size === 1) {
+            from = [...inputAddrs][0]!;
+          } else {
+            from = "";
+          }
+        } else if (direction === "out") {
+          const outputAddr = outputs.find((o) => !matchAddr(o.recipient));
+          to = outputAddr?.recipient ?? "";
+        }
+
         return {
           hash: txid,
-          from: direction === "in" ? "..." : address,
-          to: direction === "out" ? "..." : address,
+          from,
+          to,
           value: displayValue.toString(),
           formatted: formatTxValue(displayValue.toString(), asset.decimals),
           symbol: asset.symbol,

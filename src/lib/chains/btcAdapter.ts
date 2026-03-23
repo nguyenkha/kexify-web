@@ -170,10 +170,21 @@ export const btcAdapter: ChainAdapter = {
       const direction: "in" | "out" | "self" =
         net > 0 ? "in" : net < 0 ? "out" : "self";
 
+      // UTXO counterparty: if all inputs share one address, show as sender
+      let from = address;
+      let to = address;
+      if (direction === "in") {
+        const inputAddrs = new Set(vin.map((i) => i.prevout?.scriptpubkey_address).filter(Boolean));
+        from = inputAddrs.size === 1 ? [...inputAddrs][0]! : "";
+      } else if (direction === "out") {
+        const outputAddr = vout.find((o) => o.scriptpubkey_address?.toLowerCase() !== addrLower);
+        to = outputAddr?.scriptpubkey_address ?? "";
+      }
+
       return {
         hash: txid,
-        from: direction === "in" ? "..." : address,
-        to: direction === "out" ? "..." : address,
+        from,
+        to,
         value: Math.abs(net).toString(),
         formatted: formatTxValue(Math.abs(net).toString(), asset.decimals),
         symbol: asset.symbol,

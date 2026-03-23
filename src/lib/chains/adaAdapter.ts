@@ -106,6 +106,34 @@ function formatAdaAmount(lovelace: string | number, decimals: number): string {
   return `${whole.toLocaleString("en-US")}.${fracStr}`;
 }
 
+// ── Block timestamp cache (avoids re-fetching the same block) ──
+const blockTimeCache = new Map<string, number>(); // "network:blockIndex" → unix seconds
+
+/** Fetch block timestamp from Rosetta /block endpoint (queued to respect rate limit) */
+async function fetchBlockTime(chain: Chain, blockIndex: number, blockHash: string): Promise<number> {
+  const key = `${networkId(chain).network}:${blockIndex}`;
+  const cached = blockTimeCache.get(key);
+  if (cached) return cached;
+
+  try {
+    const res = await adaQueuedFetch(`${rosettaUrl(chain)}/block`, {
+      network_identifier: networkId(chain),
+      block_identifier: { index: blockIndex, hash: blockHash },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      // Rosetta block timestamp is in milliseconds
+      const tsMs = data.block?.timestamp ?? 0;
+      if (tsMs > 0) {
+        const tsSec = Math.floor(tsMs / 1000);
+        blockTimeCache.set(key, tsSec);
+        return tsSec;
+      }
+    }
+  } catch { /* fall through */ }
+  return Math.floor(Date.now() / 1000);
+}
+
 // ── Adapter ──
 
 export const adaAdapter: ChainAdapter = {
@@ -171,7 +199,7 @@ export const adaAdapter: ChainAdapter = {
       const totalCount = data.total_count ?? 0;
       const hasMore = offset + limit < totalCount;
 
-      const txs: Transaction[] = (data.transactions ?? []).map((entry: {
+      const entries: {
         transaction: {
           transaction_identifier: { hash: string };
           operations: {
@@ -180,10 +208,22 @@ export const adaAdapter: ChainAdapter = {
             account: { address: string };
             amount: { value: string; currency: { symbol: string } };
           }[];
-          metadata?: { size: number; scriptSize: number };
         };
         block_identifier: { index: number; hash: string };
-      }) => {
+      }[] = data.transactions ?? [];
+
+      // Fetch block timestamps (deduped — multiple txs may share a block)
+      const uniqueBlocks = new Map<number, string>();
+      for (const e of entries) {
+        const bi = e.block_identifier;
+        if (bi?.index && !uniqueBlocks.has(bi.index)) uniqueBlocks.set(bi.index, bi.hash);
+      }
+      const blockTimes = new Map<number, number>();
+      for (const [idx, hash] of uniqueBlocks) {
+        blockTimes.set(idx, await fetchBlockTime(chain, idx, hash));
+      }
+
+      const txs: Transaction[] = entries.map((entry) => {
         const tx = entry.transaction;
         const ops = tx.operations ?? [];
 
@@ -198,15 +238,24 @@ export const adaAdapter: ChainAdapter = {
           netValue > 0n ? "in" : netValue < 0n ? "out" : "self";
         const absValue = netValue < 0n ? -netValue : netValue;
 
-        // Find counterparty: for "in" = sender (negative ops from others), for "out" = recipient (positive ops to others)
+        // Find counterparty (UTXO-aware: if all inputs share one address, use it as sender)
         let counterparty = "";
+        const inputOps = adaOps.filter((op) => BigInt(op.amount?.value ?? "0") < 0n);
+        const outputOps = adaOps.filter((op) => BigInt(op.amount?.value ?? "0") > 0n);
         if (direction === "in") {
-          const sender = otherOps.find((op) => BigInt(op.amount?.value ?? "0") < 0n);
-          counterparty = sender?.account?.address ?? "";
+          const inputAddrs = new Set(inputOps.map((op) => op.account?.address));
+          if (inputAddrs.size === 1) {
+            counterparty = [...inputAddrs][0] ?? "";
+          } else {
+            const sender = otherOps.find((op) => BigInt(op.amount?.value ?? "0") < 0n);
+            counterparty = sender?.account?.address ?? "";
+          }
         } else {
-          const recipient = otherOps.find((op) => BigInt(op.amount?.value ?? "0") > 0n);
+          const recipient = outputOps.find((op) => op.account?.address !== address);
           counterparty = recipient?.account?.address ?? "";
         }
+
+        const timestamp = blockTimes.get(entry.block_identifier?.index) ?? Math.floor(Date.now() / 1000);
 
         return {
           hash: tx.transaction_identifier.hash,
@@ -215,7 +264,7 @@ export const adaAdapter: ChainAdapter = {
           value: absValue.toString(),
           formatted: formatAdaAmount(absValue.toString(), asset.decimals),
           symbol: asset.symbol,
-          timestamp: Math.floor(Date.now() / 1000),
+          timestamp,
           direction,
           confirmed: true,
         };
