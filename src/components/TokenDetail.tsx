@@ -5,7 +5,7 @@ import type { Chain, Asset } from "../lib/api";
 import { explorerLink } from "../shared/utils";
 import { fetchTransactions, type Transaction } from "../lib/transactions";
 import { fetchNativeBalance, fetchTokenBalances, getCachedNativeBalance, getCachedTokenBalances } from "../lib/balance";
-import { clearCache, balanceCacheKey, tokenBalancesCacheKey } from "../lib/dataCache";
+import { clearCache, balanceCacheKey, tokenBalancesCacheKey, txCacheKey, getStaleCache, setCache } from "../lib/dataCache";
 import { fetchPrices, formatUsd, getUsdValue } from "../lib/prices";
 import { useFrozen } from "../context/FrozenContext";
 import { useHideBalances, maskBalance } from "../context/HideBalancesContext";
@@ -152,7 +152,15 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
   const usdValue = getUsdValue(balance, asset.symbol, prices);
 
   useEffect(() => {
-    setLoading(true);
+    // Show stale cached transactions immediately (avoids blank screen for slow chains like Cardano)
+    const cacheK = txCacheKey(address, chain.id);
+    const cached = getStaleCache<Transaction[]>(cacheK);
+    if (cached?.data?.length) {
+      setTransactions(cached.data);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
     setError(false);
     setPage(1);
     fetchTransactions(address, chain, asset, 1)
@@ -165,6 +173,7 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
           );
           return [...pending, ...txs];
         });
+        setCache(cacheK, txs);
         setHasMore(more);
         setLastUpdated(new Date());
       })
@@ -190,6 +199,7 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
             );
             return [...pending, ...txs];
           });
+          setCache(cacheK, txs);
           setHasMore(more);
           setLastUpdated(new Date());
         })
