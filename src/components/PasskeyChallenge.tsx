@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { authenticatePasskey, type PasskeyAuthResult } from "../lib/passkey";
+import { authenticatePasskey, registerPasskey, type PasskeyAuthResult } from "../lib/passkey";
 import { KeyRound } from "lucide-react";
 
 /**
@@ -24,10 +24,28 @@ export function PasskeyChallenge({
   const [authenticating, setAuthenticating] = useState(!!autoStart);
   const startedRef = useRef(false);
 
+  // Passkeys are scoped to the domain that issued them, so an account can be signed in
+  // here while holding no credential for this domain yet. Retrying can never succeed —
+  // the way out is to register one.
+  const noPasskeyYet = /no passkeys registered/i.test(error);
+
   async function doAuth() {
     setAuthenticating(true);
     setError("");
     try {
+      const result = await authenticatePasskey({ withPrf });
+      onAuthenticated(result);
+    } catch (err) {
+      setError(String(err));
+      setAuthenticating(false);
+    }
+  }
+
+  async function doRegisterThenAuth() {
+    setAuthenticating(true);
+    setError("");
+    try {
+      await registerPasskey();
       const result = await authenticatePasskey({ withPrf });
       onAuthenticated(result);
     } catch (err) {
@@ -80,8 +98,14 @@ export function PasskeyChallenge({
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </div>
-                <p className="text-sm font-medium text-text-primary mb-1">Authentication Failed</p>
-                <p className="text-xs text-red-400 break-all mb-5">{error}</p>
+                <p className="text-sm font-medium text-text-primary mb-1">
+                  {noPasskeyYet ? "No passkey on this device" : "Authentication Failed"}
+                </p>
+                <p className={`text-xs break-all mb-5 ${noPasskeyYet ? "text-text-secondary" : "text-red-400"}`}>
+                  {noPasskeyYet
+                    ? "Passkeys are tied to the site that created them, so this one needs its own. Register a passkey to continue."
+                    : error}
+                </p>
                 <div className="flex gap-3 justify-center">
                   <button
                     onClick={onCancel}
@@ -90,10 +114,10 @@ export function PasskeyChallenge({
                     {t("passkey.challenge.cancel")}
                   </button>
                   <button
-                    onClick={doAuth}
+                    onClick={noPasskeyYet ? doRegisterThenAuth : doAuth}
                     className="px-4 py-2.5 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors"
                   >
-                    {t("common.retry")}
+                    {noPasskeyYet ? "Register passkey" : t("common.retry")}
                   </button>
                 </div>
               </>

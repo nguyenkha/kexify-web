@@ -101,6 +101,13 @@ export async function authenticatePasskey(opts?: { withPrf?: boolean }): Promise
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
   });
+  // Surface the server's reason instead of destructuring an error body. Credentials are
+  // scoped to the RP that issued them, so an account with passkeys on one domain has
+  // none on another until it registers there — a normal state that must read as one.
+  if (!optRes.ok) {
+    const data = await optRes.json().catch(() => ({}));
+    throw new Error((data?.error as string) || "Could not start passkey authentication");
+  }
   const { options, challengeId } = await optRes.json();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
