@@ -38,7 +38,7 @@ export function RecoveryChecklist() {
 
   // Import flow state
   const [importAccountId, setImportAccountId] = useState<string | null>(null);
-  const [importStep, setImportStep] = useState<"idle" | "decrypt" | "saving">("idle");
+  const [importStep, setImportStep] = useState<"idle" | "decrypt" | "setPassphrase" | "saving">("idle");
   const [importData, setImportData] = useState<KeyFileData | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -156,28 +156,41 @@ export function RecoveryChecklist() {
     setImportError(null);
     try {
       const decrypted = await decryptKeyFile(importData, passphrase);
-      await saveImport(decrypted);
+      await saveImport(decrypted, passphrase);
     } catch {
       setImportError(t("recovery.incorrectPassphrase"));
     }
   }
 
-  async function saveImport(data: KeyFileData) {
+  async function handleImportSetPassphrase(passphrase: string) {
+    if (importData) await saveImport(importData, passphrase);
+  }
+
+  /**
+   * Save an imported share in the browser. Prefer the passkey PRF key; when the passkey
+   * has no PRF (e.g. some password-manager passkeys), protect it with the passphrase the
+   * file was decrypted with — the one the user will be asked for when signing. A plain
+   * (unencrypted) file has none, so ask the user to set one first.
+   */
+  async function saveImport(data: KeyFileData, passphrase?: string) {
     setImportStep("saving");
     try {
       const result = await authenticatePasskey({ withPrf: true });
       if (result.prfKey && result.credentialId) {
         await saveKeyShareWithPrf(data.id, data, result.prfKey, result.credentialId);
+      } else if (passphrase) {
+        await saveKeyShareWithPassphrase(data.id, data, passphrase);
       } else {
-        // PRF not supported — use the original passphrase or a default
-        await saveKeyShareWithPassphrase(data.id, data, "");
+        setImportData(data);
+        setImportStep("setPassphrase");
+        return;
       }
       setImportStep("idle");
       setImportData(null);
       setImportAccountId(null);
       fetchAccounts();
     } catch (err) {
-      setImportError(String(err));
+      setImportError(err instanceof Error ? err.message : String(err));
       setImportStep("idle");
     }
   }
@@ -432,6 +445,8 @@ export function RecoveryChecklist() {
           <p className="text-[11px] text-text-muted leading-relaxed">{t("recovery.importWalletDesc")}</p>
           {importStep === "decrypt" && importAccountId === null ? (
             <PassphraseInput mode="enter" submitLabel={t("recovery.decryptAndSave")} onSubmit={handleImportDecrypt} />
+          ) : importStep === "setPassphrase" && importAccountId === null ? (
+            <PassphraseInput mode="set" submitLabel={t("recovery.decryptAndSave")} onSubmit={handleImportSetPassphrase} />
           ) : importStep === "saving" && importAccountId === null ? (
             <div className="flex items-center gap-2">
               <Spinner size="xs" />
@@ -602,6 +617,8 @@ export function RecoveryChecklist() {
                               onSubmit={handleImportDecrypt}
                             />
                           </div>
+                        ) : importStep === "setPassphrase" && importAccountId === account.id ? (
+                          <PassphraseInput mode="set" submitLabel={t("recovery.decryptAndSave")} onSubmit={handleImportSetPassphrase} />
                         ) : importStep === "saving" && importAccountId === account.id ? (
                           <div className="flex items-center gap-2">
                             <Spinner size="xs" />
