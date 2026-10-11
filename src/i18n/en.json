@@ -751,6 +751,7 @@
     "keyBackedUpOnServer": "Key backed up on server",
     "serverKeyDownloaded": "Server key downloaded",
     "importKeyFile": "Import key file",
+    "keyFileNotOnAccount": "Key file {{id}} does not match any wallet on this account. It may be from an old or deleted wallet. Export a fresh key file from the site where the wallet lives.",
     "importWalletDesc": "Already have a kexify wallet? Import its key file here to use it on this site. Your passkey from another site does not carry over, so you will register one here.",
     "downloadKeyFile": "Download key file",
     "uploadKeyFileAsBackup": "Upload backup",

@@ -138,7 +138,15 @@ export async function saveKeyShareWithPrf(
       storedAt: new Date().toISOString(),
     },
   });
-  if (type === "email") await linkKeyShareToSite(keyId);
+  if (type === "email") {
+    try {
+      await linkKeyShareToSite(keyId);
+    } catch (err) {
+      // Not a wallet on this account — don't keep a share that can never be used here.
+      lsDelete(keyId);
+      throw err;
+    }
+  }
 }
 
 export async function saveKeyShareWithPassphrase(
@@ -162,7 +170,15 @@ export async function saveKeyShareWithPassphrase(
       storedAt: new Date().toISOString(),
     },
   });
-  if (type === "email") await linkKeyShareToSite(keyId);
+  if (type === "email") {
+    try {
+      await linkKeyShareToSite(keyId);
+    } catch (err) {
+      // Not a wallet on this account — don't keep a share that can never be used here.
+      lsDelete(keyId);
+      throw err;
+    }
+  }
 }
 
 export async function getKeyShareWithPrf(keyId: string, prfKey: CryptoKey): Promise<KeyFileData | null> {

@@ -751,6 +751,7 @@
     "keyBackedUpOnServer": "Key đã sao lưu trên server",
     "serverKeyDownloaded": "Đã tải key từ server",
     "importKeyFile": "Nhập file key",
+    "keyFileNotOnAccount": "File key {{id}} không khớp với ví nào trong tài khoản này. Có thể đây là file của ví cũ hoặc đã xoá. Hãy export file key mới từ site đang chứa ví.",
     "importWalletDesc": "Đã có ví kexify? Nhập file key ở đây để dùng ví trên site này. Passkey ở site khác không dùng được ở đây, bạn sẽ đăng ký passkey mới.",
     "downloadKeyFile": "Tải file key",
     "uploadKeyFileAsBackup": "Tải lên bản sao lưu",
