@@ -104,10 +104,16 @@ export async function executeSigningFlow(ctx: SigningContext): Promise<void> {
     // 5. Poll for receipt
     setPendingTxHash(txHash);
     setSigningPhase("polling");
-    const receipt = await waitForReceipt(chain.rpcUrl, txHash, () => {}, 60, 3000);
-
-    setTxResult({ status: receipt.status, txHash, blockNumber: receipt.blockNumber });
-    if (receipt.status === "success") onTxConfirmed?.(txHash);
+    // The tx is already broadcast: if confirmation can't be read (RPC error/timeout),
+    // show it as pending with its hash rather than as a failed transaction.
+    try {
+      const receipt = await waitForReceipt(chain.rpcUrl, txHash, () => {}, 60, 3000);
+      setTxResult({ status: receipt.status, txHash, blockNumber: receipt.blockNumber });
+      if (receipt.status === "success") onTxConfirmed?.(txHash);
+    } catch (pollErr) {
+      console.warn("[send] receipt polling failed, tx left pending:", pollErr);
+      setTxResult({ status: "pending", txHash });
+    }
     setKeyFile(null); setPendingEncrypted(null);
     setStep("result");
 

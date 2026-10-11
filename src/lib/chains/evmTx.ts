@@ -271,6 +271,8 @@ export async function broadcastTransaction(rpcUrl: string, rawTx: string): Promi
   return txHash as string;
 }
 
+type EvmReceipt = { status: string; blockNumber: string };
+
 export async function waitForReceipt(
   rpcUrl: string,
   txHash: string,
@@ -278,9 +280,19 @@ export async function waitForReceipt(
   maxAttempts = 60,
   intervalMs = 3000
 ): Promise<{ status: "success" | "failed"; blockNumber: string }> {
+  let ok = false;
   for (let i = 0; i < maxAttempts; i++) {
     onPoll?.(i + 1);
-    const receipt = await ethRpc(rpcUrl, "eth_getTransactionReceipt", [txHash]) as { status: string; blockNumber: string } | null;
+    let receipt: EvmReceipt | null = null;
+    try {
+      receipt = await ethRpc(rpcUrl, "eth_getTransactionReceipt", [txHash]) as EvmReceipt | null;
+      ok = true;
+    } catch (err) {
+      // A flaky or restricted RPC must not turn an already-broadcast tx into a failure:
+      // keep polling through transient errors; callers show a thrown error as pending.
+      // RPC never answered: stop early instead of spinning for the full window.
+      if (!ok && i >= 4) throw err;
+    }
     if (receipt) {
       return {
         status: receipt.status === "0x1" ? "success" : "failed",

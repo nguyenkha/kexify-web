@@ -29,7 +29,7 @@
             "type": "evm",
             "coinType": 60,
             "evmChainId": 8453,
-            "rpcUrl": "https://base-rpc.publicnode.com",
+            "rpcUrl": "https://mainnet.base.org",
             "explorerUrl": "https://basescan.org",
             "iconUrl": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/base/info/logo.png"
         },
@@ -194,7 +194,7 @@
             "type": "evm",
             "coinType": 60,
             "evmChainId": 42161,
-            "rpcUrl": "https://arbitrum-one-rpc.publicnode.com",
+            "rpcUrl": "https://arb1.arbitrum.io/rpc",
             "explorerUrl": "https://arbiscan.io",
             "iconUrl": "https://assets.coingecko.com/coins/images/16547/large/arb.jpg"
         },
@@ -205,7 +205,7 @@
             "type": "evm",
             "coinType": 60,
             "evmChainId": 10,
-            "rpcUrl": "https://optimism-rpc.publicnode.com",
+            "rpcUrl": "https://mainnet.optimism.io",
             "explorerUrl": "https://optimistic.etherscan.io",
             "iconUrl": "https://assets.coingecko.com/coins/images/25244/large/Optimism.png"
         },
@@ -216,7 +216,7 @@
             "type": "evm",
             "coinType": 60,
             "evmChainId": 56,
-            "rpcUrl": "https://bsc-rpc.publicnode.com",
+            "rpcUrl": "https://bsc-dataseed1.binance.org",
             "explorerUrl": "https://bscscan.com",
             "iconUrl": "https://assets.coingecko.com/coins/images/825/large/bnb-icon2_2x.png"
         },
@@ -293,7 +293,7 @@
             "type": "evm",
             "coinType": 60,
             "evmChainId": 250,
-            "rpcUrl": "https://fantom-rpc.publicnode.com",
+            "rpcUrl": "https://rpc.fantom.network",
             "explorerUrl": "https://ftmscan.com",
             "iconUrl": "https://assets.coingecko.com/coins/images/4001/large/Fantom_round.png"
         },
