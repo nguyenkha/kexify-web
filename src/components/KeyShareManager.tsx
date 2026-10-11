@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { listKeyShares, deleteKeyShare, saveKeyShareWithPrf, saveKeyShareWithPassphrase, hasKeyShare, getKeyShareFromStoredShare, type KeyShareInfo } from "../lib/keystore";
-import { authenticatePasskey, sensitiveHeaders } from "../lib/passkey";
+import { authenticatePasskey, authenticatePasskeyForImport, sensitiveHeaders } from "../lib/passkey";
 import { encryptKeyFile, decryptKeyFile, type KeyFileData } from "../lib/crypto";
 import { PassphraseInput } from "./PassphraseInput";
 import { authHeaders, isStandaloneJwt, getIdentityId } from "../lib/auth";
@@ -168,7 +168,7 @@ export function KeyShareManager() {
     if (!importData) return;
     setImportStep("saving");
     try {
-      const result = await authenticatePasskey({ withPrf: true });
+      const result = await authenticatePasskeyForImport();
       if (result.prfKey) {
         await saveKeyShareWithPrf(importData.id, importData, result.prfKey, result.credentialId!);
       } else {

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { Spinner, ErrorBox } from "./ui";
 import { getMpcInstance, createHttpTransport, clientKeys, toBase64, toHex, NID_secp256k1, NID_ED25519 } from "../lib/mpc";
 import type { ClientKeyHandles } from "../lib/mpc";
@@ -84,6 +85,7 @@ export function CreateAccountDialog({
   const setExpertContext = useSetExpertMode();
   const isFirstAccount = keyCount === 0;
   const [step, setStep] = useState<CreateStep>(isFirstAccount ? "welcome" : "name");
+  const navigate = useNavigate();
   const [name, setName] = useState("");
   const [progress, setProgress] = useState("");
   const [error, setError] = useState("");
@@ -440,6 +442,14 @@ export function CreateAccountDialog({
                   <p className="text-[10px] text-text-muted text-center leading-relaxed">
                     Both modes include fraud protection and policy rules by default.
                   </p>
+
+                  {/* Users moving from another kexify domain already have a wallet */}
+                  <button
+                    onClick={() => { onClose(); navigate("/backup-recovery"); }}
+                    className="w-full text-xs text-blue-400 hover:text-blue-300 transition-colors py-1"
+                  >
+                    {t("wallet.importKeyFileLink")}
+                  </button>
                 </>
               )}
             </div>

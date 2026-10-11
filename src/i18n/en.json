@@ -1127,6 +1127,9 @@
     "option1Desc": "Sign in at {{host}}, create a new wallet and register a passkey there, then send your funds from this wallet to the new addresses. You get fresh keys and nothing sensitive leaves your device.",
     "option2Title": "2. Export key file and import (not recommended)",
     "option2Desc": "Download your key file with a passphrase here, then import it at {{host}} and register a new passkey. This copies key material to a file, and forgetting the passphrase makes it useless. Do not delete anything here until you have signed a test transaction on {{host}}.",
+    "exportKeyFile": "Export key file",
+    "configNote": "Your address book, display settings and WalletConnect sessions stay in this browser. Export your config here and import it on {{host}}; reconnect dApps there.",
+    "openConfig": "Open Config",
     "antiPhishing": "kexify will never ask for your key file or passphrase by email, chat or support. Only use them on {{host}}, and type the address yourself."
   }
 }

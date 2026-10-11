@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useExpertMode } from "../context/ExpertModeContext";
 import { authHeaders, isStandaloneJwt, getIdentityId } from "../lib/auth";
-import { sensitiveHeaders, authenticatePasskey } from "../lib/passkey";
+import { sensitiveHeaders, authenticatePasskey, authenticatePasskeyForImport } from "../lib/passkey";
 import { Spinner } from "./ui";
 import { apiUrl } from "../lib/apiBase";
 import {
@@ -175,7 +175,7 @@ export function RecoveryChecklist() {
   async function saveImport(data: KeyFileData, passphrase?: string) {
     setImportStep("saving");
     try {
-      const result = await authenticatePasskey({ withPrf: true });
+      const result = await authenticatePasskeyForImport();
       if (result.prfKey && result.credentialId) {
         await saveKeyShareWithPrf(data.id, data, result.prfKey, result.credentialId);
       } else if (passphrase) {

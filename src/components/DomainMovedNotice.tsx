@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { ArrowRight, ChevronDown } from "lucide-react";
 import { KEYGEN_CLOSED, MIGRATE_TO_HOST, MIGRATE_TO_URL } from "../lib/domain-migration";
@@ -7,7 +8,8 @@ import { KEYGEN_CLOSED, MIGRATE_TO_HOST, MIGRATE_TO_URL } from "../lib/domain-mi
  * Shown on the legacy domain only. Explains the move to the new domain and the two ways
  * to bring funds across: a new wallet + transfer (recommended) or key-file import.
  */
-export function DomainMovedNotice({ className = "" }: { className?: string }) {
+/** `signedIn` adds in-app links (export key file, config) that only work after login. */
+export function DomainMovedNotice({ className = "", signedIn = false }: { className?: string; signedIn?: boolean }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   if (!KEYGEN_CLOSED) return null;
@@ -43,7 +45,21 @@ export function DomainMovedNotice({ className = "" }: { className?: string }) {
           <div>
             <p className="text-text-secondary font-medium">{t("domainMove.option2Title")}</p>
             <p className="text-text-muted mt-0.5">{t("domainMove.option2Desc", { host: MIGRATE_TO_HOST })}</p>
+            {signedIn && (
+              <Link to="/backup-recovery" className="inline-block mt-1 text-blue-400 hover:underline">
+                {t("domainMove.exportKeyFile")}
+              </Link>
+            )}
           </div>
+          <p className="text-text-muted">
+            {t("domainMove.configNote", { host: MIGRATE_TO_HOST })}
+            {signedIn && (
+              <>
+                {" "}
+                <Link to="/config" className="text-blue-400 hover:underline">{t("domainMove.openConfig")}</Link>
+              </>
+            )}
+          </p>
           <p className="text-text-secondary font-medium">{t("domainMove.antiPhishing", { host: MIGRATE_TO_HOST })}</p>
         </div>
       )}

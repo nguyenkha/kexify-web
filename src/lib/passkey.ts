@@ -86,6 +86,16 @@ export async function registerPasskey(name?: string): Promise<PasskeyInfo> {
   return data as PasskeyInfo;
 }
 
+/**
+ * Passkey auth for saving an imported key share. A user arriving on a new domain has
+ * no passkey there yet (passkeys are bound to the domain), so register one first
+ * instead of failing with "No passkeys registered".
+ */
+export async function authenticatePasskeyForImport(): Promise<PasskeyAuthResult> {
+  if ((await fetchPasskeys()).length === 0) await registerPasskey();
+  return authenticatePasskey({ withPrf: true });
+}
+
 // Fixed salt for PRF-based key share encryption
 const PRF_SALT = new TextEncoder().encode("secretkey-keyshare-encryption");
 

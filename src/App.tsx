@@ -466,7 +466,7 @@ function DashboardLayout() {
             </div>
           )}
           {recovery && <RecoveryBanner />}
-          {!recovery && <DomainMovedNotice className="mb-6" />}
+          {!recovery && <DomainMovedNotice className="mb-6" signedIn />}
           {user?.frozenAt && !standalone && <FrozenBanner user={user} onUpdate={refreshUser} />}
           <Outlet />
         </main>
