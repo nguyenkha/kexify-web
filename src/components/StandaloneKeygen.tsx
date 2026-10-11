@@ -22,6 +22,8 @@ import { StandaloneUnlock } from "./StandaloneUnlock";
 import { LangSwitcher } from "./LangSwitcher";
 import { getStoredTheme, setTheme } from "../lib/theme";
 import { Link } from "react-router-dom";
+import { DomainMovedNotice } from "./DomainMovedNotice";
+import { KEYGEN_CLOSED } from "../lib/domain-migration";
 
 type Step = "hub" | "import" | "name" | "creating" | "passphrase" | "passkey" | "backup" | "done";
 
@@ -394,12 +396,14 @@ export function StandaloneKeygen() {
               </div>
             )}
 
+            {KEYGEN_CLOSED ? <DomainMovedNotice /> : (
             <button
               onClick={() => setStep("name")}
               className="w-full bg-blue-600 hover:bg-blue-700 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors text-white"
             >
               {t("standalone.createWallet")}
             </button>
+            )}
 
             <input
               ref={importFileRef}

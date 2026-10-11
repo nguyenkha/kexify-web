@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import { DomainMovedNotice } from "./DomainMovedNotice";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { requestMagicLink, verifyCode } from "../lib/auth";
@@ -156,6 +157,8 @@ export function Login() {
             </form>
           </div>
         ) : (
+          <>
+          <DomainMovedNotice className="mb-4" />
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="email" className="block text-xs text-text-muted mb-1.5">
@@ -186,6 +189,7 @@ export function Login() {
 
             {error && <ErrorBox>{error}</ErrorBox>}
           </form>
+          </>
         )}
 
         {/* Bottom links */}

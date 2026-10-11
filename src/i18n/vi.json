@@ -1114,5 +1114,16 @@
     "balanceUp": "Nhận tiền",
     "balanceDown": "Giao dịch gửi",
     "txConfirmed": "Giao dịch đã xác nhận"
+  },
+  "domainMove": {
+    "title": "kexify đã chuyển sang {{host}}",
+    "desc": "Ví mới chỉ tạo được ở domain mới. Ví hiện có ở đây vẫn dùng bình thường, nhưng không thể tự động chuyển qua vì passkey gắn với domain đã tạo nó.",
+    "open": "Mở {{host}}",
+    "howTo": "Cách chuyển tài sản",
+    "option1Title": "1. Tạo ví mới + chuyển tiền (khuyến nghị)",
+    "option1Desc": "Đăng nhập {{host}}, tạo ví mới và đăng ký passkey ở đó, rồi chuyển tài sản từ ví này sang địa chỉ mới. Bạn có khoá mới hoàn toàn và không dữ liệu nhạy cảm nào rời khỏi thiết bị.",
+    "option2Title": "2. Tải file khoá và import (không khuyến khích)",
+    "option2Desc": "Tải file khoá kèm mật khẩu ở đây, rồi import vào {{host}} và đăng ký passkey mới. Cách này sao chép khoá ra file, và nếu quên mật khẩu thì file vô dụng. Đừng xoá gì ở đây cho đến khi đã ký thử một giao dịch trên {{host}}.",
+    "antiPhishing": "kexify không bao giờ hỏi file khoá hay mật khẩu qua email, chat hay hỗ trợ. Chỉ dùng chúng trên {{host}} và tự gõ địa chỉ."
   }
 }

@@ -26,6 +26,7 @@ import { useRecovery } from "../context/RecoveryContext";
 import { ManageDisplayPanel } from "./ManageDisplayPanel";
 import { AccountRowView } from "./AccountRowView";
 import { CreateAccountDialog } from "./CreateAccountDialog";
+import { KEYGEN_CLOSED } from "../lib/domain-migration";
 import { BackupReminder } from "./backup-reminder";
 import { usePrices } from "../lib/use-prices";
 import { WalletActivity } from "./WalletActivity";
@@ -169,7 +170,7 @@ export function Wallet() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   // Auto-open create dialog for first-time users once loading completes
   useEffect(() => {
-    if (!loading && keys.length === 0 && !isRecovery) {
+    if (!loading && keys.length === 0 && !isRecovery && !KEYGEN_CLOSED) {
       setShowCreateDialog(true);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -341,13 +342,13 @@ export function Wallet() {
         <p className="text-sm text-text-muted mb-6 max-w-xs leading-relaxed">
           {t("wallet.welcomeDesc")}
         </p>
-        <button
+        {!KEYGEN_CLOSED && <button
           onClick={() => guardedAction(() => setShowCreateDialog(true), true)}
           disabled={frozen}
           className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-6 py-2.5 rounded-lg font-medium transition-colors disabled:bg-surface-tertiary disabled:text-text-muted disabled:cursor-not-allowed mb-8"
         >
           {t("wallet.createWallet")}
-        </button>
+        </button>}
 
         {/* How it works — quick overview for new users */}
         <div className="w-full max-w-sm space-y-3 text-left">
@@ -610,7 +611,7 @@ export function Wallet() {
         ) : null;
       })()}
 
-      {!isRecovery && (
+      {!isRecovery && !KEYGEN_CLOSED && (
         <button
           onClick={() => guardedAction(() => setShowCreateDialog(true), true)}
           disabled={frozen}

@@ -50,6 +50,7 @@ import { WCRequestQueue } from "./components/WCRequestQueue";
 import { FreezeAccount } from "./components/FreezeAccount";
 import { RecoveryImport } from "./components/RecoveryImport";
 import { StandaloneKeygen } from "./components/StandaloneKeygen";
+import { DomainMovedNotice } from "./components/DomainMovedNotice";
 import { LangSwitcher } from "./components/LangSwitcher";
 import { setLanguage } from "./i18n/i18n";
 import { Broadcast as BroadcastPage } from "./components/Broadcast";
@@ -465,6 +466,7 @@ function DashboardLayout() {
             </div>
           )}
           {recovery && <RecoveryBanner />}
+          {!recovery && <DomainMovedNotice className="mb-6" />}
           {user?.frozenAt && !standalone && <FrozenBanner user={user} onUpdate={refreshUser} />}
           <Outlet />
         </main>
