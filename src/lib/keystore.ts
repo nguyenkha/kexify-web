@@ -3,6 +3,7 @@
 
 import type { KeyFileData } from "./crypto";
 import { toBase64, fromBase64 } from "./mpc";
+import { linkKeyShareToSite } from "./key-share-site-link";
 
 const STORAGE_PREFIX = "keyshare:";
 
@@ -137,6 +138,7 @@ export async function saveKeyShareWithPrf(
       storedAt: new Date().toISOString(),
     },
   });
+  if (type === "email") await linkKeyShareToSite(keyId);
 }
 
 export async function saveKeyShareWithPassphrase(
@@ -160,6 +162,7 @@ export async function saveKeyShareWithPassphrase(
       storedAt: new Date().toISOString(),
     },
   });
+  if (type === "email") await linkKeyShareToSite(keyId);
 }
 
 export async function getKeyShareWithPrf(keyId: string, prfKey: CryptoKey): Promise<KeyFileData | null> {

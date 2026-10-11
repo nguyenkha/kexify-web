@@ -85,6 +85,7 @@
     "anonymousMode": "Ẩn danh"
   },
   "wallet": {
+    "importKeyFileLink": "Đã có file key? Nhập ví có sẵn",
     "portfolioValue": "Tổng giá trị",
     "welcome": "Chào mừng đến kexify",
     "welcomeDesc": "Tạo ví đầu tiên để gửi, nhận và quản lý crypto trên nhiều blockchain.",
@@ -750,6 +751,7 @@
     "keyBackedUpOnServer": "Key đã sao lưu trên server",
     "serverKeyDownloaded": "Đã tải key từ server",
     "importKeyFile": "Nhập file key",
+    "importWalletDesc": "Đã có ví kexify? Nhập file key ở đây để dùng ví trên site này. Passkey ở site khác không dùng được ở đây, bạn sẽ đăng ký passkey mới.",
     "downloadKeyFile": "Tải file key",
     "uploadKeyFileAsBackup": "Tải lên bản sao lưu",
     "downloadServerKeyBackup": "Tải server key",

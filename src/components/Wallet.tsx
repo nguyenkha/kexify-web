@@ -349,6 +349,12 @@ export function Wallet() {
         >
           {t("wallet.createWallet")}
         </button>}
+        <button
+          onClick={() => navigate("/backup-recovery")}
+          className="text-xs text-text-muted hover:text-text-secondary transition-colors -mt-5 mb-8"
+        >
+          {t("wallet.importKeyFileLink")}
+        </button>
 
         {/* How it works — quick overview for new users */}
         <div className="w-full max-w-sm space-y-3 text-left">

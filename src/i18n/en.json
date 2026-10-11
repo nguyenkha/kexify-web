@@ -85,6 +85,7 @@
     "anonymousMode": "Anonymous"
   },
   "wallet": {
+    "importKeyFileLink": "Have a key file? Import an existing wallet",
     "portfolioValue": "Portfolio Value",
     "welcome": "Welcome to kexify",
     "welcomeDesc": "Create your first wallet to send, receive, and manage crypto across multiple chains.",
@@ -750,6 +751,7 @@
     "keyBackedUpOnServer": "Key backed up on server",
     "serverKeyDownloaded": "Server key downloaded",
     "importKeyFile": "Import key file",
+    "importWalletDesc": "Already have a kexify wallet? Import its key file here to use it on this site. Your passkey from another site does not carry over, so you will register one here.",
     "downloadKeyFile": "Download key file",
     "uploadKeyFileAsBackup": "Upload backup",
     "downloadServerKeyBackup": "Download server key",
