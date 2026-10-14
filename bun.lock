@@ -17,7 +17,7 @@
         "@walletconnect/web3wallet": "^1.16.1",
         "@yudiel/react-qr-scanner": "^2.5.1",
         "buffer": "^6.0.3",
-        "cb-mpc": "^0.3.0",
+        "cb-mpc": "^0.3.1",
         "ethers": "^6.16.0",
         "i18next": "^25.8.20",
         "lucide-react": "^1.7.0",
@@ -534,7 +534,7 @@
 
     "caniuse-lite": ["caniuse-lite@1.0.30001778", "", {}, "sha512-PN7uxFL+ExFJO61aVmP1aIEG4i9whQd4eoSCebav62UwDyp5OHh06zN4jqKSMePVgxHifCw1QJxdRkA1Pisekg=="],
 
-    "cb-mpc": ["cb-mpc@0.3.0", "", { "dependencies": { "debug": "^4.4.3" } }, "sha512-Vhf0y3z1hWoQ6Clw+zUYmMJS9lIUroBhhWqXvori4CUuqAlXDwT50FeNU+VTg6DTsgSIRWbyKvdjSWVUT5rGvg=="],
+    "cb-mpc": ["cb-mpc@0.3.1", "", { "dependencies": { "debug": "^4.4.3" } }, "sha512-uSRLZGOLUJ52jj6Mt0QNnSKNDLhFxwFJeVvPkvKd0TdCXQUuEUp5L6D1oyF41mcakVGWOUe4xk3TPrCjNnFZfA=="],
 
     "chalk": ["chalk@4.1.2", "", { "dependencies": { "ansi-styles": "^4.1.0", "supports-color": "^7.1.0" } }, "sha512-oKnbhFyRIXpUuez8iBMmyEa4nbj4IOQyuhc/wy9kY7/WVPcwIO9VA668Pu8RkO7+0G76SLROeyw9CpQ061i4mA=="],
 
