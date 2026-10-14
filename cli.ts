@@ -15,6 +15,7 @@ import { readFileSync } from "node:fs";
 import { createInterface, type Interface as RLInterface } from "node:readline";
 import { initCbMpc, NID_secp256k1, NID_ED25519 } from "cb-mpc";
 import type { CbMpc, DataTransport, Ecdsa2pKeyHandle, EcKey2pHandle } from "cb-mpc";
+import { isPveShare, restorePveServerShare } from "./src/lib/pve-server-share";
 import { ethers } from "ethers";
 import { keccak_256 } from "@noble/hashes/sha3";
 import { sha256 } from "@noble/hashes/sha256";
@@ -797,6 +798,9 @@ async function loadAndDecryptShares(filePath1: string, filePath2: string): Promi
     console.log("Warning: Both files have the same peer value, using file order");
   }
 
+  // A verifiable (PVE) export is always the server share, whatever its peer field says
+  if (isPveShare(share1.share) || isPveShare(share1.eddsaShare)) [share1, share2] = [share2, share1];
+
   // Integrity check
   process.stdout.write("Integrity check... ");
   if (share1.publicKey !== share2.publicKey) {
@@ -808,6 +812,26 @@ async function loadAndDecryptShares(filePath1: string, filePath2: string): Promi
     throw new Error("EdDSA public keys do not match between share files");
   }
   console.log("✓");
+
+  // Verifiable (PVE) server export: verify against the client share and rebuild the key
+  if (isPveShare(share2.share) || isPveShare(share2.eddsaShare)) {
+    process.stdout.write("Verifying PVE server share... ");
+    if (share1.id !== share2.id) throw new Error("Share files belong to different keys");
+    const mpc = await initCbMpc();
+    try {
+      share2 = {
+        ...share2,
+        share: isPveShare(share2.share) ? restorePveServerShare(mpc, share2.share, share1.share, share1.id, "ecdsa") : share2.share,
+        eddsaShare: isPveShare(share2.eddsaShare)
+          ? restorePveServerShare(mpc, share2.eddsaShare, share1.eddsaShare, share1.id, "eddsa")
+          : share2.eddsaShare,
+      };
+    } catch (err) {
+      console.log("✗");
+      throw err;
+    }
+    console.log("✓");
+  }
 
   return { share1, share2 };
 }

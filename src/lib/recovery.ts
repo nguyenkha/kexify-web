@@ -5,6 +5,7 @@ import type { KeyFileData } from "./crypto";
 import type { KeyShare } from "../shared/types";
 import type { CbMpc, DataTransport, Ecdsa2pKeyHandle, EcKey2pHandle } from "cb-mpc";
 import { getMpcInstance, fromBase64 } from "./mpc";
+import { isPveShare, restorePveServerShare } from "./pve-server-share";
 import type { MpcSignResult, BatchMpcSignResult } from "./mpc";
 
 // ── Module-level state ──
@@ -56,11 +57,8 @@ export function isRecoveryMode(): boolean {
 }
 
 export async function enterRecoveryMode(p1: KeyFileData, p2: KeyFileData): Promise<void> {
-  peer1 = p1;
-  peer2 = p2;
-  document.documentElement.setAttribute("data-recovery", "");
-  document.documentElement.setAttribute("data-theme", "dark");
-
+  // Build everything first and switch the module state only once it all worked, so a
+  // bad file never leaves recovery mode half-entered.
   // Each peer needs its own MPC instance (WASM handles are instance-bound)
   const mpc0 = await getMpcInstance();
   // Create a second independent instance
@@ -74,6 +72,19 @@ export async function enterRecoveryMode(p1: KeyFileData, p2: KeyFileData): Promi
   const mpc1 = await initCbMpc(factory as unknown as Parameters<typeof initCbMpc>[0]);
 
   const h: RecoveryHandles = { mpc0, mpc1 };
+
+  // A verifiable (PVE) server export holds an encrypted scalar instead of the
+  // serialized key: verify it against the client share and rebuild the key.
+  if (isPveShare(p2.share) || isPveShare(p2.eddsaShare)) {
+    if (p1.id !== p2.id) throw new Error("Key files belong to different keys");
+    p2 = {
+      ...p2,
+      share: isPveShare(p2.share) ? restorePveServerShare(mpc1, p2.share, p1.share, p1.id, "ecdsa") : p2.share,
+      eddsaShare: isPveShare(p2.eddsaShare)
+        ? restorePveServerShare(mpc1, p2.eddsaShare, p1.eddsaShare, p1.id, "eddsa")
+        : p2.eddsaShare,
+    };
+  }
 
   // Restore ECDSA handles
   if (p1.share && p2.share) {
@@ -91,7 +102,11 @@ export async function enterRecoveryMode(p1: KeyFileData, p2: KeyFileData): Promi
     h.eddsa1 = mpc1.deserializeEcKey2p(parts1);
   }
 
+  peer1 = p1;
+  peer2 = p2;
   handles = h;
+  document.documentElement.setAttribute("data-recovery", "");
+  document.documentElement.setAttribute("data-theme", "dark");
   startAutoLock();
 }
 

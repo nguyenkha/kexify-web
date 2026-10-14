@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { listKeyShares, deleteKeyShare, saveKeyShareWithPrf, saveKeyShareWithPassphrase, hasKeyShare, getKeyShareFromStoredShare, type KeyShareInfo } from "../lib/keystore";
+import { listKeyShares, deleteKeyShare, saveKeyShareWithPrf, saveKeyShareWithPassphrase, hasKeyShare, getKeyShareFromStoredShare, getKeyShareMode, getKeyShareWithPrf, type KeyShareInfo } from "../lib/keystore";
 import { authenticatePasskey, authenticatePasskeyForImport, sensitiveHeaders } from "../lib/passkey";
 import { encryptKeyFile, decryptKeyFile, type KeyFileData } from "../lib/crypto";
+import { isPveShare } from "../lib/pve-server-share";
+import { requestPveServerExport } from "../lib/pve-server-share-request";
 import { PassphraseInput } from "./PassphraseInput";
 import { authHeaders, isStandaloneJwt, getIdentityId } from "../lib/auth";
 import { apiUrl } from "../lib/apiBase";
@@ -38,6 +40,7 @@ export function KeyShareManager() {
   const [serverExportId, setServerExportId] = useState<string | null>(null);
   const [serverExportStep, setServerExportStep] = useState<"idle" | "loading" | "passphrase" | "done" | "error">("idle");
   const [serverExportError, setServerExportError] = useState("");
+  const [pveFullyVerified, setPveFullyVerified] = useState<boolean | null>(null);
 
   // Import state
   const [importStep, setImportStep] = useState<"idle" | "decrypt" | "saving" | "encrypt">("idle");
@@ -346,6 +349,7 @@ export function KeyShareManager() {
   }
 
   async function handleServerExport(keyId: string) {
+    setPveFullyVerified(null);
     setServerExportId(keyId);
     setServerExportStep("loading");
     setServerExportError("");
@@ -400,6 +404,27 @@ export function KeyShareManager() {
     }
   }
 
+  async function handlePveServerExport(keyId: string) {
+    setPveFullyVerified(null);
+    setServerExportId(keyId);
+    setServerExportStep("loading");
+    setServerExportError("");
+    try {
+      // PRF unlocks the client share when this browser holds it, so the backup can be
+      // test-restored before saving; otherwise it is only checked against the server's claim.
+      const auth = await authenticatePasskey({ withPrf: getKeyShareMode(keyId) === "prf" });
+      const clientFile = auth.prfKey ? await getKeyShareWithPrf(keyId, auth.prfKey) : null;
+      const { file, fullyVerified } = await requestPveServerExport(keyId, clientFile);
+      window.__serverExportData = file;
+      setPveFullyVerified(fullyVerified);
+      setServerExportStep("passphrase");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setServerExportError(msg.includes("verification") ? t("keyShare.pveVerifyFailed") : msg || t("keyShare.exportFailed"));
+      setServerExportStep("error");
+    }
+  }
+
   async function downloadServerExport(passphrase: string) {
     const data = window.__serverExportData as KeyFileData;
     if (!data) return;
@@ -410,7 +435,8 @@ export function KeyShareManager() {
     a.href = url;
     const serverName = serverKeys.find((k) => k.id === data.id)?.name;
     const safeServerName = serverName ? serverName.toLowerCase().replace(/[^a-z0-9]+/g, "-") : data.id.slice(0, 8);
-    a.download = `kexify-server-${safeServerName}-${data.id.slice(0, 8)}.json`;
+    const kind = isPveShare(data.share) || isPveShare(data.eddsaShare) ? "server-pve" : "server";
+    a.download = `kexify-${kind}-${safeServerName}-${data.id.slice(0, 8)}.json`;
     a.click();
     URL.revokeObjectURL(url);
     delete window.__serverExportData;
@@ -649,6 +675,11 @@ export function KeyShareManager() {
                     <p className="text-xs text-green-400">{t("keyShare.exportSuccess")}</p>
                   </div>
                 )}
+                {serverExportId === k.id && serverExportStep === "done" && pveFullyVerified !== null && (
+                  <p className={`px-3 md:px-5 pb-3 text-[10px] leading-relaxed ${pveFullyVerified ? "text-green-400/80" : "text-yellow-500/80"}`}>
+                    {t(pveFullyVerified ? "keyShare.pveFullyVerified" : "keyShare.pveServerClaimOnly")}
+                  </p>
+                )}
 
                 {serverExportId === k.id && serverExportStep === "error" && (
                   <div className="px-3 md:px-5 pb-3">
@@ -716,6 +747,26 @@ export function KeyShareManager() {
                     <p className="text-xs font-medium text-text-primary group-hover:text-text-secondary transition-colors">{t("keyShare.fullSelfCustody")}</p>
                     <p className="text-[10px] text-text-muted mt-0.5 leading-relaxed">
                       {t("keyShare.fullSelfCustodyDesc")}
+                    </p>
+                  </div>
+                </div>
+              </button>
+
+              {/* Option 3: Verifiable self-custody (PVE) */}
+              <button
+                onClick={() => { setDownloadChoiceId(null); handlePveServerExport(downloadChoiceId); }}
+                className="w-full text-left bg-surface-primary border border-border-primary hover:border-border-secondary rounded-lg px-4 py-3.5 transition-colors group"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-full bg-surface-tertiary flex items-center justify-center shrink-0 mt-0.5">
+                    <svg className="w-4 h-4 text-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-text-primary group-hover:text-text-secondary transition-colors">{t("keyShare.verifiableSelfCustody")}</p>
+                    <p className="text-[10px] text-text-muted mt-0.5 leading-relaxed">
+                      {t("keyShare.verifiableSelfCustodyDesc")}
                     </p>
                   </div>
                 </div>

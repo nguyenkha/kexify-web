@@ -119,6 +119,7 @@ function describeEntry(entry: AuditEntry, t: TFn): EntryDesc {
         iconColor: "text-yellow-400",
       };
     case "backup.server_share_export":
+    case "backup.server_share_export_pve":
       return {
         title: t("activity.selfCustodyExport"),
         subtitle: "",
