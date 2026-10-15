@@ -8,7 +8,9 @@ export const MAX_UTXO_INPUTS = 10;
 
 export function friendlyError(err: unknown, t?: (key: string) => string): string {
   const msg = (err as { message?: string })?.message || String(err);
-  if (msg === "passkey_auth_required") return t ? t("send.passkeySessionExpired") : "Passkey session expired. Please try again.";
+  if (msg === "passkey_auth_required") return t ? t("send.passkeySessionExpired") : "Passkey confirmation expired or was already used. Please try again.";
+  // The signing passkey returned no PRF, so the browser share stays locked.
+  if (msg === "prf_unavailable") return t ? t("send.passkeyNoEncryption") : "Passkey does not support encryption.";
   return msg;
 }
 

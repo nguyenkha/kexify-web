@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { friendlyError } from "./send/signing-flows";
 import { notify } from "../lib/notify";
 import { Spinner, Button } from "./ui";
 import { Eye, Lock } from "lucide-react";
@@ -15,13 +16,13 @@ import { useToast } from "../context/ToastContext";
 import { apiUrl } from "../lib/apiBase";
 import { fetchPasskeys, sensitiveHeaders } from "../lib/passkey";
 import { PasskeyGate } from "./PasskeyGate";
-import { PasskeyChallenge } from "./PasskeyChallenge";
 import { isEncryptedKeyFile, decryptKeyFile, type KeyFileData } from "../lib/crypto";
 import { PassphraseInput } from "./PassphraseInput";
 import {
   hasKeyShare as hasStoredKeyShare,
   getKeyShareMode,
   getKeyShareWithPrf,
+  deferredPrfKeyFile,
   getKeyShareWithPassphrase,
 } from "../lib/keystore";
 import { authenticatePasskey } from "../lib/passkey";
@@ -58,7 +59,7 @@ export function XlmTrustlineDialog({
   const [signingError, setSigningError] = useState<string | null>(null);
   const [txResult, setTxResult] = useState<TxResult | null>(null);
   const [pendingTxHash, setPendingTxHash] = useState<string | null>(null);
-  const [passkeyGuard, setPasskeyGuard] = useState<"idle" | "gate" | "challenge">("idle");
+  const [passkeyGuard, setPasskeyGuard] = useState<"idle" | "gate">("idle");
   const pendingSignRef = useRef<(() => void) | null>(null);
   const [xlmFeeRate, setXlmFeeRate] = useState(100);
   const [enabledAssets, setEnabledAssets] = useState<Set<string>>(new Set());
@@ -126,7 +127,11 @@ export function XlmTrustlineDialog({
     setBrowserShareError("");
     try {
       const mode = getKeyShareMode(keyId);
-      if (mode === "prf") {
+      // PRF share: keep it locked; the signing tap unlocks it (one tap).
+      const deferred = mode === "prf" ? deferredPrfKeyFile(keyId, { needsEddsa: true }) : null;
+      if (deferred) {
+        setKeyFile(deferred as KeyFile);
+      } else if (mode === "prf") {
         const result = await authenticatePasskey({ withPrf: true });
         if (result.prfKey) {
           const data = await getKeyShareWithPrf(keyId, result.prfKey);
@@ -147,7 +152,7 @@ export function XlmTrustlineDialog({
     try {
       const list = await fetchPasskeys();
       if (list.length === 0) { pendingSignRef.current = action; setPasskeyGuard("gate"); }
-      else { pendingSignRef.current = action; setPasskeyGuard("challenge"); }
+      else action(); // the signing step asks for the passkey, bound to this transaction
     } catch { action(); }
   }
 
@@ -212,7 +217,7 @@ export function XlmTrustlineDialog({
       setKeyFile(null); setPendingEncrypted(null);
       setStep("result");
     } catch (err: unknown) {
-      setSigningError((err as { message?: string })?.message || String(err));
+      setSigningError(friendlyError(err, t));
     } finally {
       clearClientKey(keyFile.id);
     }
@@ -626,9 +631,6 @@ export function XlmTrustlineDialog({
 
       {passkeyGuard === "gate" && (
         <PasskeyGate onRegistered={onPasskeyComplete} onCancel={() => { setPasskeyGuard("idle"); pendingSignRef.current = null; }} />
-      )}
-      {passkeyGuard === "challenge" && (
-        <PasskeyChallenge onAuthenticated={onPasskeyComplete} onCancel={() => { setPasskeyGuard("idle"); pendingSignRef.current = null; }} withPrf autoStart />
       )}
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { getMpcInstance, toBase64 } from "./mpc";
 import { apiUrl } from "./apiBase";
-import { sensitiveHeaders } from "./passkey";
+import { sensitiveHeaders, sha256Hex } from "./passkey";
 import type { KeyFileData } from "./crypto";
 import { sealPveExport, type PveSharePayload } from "./pve-server-share";
 import { throwIfExportGated } from "./server-share-export-request";
@@ -14,17 +14,22 @@ import { throwIfExportGated } from "./server-share-export-request";
  */
 export async function requestPveServerExport(
   keyId: string,
-  clientFile?: KeyFileData | null,
+  /**
+   * The passkey tap, given the PVE key's hash: returns the "export.pve" ticket bound to it
+   * and, when PRF unlocked it, the client share used to test-restore the backup.
+   */
+  authorize: (ekSha256: string) => Promise<{ ticket?: string; clientFile: KeyFileData | null }>,
 ): Promise<{ file: KeyFileData; fullyVerified: boolean }> {
   const mpc = await getMpcInstance();
   const { ek, dk } = mpc.pveGenerateKeypair();
   try {
+    const { ticket, clientFile } = await authorize(await sha256Hex(toBase64(ek)));
     const res = await fetch(apiUrl(`/api/keys/${keyId}/backup/server-share-pve`), {
       method: "POST",
-      headers: { ...sensitiveHeaders(), "Content-Type": "application/json" },
+      headers: sensitiveHeaders(ticket),
       body: JSON.stringify({ ek: toBase64(ek) }),
     });
-    if (!res.ok) await throwIfExportGated(keyId, res);
+    if (!res.ok) await throwIfExportGated(res);
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || "Export failed");
 

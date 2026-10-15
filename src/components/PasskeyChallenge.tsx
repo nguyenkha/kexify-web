@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { authenticatePasskey, registerPasskey, type PasskeyAuthResult } from "../lib/passkey";
+import { authenticatePasskey, registerPasskey, type PasskeyAction, type PasskeyAuthResult } from "../lib/passkey";
 import { passkeyErrorMessage } from "../lib/passkey-error-message";
 import { KeyRound } from "lucide-react";
 
@@ -12,11 +12,14 @@ export function PasskeyChallenge({
   onAuthenticated,
   onCancel,
   withPrf,
+  action,
   autoStart,
 }: {
   onAuthenticated: (result: PasskeyAuthResult) => void;
   onCancel: () => void;
   withPrf?: boolean;
+  /** The one operation this assertion authorizes (its ticket comes back in result.token). */
+  action?: PasskeyAction;
   /** Start authentication immediately on mount (caller must ensure user gesture context). */
   autoStart?: boolean;
 }) {
@@ -34,7 +37,7 @@ export function PasskeyChallenge({
     setAuthenticating(true);
     setError("");
     try {
-      const result = await authenticatePasskey({ withPrf });
+      const result = await authenticatePasskey({ withPrf, action });
       onAuthenticated(result);
     } catch (err) {
       setError(String(err));
@@ -47,7 +50,7 @@ export function PasskeyChallenge({
     setError("");
     try {
       await registerPasskey();
-      const result = await authenticatePasskey({ withPrf });
+      const result = await authenticatePasskey({ withPrf, action });
       onAuthenticated(result);
     } catch (err) {
       setError(passkeyErrorMessage(err, t));

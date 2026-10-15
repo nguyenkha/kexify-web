@@ -11,9 +11,8 @@ import { clearClientKey } from "../lib/mpc";
 import { Clock, CircleCheck, Radio, CircleX, Zap, Send, Eye } from "lucide-react";
 import { authHeaders, isStandaloneJwt } from "../lib/auth";
 import { apiUrl } from "../lib/apiBase";
-import { fetchPasskeys, isWithinPasskeyGrace } from "../lib/passkey";
+import { fetchPasskeys } from "../lib/passkey";
 import { PasskeyGate } from "./PasskeyGate";
-import { PasskeyChallenge } from "./PasskeyChallenge";
 import {
   encodeErc20Transfer,
   parseUnits,
@@ -42,10 +41,12 @@ import { isEncryptedKeyFile, type KeyFileData } from "../lib/crypto";
 import {
   hasKeyShare as hasStoredKeyShare,
   getKeyShareMode,
+  deferredPrfKeyFile,
   getKeyShareWithPrf,
 } from "../lib/keystore";
 import { useHideBalances } from "../context/HideBalancesContext";
 import { authenticatePasskey } from "../lib/passkey";
+import { chainUsesEddsa } from "../lib/sign-passkey-authorization";
 import { isRecoveryMode, getRecoveryKeyFile } from "../lib/recovery";
 import { getPreference } from "../lib/userOverrides";
 import { getIdentityId } from "../lib/auth";
@@ -204,7 +205,7 @@ export function SendDialog({
   const [signatureCount, setSignatureCount] = useState(1);
 
   // Passkey guard (triggered on confirm, not on dialog open)
-  const [passkeyGuard, setPasskeyGuard] = useState<"idle" | "gate" | "challenge">("idle");
+  const [passkeyGuard, setPasskeyGuard] = useState<"idle" | "gate">("idle");
   const pendingSignRef = useRef<(() => void) | null>(null);
 
   async function guardedSign(action: () => void) {
@@ -213,19 +214,15 @@ export function SendDialog({
       action();
       return;
     }
-    // Skip re-challenge if passkey was verified recently (grace period)
-    if (isWithinPasskeyGrace()) {
-      action();
-      return;
-    }
+    // The signing step itself asks for the passkey (one tap bound to this transaction's
+    // digests, which also unlocks a PRF-encrypted share); only a missing passkey stops here.
     try {
       const list = await fetchPasskeys();
       if (list.length === 0) {
         pendingSignRef.current = action;
         setPasskeyGuard("gate");
       } else {
-        pendingSignRef.current = action;
-        setPasskeyGuard("challenge");
+        action();
       }
     } catch {
       // If passkey check fails, proceed anyway (backend will enforce)
@@ -317,7 +314,11 @@ export function SendDialog({
     setBrowserShareError("");
     try {
       const mode = getKeyShareMode(keyId);
-      if (mode === "prf") {
+      // PRF share: keep it locked; the signing tap unlocks it (one tap per send).
+      const deferred = mode === "prf" ? deferredPrfKeyFile(keyId, { needsEddsa: chainUsesEddsa(chain.type) }) : null;
+      if (deferred) {
+        setKeyFile(deferred as KeyFile);
+      } else if (mode === "prf") {
         const result = await authenticatePasskey({ withPrf: true });
         if (result.prfKey) {
           const data = await getKeyShareWithPrf(keyId, result.prfKey);
@@ -940,14 +941,6 @@ export function SendDialog({
         <PasskeyGate
           onRegistered={onPasskeyComplete}
           onCancel={() => { setPasskeyGuard("idle"); pendingSignRef.current = null; }}
-        />
-      )}
-      {passkeyGuard === "challenge" && (
-        <PasskeyChallenge
-          onAuthenticated={onPasskeyComplete}
-          onCancel={() => { setPasskeyGuard("idle"); pendingSignRef.current = null; }}
-          withPrf
-          autoStart
         />
       )}
     </div>

@@ -6,10 +6,9 @@ import { fetchPasskeys, sensitiveHeaders, authenticatePasskey } from "../lib/pas
 import { parseDerSignature } from "../lib/chains/evmTx";
 import { hexToBytes } from "../shared/utils";
 import { PasskeyGate } from "./PasskeyGate";
-import { PasskeyChallenge } from "./PasskeyChallenge";
 import { isEncryptedKeyFile, decryptKeyFile, type KeyFileData } from "../lib/crypto";
 import { PassphraseInput } from "./PassphraseInput";
-import { listKeyShares, getKeyShareWithPrf, getKeyShareWithPassphrase, type KeyShareInfo } from "../lib/keystore";
+import { listKeyShares, getKeyShareWithPrf, getKeyShareWithPassphrase, deferredPrfKeyFile, type KeyShareInfo } from "../lib/keystore";
 import { useFrozen } from "../context/FrozenContext";
 import { isRecoveryMode, getRecoveryKeyFile } from "../lib/recovery";
 import { useSteppedProgress, signingDurationMs, ProgressBar } from "./ProgressBar";
@@ -80,7 +79,12 @@ export function Sign() {
   async function loadBrowserShare(info: KeyShareInfo) {
     setBrowserLoading(info.keyId);
     try {
-      if (info.mode === "prf") {
+      // PRF share: keep it locked; the signing tap unlocks it (one tap per signature).
+      const deferred = info.mode === "prf" ? deferredPrfKeyFile(info.keyId, { needsEddsa: true }) : null;
+      if (deferred) {
+        setKeyFile(deferred as KeyFile);
+        setBrowserLoading("");
+      } else if (info.mode === "prf") {
         const result = await authenticatePasskey({ withPrf: true });
         if (result.prfKey) {
           const data = await getKeyShareWithPrf(info.keyId, result.prfKey);
@@ -101,7 +105,7 @@ export function Sign() {
   }
 
   // Passkey guard state
-  const [passkeyGuard, setPasskeyGuard] = useState<"idle" | "gate" | "challenge">("idle");
+  const [passkeyGuard, setPasskeyGuard] = useState<"idle" | "gate">("idle");
 
   async function guardedSign() {
     if (isRecoveryMode()) {
@@ -110,10 +114,11 @@ export function Sign() {
     }
     try {
       const list = await fetchPasskeys();
+      // The signing step asks for the passkey itself (bound to this message's digest).
       if (list.length === 0) {
         setPasskeyGuard("gate");
       } else {
-        setPasskeyGuard("challenge");
+        sign();
       }
     } catch {
       sign();
@@ -193,7 +198,7 @@ export function Sign() {
     } catch (err: unknown) {
       console.error("[sign] Error:", err);
       const msg = (err as { message?: string })?.message || String(err);
-      setSigningError(msg === "passkey_auth_required" ? t("sign.passkeyExpired") : msg);
+      setSigningError(msg === "passkey_auth_required" ? t("sign.passkeyExpired") : msg === "prf_unavailable" ? t("send.passkeyNoEncryption") : msg);
     }
   }
 
@@ -402,17 +407,6 @@ export function Sign() {
             sign();
           }}
           onCancel={() => setPasskeyGuard("idle")}
-        />
-      )}
-      {passkeyGuard === "challenge" && (
-        <PasskeyChallenge
-          onAuthenticated={() => {
-            setPasskeyGuard("idle");
-            sign();
-          }}
-          withPrf
-          onCancel={() => setPasskeyGuard("idle")}
-          autoStart
         />
       )}
 

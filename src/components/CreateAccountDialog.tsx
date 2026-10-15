@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Spinner, ErrorBox } from "./ui";
 import { getMpcInstance, createHttpTransport, clientKeys, toBase64, toHex, NID_secp256k1, NID_ED25519 } from "../lib/mpc";
 import type { ClientKeyHandles } from "../lib/mpc";
-import { sensitiveHeaders, authenticatePasskey, fetchPasskeys, isWithinPasskeyGrace, fetchWithPasskeyStepUp } from "../lib/passkey";
+import { sensitiveHeaders, authenticatePasskey, fetchPasskeys, fetchWithPasskey, passkeyHeader } from "../lib/passkey";
 import { PasskeyChallenge } from "./PasskeyChallenge";
 import { isRecoveryMode } from "../lib/recovery";
 import { encryptKeyFile, type KeyFileData } from "../lib/crypto";
@@ -156,11 +156,11 @@ export function CreateAccountDialog({
     if (createStarted) return;
     setCreateStarted(true);
     if (isRecoveryMode()) { create(); return; }
-    if (isWithinPasskeyGrace()) { create(); return; }
+    // One tap authorizes creating this wallet (both keygens; see eddsaTicket below).
     setShowPasskeyChallenge(true);
   }
 
-  async function create() {
+  async function create(generateTicket?: string) {
     setError("");
 
     try {
@@ -200,7 +200,7 @@ export function CreateAccountDialog({
         initUrl: apiUrl("/api/generate/init"),
         stepUrl: apiUrl("/api/generate/step"),
         initExtra: { name: keyName, ...(policyRules ? { policyRules } : {}) },
-        headers,
+        headers: { ...headers, ...passkeyHeader(generateTicket) },
       });
       ecdsaFailed.catch(() => {}); // Prevent unhandled rejection if MPC succeeds first
 
@@ -212,6 +212,9 @@ export function CreateAccountDialog({
       if (!ecdsaResult?.id) throw new Error("Account creation did not complete");
 
       const keyId = ecdsaResult.id as string;
+      // Single-use ticket for this key's EdDSA keygen, issued by the server for the
+      // creation the generate tap already authorized.
+      const eddsaTicket = ecdsaResult.eddsaTicket as string | undefined;
       const ecdsaInfo = mpc.ecdsa2pKeyInfo(ecdsaKey);
 
       // ── Phase 2: EdDSA key generation ──
@@ -221,7 +224,8 @@ export function CreateAccountDialog({
         initUrl: apiUrl("/api/generate/eddsa-init"),
         stepUrl: apiUrl("/api/generate/eddsa-step"),
         initExtra: { keyId },
-        headers,
+        // Fallback for an API older than the frontend (deploy order): its token is reusable.
+        headers: { ...headers, ...passkeyHeader(eddsaTicket ?? generateTicket) },
       });
       eddsaFailed.catch(() => {});
 
@@ -262,11 +266,11 @@ export function CreateAccountDialog({
         // Non-expert: auto-save to browser + server escrow, skip passphrase/download
         setProgress("Saving securely...");
 
-        // Re-authenticate passkey (token from keygen may have expired during MPC rounds)
-        let freshAuth: { prfKey?: CryptoKey; credentialId?: string } | null = null;
+        // One tap: PRF to encrypt the browser share, and the ticket for its escrow upload.
+        let freshAuth: { prfKey?: CryptoKey; credentialId?: string; token?: string } | null = null;
         try {
-          freshAuth = await authenticatePasskey({ withPrf: true });
-        } catch { /* passkey auth failed — will skip browser save, try escrow with existing token */ }
+          freshAuth = await authenticatePasskey({ withPrf: true, action: { action: "backup.upload", keyShareId: keyId } });
+        } catch { /* passkey auth failed — will skip browser save and escrow */ }
 
         // Browser save with passkey PRF
         let prfSaved = false;
@@ -285,10 +289,9 @@ export function CreateAccountDialog({
           try {
             const stored = localStorage.getItem(`keyshare:${keyId}`);
             if (stored) {
-              // Needs a fresh passkey token; prompts again if the keygen one expired.
-              await fetchWithPasskeyStepUp(apiUrl(`/api/keys/${keyId}/backup`), {
+              await fetch(apiUrl(`/api/keys/${keyId}/backup`), {
                 method: "POST",
-                headers: { ...authHeaders(), "Content-Type": "application/json" },
+                headers: sensitiveHeaders(freshAuth?.token),
                 body: JSON.stringify({
                   encryptedData: stored,
                   publicKey: newRawKeyData.publicKey,
@@ -679,8 +682,7 @@ export function CreateAccountDialog({
 
                     if (!isStandaloneJwt()) {
                       try {
-                        // Needs a fresh passkey token; prompts again if the keygen one expired.
-                        await fetchWithPasskeyStepUp(apiUrl(`/api/keys/${rawKeyData.id}/backup`), {
+                        await fetchWithPasskey(apiUrl(`/api/keys/${rawKeyData.id}/backup`), {
                           method: "POST",
                           headers: { ...authHeaders(), "Content-Type": "application/json" },
                           body: JSON.stringify({
@@ -688,7 +690,7 @@ export function CreateAccountDialog({
                             publicKey: rawKeyData.publicKey,
                             eddsaPublicKey: rawKeyData.eddsaPublicKey,
                           }),
-                        });
+                        }, { action: "backup.upload", keyShareId: rawKeyData.id });
                       } catch { /* escrow failed silently */ }
                     }
                     setStep("done");
@@ -751,8 +753,7 @@ export function CreateAccountDialog({
                     setEscrowStatus("uploading");
                     try {
                       const encryptedJson = await keyFile.blob.text();
-                      // Needs a fresh passkey token; prompts again if the keygen one expired.
-                      const res = await fetchWithPasskeyStepUp(apiUrl(`/api/keys/${rawKeyData.id}/backup`), {
+                      const res = await fetchWithPasskey(apiUrl(`/api/keys/${rawKeyData.id}/backup`), {
                         method: "POST",
                         headers: { ...authHeaders(), "Content-Type": "application/json" },
                         body: JSON.stringify({
@@ -760,7 +761,7 @@ export function CreateAccountDialog({
                           publicKey: rawKeyData.publicKey,
                           eddsaPublicKey: rawKeyData.eddsaPublicKey,
                         }),
-                      });
+                      }, { action: "backup.upload", keyShareId: rawKeyData.id });
                       setEscrowStatus(res.ok ? "done" : "error");
                     } catch {
                       setEscrowStatus("error");
@@ -1010,7 +1011,8 @@ export function CreateAccountDialog({
       {/* Passkey challenge overlay — triggered when token expired before creating */}
       {showPasskeyChallenge && (
         <PasskeyChallenge
-          onAuthenticated={() => { setShowPasskeyChallenge(false); create(); }}
+          action={{ action: "generate" }}
+          onAuthenticated={(r) => { setShowPasskeyChallenge(false); create(r.token); }}
           onCancel={() => setShowPasskeyChallenge(false)}
           withPrf={false}
           autoStart

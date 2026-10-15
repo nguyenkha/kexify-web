@@ -2,7 +2,7 @@
 // Encrypted with passkey PRF-derived key or passphrase fallback
 
 import type { KeyFileData } from "./crypto";
-import { toBase64, fromBase64 } from "./mpc";
+import { toBase64, fromBase64, DEFERRED_PRF_SHARE } from "./mpc";
 import { linkKeyShareToSite } from "./key-share-site-link";
 
 const STORAGE_PREFIX = "keyshare:";
@@ -35,6 +35,9 @@ interface StoredShare {
   ciphertext: string; // base64
   meta: {
     publicKey: string;
+    /** Public; lets a PRF share stay locked until the signing tap (deferredPrfKeyFile). */
+    eddsaPublicKey?: string;
+    peer?: number;
     storedAt: string;
     name?: string;
   };
@@ -135,6 +138,8 @@ export async function saveKeyShareWithPrf(
     ciphertext,
     meta: {
       publicKey: data.publicKey,
+      eddsaPublicKey: data.eddsaPublicKey,
+      peer: data.peer,
       storedAt: new Date().toISOString(),
     },
   });
@@ -184,11 +189,36 @@ export async function saveKeyShareWithPassphrase(
 export async function getKeyShareWithPrf(keyId: string, prfKey: CryptoKey): Promise<KeyFileData | null> {
   const entry = lsGet(keyId);
   if (!entry || entry.mode !== "prf") return null;
+  let data: KeyFileData;
   try {
-    return deserialize(await aesDecrypt(prfKey, entry.iv, entry.ciphertext));
+    data = deserialize(await aesDecrypt(prfKey, entry.iv, entry.ciphertext));
   } catch {
     return null;
   }
+  // Shares stored before the public EdDSA key was kept in the clear: backfill it, so the
+  // next send can defer the unlock to its signing tap.
+  if (entry.meta.eddsaPublicKey === undefined && data.eddsaPublicKey !== undefined) {
+    lsPut({ ...entry, meta: { ...entry.meta, eddsaPublicKey: data.eddsaPublicKey ?? "", peer: data.peer } });
+  }
+  return data;
+}
+
+/**
+ * A key file whose PRF-encrypted share is not decrypted yet: built from the public
+ * metadata, with a placeholder share. The passkey assertion that authorizes the
+ * signature also returns PRF and unlocks it (sign-passkey-authorization.ts), so a send
+ * is one tap. Null when the metadata lacks what the signer needs (older entries until
+ * their next unlock): the caller then unlocks first (two taps, once).
+ */
+export function deferredPrfKeyFile(keyId: string, opts: { needsEddsa: boolean }): KeyFileData | null {
+  const entry = lsGet(keyId);
+  if (!entry || entry.mode !== "prf" || !entry.meta.publicKey) return null;
+  const eddsaPublicKey = entry.meta.eddsaPublicKey;
+  if (opts.needsEddsa && !eddsaPublicKey) return null;
+  return {
+    id: keyId, peer: entry.meta.peer ?? 0, publicKey: entry.meta.publicKey, eddsaPublicKey: eddsaPublicKey ?? "",
+    share: DEFERRED_PRF_SHARE, eddsaShare: "",
+  };
 }
 
 export async function getKeyShareWithPassphrase(keyId: string, passphrase: string): Promise<KeyFileData | null> {

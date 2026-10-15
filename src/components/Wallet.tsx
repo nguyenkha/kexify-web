@@ -10,7 +10,7 @@ import { getUserOverrides, applyChainOverrides, getPreference } from "../lib/use
 import { setCacheTtl, clearAllTokenBalanceCaches, notifyBalanceRefresh } from "../lib/dataCache";
 import { authHeaders } from "../lib/auth";
 import { apiUrl } from "../lib/apiBase";
-import { fetchPasskeys, isWithinPasskeyGrace } from "../lib/passkey";
+import { fetchPasskeys } from "../lib/passkey";
 import { PasskeyGate } from "./PasskeyGate";
 import { PasskeyChallenge } from "./PasskeyChallenge";
 import { PolicyRules } from "./PolicyRules";
@@ -209,11 +209,6 @@ export function Wallet() {
   async function guardedAction(action: () => void, skipPasskeyGate?: boolean) {
     // If the action handles its own passkey flow (e.g. CreateAccountDialog), skip the gate
     if (skipPasskeyGate) {
-      action();
-      return;
-    }
-    // Skip re-challenge if passkey was verified recently (grace period)
-    if (isWithinPasskeyGrace()) {
       action();
       return;
     }

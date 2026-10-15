@@ -11,11 +11,10 @@ import { apiUrl } from "../lib/apiBase";
 import { fetchChains, fetchAssets } from "../lib/api";
 import { applyChainOverrides } from "../lib/userOverrides";
 import { getChainAdapter } from "../lib/chains/adapter";
-import { PasskeyChallenge } from "./PasskeyChallenge";
 import { PassphraseInput } from "./PassphraseInput";
 import type { PasskeyAuthResult } from "../lib/passkey";
 import { authenticatePasskey } from "../lib/passkey";
-import { hasKeyShare, getKeyShareMode, getKeyShareWithPrf, getKeyShareWithPassphrase } from "../lib/keystore";
+import { hasKeyShare, getKeyShareMode, getKeyShareWithPrf, getKeyShareWithPassphrase, deferredPrfKeyFile } from "../lib/keystore";
 import { decryptKeyFile, isEncryptedKeyFile, type KeyFileData } from "../lib/crypto";
 import { isRecoveryMode, getRecoveryKeys, getRecoveryKeyFile } from "../lib/recovery";
 import { wcPersonalSign, wcEthSign, wcSignTypedData, wcSendTransaction, wcSolanaSignTransaction, wcSolanaSignAndSendTransaction, wcSolanaSignMessage, isSignableSolanaMessage, wcTronSignTransaction, wcTronSignMessage, type WcSignPhase } from "../lib/wcSigning";
@@ -41,6 +40,7 @@ import { Clock, CircleCheck, Radio, CircleX, LockOpen, PenLine, Eye, AlertTriang
 function friendlyError(err: unknown, t: (k: string) => string): string {
   const msg = (err as { message?: string })?.message || String(err);
   if (msg === "passkey_auth_required") return t("wc.passkeyExpired");
+  if (msg === "prf_unavailable") return t("send.passkeyNoEncryption");
   return msg;
 }
 
@@ -127,9 +127,9 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   const navigate = useNavigate();
   const expert = useExpertMode();
   const { addToast } = useToast();
-  // Phases: review → preview → passkey (#2) → signing → done
-  // Browser share decrypt uses inline authenticatePasskey (passkey #1)
-  // Confirm & Sign triggers PasskeyChallenge overlay (passkey #2)
+  // Phases: review → preview → signing → done
+  // Signing asks for the passkey once: bound to this request's digests, and (for a PRF
+  // browser share) unlocking the share in the same prompt.
   const [phase, setPhase] = useState<"review" | "preview" | "passkey" | "signing" | "done" | "error">("review");
   // Toast on completion
   useEffect(() => {
@@ -507,7 +507,11 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
     setBrowserShareLoading(true);
     setBrowserShareError("");
     try {
-      if (account.storedMode === "prf") {
+      // PRF share: keep it locked; the signing tap unlocks it (one tap per request).
+      const deferred = account.storedMode === "prf" ? deferredPrfKeyFile(account.keyId, { needsEddsa: isSolana }) : null;
+      if (deferred) {
+        setKeyFile(deferred);
+      } else if (account.storedMode === "prf") {
         const result = await authenticatePasskey({ withPrf: true });
         if (result.prfKey) {
           const data = await getKeyShareWithPrf(account.keyId, result.prfKey);
@@ -2180,7 +2184,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
           <div className="px-5 py-4 border-t border-border-secondary shrink-0">
             <button
               disabled={policyCheck?.allowed === false}
-              onClick={() => isRecoveryMode() ? onPasskeyAuth({} as PasskeyAuthResult) : setPhase("passkey")}
+              onClick={() => onPasskeyAuth({} as PasskeyAuthResult)}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
             >
               {policyCheck?.allowed === false ? `\u26D4 ${t("wc.blockedByPolicy")}` : isRecoveryMode() ? t("wc.confirmSign") : `\uD83D\uDD10 ${t("wc.confirmSign")}`}
@@ -2189,15 +2193,6 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
         )}
       </div>
 
-      {/* Passkey challenge overlay — passkey #2 for MPC signing auth */}
-      {phase === "passkey" && (
-        <PasskeyChallenge
-          onAuthenticated={onPasskeyAuth}
-          onCancel={() => setPhase("preview")}
-          withPrf={false}
-          autoStart
-        />
-      )}
     </div>
   );
 }

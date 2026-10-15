@@ -311,7 +311,7 @@
     },
     "gasLimitBelowEstimate": "Gas limit {{limit}} thấp hơn ước tính {{estimate}}. Giao dịch có thể thất bại.",
     "maxFeeBelowNetwork": "Phí tối đa {{fee}} Gwei thấp hơn mức tối thiểu (~{{min}} Gwei). Giao dịch có thể không được xác nhận.",
-    "passkeySessionExpired": "Phiên passkey đã hết hạn. Vui lòng thử lại.",
+    "passkeySessionExpired": "Xác nhận passkey đã hết hạn hoặc đã được dùng. Vui lòng thử lại.",
     "couldNotDecryptWrongPasskey": "Không thể giải mã. Sai passkey?",
     "passkeyNoEncryption": "Passkey không hỗ trợ mã hóa. Hãy tải file lên."
   },
@@ -684,6 +684,7 @@
     "exportPending": "Đã yêu cầu xuất phần khoá trên máy chủ. Tải được từ {{date}}.",
     "exportReady": "Phần khoá trên máy chủ đã sẵn sàng để xuất. Hãy tải ngay hoặc huỷ yêu cầu.",
     "exportRequestFailed": "Không yêu cầu xuất được. Hãy thử lại.",
+    "exportNotRequested": "Chưa có yêu cầu xuất cho khoá này. Hãy chọn xuất lần nữa để lên lịch.",
     "exportScheduled": "Đã yêu cầu xuất. Để an toàn, bạn có thể tải từ {{date}}, và bạn đã nhận email. Hãy quay lại lúc đó và tải lại.",
     "exportCancel": "Huỷ yêu cầu xuất",
     "exportCancelFailed": "Không huỷ được yêu cầu xuất.",

@@ -32,9 +32,11 @@ export function PasskeyGate({
     setError("");
     try {
       await registerPasskey();
-      // After registration, authenticate immediately to get a token + PRF key
+      // Each action asks for its own passkey; an assertion here is only worth a prompt
+      // when the caller wants the new passkey's PRF key.
+      if (!onRegisteredWithPrf) { onRegistered(); return; }
       const auth = await authenticatePasskey({ withPrf: true });
-      if (onRegisteredWithPrf && auth.prfKey && auth.credentialId) {
+      if (auth.prfKey && auth.credentialId) {
         onRegisteredWithPrf(auth.prfKey, auth.credentialId);
       } else {
         onRegistered();

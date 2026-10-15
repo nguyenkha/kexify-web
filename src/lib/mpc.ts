@@ -49,11 +49,24 @@ export interface ClientKeyHandles {
 export const clientKeys = new Map<string, ClientKeyHandles>();
 
 /**
+ * Placeholder share of a key file whose browser share is still PRF-encrypted: it is
+ * decrypted by the passkey assertion that authorizes the signature (one tap).
+ */
+export const DEFERRED_PRF_SHARE = "prf-deferred";
+
+/** Keys whose share will be unlocked by the next sign assertion. */
+export const deferredPrfKeys = new Set<string>();
+
+/**
  * Restore key handles from serialized data (stored in key file or browser storage).
  * No-op if already in memory.
  */
 export async function restoreKeyHandles(keyId: string, shareData: string, eddsaShareData?: string): Promise<void> {
   if (clientKeys.has(keyId)) return;
+  if (shareData === DEFERRED_PRF_SHARE) {
+    deferredPrfKeys.add(keyId);
+    return;
+  }
 
   const mpc = await getMpcInstance();
   const entry: ClientKeyHandles = { mpc };
@@ -74,6 +87,14 @@ export async function restoreKeyHandles(keyId: string, shareData: string, eddsaS
 /** Remove a key handle from the in-memory cache (call after signing is done or on dialog close). */
 export function clearClientKey(keyId: string): void {
   clientKeys.delete(keyId);
+  deferredPrfKeys.delete(keyId);
+}
+
+/** One passkey tap bound to this /sign/init (key + digest list); unlocks a deferred share too. */
+async function signTicketHeaders(keyId: string, initPayload: Record<string, unknown>, digests: string[]): Promise<Record<string, string>> {
+  const { authorizeSign } = await import("./sign-passkey-authorization");
+  const ticket = await authorizeSign(keyId, String(initPayload.id ?? keyId), digests);
+  return { "x-passkey-token": ticket };
 }
 
 // ── Helpers ──
@@ -238,6 +259,8 @@ export async function performMpcSign(opts: {
     return performLocalMpcSign({ algorithm, keyId, hash, onStep });
   }
 
+  const ticketHeaders = await signTicketHeaders(keyId, initPayload, [toBase64(hash)]);
+
   const entry = clientKeys.get(keyId);
   if (!entry) {
     throw new Error("Key handle not found. Please re-create or re-import the key.");
@@ -262,7 +285,7 @@ export async function performMpcSign(opts: {
       data: toBase64(hash),
       ...(algorithm === "ecdsa" ? { sigSessionId: toBase64(sigSessionId) } : {}),
     },
-    headers,
+    headers: { ...headers, ...ticketHeaders },
     onStep,
   });
 
@@ -351,6 +374,9 @@ export async function performBatchMpcSign(opts: {
     return performLocalBatchMpcSign({ keyId, hashes, onStep });
   }
 
+  // The whole batch is one authorization: the ticket binds every digest, in order.
+  const ticketHeaders = await signTicketHeaders(keyId, initPayload, hashes.map((h) => toBase64(h)));
+
   const entry = clientKeys.get(keyId);
   if (!entry) {
     throw new Error("Key handle not found. Please re-create or re-import the key.");
@@ -382,7 +408,7 @@ export async function performBatchMpcSign(opts: {
       hashes: hashesPayload,
       sigSessionId: toBase64(sigSessionId),
     },
-    headers,
+    headers: { ...headers, ...ticketHeaders },
     onStep,
   });
 

@@ -77,13 +77,13 @@ export function FrozenBanner({
     }
   }
 
-  async function doUnfreeze() {
+  async function doUnfreeze(ticket?: string) {
     setLoading(true);
     setError("");
     try {
       const res = await fetch(apiUrl("/api/account/unfreeze"), {
         method: "POST",
-        headers: sensitiveHeaders(),
+        headers: sensitiveHeaders(ticket),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -98,13 +98,13 @@ export function FrozenBanner({
     }
   }
 
-  async function doCancelUnfreeze() {
+  async function doCancelUnfreeze(ticket?: string) {
     setLoading(true);
     setError("");
     try {
       const res = await fetch(apiUrl("/api/account/unfreeze"), {
         method: "DELETE",
-        headers: sensitiveHeaders(),
+        headers: sensitiveHeaders(ticket),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -196,7 +196,8 @@ export function FrozenBanner({
                 {t("freeze.unfreezePasskeyDesc")}
               </p>
               <PasskeyChallenge
-                onAuthenticated={() => doUnfreeze()}
+                action={{ action: "unfreeze" }}
+                onAuthenticated={(r) => doUnfreeze(r.token)}
                 onCancel={dismiss}
               />
             </div>
@@ -229,7 +230,8 @@ export function FrozenBanner({
                 {t("freeze.cancelUnfreezePasskeyDesc")}
               </p>
               <PasskeyChallenge
-                onAuthenticated={() => doCancelUnfreeze()}
+                action={{ action: "unfreeze.cancel" }}
+                onAuthenticated={(r) => doCancelUnfreeze(r.token)}
                 onCancel={dismiss}
               />
             </div>

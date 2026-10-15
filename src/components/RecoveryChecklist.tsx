@@ -95,9 +95,8 @@ export function RecoveryChecklist() {
     setHkdfDownloadingId(account.id);
     setHkdfError(null);
     try {
-      await authenticatePasskey({});
-      const headers = sensitiveHeaders();
-      const res = await fetch(apiUrl(`/api/keys/${account.id}/backup/server-share-hkdf`), { headers });
+      const { token } = await authenticatePasskey({ action: { action: "export.hkdf", keyShareId: account.id } });
+      const res = await fetch(apiUrl(`/api/keys/${account.id}/backup/server-share-hkdf`), { headers: sensitiveHeaders(token) });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         setHkdfError(data.error || t("recovery.downloadFailed"));
@@ -227,8 +226,8 @@ export function RecoveryChecklist() {
     setEscrowUploading(true);
     setEscrowError(null);
     try {
-      await authenticatePasskey({});
-      const headers = sensitiveHeaders();
+      const { token } = await authenticatePasskey({ action: { action: "backup.upload", keyShareId: data.id } });
+      const headers = sensitiveHeaders(token);
       const encryptedJson = JSON.stringify(data);
       const res = await fetch(apiUrl(`/api/keys/${data.id}/backup`), {
         method: "POST",
@@ -258,10 +257,8 @@ export function RecoveryChecklist() {
     setRestoreStep("loading");
     setRestoreError(null);
     try {
-      // Step 1: Authenticate and download backup
-      await authenticatePasskey({});
-      const headers = sensitiveHeaders();
-      const res = await fetch(apiUrl(`/api/keys/${accountId}/backup`), { headers });
+      // Step 1: Download the backup (session only; the PRF tap below decrypts it)
+      const res = await fetch(apiUrl(`/api/keys/${accountId}/backup`), { headers: sensitiveHeaders() });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
         setRestoreError(d.error || t("recovery.restoreFailed"));

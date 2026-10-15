@@ -311,7 +311,7 @@
     },
     "gasLimitBelowEstimate": "Gas limit {{limit}} is below estimated {{estimate}}. Transaction may fail.",
     "maxFeeBelowNetwork": "Max fee {{fee}} Gwei is below network minimum (~{{min}} Gwei). Transaction may not be confirmed.",
-    "passkeySessionExpired": "Passkey session expired. Please try again.",
+    "passkeySessionExpired": "Passkey confirmation expired or was already used. Please try again.",
     "couldNotDecryptWrongPasskey": "Could not decrypt. Wrong passkey?",
     "passkeyNoEncryption": "Passkey does not support encryption. Use file upload."
   },
@@ -684,6 +684,7 @@
     "exportPending": "Server key share export requested. Available from {{date}}.",
     "exportReady": "Server key share export is ready. Download it now, or cancel the request.",
     "exportRequestFailed": "Could not request the export. Try again.",
+    "exportNotRequested": "No export is scheduled for this key. Choose the export again to schedule one.",
     "exportScheduled": "Export requested. For your safety it becomes available on {{date}}, and you were emailed. Come back then and download again.",
     "exportCancel": "Cancel export request",
     "exportCancelFailed": "Could not cancel the export request.",

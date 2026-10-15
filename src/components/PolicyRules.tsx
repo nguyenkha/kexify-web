@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { authHeaders } from "../lib/auth";
-import { sensitiveHeaders } from "../lib/passkey";
+import { sensitiveHeaders, fetchWithPasskey, rulesSha256, type PasskeyAction } from "../lib/passkey";
 import { PasskeyChallenge } from "./PasskeyChallenge";
 import type { PolicyRuleBody, PolicyVersion } from "../shared/types";
 import { useFrozen } from "../context/FrozenContext";
@@ -51,7 +51,8 @@ export function PolicyRules({
   const [newRule, setNewRule] = useState<PolicyRuleBody>({ ...EMPTY_RULE });
 
   // Passkey challenge
-  const [showPasskey, setShowPasskey] = useState(false);
+  // The policy.set binding for the draft being submitted (its rules hash); null = no prompt.
+  const [passkeyAction, setPasskeyAction] = useState<PasskeyAction | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -123,14 +124,14 @@ export function PolicyRules({
   }
 
   // After passkey auth, submit the draft
-  async function submitDraft() {
+  async function submitDraft(ticket?: string) {
     if (!draft) return;
     setSubmitting(true);
     setError("");
     try {
       const res = await fetch(apiUrl(`/api/keys/${keyId}/rules/pending`), {
         method: "POST",
-        headers: sensitiveHeaders(),
+        headers: sensitiveHeaders(ticket),
         body: JSON.stringify({ rules: draft }),
       });
       const data = await res.json();
@@ -150,10 +151,10 @@ export function PolicyRules({
   async function cancelPending() {
     setError("");
     try {
-      const res = await fetch(apiUrl(`/api/keys/${keyId}/rules/pending`), {
+      const res = await fetchWithPasskey(apiUrl(`/api/keys/${keyId}/rules/pending`), {
         method: "DELETE",
         headers: sensitiveHeaders(),
-      });
+      }, { action: "policy.cancel", keyShareId: keyId });
       if (!res.ok) {
         const data = await res.json();
         setError(data.error || "Failed to cancel");
@@ -340,14 +341,15 @@ export function PolicyRules({
   }
 
   // ── Passkey challenge overlay ──
-  if (showPasskey) {
+  if (passkeyAction) {
     return (
       <PasskeyChallenge
-        onAuthenticated={() => {
-          setShowPasskey(false);
-          submitDraft();
+        action={passkeyAction}
+        onAuthenticated={(r) => {
+          setPasskeyAction(null);
+          submitDraft(r.token);
         }}
-        onCancel={() => setShowPasskey(false)}
+        onCancel={() => setPasskeyAction(null)}
       />
     );
   }
@@ -480,7 +482,7 @@ export function PolicyRules({
                 {t("common.cancel")}
               </button>
               <button
-                onClick={() => setShowPasskey(true)}
+                onClick={async () => draft && setPasskeyAction({ action: "policy.set", keyShareId: keyId, rulesSha256: await rulesSha256(draft) })}
                 disabled={submitting || frozen}
                 className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs px-4 py-1.5 rounded transition-colors"
               >

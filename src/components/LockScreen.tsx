@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useIdleLock } from "../context/IdleLockContext";
-import { fetchUnlockChallenge, completePasskeyUnlock, clearPasskeyToken, type UnlockChallenge } from "../lib/passkey";
+import { fetchUnlockChallenge, completePasskeyUnlock, type UnlockChallenge } from "../lib/passkey";
 import { setToken, clearToken } from "../lib/auth";
 import { useTranslation } from "react-i18next";
 import { getMe } from "../lib/auth";
@@ -82,7 +82,6 @@ export function LockScreen() {
   }
 
   function handleSignOut() {
-    clearPasskeyToken();
     clearToken();
     window.location.href = "/login";
   }

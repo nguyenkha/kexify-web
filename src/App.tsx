@@ -46,6 +46,7 @@ import { usePullToRefresh } from "./lib/use-pull-to-refresh";
 import { useSwipeSidebar } from "./lib/use-swipe-sidebar";
 import { notifyBalanceRefresh, clearAllTokenBalanceCaches, clearAllTxCaches } from "./lib/dataCache";
 import { ToastProvider } from "./context/ToastContext";
+import { PasskeyTapHost } from "./components/PasskeyTapHost";
 import { WCRequestQueue } from "./components/WCRequestQueue";
 import { FreezeAccount } from "./components/FreezeAccount";
 import { RecoveryImport } from "./components/RecoveryImport";
@@ -534,6 +535,7 @@ function App() {
               <IdleLockProvider>
                 <DashboardLayout />
                 <LockScreen />
+                <PasskeyTapHost />
               </IdleLockProvider>
               </WalletConnectProvider>
               </ToastProvider>

@@ -2,12 +2,13 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { listKeyShares, deleteKeyShare, saveKeyShareWithPrf, saveKeyShareWithPassphrase, hasKeyShare, getKeyShareFromStoredShare, getKeyShareMode, getKeyShareWithPrf, type KeyShareInfo } from "../lib/keystore";
-import { authenticatePasskey, authenticatePasskeyForImport, sensitiveHeaders } from "../lib/passkey";
+import { authenticatePasskey, authenticatePasskeyForImport, sensitiveHeaders, sha256Hex } from "../lib/passkey";
+import { authenticateWithTapFallback } from "../lib/passkey-tap-prompt";
 import { passkeyErrorMessage } from "../lib/passkey-error-message";
 import { encryptKeyFile, decryptKeyFile, type KeyFileData } from "../lib/crypto";
 import { isPveShare } from "../lib/pve-server-share";
 import { requestPveServerExport } from "../lib/pve-server-share-request";
-import { ExportNotReadyError, ExportRequestError, throwIfExportGated, cancelServerShareExport } from "../lib/server-share-export-request";
+import { ExportNotReadyError, ExportNotRequestedError, ExportRequestError, throwIfExportGated, cancelServerShareExport, requestServerShareExport } from "../lib/server-share-export-request";
 import { PassphraseInput } from "./PassphraseInput";
 import { authHeaders, isStandaloneJwt, getIdentityId } from "../lib/auth";
 import { apiUrl } from "../lib/apiBase";
@@ -215,9 +216,8 @@ export function KeyShareManager() {
     setRestoreStep("loading");
     setError("");
     try {
-      await authenticatePasskey({});
-      const headers = sensitiveHeaders();
-      const res = await fetch(apiUrl(`/api/keys/${keyId}/backup`), { headers });
+      // Reading the escrow needs only the session; the PRF tap below decrypts it.
+      const res = await fetch(apiUrl(`/api/keys/${keyId}/backup`), { headers: sensitiveHeaders() });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         setError(data.error || t("keyShare.failedToDownload"));
@@ -311,9 +311,8 @@ export function KeyShareManager() {
     setHkdfDownloading(true);
     setServerExportError("");
     try {
-      await authenticatePasskey({});
-      const headers = sensitiveHeaders();
-      const res = await fetch(apiUrl(`/api/keys/${keyId}/backup/server-share-hkdf`), { headers });
+      const { token } = await authenticatePasskey({ action: { action: "export.hkdf", keyShareId: keyId } });
+      const res = await fetch(apiUrl(`/api/keys/${keyId}/backup/server-share-hkdf`), { headers: sensitiveHeaders(token) });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         setServerExportError(data.error || t("keyShare.downloadFailed"));
@@ -361,12 +360,14 @@ export function KeyShareManager() {
     setServerExportStep("loading");
     setServerExportError("");
     try {
-      await authenticatePasskey({});
-
+      // No export scheduled yet: the one tap goes to scheduling it (the export needs 24 h).
+      if (!serverKeys.find((k) => k.id === keyId)?.serverShareExportAt) await requestServerShareExport(keyId);
       const ephKey = crypto.getRandomValues(new Uint8Array(32));
       const ephKeyBase64 = btoa(String.fromCharCode(...ephKey));
+      // The ticket is bound to the key the share will be encrypted to.
+      const { token } = await authenticateWithTapFallback({ action: { action: "export.share", keyShareId: keyId, ekSha256: await sha256Hex(ephKeyBase64) } });
 
-      const headers = sensitiveHeaders();
+      const headers = sensitiveHeaders(token);
       const res = await fetch(apiUrl(`/api/keys/${keyId}/backup/server-share`), {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
@@ -374,7 +375,7 @@ export function KeyShareManager() {
       });
 
       if (!res.ok) {
-        await throwIfExportGated(keyId, res);
+        await throwIfExportGated(res);
         const data = await res.json().catch(() => ({}));
         setServerExportError(data.error || t("keyShare.exportFailed"));
         setServerExportStep("error");
@@ -408,6 +409,13 @@ export function KeyShareManager() {
       setServerExportStep("passphrase");
     } catch (err) {
       if (err instanceof ExportNotReadyError) { setExportReadyAt(err.readyAt); setServerExportStep("scheduled"); return; }
+      if (err instanceof ExportNotRequestedError) {
+        // Our view was stale: show the key as not requested; the next click schedules it.
+        setServerKeys((prev) => prev.map((k) => (k.id === keyId ? { ...k, serverShareExportAt: null } : k)));
+        setServerExportError(t("keyShare.exportNotRequested"));
+        setServerExportStep("error");
+        return;
+      }
       setServerExportError(err instanceof ExportRequestError ? t("keyShare.exportRequestFailed") : String(err));
       setServerExportStep("error");
     }
@@ -432,16 +440,26 @@ export function KeyShareManager() {
     setServerExportStep("loading");
     setServerExportError("");
     try {
+      if (!serverKeys.find((k) => k.id === keyId)?.serverShareExportAt) await requestServerShareExport(keyId);
       // PRF unlocks the client share when this browser holds it, so the backup can be
       // test-restored before saving; otherwise it is only checked against the server's claim.
-      const auth = await authenticatePasskey({ withPrf: getKeyShareMode(keyId) === "prf" });
-      const clientFile = auth.prfKey ? await getKeyShareWithPrf(keyId, auth.prfKey) : null;
-      const { file, fullyVerified } = await requestPveServerExport(keyId, clientFile);
+      // One tap: the export ticket (bound to the PVE key), plus PRF for the client share.
+      const { file, fullyVerified } = await requestPveServerExport(keyId, async (ekSha256) => {
+        const auth = await authenticateWithTapFallback({ withPrf: getKeyShareMode(keyId) === "prf", action: { action: "export.pve", keyShareId: keyId, ekSha256 } });
+        return { ticket: auth.token, clientFile: auth.prfKey ? await getKeyShareWithPrf(keyId, auth.prfKey) : null };
+      });
       window.__serverExportData = file;
       setPveFullyVerified(fullyVerified);
       setServerExportStep("passphrase");
     } catch (err) {
       if (err instanceof ExportNotReadyError) { setExportReadyAt(err.readyAt); setServerExportStep("scheduled"); return; }
+      if (err instanceof ExportNotRequestedError) {
+        // Our view was stale: show the key as not requested; the next click schedules it.
+        setServerKeys((prev) => prev.map((k) => (k.id === keyId ? { ...k, serverShareExportAt: null } : k)));
+        setServerExportError(t("keyShare.exportNotRequested"));
+        setServerExportStep("error");
+        return;
+      }
       if (err instanceof ExportRequestError) { setServerExportError(t("keyShare.exportRequestFailed")); setServerExportStep("error"); return; }
       const msg = err instanceof Error ? err.message : String(err);
       setServerExportError(msg.includes("verification") ? t("keyShare.pveVerifyFailed") : msg || t("keyShare.exportFailed"));
