@@ -16,6 +16,7 @@ import {
   parseUnits,
   type UnsignedTx,
 } from "../../lib/chains/evmTx";
+import { evmReceiptRpcUrls } from "../../lib/chains/evm-read-rpc-fallbacks";
 import { getChainId } from "../sendTypes";
 import type { SigningContext } from "./signing-flows";
 import { friendlyError } from "./signing-flows";
@@ -107,7 +108,7 @@ export async function executeSigningFlow(ctx: SigningContext): Promise<void> {
     // The tx is already broadcast: if confirmation can't be read (RPC error/timeout),
     // show it as pending with its hash rather than as a failed transaction.
     try {
-      const receipt = await waitForReceipt(chain.rpcUrl, txHash, () => {}, 60, 3000);
+      const receipt = await waitForReceipt(evmReceiptRpcUrls(chain), txHash, () => {}, 60, 3000);
       setTxResult({ status: receipt.status, txHash, blockNumber: receipt.blockNumber });
       if (receipt.status === "success") onTxConfirmed?.(txHash);
     } catch (pollErr) {

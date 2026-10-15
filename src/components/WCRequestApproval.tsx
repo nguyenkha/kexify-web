@@ -19,6 +19,8 @@ import { hasKeyShare, getKeyShareMode, getKeyShareWithPrf, getKeyShareWithPassph
 import { decryptKeyFile, isEncryptedKeyFile, type KeyFileData } from "../lib/crypto";
 import { isRecoveryMode, getRecoveryKeys, getRecoveryKeyFile } from "../lib/recovery";
 import { wcPersonalSign, wcEthSign, wcSignTypedData, wcSendTransaction, wcSolanaSignTransaction, wcSolanaSignAndSendTransaction, wcSolanaSignMessage, isSignableSolanaMessage, wcTronSignTransaction, wcTronSignMessage, type WcSignPhase } from "../lib/wcSigning";
+import { evmReceiptRpcUrls } from "../lib/chains/evm-read-rpc-fallbacks";
+import { usePendingEvmReceipt } from "./send/use-pending-evm-receipt";
 import { waitForReceipt, estimateGas, getTransactionCount } from "../lib/chains/evmTx";
 import { decodeSolanaTransaction, formatLamports, formatTokenAmount as formatSplAmount, waitForSolanaConfirmation, type DecodedSolanaTx } from "../lib/chains/solanaTx";
 import { formatSun, waitForTronConfirmation, estimateTronFee, type TronTransaction } from "../lib/chains/tronTx";
@@ -223,6 +225,14 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
       ? chains.find((c) => c.type === "tron" && (tronChainRef ? c.id === tronChainRef : true))
         || chains.find((c) => c.type === "tron")
       : chains.find((c) => c.evmChainId === chainId);
+
+  // Broadcast but receipt unknown (RPC errors / slow chain): keep polling in the background.
+  const receiptGaveUp = usePendingEvmReceipt(
+    phase === "done" && txResult?.status === "pending" && chain?.type === "evm",
+    chain,
+    txResult?.txHash,
+    (r) => setTxResult((prev) => (prev ? { ...prev, status: r.status, blockNumber: r.blockNumber } : prev)),
+  );
 
   // Resolve SPL token info (symbol, decimals) from chain assets
   const [solTokenInfo, setSolTokenInfo] = useState<{ symbol: string; decimals: number } | null>(null);
@@ -813,7 +823,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
         const rpcUrl = chain?.rpcUrl;
         if (rpcUrl) {
           try {
-            const receipt = await waitForReceipt(rpcUrl, result, () => {}, 60, 3000);
+            const receipt = await waitForReceipt(evmReceiptRpcUrls({ rpcUrl, evmChainId: chain?.evmChainId ?? null }), result, () => {}, 60, 3000);
             setTxResult({ txHash: result, status: receipt.status, blockNumber: receipt.blockNumber });
           } catch {
             // Polling timed out — show done as pending
@@ -2069,7 +2079,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                       {formatWei(BigInt(txParams.value))} ETH
                     </p>
                   )}
-                  <p className="text-[11px] text-text-muted">{t("wc.waitingConfirmation")}</p>
+                  <p className="text-[11px] text-text-muted">{receiptGaveUp ? t("wc.couldNotConfirm") : t("wc.waitingConfirmation")}</p>
                 </>
               ) : (
                 <>

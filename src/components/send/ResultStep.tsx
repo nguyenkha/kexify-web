@@ -6,6 +6,8 @@ import { broadcastSolanaTransaction, waitForSolanaConfirmation } from "../../lib
 import { broadcastXrpTransaction, waitForXrpConfirmation } from "../../lib/chains/xrpTx";
 import { broadcastXlmTransaction, waitForXlmConfirmation } from "../../lib/chains/xlmTx";
 import { broadcastTronTransaction, waitForTronConfirmation } from "../../lib/chains/tronTx";
+import { evmReceiptRpcUrls } from "../../lib/chains/evm-read-rpc-fallbacks";
+import { usePendingEvmReceipt } from "./use-pending-evm-receipt";
 import { friendlyError } from "./signing-flows";
 import type { ResultStepProps } from "./types";
 import type { Chain } from "../../lib/api";
@@ -92,8 +94,17 @@ async function broadcastAndConfirm(
       const r = await bchTx.waitForBchConfirmation(txHash, () => {}, 60, 5000, bchTx.bchApiUrl());
       confirmed = r.confirmed; blockHeight = r.blockHeight;
     } else if (chain.type === "evm") {
-      const r = await waitForReceipt(chain.rpcUrl, txHash, () => {}, 60, 3000);
-      confirmed = r.status === "success"; blockHeight = r.blockNumber ? parseInt(String(r.blockNumber)) : undefined;
+      // Already broadcast: an RPC/poll failure leaves it pending (background poll), never an error.
+      try {
+        const r = await waitForReceipt(evmReceiptRpcUrls(chain), txHash, () => {}, 60, 3000);
+        blockHeight = r.blockNumber ? parseInt(String(r.blockNumber)) : undefined;
+        if (r.status === "failed") {
+          setTxResult({ status: "failed", txHash, blockNumber: blockHeight });
+          setStep("result");
+          return;
+        }
+        confirmed = true;
+      } catch { /* stays pending */ }
     } else if (chain.type === "solana") {
       const r = await waitForSolanaConfirmation(chain.rpcUrl, txHash, () => {}, 60, 2000);
       confirmed = r.confirmed;
@@ -146,6 +157,17 @@ export function ResultStep({
   setPendingTxHash,
   t,
 }: ResultStepProps) {
+  // Tx is broadcast but receipt unknown (RPC errors / slow chain): keep polling in the background.
+  const gaveUp = usePendingEvmReceipt(
+    txResult.status === "pending" && chain.type === "evm",
+    chain,
+    txResult.txHash,
+    (r) => {
+      setTxResult({ status: r.status, txHash: txResult.txHash, blockNumber: r.blockNumber });
+      if (r.status === "success") onTxConfirmed?.(txResult.txHash);
+    },
+  );
+  const explorerHref = explorerLink(chain.explorerUrl, `/tx/${txResult.txHash}`);
   return (
     <div className="p-5">
       <div className="text-center py-6">
@@ -213,7 +235,17 @@ export function ResultStep({
             <p className="text-sm text-text-muted tabular-nums mb-1">
               {amount} {asset.symbol}
             </p>
-            <p className="text-[11px] text-text-muted">{t("send.confirming")}...</p>
+            <p className="text-[11px] text-text-muted">
+              {gaveUp ? t("send.couldNotConfirm") : `${t("send.confirming")}...`}
+            </p>
+            <a
+              href={explorerHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block mt-3 text-xs font-medium text-blue-400 hover:text-blue-300 underline"
+            >
+              {t("send.viewOnExplorer")}
+            </a>
           </>
         ) : (
           <>
@@ -231,7 +263,7 @@ export function ResultStep({
         {!confirmBeforeBroadcast && (
           <div className="mt-5 mx-auto max-w-[280px] rounded-lg bg-surface-primary/60 border border-border-secondary overflow-hidden">
             <a
-              href={explorerLink(chain.explorerUrl, `/tx/${txResult.txHash}`)}
+              href={explorerHref}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-between px-3 py-2.5 hover:bg-surface-tertiary/50 transition-colors group"

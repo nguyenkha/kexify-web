@@ -75,7 +75,13 @@ async function ethRpc(rpcUrl: string, method: string, params: unknown[]): Promis
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
   });
-  const data = await res.json();
+  let data: { error?: { message?: string }; result?: unknown };
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error(`RPC HTTP ${res.status}`);
+  }
+  if (!data || (data.error === undefined && !("result" in data))) throw new Error(`RPC HTTP ${res.status}`);
   if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
   return data.result;
 }
@@ -271,33 +277,76 @@ export async function broadcastTransaction(rpcUrl: string, rawTx: string): Promi
   return txHash as string;
 }
 
-type EvmReceipt = { status: string; blockNumber: string };
+type EvmReceipt = { status: string; blockNumber: string; transactionHash?: string };
+export type ReceiptResult = { status: "success" | "failed"; blockNumber: string };
+
+/**
+ * One receipt lookup across a list of RPCs. Rotates to the next RPC on any error
+ * (HTTP 403, bad JSON, JSON-RPC error, network). Returns null when an RPC answered
+ * but the tx has no receipt yet; throws only when every RPC errored.
+ */
+export async function fetchReceiptOnce(
+  rpcUrls: string[],
+  txHash: string,
+  startIdx = 0
+): Promise<{ receipt: ReceiptResult | null; rpcIdx: number }> {
+  let lastErr: unknown;
+  for (let n = 0; n < rpcUrls.length; n++) {
+    const idx = (startIdx + n) % rpcUrls.length;
+    try {
+      const r = await ethRpc(rpcUrls[idx], "eth_getTransactionReceipt", [txHash]) as EvmReceipt | null;
+      if (!r) return { receipt: null, rpcIdx: idx };
+      // A receipt for another tx or without a block is a misbehaving node, not an answer.
+      if (!r.blockNumber || (r.transactionHash && r.transactionHash.toLowerCase() !== txHash.toLowerCase())) {
+        throw new Error("Invalid receipt from RPC");
+      }
+      const status = r.status === "0x1" ? "success" : "failed";
+      // A "failed" verdict from a fallback node needs a second RPC to agree (a false revert
+      // would invite a duplicate payment). Otherwise treat as not confirmed yet.
+      if (status === "failed" && idx !== 0 && rpcUrls.length > 1) {
+        const others = rpcUrls.filter((_, i) => i !== idx);
+        let agreed = false;
+        for (const u of others) {
+          try {
+            const o = await ethRpc(u, "eth_getTransactionReceipt", [txHash]) as EvmReceipt | null;
+            if (o && o.status !== "0x1" && o.blockNumber) { agreed = true; break; }
+          } catch { /* try next */ }
+        }
+        if (!agreed) return { receipt: null, rpcIdx: idx };
+      }
+      return { receipt: { status, blockNumber: r.blockNumber }, rpcIdx: idx };
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr ?? new Error("No RPC available");
+}
 
 export async function waitForReceipt(
-  rpcUrl: string,
+  rpcUrls: string | string[],
   txHash: string,
   onPoll?: (attempt: number) => void,
   maxAttempts = 60,
   intervalMs = 3000
-): Promise<{ status: "success" | "failed"; blockNumber: string }> {
+): Promise<ReceiptResult> {
+  const urls = Array.isArray(rpcUrls) ? rpcUrls : [rpcUrls];
+  let idx = 0;
   let ok = false;
+  let failedRounds = 0;
   for (let i = 0; i < maxAttempts; i++) {
     onPoll?.(i + 1);
-    let receipt: EvmReceipt | null = null;
     try {
-      receipt = await ethRpc(rpcUrl, "eth_getTransactionReceipt", [txHash]) as EvmReceipt | null;
+      const res = await fetchReceiptOnce(urls, txHash, idx);
+      idx = res.rpcIdx;
       ok = true;
+      failedRounds = 0;
+      if (res.receipt) return res.receipt;
     } catch (err) {
-      // A flaky or restricted RPC must not turn an already-broadcast tx into a failure:
-      // keep polling through transient errors; callers show a thrown error as pending.
-      // RPC never answered: stop early instead of spinning for the full window.
-      if (!ok && i >= 4) throw err;
-    }
-    if (receipt) {
-      return {
-        status: receipt.status === "0x1" ? "success" : "failed",
-        blockNumber: receipt.blockNumber,
-      };
+      // Every RPC errored this round. An RPC problem is never a failed tx: keep polling,
+      // callers show a thrown error as pending (and keep polling in the background).
+      // No RPC ever answered: stop early instead of spinning for the full window.
+      failedRounds++;
+      if (!ok && failedRounds >= 5) throw err;
     }
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
