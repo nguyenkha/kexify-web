@@ -6,6 +6,7 @@ import type { PolicyRuleBody, PolicyVersion } from "../shared/types";
 import { useFrozen } from "../context/FrozenContext";
 import { apiUrl } from "../lib/apiBase";
 import { useTranslation } from "react-i18next";
+import { mapCommonError } from "../lib/error-message";
 import { sanitizeRule, ValueRuleFields, ValueRuleSummary, FraudCheckSelect, AccountControlWarning } from "./policy/PolicyRuleFields";
 
 type RuleType = PolicyRuleBody["type"];
@@ -44,6 +45,8 @@ export function PolicyRules({
   const [active, setActive] = useState<PolicyVersion | null>(null);
   const [pending, setPending] = useState<PolicyVersion | null>(null);
   const [loading, setLoading] = useState(true);
+  // A failed fetch is never shown as "No policy configured"
+  const [loadFailed, setLoadFailed] = useState(false);
 
   // Draft editing state
   const [draft, setDraft] = useState<PolicyRuleBody[] | null>(null);
@@ -61,13 +64,17 @@ export function PolicyRules({
 
   async function fetchPolicy() {
     setLoading(true);
-    const res = await fetch(apiUrl(`/api/keys/${keyId}/rules`), {
-      headers: authHeaders(),
-    });
-    if (res.ok) {
+    setLoadFailed(false);
+    try {
+      const res = await fetch(apiUrl(`/api/keys/${keyId}/rules`), {
+        headers: authHeaders(),
+      });
+      if (!res.ok) throw new Error(`rules ${res.status}`);
       const data = await res.json();
       setActive(data.active);
       setPending(data.pending);
+    } catch {
+      setLoadFailed(true);
     }
     setLoading(false);
   }
@@ -136,14 +143,14 @@ export function PolicyRules({
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Failed to submit policy changes");
+        setError(mapCommonError(data.error ?? "", t) ?? t("policy.submitFailed"));
         setSubmitting(false);
         return;
       }
       setDraft(null);
       await fetchPolicy();
     } catch (err) {
-      setError(String(err));
+      setError(mapCommonError(err, t) ?? t("policy.submitFailed"));
     }
     setSubmitting(false);
   }
@@ -157,12 +164,12 @@ export function PolicyRules({
       }, { action: "policy.cancel", keyShareId: keyId });
       if (!res.ok) {
         const data = await res.json();
-        setError(data.error || "Failed to cancel");
+        setError(mapCommonError(data.error ?? "", t) ?? t("policy.cancelFailed"));
         return;
       }
       await fetchPolicy();
     } catch (err) {
-      setError(String(err));
+      setError(mapCommonError(err, t) ?? t("policy.cancelFailed"));
     }
   }
 
@@ -382,6 +389,16 @@ export function PolicyRules({
         <div className="flex-1 overflow-auto p-4 space-y-3">
           {loading ? (
             <div className="text-xs text-text-muted text-center py-8">{t("common.loading")}</div>
+          ) : loadFailed ? (
+            <div className="text-center py-8 space-y-3" role="alert">
+              <p className="text-xs text-red-400">{t("policy.loadFailed")}</p>
+              <button
+                onClick={fetchPolicy}
+                className="text-xs text-blue-400 hover:text-blue-300 px-3 py-1.5 rounded hover:bg-blue-500/10 transition-colors"
+              >
+                {t("common.retry")}
+              </button>
+            </div>
           ) : draft ? (
             // ── Draft editing mode ──
             <>
@@ -489,7 +506,7 @@ export function PolicyRules({
                 {submitting ? t("policy.submitting") : t("policy.submit")}
               </button>
             </div>
-          ) : !pending && !frozen ? (
+          ) : !pending && !frozen && !loadFailed ? (
             <button
               onClick={startEditing}
               className="text-blue-400 hover:text-blue-300 text-xs px-3 py-1.5 rounded hover:bg-blue-500/10 transition-colors"

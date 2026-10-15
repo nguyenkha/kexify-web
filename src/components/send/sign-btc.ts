@@ -32,7 +32,8 @@ import {
 import { parseDerSignature, parseUnits } from "../../lib/chains/evmTx";
 import { isRecoveryMode } from "../../lib/recovery";
 import type { SigningContext, UtxoFetchContext } from "./signing-flows";
-import { friendlyError, MAX_UTXO_INPUTS } from "./signing-flows";
+import { MAX_UTXO_INPUTS } from "./signing-flows";
+import { mapSendError, LocalizedSendError } from "./send-error";
 
 export async function executeBtcSigningFlow(ctx: SigningContext): Promise<void> {
   const {
@@ -64,7 +65,7 @@ export async function executeBtcSigningFlow(ctx: SigningContext): Promise<void> 
     const addrType = detectAddressType(address);
     const btcTx = buildBtcTransaction(to, amountSats, utxos, btcFeeRate, address, addrType, rbfEnabled, manualUtxos != null);
     if (!isRecoveryMode() && btcTx.inputs.length > MAX_UTXO_INPUTS) {
-      throw new Error(`Too many inputs (${btcTx.inputs.length}). Maximum ${MAX_UTXO_INPUTS} UTXOs per transaction.`);
+      throw new LocalizedSendError(t("send.tooManyInputs", { count: btcTx.inputs.length, max: MAX_UTXO_INPUTS }));
     }
 
     // 2. Get compressed public key and hash
@@ -163,7 +164,7 @@ export async function executeBtcSigningFlow(ctx: SigningContext): Promise<void> 
 
   } catch (err: unknown) {
     console.error("[send] BTC Error:", err);
-    setSigningError(friendlyError(err, t));
+    setSigningError(mapSendError(err, t));
   } finally {
     clearClientKey(keyFile.id);
   }

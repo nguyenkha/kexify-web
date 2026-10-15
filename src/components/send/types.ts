@@ -5,6 +5,7 @@ import type { KeyFile, FeeLevel, TxResult, SigningPhase } from "../sendTypes";
 import type { KeyFileData } from "../../lib/crypto";
 import type { AddressEntry } from "../../lib/addressBook";
 import type { SimulationResult } from "../../lib/txSimulation";
+import type { SendError } from "./send-error";
 
 export type { AddressEntry };
 
@@ -81,7 +82,8 @@ export interface InputStepProps {
   amountCheck: { valid: boolean; error?: string };
   amountError: string | null | undefined;
   amountUsd: number | null;
-  maxSendable: string;
+  /** null while the fee it must subtract is still unknown (Max disabled). */
+  maxSendable: string | null;
   balancesHidden: boolean;
 
   // Fee state
@@ -89,6 +91,9 @@ export interface InputStepProps {
   setFeeLevel: (l: FeeLevel) => void;
   feeDisplay: FeeDisplay;
   feeCountdown: number;
+  /** The last fee quote request failed (shows send.feeFailed + Retry instead of "Estimating..."). */
+  feeError: boolean;
+  onRetryFee: () => void;
   btcFeeRates: { low: number; medium: number; high: number } | null;
   ltcFeeRates: { low: number; medium: number; high: number } | null;
   bchFeeRates: { low: number; medium: number; high: number } | null;
@@ -167,6 +172,7 @@ export interface PreviewStepProps {
   policyCheck: {
     allowed: boolean;
     reason?: string;
+    blockedLeg?: string | null;
     fraudCheck?: { flagged: boolean; flags: string[]; level: string; address: string };
   } | null;
   simResult: SimulationResult | null;
@@ -201,8 +207,11 @@ export interface PreviewStepProps {
     executeAlgo: () => void;
     executeAda: () => void;
   };
-  setSigningError: (e: string | null) => void;
+  setSigningError: (e: SendError | null) => void;
   confirmBeforeBroadcast: boolean;
+  /** Not in the address book, recent recipients or outgoing history; null while checking. */
+  firstTimeRecipient: boolean | null;
+  onReviewPolicy?: () => void;
 
   t: (key: string, opts?: Record<string, unknown>) => string;
 }
@@ -226,7 +235,7 @@ export interface ResultStepProps {
   setTxResult: (v: TxResult | null) => void;
   setStep: (step: import("../sendTypes").SendStep) => void;
   setSigningPhase: (p: SigningPhase) => void;
-  setSigningError: (e: string | null) => void;
+  setSigningError: (e: SendError | null) => void;
   setPendingTxHash: (h: string | null) => void;
 
   t: (key: string, opts?: Record<string, unknown>) => string;

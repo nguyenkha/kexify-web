@@ -1,6 +1,7 @@
 import type { Chain, Asset } from "../../lib/api";
 import type { KeyFile, FeeLevel, SendStep, SigningPhase, TxResult } from "../sendTypes";
 import type { UTXO } from "../../lib/chains/btcTx";
+import type { SendError } from "./send-error";
 
 export { type UTXO };
 
@@ -43,7 +44,7 @@ export interface SigningContext {
   setStep: (s: SendStep) => void;
   setSigningPhase: (p: SigningPhase) => void;
   setSignatureCount: (n: number) => void;
-  setSigningError: (e: string | null) => void;
+  setSigningError: (e: SendError | null) => void;
   setSignedRawTx: (tx: string | null) => void;
   setTxResult: (r: TxResult | null) => void;
   setPendingTxHash: (h: string | null) => void;

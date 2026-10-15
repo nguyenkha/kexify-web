@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { apiUrl } from "../lib/apiBase";
+import { mapCommonError } from "../lib/error-message";
 import { Spinner, Button } from "./ui";
 import { Snowflake } from "lucide-react";
 
@@ -13,7 +14,7 @@ export function FreezeAccount() {
   const [status, setStatus] = useState<"confirm" | "loading" | "success" | "error">(
     token ? "confirm" : "error"
   );
-  const [error, setError] = useState(token ? "" : "No freeze token provided");
+  const [error, setError] = useState(token ? "" : t("freeze.noToken"));
 
   async function handleFreeze() {
     setStatus("loading");
@@ -21,12 +22,12 @@ export function FreezeAccount() {
       const res = await fetch(apiUrl(`/api/auth/freeze?token=${encodeURIComponent(token!)}`));
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Failed to freeze account");
+        throw new Error(data.error || "freeze_failed");
       }
       setStatus("success");
     } catch (err: unknown) {
       setStatus("error");
-      setError((err as { message?: string })?.message || "Failed to freeze account");
+      setError(mapCommonError(err, t) ?? t("freeze.failedToFreeze"));
     }
   }
 

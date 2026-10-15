@@ -1,11 +1,17 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Transaction } from "../shared/types";
-import { explorerLink } from "../shared/utils";
-import { formatTxTime, shortAddr } from "./TxRow";
+import { useHideBalances } from "../context/HideBalancesContext";
+import { maskAmount } from "../lib/hidden-amount";
+import { addressLabel } from "../lib/address-label";
+import { formatTxTime, shortAddr } from "../lib/tx-display";
+import { TxDetailPanel } from "./tx-detail-panel";
 
-/** Compact single-line tx preview for account row (max 3 shown) */
-export function CompactTxPreview({ tx, explorerUrl }: { tx: Transaction; explorerUrl: string }) {
+/** Compact single-line tx preview for account row (max 3 shown). Tap opens the tx detail. */
+export function CompactTxPreview({ tx, explorerUrl, networkName }: { tx: Transaction; explorerUrl: string; networkName?: string }) {
   const { t } = useTranslation();
+  const { hidden } = useHideBalances();
+  const [open, setOpen] = useState(false);
   const isPending = !tx.confirmed;
   const isFailed = !!tx.failed;
   const label = isFailed
@@ -46,7 +52,9 @@ export function CompactTxPreview({ tx, explorerUrl }: { tx: Transaction; explore
   // For deployments, show contract address; for others show counterparty
   const counterparty = tx.isDeployment && tx.createdContract
     ? shortAddr(tx.createdContract)
-    : tx.direction === "in" ? `${t("tx.from").toLowerCase()} ${shortAddr(tx.from)}` : `${t("tx.to").toLowerCase()} ${shortAddr(tx.to)}`;
+    : tx.direction === "in"
+      ? `${t("tx.from").toLowerCase()} ${addressLabel(tx.from) ?? shortAddr(tx.from)}`
+      : `${t("tx.to").toLowerCase()} ${addressLabel(tx.to) ?? shortAddr(tx.to)}`;
 
   // Hide "0 ETH" for deployments and approvals — show gas cost isn't useful here
   const showAmount = !tx.isDeployment && !tx.isApprove;
@@ -58,12 +66,11 @@ export function CompactTxPreview({ tx, explorerUrl }: { tx: Transaction; explore
     : tx.formatted;
 
   return (
-    <a
-      href={explorerLink(explorerUrl, `/tx/${tx.hash}`)}
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={(e) => e.stopPropagation()}
-      className="flex items-center gap-2 pl-8 md:pl-12 pr-3 md:pr-5 py-1.5 hover:bg-surface-tertiary/30 transition-colors"
+    <>
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+      className="w-full text-left flex items-center gap-2 pl-8 md:pl-12 pr-3 md:pr-5 py-1.5 hover:bg-surface-tertiary/30 transition-colors"
     >
       {/* Direction dot */}
       <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
@@ -77,12 +84,14 @@ export function CompactTxPreview({ tx, explorerUrl }: { tx: Transaction; explore
       {/* Amount + time */}
       {showAmount && (
         <span className={`text-[11px] tabular-nums font-medium shrink-0 ${color}`}>
-          {sign}{shortAmount} {tx.symbol}
+          {hidden ? "" : sign}{maskAmount(shortAmount, tx.symbol, hidden)}
         </span>
       )}
       <span className="text-[10px] text-text-muted/50 shrink-0 w-12 text-right">
-        {formatTxTime(tx.timestamp)}
+        {formatTxTime(tx.timestamp, t)}
       </span>
-    </a>
+    </button>
+    {open && <TxDetailPanel tx={tx} explorerUrl={explorerUrl} networkName={networkName} onClose={() => setOpen(false)} />}
+    </>
   );
 }

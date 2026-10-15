@@ -115,11 +115,9 @@ export function AddressSection({
           </div>
         )}
         <div className={`relative flex items-center bg-surface-primary border rounded-lg ${
-          toError
+          toError || toSelf
             ? "border-red-500/50 focus-within:border-red-500"
-            : toSelf
-              ? "border-yellow-500/50 focus-within:border-yellow-500"
-              : "border-border-primary focus-within:border-blue-500"
+            : "border-border-primary focus-within:border-blue-500"
         }`}>
           <input
             type="text"
@@ -259,7 +257,7 @@ export function AddressSection({
           <p className="text-[10px] text-red-400 mt-1">{toError}</p>
         )}
         {toSelf && (
-          <p className="text-[10px] text-yellow-400 mt-1">{t("send.ownAddress")}</p>
+          <p role="alert" className="text-[10px] text-red-400 mt-1">{t("send.ownAddress")}</p>
         )}
       </div>
 

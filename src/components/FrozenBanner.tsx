@@ -6,6 +6,7 @@ import { PasskeyChallenge } from "./PasskeyChallenge";
 import { sensitiveHeaders, fetchPasskeys } from "../lib/passkey";
 import { UnfreezeWithWalletDialog } from "./UnfreezeWithWalletDialog";
 import { apiUrl } from "../lib/apiBase";
+import { mapCommonError } from "../lib/error-message";
 import { ErrorBox, Button } from "./ui";
 import { Snowflake, LockOpen } from "lucide-react";
 
@@ -71,7 +72,7 @@ export function FrozenBanner({
       onUpdate();
       setAction("idle");
     } catch (err) {
-      setError(String(err));
+      setError(mapCommonError(err, t) ?? t("freeze.failedToFreeze"));
     } finally {
       setLoading(false);
     }
@@ -92,7 +93,7 @@ export function FrozenBanner({
       onUpdate();
       setAction("idle");
     } catch (err) {
-      setError(String(err));
+      setError(mapCommonError(err, t) ?? t("freeze.failedToUnfreeze"));
     } finally {
       setLoading(false);
     }
@@ -113,7 +114,7 @@ export function FrozenBanner({
       onUpdate();
       setAction("idle");
     } catch (err) {
-      setError(String(err));
+      setError(mapCommonError(err, t) ?? t("freeze.failedToCancelUnfreeze"));
     } finally {
       setLoading(false);
     }

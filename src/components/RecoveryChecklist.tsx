@@ -18,6 +18,8 @@ import {
 } from "../lib/keystore";
 import { type KeyFileData, isEncryptedKeyFile, decryptKeyFile, encryptKeyFile } from "../lib/crypto";
 import { PassphraseInput } from "./PassphraseInput";
+import { KitVerifyStep } from "./KitVerifyStep";
+import { useKitVerified } from "../lib/protection-status";
 import { RecoveryGuide } from "./RecoveryGuide";
 
 interface AccountStatus {
@@ -62,6 +64,9 @@ export function RecoveryChecklist() {
   const [downloadPassphraseId, setDownloadPassphraseId] = useState<string | null>(null);
   // Holds decrypted data awaiting a passphrase to re-encrypt for download
   const [pendingDownloadData, setPendingDownloadData] = useState<{ data: KeyFileData; account: AccountStatus } | null>(null);
+  // Backup file saved: waiting for the user to re-type the passphrase (verify step)
+  const [verifyKit, setVerifyKit] = useState<{ keyId: string; passphrase: string } | null>(null);
+  const { verified: kitVerified } = useKitVerified(accounts.map((a) => a.id));
 
   function fetchAccounts() {
     const allShares = listKeyShares();
@@ -409,6 +414,7 @@ export function RecoveryChecklist() {
     a.click();
     URL.revokeObjectURL(url);
     setPendingDownloadData(null);
+    setVerifyKit({ keyId: account.id, passphrase });
   }
 
   if (loading) {
@@ -422,7 +428,8 @@ export function RecoveryChecklist() {
 
   const standalone = isStandaloneJwt();
   const allBrowserShares = accounts.every((a) => a.hasBrowserShare);
-  const allBackedUp = standalone || accounts.every((a) => a.hasClientBackup);
+  // Not fully protected until a backup file was saved and its passphrase re-typed; server escrow does not count.
+  const allBackedUp = accounts.every((a) => kitVerified.has(a.id));
   const allServerExported = accounts.every((a) => a.hkdfDownloadedAt || a.selfCustodyAt);
   const overallReady = expert
     ? allBrowserShares && allBackedUp && allServerExported
@@ -527,6 +534,11 @@ export function RecoveryChecklist() {
               <p className="text-xs font-medium text-text-primary">
                 {account.name || `Account ${account.id.slice(0, 8)}`}
               </p>
+              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ml-auto mr-2 ${
+                kitVerified.has(account.id) ? "bg-green-500/10 text-green-400" : "bg-yellow-500/10 text-yellow-400"
+              }`}>
+                {kitVerified.has(account.id) ? t("protection.full") : t("protection.notFull")}
+              </span>
               <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
                 allDone ? "bg-green-500/10 text-green-400" : "bg-yellow-500/10 text-yellow-400"
               }`}>
@@ -586,6 +598,16 @@ export function RecoveryChecklist() {
                               className="text-[10px] text-text-muted hover:text-text-tertiary"
                             >
                               {t("common.cancel")}
+                            </button>
+                          </div>
+                        ) : verifyKit?.keyId === account.id ? (
+                          <div className="space-y-2">
+                            <KitVerifyStep keyId={account.id} passphrase={verifyKit.passphrase} onVerified={() => setTimeout(() => setVerifyKit(null), 2500)} />
+                            <button
+                              onClick={() => setVerifyKit(null)}
+                              className="text-[10px] text-text-muted hover:text-text-tertiary"
+                            >
+                              {t("kit.verifyLater")}
                             </button>
                           </div>
                         ) : (

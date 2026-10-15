@@ -15,7 +15,7 @@ import {
 } from "../../lib/chains/solanaTx";
 import { base58 } from "@scure/base";
 import type { SigningContext } from "./signing-flows";
-import { friendlyError } from "./signing-flows";
+import { mapSendError } from "./send-error";
 
 export async function executeSolanaSigningFlow(ctx: SigningContext): Promise<void> {
   const {
@@ -109,7 +109,7 @@ export async function executeSolanaSigningFlow(ctx: SigningContext): Promise<voi
 
   } catch (err: unknown) {
     console.error("[send] Solana Error:", err);
-    setSigningError(friendlyError(err, t));
+    setSigningError(mapSendError(err, t));
   } finally {
     clearClientKey(keyFile.id);
   }

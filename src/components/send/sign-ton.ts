@@ -14,7 +14,7 @@ import {
 } from "../../lib/chains/tonTx";
 import { publicKeyToTonAddress } from "../../lib/chains/tonAdapter";
 import type { SigningContext } from "./signing-flows";
-import { friendlyError } from "./signing-flows";
+import { mapSendError } from "./send-error";
 
 export async function executeTonSigningFlow(ctx: SigningContext): Promise<void> {
   const {
@@ -152,7 +152,7 @@ export async function executeTonSigningFlow(ctx: SigningContext): Promise<void> 
 
   } catch (err: unknown) {
     console.error("[send] TON Error:", err);
-    setSigningError(friendlyError(err, t));
+    setSigningError(mapSendError(err, t));
   } finally {
     clearClientKey(keyFile.id);
   }

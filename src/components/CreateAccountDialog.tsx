@@ -9,6 +9,8 @@ import { PasskeyChallenge } from "./PasskeyChallenge";
 import { isRecoveryMode } from "../lib/recovery";
 import { encryptKeyFile, type KeyFileData } from "../lib/crypto";
 import { PassphraseInput } from "./PassphraseInput";
+import { KitVerifyStep } from "./KitVerifyStep";
+import { KitReminderCard } from "./KitReminderCard";
 import { PasskeyGate } from "./PasskeyGate";
 import {
   saveKeyShareWithPrf,
@@ -92,6 +94,8 @@ export function CreateAccountDialog({
   const [rawKeyData, setRawKeyData] = useState<KeyFileData | null>(null);
   const [keyFile, setKeyFile] = useState<{ blob: Blob; fileName: string } | null>(null);
   const [downloaded, setDownloaded] = useState(false);
+  // Passphrase of the saved backup file, kept in memory only for the verify step
+  const [kitPassphrase, setKitPassphrase] = useState<string | null>(null);
   const [creatingDone, setCreatingDone] = useState(false);
 
   // Preload MPC WASM library as soon as dialog opens
@@ -320,9 +324,9 @@ export function CreateAccountDialog({
       console.error("[generate] Error:", err);
       const msg = err instanceof Error ? err.message : String(err);
       if (msg === "passkey_auth_required") {
-        setError(t("create.passkeyRequired"));
+        setError(t("standalone.passkeyRequired"));
       } else if (msg.includes("in progress")) {
-        setError(t("create.operationInProgress"));
+        setError(t("standalone.operationInProgress"));
       } else {
         setError(msg);
       }
@@ -480,7 +484,7 @@ export function CreateAccountDialog({
               />
               {isFirstAccount && (
                 <p className="text-[10px] text-text-muted text-center">
-                  You'll need a passkey before sending crypto
+                  {t("createAccount.passkeyNeededToCreate")}
                 </p>
               )}
             </div>
@@ -661,6 +665,7 @@ export function CreateAccountDialog({
           {/* Step: Passphrase */}
           {step === "passphrase" && rawKeyData && (
             <div className="space-y-4">
+              <p className="text-xs text-text-muted leading-relaxed">{t("kit.why")}</p>
               <PassphraseInput
                 mode="set"
                 submitLabel="Encrypt & Continue"
@@ -671,6 +676,7 @@ export function CreateAccountDialog({
                   const safeName = (name.trim() || `Account ${keyCount + 1}`).toLowerCase().replace(/[^a-z0-9]+/g, "-");
                   const fileName = `kexify-${safeName}-${rawKeyData.id.slice(0, 8)}.json`;
                   setKeyFile({ blob, fileName });
+                  setKitPassphrase(passphrase);
 
                   // Non-expert PRF fallback: save to browser with passphrase + attempt server escrow
                   if (!expert) {
@@ -744,6 +750,11 @@ export function CreateAccountDialog({
                   </svg>
                 )}
               </button>
+
+              {/* Verify: re-type the passphrase; only a match makes the wallet "fully protected" */}
+              {downloaded && rawKeyData && kitPassphrase && (
+                <KitVerifyStep keyId={rawKeyData.id} passphrase={kitPassphrase} />
+              )}
 
               {/* Server escrow option — hidden for standalone (can't re-auth to download) */}
               {escrowStatus === "idle" && downloaded && !isStandaloneJwt() && (
@@ -924,17 +935,17 @@ export function CreateAccountDialog({
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                 </svg>
               </div>
-              <p className="text-sm font-medium text-text-primary mb-1">Your wallet is ready</p>
-              <p className="text-xs text-text-muted mb-6">You can receive crypto right away</p>
+              <p className="text-sm font-medium text-text-primary mb-1">{t("createAccount.walletReady")}</p>
+              <p className="text-xs text-text-muted mb-6">{t("createAccount.canReceiveCrypto")}</p>
+              <div className="mb-4">
+                <KitReminderCard onBackUpNow={() => { onCreated(); onClose(); navigate("/backup-recovery"); }} />
+              </div>
               <button
                 onClick={() => { onCreated(); onClose(); }}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
               >
-                Go to Wallet
+                {t("createAccount.goToMyWallet")}
               </button>
-              <p className="text-[10px] text-text-muted mt-3">
-                Back up your wallet in Settings to protect against device loss
-              </p>
             </div>
           )}
           {/* Step: Done — "What's next?" for non-expert subsequent accounts */}
@@ -985,23 +996,13 @@ export function CreateAccountDialog({
                 </div>
               </div>
 
-              {/* Reminder to keep file safe */}
-              <div className="bg-green-500/5 border border-green-500/15 rounded-lg px-3.5 py-2.5 flex items-start gap-2.5 text-left">
-                <svg className="w-4 h-4 text-green-500/70 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
-                </svg>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] text-green-500/80 leading-relaxed">
-                    Keep your downloaded key file and passphrase safe. You can also back up to the server via Backup & Recovery.
-                  </p>
-                </div>
-              </div>
+              <KitReminderCard onBackUpNow={() => { onCreated(); onClose(); navigate("/backup-recovery"); }} />
 
               <button
                 onClick={() => { onCreated(); onClose(); }}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
               >
-                Go to My Wallet
+                {t("createAccount.goToMyWallet")}
               </button>
             </div>
           )}

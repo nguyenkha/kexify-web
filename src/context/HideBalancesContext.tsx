@@ -34,5 +34,5 @@ export function useHideBalances() {
 /** Mask a balance string when hidden */
 export function maskBalance(value: string, hidden: boolean): string {
   if (!hidden) return value;
-  return "••••";
+  return "••••••";
 }

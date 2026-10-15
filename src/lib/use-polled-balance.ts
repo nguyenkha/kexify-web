@@ -10,6 +10,7 @@ import {
 } from "./balance";
 import { clearCache, balanceCacheKey, tokenBalancesCacheKey } from "./dataCache";
 import { notify } from "./notify";
+import { MASK, balancesHiddenNow } from "./hidden-amount";
 
 const DEFAULT_POLL_INTERVAL = 60_000;
 
@@ -75,7 +76,7 @@ export function usePolledBalance(
               const suffix = row.btcAddrType ? `/${row.btcAddrType}` : "";
               notify({
                 title: t(dir === "up" ? "notify.balanceUp" : "notify.balanceDown"),
-                body: `${symbol}: ${result.formatted}`,
+                body: `${symbol}: ${balancesHiddenNow() ? MASK : result.formatted}`,
                 path: `/accounts/${row.keyId}/${row.chain.name.toLowerCase()}/${symbol}${suffix}`,
                 tag: `bal-${row.address}-${symbol}-${result.formatted}`,
               });
@@ -135,7 +136,7 @@ export function usePolledBalance(
               if (b) {
                 notify({
                   title: t(dir === "up" ? "notify.balanceUp" : "notify.balanceDown"),
-                  body: `${b.asset.symbol}: ${b.formatted}`,
+                  body: `${b.asset.symbol}: ${balancesHiddenNow() ? MASK : b.formatted}`,
                   path: `/accounts/${row.keyId}/${row.chain.name.toLowerCase()}/${b.asset.symbol}${suffix}`,
                   tag: `bal-${row.address}-${b.asset.symbol}-${b.formatted}`,
                 });

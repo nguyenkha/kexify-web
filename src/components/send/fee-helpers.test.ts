@@ -1,0 +1,22 @@
+import { describe, expect, test } from "bun:test";
+import { computeMaxSendable } from "./fee-helpers";
+import type { Chain, Asset } from "../../lib/api";
+
+const native = { symbol: "BCH", decimals: 8, isNative: true } as Asset;
+const base = { balance: "1", feeLevel: "medium" as const, estimatedFeeWei: null, btcEstimatedFee: null, ltcEstimatedFee: null, bchEstimatedFee: null, xlmFeeRates: null };
+
+describe("computeMaxSendable", () => {
+  test("BCH subtracts the estimated fee", () => {
+    expect(computeMaxSendable({ ...base, chain: { type: "bch" } as Chain, asset: native, bchEstimatedFee: 1000n })).toBe("0.99999");
+  });
+
+  test("quoted-fee native coin returns null until the fee is known", () => {
+    for (const type of ["bch", "btc", "ltc", "evm", "xlm"]) {
+      expect(computeMaxSendable({ ...base, chain: { type } as Chain, asset: native })).toBeNull();
+    }
+  });
+
+  test("tokens use the full balance", () => {
+    expect(computeMaxSendable({ ...base, chain: { type: "evm" } as Chain, asset: { ...native, isNative: false } })).toBe("1");
+  });
+});

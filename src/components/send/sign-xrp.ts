@@ -16,7 +16,7 @@ import {
   type XrpPaymentParams,
 } from "../../lib/chains/xrpTx";
 import type { SigningContext } from "./signing-flows";
-import { friendlyError } from "./signing-flows";
+import { mapSendError } from "./send-error";
 
 export async function executeXrpSigningFlow(ctx: SigningContext): Promise<void> {
   const {
@@ -141,7 +141,7 @@ export async function executeXrpSigningFlow(ctx: SigningContext): Promise<void> 
 
   } catch (err: unknown) {
     console.error("[send] XRP Error:", err);
-    setSigningError(friendlyError(err, t));
+    setSigningError(mapSendError(err, t));
   } finally {
     clearClientKey(keyFile.id);
   }

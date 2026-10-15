@@ -15,7 +15,7 @@ import {
   waitForXlmConfirmation,
 } from "../../lib/chains/xlmTx";
 import type { SigningContext } from "./signing-flows";
-import { friendlyError } from "./signing-flows";
+import { mapSendError, LocalizedSendError } from "./send-error";
 
 export async function executeXlmSigningFlow(ctx: SigningContext): Promise<void> {
   const {
@@ -55,7 +55,7 @@ export async function executeXlmSigningFlow(ctx: SigningContext): Promise<void> 
     // 2. Check if destination exists; use CREATE_ACCOUNT for new native XLM accounts
     const destExists = await checkXlmAccountExists(chain.rpcUrl, to);
     if (!destExists && !asset.isNative) {
-      throw new Error("Destination account is not activated. Send XLM first to activate it.");
+      throw new LocalizedSendError(t("send.xlmDestNotActive"));
     }
 
     const txXdr = destExists
@@ -137,7 +137,7 @@ export async function executeXlmSigningFlow(ctx: SigningContext): Promise<void> 
 
   } catch (err: unknown) {
     console.error("[send] XLM Error:", err);
-    setSigningError(friendlyError(err, t));
+    setSigningError(mapSendError(err, t));
   } finally {
     clearClientKey(keyFile.id);
   }

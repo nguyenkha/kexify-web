@@ -29,7 +29,8 @@ import {
 } from "../../lib/chains/ltcTx";
 import { isRecoveryMode } from "../../lib/recovery";
 import type { SigningContext } from "./signing-flows";
-import { friendlyError, MAX_UTXO_INPUTS } from "./signing-flows";
+import { MAX_UTXO_INPUTS } from "./signing-flows";
+import { mapSendError, LocalizedSendError } from "./send-error";
 
 export async function executeLtcSigningFlow(ctx: SigningContext): Promise<void> {
   const {
@@ -60,7 +61,7 @@ export async function executeLtcSigningFlow(ctx: SigningContext): Promise<void> 
     const addrType = detectLtcAddressType(address);
     const ltcTx = buildLtcTransaction(to, amountSats, utxos, ltcFeeRate, address, addrType, rbfEnabled, manualUtxos != null);
     if (!isRecoveryMode() && ltcTx.inputs.length > MAX_UTXO_INPUTS) {
-      throw new Error(`Too many inputs (${ltcTx.inputs.length}). Maximum ${MAX_UTXO_INPUTS} UTXOs per transaction.`);
+      throw new LocalizedSendError(t("send.tooManyInputs", { count: ltcTx.inputs.length, max: MAX_UTXO_INPUTS }));
     }
 
     // 2. Get compressed public key and hash
@@ -159,7 +160,7 @@ export async function executeLtcSigningFlow(ctx: SigningContext): Promise<void> 
 
   } catch (err: unknown) {
     console.error("[send] LTC Error:", err);
-    setSigningError(friendlyError(err, t));
+    setSigningError(mapSendError(err, t));
   } finally {
     clearClientKey(keyFile.id);
   }

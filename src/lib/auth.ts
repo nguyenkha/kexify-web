@@ -43,60 +43,85 @@ async function safeJson(res: Response): Promise<Record<string, unknown> | null> 
   }
 }
 
-export async function requestMagicLink(email: string, captchaToken?: string): Promise<void> {
-  let res: Response;
+/** Clear the session and go to sign-in. Keeps the device share (signing out is not removing the wallet).
+ * `sessionEnded` shows "Your session ended. Sign in again." on the login page. */
+export function signOut(opts?: { sessionEnded?: boolean }) {
+  clearToken();
+  window.location.href = opts?.sessionEnded ? "/login?session=ended" : "/login";
+}
+
+/** Sign-in failure kinds; the UI maps them to localised text (lib/auth-error-message.ts). */
+export type AuthErrorCode =
+  | "network" | "captcha" | "rateLimited" | "invalidCode" | "codeLocked"
+  | "tokenInvalid" | "tokenUsed" | "tokenExpired" | "unknown";
+
+export class AuthError extends Error {
+  readonly code: AuthErrorCode;
+  constructor(code: AuthErrorCode, detail?: string) {
+    super(detail || code);
+    this.name = "AuthError";
+    this.code = code;
+  }
+}
+
+async function authFetch(path: string, init?: RequestInit): Promise<Response> {
   try {
-    res = await fetch(apiUrl("/api/auth/request"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, captchaToken }),
-    });
+    return await fetch(apiUrl(path), init);
   } catch {
-    throw new Error("Server unreachable. Check your connection.");
+    throw new AuthError("network");
   }
-  if (!res.ok) {
-    const data = await safeJson(res);
-    throw new Error((data?.error as string) || "Failed to request magic link");
+}
+
+/** Map a failed auth response to a code (api/src/routes/auth.ts + middleware/rate-limit.ts). */
+async function authFailure(res: Response, kind: "request" | "code" | "link"): Promise<AuthError> {
+  const data = await safeJson(res);
+  const text = typeof data?.error === "string" ? data.error : "";
+  if (res.status === 429) {
+    // verify-code: 5 wrong codes burn every code ("Use the link in the email ...")
+    if (kind === "code" && /use the link/i.test(text)) return new AuthError("codeLocked", text);
+    return new AuthError("rateLimited", text);
   }
+  if (kind === "request" && res.status === 403) return new AuthError("captcha", text);
+  if (kind === "code" && (res.status === 400 || res.status === 404)) return new AuthError("invalidCode", text);
+  if (kind === "link") {
+    if (/already used/i.test(text)) return new AuthError("tokenUsed", text);
+    if (/expired/i.test(text)) return new AuthError("tokenExpired", text);
+    if (res.status === 400 || res.status === 404) return new AuthError("tokenInvalid", text);
+  }
+  return new AuthError("unknown", text || `HTTP ${res.status}`);
+}
+
+async function readSessionToken(res: Response): Promise<string> {
+  const data = await safeJson(res);
+  if (!data?.token) throw new AuthError("unknown", "Invalid server response");
+  setToken(data.token as string);
+  return data.token as string;
+}
+
+export async function requestMagicLink(email: string, captchaToken?: string): Promise<void> {
+  const res = await authFetch("/api/auth/request", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, captchaToken }),
+  });
+  if (!res.ok) throw await authFailure(res, "request");
 }
 
 export async function verifyToken(token: string): Promise<string> {
-  let res: Response;
-  try {
-    res = await fetch(apiUrl(`/api/auth/verify?token=${token}`), { credentials: "include" });
-  } catch {
-    throw new Error("Server unreachable. Check your connection.");
-  }
-  if (!res.ok) {
-    const data = await safeJson(res);
-    throw new Error((data?.error as string) || "Verification failed");
-  }
-  const data = await safeJson(res);
-  if (!data?.token) throw new Error("Invalid server response");
-  setToken(data.token as string);
-  return data.token as string;
+  const res = await authFetch(`/api/auth/verify?token=${encodeURIComponent(token)}`, { credentials: "include" });
+  if (!res.ok) throw await authFailure(res, "link");
+  return readSessionToken(res);
 }
 
 export async function verifyCode(email: string, code: string): Promise<string> {
-  let res: Response;
-  try {
-    res = await fetch(apiUrl("/api/auth/verify-code"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, code }),
-      credentials: "include",
-    });
-  } catch {
-    throw new Error("Server unreachable. Check your connection.");
-  }
-  if (!res.ok) {
-    const data = await safeJson(res);
-    throw new Error((data?.error as string) || "Code verification failed");
-  }
-  const data = await safeJson(res);
-  if (!data?.token) throw new Error("Invalid server response");
-  setToken(data.token as string);
-  return data.token as string;
+  const res = await authFetch("/api/auth/verify-code", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, code }),
+    credentials: "include",
+  });
+  if (!res.ok) throw await authFailure(res, "code");
+  return readSessionToken(res);
 }
 
 // ── JWT helpers ──

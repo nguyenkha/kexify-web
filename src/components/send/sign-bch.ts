@@ -19,7 +19,8 @@ import {
 } from "../../lib/chains/bchTx";
 import { isRecoveryMode } from "../../lib/recovery";
 import type { SigningContext } from "./signing-flows";
-import { friendlyError, MAX_UTXO_INPUTS } from "./signing-flows";
+import { MAX_UTXO_INPUTS } from "./signing-flows";
+import { mapSendError, LocalizedSendError } from "./send-error";
 
 export async function executeBchSigningFlow(ctx: SigningContext): Promise<void> {
   const {
@@ -49,7 +50,7 @@ export async function executeBchSigningFlow(ctx: SigningContext): Promise<void> 
     const amountSats = parseUnits(amount, asset.decimals);
     const bchTx = buildBchTransaction(to, amountSats, utxos, bchFeeRate, address, manualUtxos != null);
     if (!isRecoveryMode() && bchTx.inputs.length > MAX_UTXO_INPUTS) {
-      throw new Error(`Too many inputs (${bchTx.inputs.length}). Maximum ${MAX_UTXO_INPUTS} UTXOs per transaction.`);
+      throw new LocalizedSendError(t("send.tooManyInputs", { count: bchTx.inputs.length, max: MAX_UTXO_INPUTS }));
     }
 
     // 2. Get compressed public key and hash
@@ -133,7 +134,7 @@ export async function executeBchSigningFlow(ctx: SigningContext): Promise<void> 
 
   } catch (err: unknown) {
     console.error("[send] BCH Error:", err);
-    setSigningError(friendlyError(err, t));
+    setSigningError(mapSendError(err, t));
   } finally {
     clearClientKey(keyFile.id);
   }

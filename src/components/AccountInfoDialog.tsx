@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { KeyShare } from "../shared/types";
+import { CopyableText } from "./ui";
 
 
 export function AccountInfoDialog({
@@ -11,15 +12,9 @@ export function AccountInfoDialog({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
-  const createdDate = new Date(keyShare.createdAt);
-  const formattedDate = createdDate.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-  const formattedTime = createdDate.toLocaleTimeString(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
+  const formattedCreated = new Date(keyShare.createdAt).toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
   });
 
   useEffect(() => {
@@ -56,18 +51,20 @@ export function AccountInfoDialog({
             </div>
             <div className="px-3 py-2.5 border-b border-border-secondary">
               <p className="text-[10px] text-text-muted mb-1">{t("accountInfo.keyId")}</p>
-              <p className="text-xs font-mono text-text-secondary break-all">{keyShare.id}</p>
+              <CopyableText value={keyShare.id} className="text-xs text-text-secondary" textClassName="font-mono break-all" />
             </div>
             <div className="px-3 py-2.5 border-b border-border-secondary">
               <p className="text-[10px] text-text-muted mb-1">{t("accountInfo.created")}</p>
-              <p className="text-xs text-text-secondary">{formattedDate} at {formattedTime}</p>
+              <p className="text-xs text-text-secondary">{formattedCreated}</p>
             </div>
             <div className="px-3 py-2.5 border-b border-border-secondary flex items-center justify-between">
-              <div>
+              <div className="min-w-0">
                 <p className="text-[10px] text-text-muted mb-1">{t("accountInfo.ecdsaKey")}</p>
-                <p className="text-[10px] font-mono text-text-secondary break-all leading-relaxed">
-                  {keyShare.publicKey ? keyShare.publicKey : "—"}
-                </p>
+                {keyShare.publicKey ? (
+                  <CopyableText value={keyShare.publicKey} className="text-[10px] text-text-secondary" textClassName="font-mono break-all leading-relaxed" />
+                ) : (
+                  <p className="text-[10px] font-mono text-text-secondary">—</p>
+                )}
               </div>
               {keyShare.publicKey ? (
                 <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-green-500/10 text-green-400 shrink-0 ml-2">{t("accountInfo.available")}</span>
@@ -76,11 +73,9 @@ export function AccountInfoDialog({
               )}
             </div>
             <div className="px-3 py-2.5 flex items-center justify-between">
-              <div>
+              <div className="min-w-0">
                 <p className="text-[10px] text-text-muted mb-1">{t("accountInfo.eddsaKey")}</p>
-                <p className="text-[10px] font-mono text-text-secondary break-all leading-relaxed">
-                  {keyShare.eddsaPublicKey}
-                </p>
+                <CopyableText value={keyShare.eddsaPublicKey} className="text-[10px] text-text-secondary" textClassName="font-mono break-all leading-relaxed" />
               </div>
               <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-green-500/10 text-green-400 shrink-0 ml-2">{t("accountInfo.available")}</span>
             </div>

@@ -19,7 +19,7 @@ import {
 import { evmReceiptRpcUrls } from "../../lib/chains/evm-read-rpc-fallbacks";
 import { getChainId } from "../sendTypes";
 import type { SigningContext } from "./signing-flows";
-import { friendlyError } from "./signing-flows";
+import { mapSendError } from "./send-error";
 
 export async function executeSigningFlow(ctx: SigningContext): Promise<void> {
   const {
@@ -120,7 +120,7 @@ export async function executeSigningFlow(ctx: SigningContext): Promise<void> {
 
   } catch (err: unknown) {
     console.error("[send] Error:", err);
-    setSigningError(friendlyError(err, t));
+    setSigningError(mapSendError(err, t));
   } finally {
     clearClientKey(keyFile.id);
   }

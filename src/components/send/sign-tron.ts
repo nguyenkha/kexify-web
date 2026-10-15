@@ -13,7 +13,7 @@ import {
   waitForTronConfirmation,
 } from "../../lib/chains/tronTx";
 import type { SigningContext } from "./signing-flows";
-import { friendlyError } from "./signing-flows";
+import { mapSendError } from "./send-error";
 
 export async function executeTronSigningFlow(ctx: SigningContext): Promise<void> {
   const {
@@ -113,7 +113,7 @@ export async function executeTronSigningFlow(ctx: SigningContext): Promise<void>
 
   } catch (err: unknown) {
     console.error("[send] TRON Error:", err);
-    setSigningError(friendlyError(err, t));
+    setSigningError(mapSendError(err, t));
   } finally {
     clearClientKey(keyFile.id);
   }

@@ -7,11 +7,12 @@ import { Sign } from "./components/Sign";
 import { Passkeys } from "./components/Passkeys";
 import { Login } from "./components/Login";
 import { VerifyToken } from "./components/VerifyToken";
-import { getMe, hasAnyToken, clearToken, type MeUser } from "./lib/auth";
+import { getMe, hasAnyToken, type MeUser } from "./lib/auth";
 import { apiUrl } from "./lib/apiBase";
 import { FrozenBanner } from "./components/FrozenBanner";
 import { FrozenProvider } from "./context/FrozenContext";
-import { getStoredTheme, setTheme } from "./lib/theme";
+import { ThemeToggleButton } from "./components/theme-toggle-button";
+import { SignOutConfirmDialog } from "./components/sign-out-confirm-dialog";
 import { HideBalancesProvider, useHideBalances } from "./context/HideBalancesContext";
 import { ExpertModeProvider } from "./context/ExpertModeContext";
 import { KeyShareManager } from "./components/KeyShareManager";
@@ -40,7 +41,7 @@ import { ConfigPage } from "./components/ConfigPage";
 import { WalletConnect as WalletConnectPage } from "./components/WalletConnect";
 import { WalletConnectProvider } from "./context/WalletConnectContext";
 import { IdleLockProvider } from "./context/IdleLockContext";
-import { LockScreen } from "./components/LockScreen";
+import { LockScreen, SESSION_RESTORED_EVENT } from "./components/LockScreen";
 import { useTranslation } from "react-i18next";
 import { usePullToRefresh } from "./lib/use-pull-to-refresh";
 import { useSwipeSidebar } from "./lib/use-swipe-sidebar";
@@ -76,56 +77,32 @@ type NavItem = {
 };
 
 const mainNavItems: NavItem[] = [
-  { path: "/accounts", labelKey: "nav.accounts", icon: Briefcase },
+  { path: "/accounts", labelKey: "nav.wallet", icon: Briefcase },
   { path: "/walletconnect", labelKey: "nav.walletconnect", customIcon: WalletConnectIcon },
 ];
 
 const advancedNavItems: NavItem[] = [
   { path: "/backup-recovery", labelKey: "nav.backupRecovery", icon: Archive },
   { path: "/activity", labelKey: "nav.activityLog", icon: ClipboardList },
-  { path: "/config", labelKey: "nav.config", icon: Settings },
+  { path: "/config", labelKey: "config.title", icon: Settings },
   { path: "/passkeys", labelKey: "nav.passkeys", icon: KeyRound },
   { path: "/sign", labelKey: "nav.rawSigning", icon: PenLine, expertOnly: true },
   { path: "/broadcast", labelKey: "nav.broadcastTx", icon: Radio, expertOnly: true },
 ];
 
 
+const TOGGLE_CLASS = "p-1.5 rounded-md text-text-tertiary hover:text-text-secondary hover:bg-surface-tertiary transition-colors";
+
 function ThemeToggle() {
-  const [current, setCurrent] = useState(getStoredTheme);
-
-  function toggle() {
-    const next = current === "dark" ? "light" : "dark";
-    setTheme(next);
-    setCurrent(next);
-  }
-
-  return (
-    <button
-      onClick={toggle}
-      className="p-1.5 rounded-md text-text-tertiary hover:text-text-secondary hover:bg-surface-tertiary transition-colors"
-      title={`Switch to ${current === "dark" ? "light" : "dark"} mode`}
-    >
-      {current === "dark" ? (
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
-        </svg>
-      ) : (
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
-        </svg>
-      )}
-    </button>
-  );
+  return <ThemeToggleButton className={TOGGLE_CLASS} />;
 }
 
 function HideBalancesToggle() {
+  const { t } = useTranslation();
   const { hidden, toggle } = useHideBalances();
+  const label = hidden ? t("common.showBalances") : t("common.hideBalances");
   return (
-    <button
-      onClick={toggle}
-      className="p-1.5 rounded-md text-text-tertiary hover:text-text-secondary hover:bg-surface-tertiary transition-colors"
-      title={hidden ? "Show balances" : "Hide balances"}
-    >
+    <button onClick={toggle} className={TOGGLE_CLASS} title={label} aria-label={label} aria-pressed={hidden}>
       {hidden ? (
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
@@ -224,6 +201,14 @@ function DashboardLayout() {
     document.title = recovery ? "[Recovery Mode] kexify" : "kexify";
   }, [recovery]);
 
+  // Session restored by an in-place unlock: refresh server-backed shell data
+  useEffect(() => {
+    const onRestored = () => refreshUser();
+    window.addEventListener(SESSION_RESTORED_EVENT, onRestored);
+    return () => window.removeEventListener(SESSION_RESTORED_EVENT, onRestored);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Listen for notification click navigation
   useEffect(() => {
     const handler = (e: Event) => navigate((e as CustomEvent).detail);
@@ -261,7 +246,8 @@ function DashboardLayout() {
     location.pathname.startsWith(item.path)
   );
   const { t } = useTranslation();
-  const pageTitle = activeNav ? t(activeNav.labelKey) : t("nav.accounts");
+  const pageTitle = activeNav ? t(activeNav.labelKey) : t("nav.wallet");
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
 
   function selectNav(path: string) {
     setSidebarOpen(false);
@@ -294,7 +280,7 @@ function DashboardLayout() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">kexify</h1>
             <p className="text-[11px] text-text-muted mt-0.5">
-              <span className={recovery ? "text-orange-400 recovery-accent" : ""}>keys simplified</span>
+              <span className={recovery ? "text-orange-400 recovery-accent" : ""}>{t("login.tagline")}</span>
             </p>
           </div>
           {/* Close on mobile */}
@@ -384,8 +370,8 @@ function DashboardLayout() {
           </div>
         ) : (email || standalone) ? (<>
           <div className="px-4 py-1.5 text-[10px] text-text-muted/40 font-mono space-y-0.5">
-            <p>Client: {CLIENT_VERSION}</p>
-            <p>Server: {serverVersion ?? "..."}</p>
+            <p>{t("nav.client")}: {CLIENT_VERSION}</p>
+            <p>{t("nav.server")}: {serverVersion ?? "..."}</p>
           </div>
           <div className="p-4 border-t border-border-primary flex items-center justify-between">
             <div className="min-w-0 flex-1">
@@ -393,10 +379,7 @@ function DashboardLayout() {
                 {email || `${t("nav.anonymousMode")} ${(getIdentityId() || "").slice(0, 6)}`}
               </p>
               <button
-                onClick={() => {
-                  clearToken();
-                  window.location.href = "/login";
-                }}
+                onClick={() => setConfirmSignOut(true)}
                 className="text-xs text-text-muted hover:text-text-secondary mt-1"
               >
                 {t("nav.signOut")}
@@ -431,7 +414,8 @@ function DashboardLayout() {
               <button
                 onClick={() => navigate("/walletconnect?scan=1")}
                 className="p-1.5 rounded-md text-text-tertiary hover:text-text-secondary hover:bg-surface-tertiary transition-colors"
-                title="Scan WalletConnect QR"
+                title={t("nav.scanWalletConnect")}
+                aria-label={t("nav.scanWalletConnect")}
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 7V5a2 2 0 012-2h2m10 0h2a2 2 0 012 2v2m0 10v2a2 2 0 01-2 2h-2M3 17v2a2 2 0 002 2h2" />
@@ -482,6 +466,8 @@ function DashboardLayout() {
 
       {/* WalletConnect request overlay — always mounted */}
       <WCRequestQueue />
+
+      <SignOutConfirmDialog open={confirmSignOut} onCancel={() => setConfirmSignOut(false)} />
     </div>
     </FrozenProvider>
     </RecoveryProvider>

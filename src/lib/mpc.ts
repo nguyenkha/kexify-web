@@ -183,6 +183,12 @@ export function createHttpTransport(opts: {
         transportError = new Error(leg ? i18n.t(`send.policyBlockedLeg.${leg}`)
           : chainCode ? i18n.t(`send.chainBinding.${chainCode}`)
           : data.error);
+        // Structured fields for the send error mapper (send/send-error.ts).
+        Object.assign(transportError, {
+          status: res.status,
+          code: typeof data.code === "string" ? data.code : undefined,
+          blockedLeg: typeof data.blockedLeg === "string" ? data.blockedLeg : undefined,
+        });
         rejectTransport?.(transportError);
         throw transportError;
       }

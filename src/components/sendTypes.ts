@@ -66,13 +66,14 @@ function parseDecimal(s: string, scale: number): bigint | null {
   return BigInt(intPart + padded);
 }
 
+/** `error` is an i18n key (send.enterAmount / send.insufficient). */
 export function isValidAmount(val: string, balance: string): { valid: boolean; error?: string } {
   if (!val) return { valid: false };
   const scale = Math.max(val.split(".")[1]?.length ?? 0, balance.replace(/,/g, "").split(".")[1]?.length ?? 0, 18);
   const amt = parseDecimal(val, scale);
-  if (amt == null || amt <= 0n) return { valid: false, error: "Enter a valid amount" };
+  if (amt == null || amt <= 0n) return { valid: false, error: "send.enterAmount" };
   const bal = parseDecimal(balance, scale);
-  if (bal == null || amt > bal) return { valid: false, error: "Insufficient balance" };
+  if (bal == null || amt > bal) return { valid: false, error: "send.insufficient" };
   return { valid: true };
 }
 

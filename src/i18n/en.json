@@ -33,7 +33,13 @@
     "addressBook": "Address book",
     "viewOnExplorer": "View on explorer",
     "revokeApprovals": "Revoke token approvals",
-    "copyLegacyAddress": "Copy legacy address"
+    "copyLegacyAddress": "Copy legacy address",
+    "rateLimited": "Too many requests. Wait a minute and try again.",
+    "details": "Details",
+    "copyFailed": "Couldn't copy. Select the address and copy it.",
+    "hideBalances": "Hide balances",
+    "showBalances": "Show balances",
+    "offlineReason": "You're offline"
   },
   "progress": {
     "preparing": "Preparing...",
@@ -74,7 +80,7 @@
     "walletconnect": "WalletConnect",
     "backupRecovery": "Backup & Recovery",
     "activityLog": "Activity Log",
-    "config": "Config",
+    "config": "Settings",
     "passkeys": "Passkeys",
     "rawSigning": "Advanced Signing",
     "broadcastTx": "Broadcast Transaction",
@@ -82,7 +88,11 @@
     "exitRecovery": "Exit Recovery",
     "recoveryMode": "Recovery Mode",
     "advanced": "Advanced",
-    "anonymousMode": "Anonymous"
+    "anonymousMode": "Anonymous",
+    "wallet": "Wallet",
+    "client": "Client",
+    "server": "Server",
+    "scanWalletConnect": "Scan WalletConnect QR"
   },
   "wallet": {
     "importKeyFileLink": "Have a key file? Import an existing wallet",
@@ -164,14 +174,95 @@
     "invalidJsonGoBack": "Invalid JSON — go back to fix",
     "clear": "Clear",
     "copyToClipboard": "Copy to clipboard",
-    "emailToMyself": "Email to myself"
+    "emailToMyself": "Email to myself",
+    "resetConfirm": "Reset all settings to defaults? Your RPC and explorer overrides will be removed.",
+    "importConfirm": "Import these settings? They replace your current settings, including RPC and explorer overrides."
   },
   "recovery": {
     "banner": "Recovery mode — your wallet keys are loaded in this browser",
     "bannerDesc": "Your two key files have been combined and loaded locally. You can sign transactions and connect to dApps without our server.",
     "bannerWarning": "Move your funds to a new wallet after recovery.",
     "bannerKeep": "Keep your key files stored safely",
-    "bannerKeepDesc": "in a separate location."
+    "bannerKeepDesc": "in a separate location.",
+    "title": "Backup & Recovery",
+    "allSet": "All set",
+    "someIncomplete": "Some keys need attention",
+    "keySavedInBrowser": "Key saved in browser",
+    "keyBackedUpOnServer": "Key backed up on server",
+    "serverKeyDownloaded": "Server key downloaded",
+    "importKeyFile": "Import key file",
+    "keyFileNotOnAccount": "Key file {{id}} does not match any wallet on this account. It may be from an old or deleted wallet. Export a fresh key file from the site where the wallet lives.",
+    "importWalletDesc": "Already have a kexify wallet? Import its key file here to use it on this site. Your passkey from another site does not carry over, so you will register one here.",
+    "downloadKeyFile": "Download key file",
+    "uploadKeyFileAsBackup": "Upload backup",
+    "downloadServerKeyBackup": "Download server key",
+    "restoreFromServer": "Restore from server",
+    "restoreFailed": "Failed to restore from server",
+    "prfNotSupported": "Your passkey does not support PRF — use Import key file instead",
+    "useImportKeyFile": "Backup format requires passphrase — use Import key file instead",
+    "unknownBackupFormat": "Unknown backup format",
+    "wrongPassphrase": "Wrong passphrase — try again",
+    "enterPassphraseToRestore": "Enter the passphrase used when backing up this key",
+    "moreOptionsInExpertMode": "More options in Expert Mode",
+    "howToRecover": "How to recover your wallet",
+    "getBothKeyFiles": "Get both key files",
+    "openRecoveryPage": "Open the recovery page",
+    "moveFunds": "Move funds to a new wallet",
+    "recoveryPage": "Recovery page",
+    "sourceCode": "Source code",
+    "downloadHandbook": "Download handbook",
+    "walletRecovery": "Wallet Recovery",
+    "recoveryDesc": "Load your two key files to recover your wallet.",
+    "yourKeyFile": "Your key file",
+    "serverKeyFile": "Server key file",
+    "chooseJsonFile": "Choose .json file",
+    "fileIsEncrypted": "This file is encrypted",
+    "serverEncryptedBackup": "Server encrypted backup",
+    "decrypt": "Decrypt",
+    "cancel": "Cancel",
+    "keyFileLoaded": "Key file loaded",
+    "enterRecoveryMode": "Enter Recovery Mode",
+    "initializing": "Initializing...",
+    "backToLogin": "Back to login",
+    "description": "Keep your wallet safe. Complete these steps so you can recover your accounts if needed.",
+    "allSetDesc": "You can recover all your accounts even if you lose access to this device or our server goes down.",
+    "incompleteDesc": "Complete the checklist below to ensure you can always recover your wallet.",
+    "browserDetail": "Your key is encrypted and stored locally so you can sign transactions.",
+    "escrowDetail": "An encrypted copy of your key is stored on our server. You can restore it on any device.",
+    "serverDetailSelfCustody": "You hold a self-custody copy of the server's key share.",
+    "serverDetailHkdf": "You have a server-encrypted backup. Contact kexify support to decrypt it in an emergency.",
+    "serverDetailDownload": "Download a backup of the server's key share. It's encrypted by the server — in an emergency, contact us to decrypt it.",
+    "enterPassphraseToUnlock": "Enter your passphrase to unlock:",
+    "unlock": "Unlock",
+    "setPassphraseForDownload": "Set a passphrase to protect the downloaded file:",
+    "encryptAndDownload": "Encrypt & Download",
+    "exporting": "Exporting...",
+    "enterPassphraseToDecrypt": "Enter passphrase to decrypt:",
+    "decryptAndSave": "Decrypt & Save",
+    "saving": "Saving...",
+    "uploading": "Uploading...",
+    "downloading": "Downloading...",
+    "downloadFailed": "Download failed",
+    "uploadFailed": "Upload failed",
+    "invalidKeyShareFile": "Invalid key share file",
+    "keyFileDifferentAccount": "This key file belongs to a different account",
+    "couldNotParseKeyFile": "Could not parse key share file",
+    "incorrectPassphrase": "Incorrect passphrase",
+    "couldNotDecryptWrongPasskey": "Could not decrypt. Wrong passkey?",
+    "couldNotDecrypt": "Could not decrypt",
+    "noBrowserKeyShare": "No browser key share found",
+    "fullSelfCustodyExpert": "For full self-custody, use Expert mode in Config.",
+    "getBothKeyFilesDesc": "You need your key file and the server key file. Both should be saved as .json files.",
+    "openRecoveryPageDesc": "Go to {{url}} and load both files. The app works offline — no server needed.",
+    "moveFundsDesc": "Once in recovery mode, send your funds to a new wallet for best security. You can also use WalletConnect to interact with any dApp.",
+    "sourceCodeDesc": "Source code (in case app is unavailable)",
+    "publicKeysMismatch": "Public keys do not match — these shares belong to different keys",
+    "eddsaKeysMismatch": "EdDSA public keys do not match — these shares belong to different keys",
+    "decryptionFailed": "Decryption failed",
+    "hkdfDecryptionFailed": "HKDF decryption failed",
+    "failedToEnterRecovery": "Failed to enter recovery mode",
+    "couldNotParseJson": "Could not parse file as JSON",
+    "hexKeyPlaceholder": "64-character hex key"
   },
   "send": {
     "title": "Send {{symbol}}",
@@ -313,7 +404,22 @@
     "maxFeeBelowNetwork": "Max fee {{fee}} Gwei is below network minimum (~{{min}} Gwei). Transaction may not be confirmed.",
     "passkeySessionExpired": "Passkey confirmation expired or was already used. Please try again.",
     "couldNotDecryptWrongPasskey": "Could not decrypt. Wrong passkey?",
-    "passkeyNoEncryption": "Passkey does not support encryption. Use file upload."
+    "passkeyNoEncryption": "Passkey does not support encryption. Use file upload.",
+    "busy": "Another signing is still running. Wait a few seconds and try again.",
+    "newAddress": {
+      "title": "First time sending to this address",
+      "body": "Check the address with the recipient before you confirm."
+    },
+    "nothingSent": "Nothing was sent.",
+    "reviewPolicy": "Review policy rules",
+    "feeFailed": "Couldn't estimate the fee",
+    "sessionTimedOut": "Signing took too long and was stopped. Nothing was sent. Try again.",
+    "intentMismatch": "This transaction could not be verified, so nothing was signed. Try again; if it keeps happening, contact support.",
+    "signingLine": "{{amount}} {{symbol}} to {{to}}",
+    "unsupportedChain": "Sending is not supported on {{chain}} yet.",
+    "selectAsset": "Choose what to send",
+    "nothingToSend": "Nothing to send yet",
+    "insufficientWithFee": "Not enough balance to cover the amount and the network fee. Nothing was sent."
   },
   "sign": {
     "title": "Raw Signing",
@@ -462,8 +568,7 @@
     "block": "Block",
     "checking": "Checking...",
     "reviewTx": "Review Transaction",
-    "blockedByPolicy": "Blocked by Policy",
-    "confirmSign": "Confirm & Sign"
+    "blockedByPolicy": "Blocked by Policy"
   },
   "broadcast": {
     "title": "Broadcast Transaction",
@@ -610,7 +715,8 @@
     "fundYourWallet": "Fund your wallet",
     "connectToDapps": "Connect to dApps",
     "walletReady": "Your wallet is ready",
-    "canReceiveCrypto": "You can now receive crypto"
+    "canReceiveCrypto": "You can now receive crypto",
+    "passkeyNeededToCreate": "You need a passkey to create your wallet"
   },
   "accountInfo": {
     "title": "Account Info",
@@ -767,92 +873,6 @@
     "downloadFailed": "Download failed",
     "exportFailed": "Export failed"
   },
-  "recovery": {
-    "banner": "Recovery mode — your wallet keys are loaded in this browser",
-    "bannerDesc": "Your two key files have been combined and loaded locally. You can sign transactions and connect to dApps without our server.",
-    "bannerWarning": "Move your funds to a new wallet after recovery.",
-    "bannerKeep": "Keep your key files stored safely",
-    "bannerKeepDesc": "in a separate location.",
-    "title": "Backup & Recovery",
-    "allSet": "All set",
-    "someIncomplete": "Some keys need attention",
-    "keySavedInBrowser": "Key saved in browser",
-    "keyBackedUpOnServer": "Key backed up on server",
-    "serverKeyDownloaded": "Server key downloaded",
-    "importKeyFile": "Import key file",
-    "keyFileNotOnAccount": "Key file {{id}} does not match any wallet on this account. It may be from an old or deleted wallet. Export a fresh key file from the site where the wallet lives.",
-    "importWalletDesc": "Already have a kexify wallet? Import its key file here to use it on this site. Your passkey from another site does not carry over, so you will register one here.",
-    "downloadKeyFile": "Download key file",
-    "uploadKeyFileAsBackup": "Upload backup",
-    "downloadServerKeyBackup": "Download server key",
-    "restoreFromServer": "Restore from server",
-    "restoreFailed": "Failed to restore from server",
-    "prfNotSupported": "Your passkey does not support PRF — use Import key file instead",
-    "useImportKeyFile": "Backup format requires passphrase — use Import key file instead",
-    "unknownBackupFormat": "Unknown backup format",
-    "wrongPassphrase": "Wrong passphrase — try again",
-    "enterPassphraseToRestore": "Enter the passphrase used when backing up this key",
-    "moreOptionsInExpertMode": "More options in Expert Mode",
-    "howToRecover": "How to recover your wallet",
-    "getBothKeyFiles": "Get both key files",
-    "openRecoveryPage": "Open the recovery page",
-    "moveFunds": "Move funds to a new wallet",
-    "recoveryPage": "Recovery page",
-    "sourceCode": "Source code",
-    "downloadHandbook": "Download handbook",
-    "walletRecovery": "Wallet Recovery",
-    "recoveryDesc": "Load your two key files to recover your wallet.",
-    "yourKeyFile": "Your key file",
-    "serverKeyFile": "Server key file",
-    "chooseJsonFile": "Choose .json file",
-    "fileIsEncrypted": "This file is encrypted",
-    "serverEncryptedBackup": "Server encrypted backup",
-    "decrypt": "Decrypt",
-    "cancel": "Cancel",
-    "keyFileLoaded": "Key file loaded",
-    "enterRecoveryMode": "Enter Recovery Mode",
-    "initializing": "Initializing...",
-    "backToLogin": "Back to login",
-    "description": "Keep your wallet safe. Complete these steps so you can recover your accounts if needed.",
-    "allSetDesc": "You can recover all your accounts even if you lose access to this device or our server goes down.",
-    "incompleteDesc": "Complete the checklist below to ensure you can always recover your wallet.",
-    "browserDetail": "Your key is encrypted and stored locally so you can sign transactions.",
-    "escrowDetail": "An encrypted copy of your key is stored on our server. You can restore it on any device.",
-    "serverDetailSelfCustody": "You hold a self-custody copy of the server's key share.",
-    "serverDetailHkdf": "You have a server-encrypted backup. Contact kexify support to decrypt it in an emergency.",
-    "serverDetailDownload": "Download a backup of the server's key share. It's encrypted by the server — in an emergency, contact us to decrypt it.",
-    "enterPassphraseToUnlock": "Enter your passphrase to unlock:",
-    "unlock": "Unlock",
-    "setPassphraseForDownload": "Set a passphrase to protect the downloaded file:",
-    "encryptAndDownload": "Encrypt & Download",
-    "exporting": "Exporting...",
-    "enterPassphraseToDecrypt": "Enter passphrase to decrypt:",
-    "decryptAndSave": "Decrypt & Save",
-    "saving": "Saving...",
-    "uploading": "Uploading...",
-    "downloading": "Downloading...",
-    "downloadFailed": "Download failed",
-    "uploadFailed": "Upload failed",
-    "invalidKeyShareFile": "Invalid key share file",
-    "keyFileDifferentAccount": "This key file belongs to a different account",
-    "couldNotParseKeyFile": "Could not parse key share file",
-    "incorrectPassphrase": "Incorrect passphrase",
-    "couldNotDecryptWrongPasskey": "Could not decrypt. Wrong passkey?",
-    "couldNotDecrypt": "Could not decrypt",
-    "noBrowserKeyShare": "No browser key share found",
-    "fullSelfCustodyExpert": "For full self-custody, use Expert mode in Config.",
-    "getBothKeyFilesDesc": "You need your key file and the server key file. Both should be saved as .json files.",
-    "openRecoveryPageDesc": "Go to {{url}} and load both files. The app works offline — no server needed.",
-    "moveFundsDesc": "Once in recovery mode, send your funds to a new wallet for best security. You can also use WalletConnect to interact with any dApp.",
-    "sourceCodeDesc": "Source code (in case app is unavailable)",
-    "publicKeysMismatch": "Public keys do not match — these shares belong to different keys",
-    "eddsaKeysMismatch": "EdDSA public keys do not match — these shares belong to different keys",
-    "decryptionFailed": "Decryption failed",
-    "hkdfDecryptionFailed": "HKDF decryption failed",
-    "failedToEnterRecovery": "Failed to enter recovery mode",
-    "couldNotParseJson": "Could not parse file as JSON",
-    "hexKeyPlaceholder": "64-character hex key"
-  },
   "freeze": {
     "walletProof": {
       "title": "Unfreeze with your wallet",
@@ -894,7 +914,9 @@
     "cancelUnfreezePasskeyDesc": "Verify with your passkey to cancel the scheduled unfreeze. Your account will remain frozen.",
     "failedToFreeze": "Failed to freeze",
     "failedToUnfreeze": "Failed to schedule unfreeze",
-    "failedToCancelUnfreeze": "Failed to cancel unfreeze"
+    "failedToCancelUnfreeze": "Failed to cancel unfreeze",
+    "blockedReason": "Your account is frozen",
+    "noToken": "No freeze link provided"
   },
   "backup": {
     "backUpYourWallet": "Back up your wallet",
@@ -1001,7 +1023,12 @@
     "to": "To",
     "contractAddr": "Contract",
     "enabled": "Enabled {{symbol}}",
-    "optedIn": "Opted in {{symbol}}"
+    "optedIn": "Opted in {{symbol}}",
+    "confirmed": "Confirmed",
+    "network": "Network",
+    "date": "Date",
+    "hash": "Transaction hash",
+    "waitingConfirmation": "Waiting for network confirmation"
   },
   "addressBook": {
     "title": "Address Book",
@@ -1015,7 +1042,12 @@
     "saveAddressesWhenSending": "Save addresses when sending to quickly find them here.",
     "recentRecipients": "Recent Recipients",
     "editLabel": "Edit label",
-    "remove": "Remove"
+    "remove": "Remove",
+    "deleteConfirm": "Delete this address?",
+    "addressRequired": "Address is required",
+    "selectChainFirst": "Select a chain first",
+    "invalidAddress": "Invalid {{chain}} address",
+    "invalidChain": "Invalid chain type"
   },
   "policy": {
     "editPolicy": "Edit Policy",
@@ -1092,12 +1124,18 @@
     "fraudMax": "max",
     "fraudHighDesc": "Standard — sanctions, cybercrime, theft",
     "fraudMediumDesc": "Strict — + phishing, laundering, darkweb",
-    "fraudLowDesc": "Maximum — all flags incl. mixers"
+    "fraudLowDesc": "Maximum — all flags incl. mixers",
+    "loadFailed": "Could not load policy rules.",
+    "submitFailed": "Could not submit the policy change.",
+    "cancelFailed": "Could not cancel the pending change."
   },
   "verifyToken": {
     "missingToken": "Missing verification token",
     "backToLogin": "Back to login",
-    "verifying": "Verifying..."
+    "verifying": "Verifying...",
+    "invalid": "This login link is not valid. Request a new one.",
+    "used": "This login link was already used. Enter the code from the email, or request a new email.",
+    "expired": "This login link has expired. Request a new one."
   },
   "standalone": {
     "title": "Anonymous Wallet",
@@ -1189,5 +1227,69 @@
     "configNote": "Your address book, display settings and WalletConnect sessions stay in this browser. Export your config here and import it on {{host}}; reconnect dApps there.",
     "openConfig": "Open Config",
     "antiPhishing": "kexify will never ask for your key file or passphrase by email, chat or support. Only use them on {{host}}, and type the address yourself."
+  },
+  "auth": {
+    "error": {
+      "network": "Could not reach the server. Check your connection and try again.",
+      "invalidCode": "Invalid or expired code",
+      "tooManyAttempts": "Too many attempts. Try again in a few minutes.",
+      "codeLocked": "Too many attempts. Use the link in the email, or request a new code later."
+    },
+    "resendIn": "Resend in {{seconds}}s",
+    "resend": "Resend email",
+    "changeEmail": "Use a different email"
+  },
+  "alert": {
+    "error": "Something went wrong"
+  },
+  "protection": {
+    "notFull": "Not fully protected",
+    "full": "Fully protected",
+    "notMandatory": "You can do it later, but until then your wallet is not fully protected."
+  },
+  "lock": {
+    "sessionEnded": "Your session ended. Sign in again.",
+    "cannotUnlock": "Can't unlock here. Sign out and sign in with your email."
+  },
+  "settings": {
+    "signOutConfirm": "Sign out? Your wallet stays on this device; you'll need your email to sign back in."
+  },
+  "theme": {
+    "system": "Same as device",
+    "light": "Light",
+    "dark": "Dark"
+  },
+  "receive": {
+    "warning": {
+      "title": "Only send on this network",
+      "body": "Send only assets on {{network}} to this address. Funds sent on another network may be lost."
+    },
+    "memo": {
+      "title": "Exchange deposit?",
+      "body": "This address needs no memo or tag to receive into your own wallet."
+    },
+    "share": "Share",
+    "search": "Search networks",
+    "noMatch": "No matching networks",
+    "receivedToast": "Received {{amount}} {{symbol}}"
+  },
+  "kit": {
+    "why": "Save an encrypted copy of your key share so you can recover your wallet if you lose this device.",
+    "setPassphrase": "Set passphrase",
+    "enterPassphrase": "Enter passphrase",
+    "confirmPassphrase": "Confirm passphrase",
+    "tooShort": "Use at least 12 characters.",
+    "mismatch": "Passphrases do not match.",
+    "hint": "You will need this passphrase later. There is no way to recover it.",
+    "encrypt": "Encrypt",
+    "decrypt": "Decrypt",
+    "processing": "Processing...",
+    "show": "Show",
+    "hide": "Hide",
+    "verifyTitle": "Enter the passphrase again",
+    "verifyBody": "This checks you saved it. There is no way to recover a forgotten passphrase.",
+    "verify": "Verify",
+    "verified": "Backup verified",
+    "verifyLater": "Verify later"
   }
 }

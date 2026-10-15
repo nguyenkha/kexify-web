@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Spinner } from "./ui";
+import { Spinner, CopyableText } from "./ui";
 import type { Chain, Asset } from "../lib/api";
 import { explorerLink } from "../shared/utils";
 import { fetchTransactions, type Transaction } from "../lib/transactions";
@@ -8,7 +8,8 @@ import { fetchNativeBalance, fetchTokenBalances, getCachedNativeBalance, getCach
 import { clearCache, balanceCacheKey, tokenBalancesCacheKey, txCacheKey, getStaleCache, setCache } from "../lib/dataCache";
 import { fetchPrices, formatUsd, getUsdValue } from "../lib/prices";
 import { useFrozen } from "../context/FrozenContext";
-import { useHideBalances, maskBalance } from "../context/HideBalancesContext";
+import { useHideBalances } from "../context/HideBalancesContext";
+import { MASK, balancesHiddenNow } from "../lib/hidden-amount";
 import { cashAddrToLegacy } from "../lib/chains/bchAdapter";
 import { QrModal } from "./QrModal";
 import { TxRow } from "./TxRow";
@@ -125,7 +126,6 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [showQr, setShowQr] = useState(false);
   const [showSend, setShowSend] = useState(false);
   const [speedUpData, setSpeedUpData] = useState<SpeedUpData | undefined>();
@@ -190,7 +190,7 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
             for (const tx of txs) {
               const oneHourAgo = Date.now() / 1000 - 3600;
               if (!prevHashes.has(tx.hash) && tx.direction === "in" && tx.confirmed && tx.timestamp > oneHourAgo) {
-                addToast(`Received ${tx.formatted} ${tx.symbol}`, "success");
+                addToast(t("receive.receivedToast", { amount: balancesHiddenNow() ? MASK : tx.formatted, symbol: tx.symbol }), "success");
               }
             }
             const fetchedHashes = new Set(txs.map((t) => t.hash));
@@ -281,12 +281,6 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
     }
   }
 
-  function copyAddress() {
-    navigator.clipboard.writeText(address);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  }
-
   return (
     <div className="space-y-5">
       {/* Back button */}
@@ -322,10 +316,10 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
           onClick={() => setShowFullBalance(!showFullBalance)}
           className="text-2xl font-semibold tabular-nums text-text-primary mt-3 break-all cursor-pointer hover:text-text-secondary transition-colors"
         >
-          {maskBalance(showFullBalance ? balance : truncateBalance(balance), balancesHidden)} <span className="text-text-tertiary text-sm">{asset.symbol}</span>
+          {balancesHidden ? MASK : (showFullBalance ? balance : truncateBalance(balance))} <span className="text-text-tertiary text-sm">{asset.symbol}</span>
         </button>
         {usdValue != null && (
-          <p className="text-sm text-text-muted tabular-nums mt-0.5">{balancesHidden ? "••••" : formatUsd(usdValue)}</p>
+          <p className="text-sm text-text-muted tabular-nums mt-0.5">{balancesHidden ? MASK : formatUsd(usdValue)}</p>
         )}
 
         {/* Action buttons */}
@@ -354,23 +348,6 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
             </div>
             <span className="text-[11px] text-text-muted group-hover:text-text-secondary transition-colors">{t("common.receive")}</span>
           </button>
-          <button
-            onClick={copyAddress}
-            className="flex flex-col items-center gap-1.5 group"
-          >
-            <div className="w-11 h-11 rounded-full bg-surface-tertiary group-hover:bg-border-primary group-active:bg-border-secondary flex items-center justify-center transition-colors">
-              {copied ? (
-                <svg className="w-5 h-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                </svg>
-              ) : (
-                <svg className="w-5 h-5 text-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
-                </svg>
-              )}
-            </div>
-            <span className="text-[11px] text-text-muted group-hover:text-text-secondary transition-colors">{copied ? t("common.copied") : t("common.copy")}</span>
-          </button>
           {(chain.type === "xlm" || chain.type === "algo") && asset.isNative && chainAssets && chainAssets.some(a => !a.isNative) && (
             <button
               onClick={() => chain.type === "algo" ? setShowAlgoOptIn(true) : setShowXlmTrustline(true)}
@@ -386,11 +363,12 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
             </button>
           )}
         </div>
+        {frozen && <p className="text-[11px] text-text-muted mt-2">{t("freeze.blockedReason")}</p>}
       </div>
 
       {/* Address + explorer link */}
       <div className="flex items-center justify-center gap-2 text-[11px] text-text-muted" title={t("tokenDetail.walletAddressTooltip")}>
-        <span className="font-mono">{address.slice(0, 10)}...{address.slice(-8)}</span>
+        <CopyableText value={address} textClassName="font-mono">{address.slice(0, 10)}...{address.slice(-8)}</CopyableText>
         <a
           href={explorerLink(chain.explorerUrl, `/address/${address}`)}
           target="_blank"
@@ -424,16 +402,7 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
         return (
           <div className="flex items-center justify-center gap-2 text-[10px] text-text-muted/70 -mt-3">
             <span className="text-text-muted/50">{t("tokenDetail.legacyAddress")}</span>
-            <span className="font-mono">{legacyAddr.slice(0, 8)}...{legacyAddr.slice(-6)}</span>
-            <button
-              onClick={() => { navigator.clipboard.writeText(legacyAddr); }}
-              className="hover:text-text-secondary transition-colors"
-              title={t("common.copyLegacyAddress")}
-            >
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
-              </svg>
-            </button>
+            <CopyableText value={legacyAddr} textClassName="font-mono">{legacyAddr.slice(0, 8)}...{legacyAddr.slice(-6)}</CopyableText>
           </div>
         );
       })()}
@@ -489,6 +458,7 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
                   key={`pending-${tx.hash}-${i}`}
                   tx={tx}
                   explorerUrl={chain.explorerUrl}
+                  networkName={chain.displayName}
                   onSpeedUp={(chain.type === "btc" || chain.type === "ltc") && !frozen && expert ? () => handleSpeedUp(tx.hash) : undefined}
                 />
               ))}
@@ -541,24 +511,7 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
                   </div>
                   <div className="bg-surface-primary border border-border-primary rounded-lg px-3.5 py-3 text-left">
                     <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-1.5">{t("tokenDetail.yourReceiveAddress")}</p>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono text-text-secondary flex-1 break-all">{address}</span>
-                      <button
-                        onClick={copyAddress}
-                        className="shrink-0 p-1.5 rounded hover:bg-surface-tertiary transition-colors"
-                        title={t("common.copy")}
-                      >
-                        {copied ? (
-                          <svg className="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                          </svg>
-                        ) : (
-                          <svg className="w-3.5 h-3.5 text-text-muted hover:text-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
-                          </svg>
-                        )}
-                      </button>
-                    </div>
+                    <CopyableText value={address} className="text-text-secondary" textClassName="text-xs font-mono break-all" />
                   </div>
                   <div className="flex gap-2 justify-center">
                     <button
@@ -591,7 +544,7 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
           {!loading && !error && transactions.filter((t) => t.confirmed).length > 0 && (
             <div className="divide-y divide-border-secondary">
               {transactions.filter((t) => t.confirmed).map((tx, i) => (
-                <TxRow key={`${tx.hash}-${i}`} tx={tx} explorerUrl={chain.explorerUrl} />
+                <TxRow key={`${tx.hash}-${i}`} tx={tx} explorerUrl={chain.explorerUrl} networkName={chain.displayName} />
               ))}
             </div>
           )}
@@ -644,7 +597,7 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
             setTransactions((prev) => [pendingTx, ...prev]);
           }}
           onTxConfirmed={(txHash) => {
-            addToast(`Transaction confirmed`, "success");
+            addToast(t("notify.txConfirmed"), "success");
             setTransactions((prev) =>
               prev.map((t) => t.hash === txHash ? { ...t, confirmed: true } : t)
             );

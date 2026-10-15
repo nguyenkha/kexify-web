@@ -14,7 +14,7 @@ import {
   toBase64,
 } from "../../lib/chains/algoTx";
 import type { SigningContext } from "./signing-flows";
-import { friendlyError } from "./signing-flows";
+import { mapSendError } from "./send-error";
 
 export async function executeAlgoSigningFlow(ctx: SigningContext): Promise<void> {
   const {
@@ -117,7 +117,7 @@ export async function executeAlgoSigningFlow(ctx: SigningContext): Promise<void>
 
   } catch (err: unknown) {
     console.error("[send] ALGO Error:", err);
-    setSigningError(friendlyError(err, t));
+    setSigningError(mapSendError(err, t));
   } finally {
     clearClientKey(keyFile.id);
   }

@@ -13,7 +13,7 @@ import {
   toBase64,
 } from "../../lib/chains/adaTx";
 import type { SigningContext } from "./signing-flows";
-import { friendlyError } from "./signing-flows";
+import { mapSendError } from "./send-error";
 
 export async function executeAdaSigningFlow(ctx: SigningContext): Promise<void> {
   const {
@@ -105,7 +105,7 @@ export async function executeAdaSigningFlow(ctx: SigningContext): Promise<void> 
 
   } catch (err: unknown) {
     console.error("[send] ADA Error:", err);
-    setSigningError(friendlyError(err, t));
+    setSigningError(mapSendError(err, t));
   } finally {
     clearClientKey(keyFile.id);
   }

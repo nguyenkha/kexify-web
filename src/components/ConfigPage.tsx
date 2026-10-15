@@ -20,6 +20,11 @@ import { useSetExpertMode } from "../context/ExpertModeContext";
 import { useTranslation } from "react-i18next";
 import { setLanguage, getStoredLanguage } from "../i18n/i18n";
 import { isNotifyEnabled, setNotifyEnabled } from "../lib/notify";
+import { friendlyError } from "../lib/error-message";
+import { isRecoveryMode } from "../lib/recovery";
+import { ThemeSelector } from "./theme-selector";
+import { ConfirmDialog } from "./ui/confirm-dialog";
+import { SignOutConfirmDialog } from "./sign-out-confirm-dialog";
 
 type RpcStatus = "checking" | "ok" | "error";
 
@@ -320,36 +325,48 @@ export function ConfigPage() {
     setTimeout(() => setSaved(false), 1500);
   }
 
+  // Import and reset overwrite overrides (RPC choices may matter for privacy): confirm first
+  const [pendingImport, setPendingImport] = useState<UserOverrides | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [importError, setImportError] = useState("");
+
   function importConfig(file: File) {
+    setImportError("");
     const reader = new FileReader();
     reader.onload = () => {
       try {
         const parsed = JSON.parse(reader.result as string);
-        save(parsed);
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("not an object");
+        setPendingImport(parsed as UserOverrides);
       } catch {
-        // invalid JSON
+        setImportError(t("config.invalidJson"));
       }
     };
+    reader.onerror = () => setImportError(t("config.invalidJson"));
     reader.readAsText(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   const [emailSending, setEmailSending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [emailError, setEmailError] = useState("");
 
   async function emailConfig() {
     setEmailSending(true);
+    setEmailError("");
     try {
       const res = await fetch(apiUrl("/api/settings/backup-email"), {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify({ config: overrides }),
       });
-      if (!res.ok) throw new Error("Failed to send");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setEmailSent(true);
       setTimeout(() => setEmailSent(false), 3000);
     } catch (err) {
       setEmailSent(false);
-      alert(`Failed to send: ${err instanceof Error ? err.message : String(err)}`);
+      setEmailError(friendlyError(err, t).message);
     } finally {
       setEmailSending(false);
     }
@@ -460,6 +477,9 @@ export function ConfigPage() {
         <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden divide-y divide-border-secondary">
           {/* Language selector */}
           <LanguageSelector />
+
+          {/* Theme: System / Light / Dark */}
+          <ThemeSelector />
 
           {/* Notifications toggle */}
           <NotificationToggle />
@@ -729,6 +749,7 @@ export function ConfigPage() {
                 {t("config.exportConfigDesc")}
                 {emailSent && <span className="text-green-400 ml-2">{t("config.sent")}</span>}
               </p>
+              {emailError && <p role="alert" className="text-xs text-red-400 mt-1">{emailError}</p>}
             </div>
             <div className="flex gap-2 shrink-0">
               <button
@@ -766,6 +787,7 @@ export function ConfigPage() {
             <div className="min-w-0">
               <p className="text-sm font-medium text-text-primary">{t("config.importConfig")}</p>
               <p className="text-xs text-text-muted mt-0.5">{t("config.importConfigDesc")}</p>
+              {importError && <p role="alert" className="text-xs text-red-400 mt-1">{importError}</p>}
             </div>
             <div>
               <input
@@ -792,7 +814,7 @@ export function ConfigPage() {
                 <p className="text-xs text-text-muted mt-0.5">{t("config.resetToDefaultsDesc")}</p>
               </div>
               <button
-                onClick={resetConfig}
+                onClick={() => setConfirmReset(true)}
                 className="px-3 py-2 rounded-lg text-xs font-medium text-red-400 hover:bg-red-500/10 transition-colors"
               >
                 {t("config.reset")}
@@ -801,6 +823,35 @@ export function ConfigPage() {
           )}
         </div>
       </div>
+
+      {/* ── Sign out (destructive, last) ── */}
+      {!isRecoveryMode() && (
+        <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden">
+          <button
+            onClick={() => setConfirmSignOut(true)}
+            className="w-full px-3 md:px-5 py-4 text-left text-sm font-medium text-red-400 hover:bg-red-500/10 transition-colors"
+          >
+            {t("nav.signOut")}
+          </button>
+        </div>
+      )}
+
+      <SignOutConfirmDialog open={confirmSignOut} onCancel={() => setConfirmSignOut(false)} />
+      <ConfirmDialog
+        open={confirmReset}
+        message={t("config.resetConfirm")}
+        confirmLabel={t("config.reset")}
+        destructive
+        onConfirm={() => { setConfirmReset(false); resetConfig(); }}
+        onCancel={() => setConfirmReset(false)}
+      />
+      <ConfirmDialog
+        open={!!pendingImport}
+        message={t("config.importConfirm")}
+        confirmLabel={t("config.upload")}
+        onConfirm={() => { if (pendingImport) save(pendingImport); setPendingImport(null); }}
+        onCancel={() => setPendingImport(null)}
+      />
 
       {/* ── JSON Editor Modal ── */}
       {jsonMode && (

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import type { KeyShare } from "../shared/types";
 import { fetchChains, fetchAssets, fetchSettings, type Chain, type Asset, type Settings } from "../lib/api";
@@ -31,6 +31,9 @@ import { BackupReminder } from "./backup-reminder";
 import { usePrices } from "../lib/use-prices";
 import { WalletActivity } from "./WalletActivity";
 import { PortfolioHeader } from "./PortfolioHeader";
+import { HomeSendReceive } from "./home-send-receive";
+import { useKitVerified } from "../lib/protection-status";
+import { useOnlineStatus } from "../lib/use-online-status";
 
 /** Default polling interval for balance/price refresh (ms) — overridden by server setting */
 const DEFAULT_POLL_INTERVAL = 60_000;
@@ -39,6 +42,7 @@ export function Wallet() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const frozen = useFrozen();
+  const online = useOnlineStatus();
   const expert = useExpertMode();
 
   function formatLastUpdated(date: Date): string {
@@ -165,6 +169,17 @@ export function Wallet() {
   );
 
   const [policyKeyId, setPolicyKeyId] = useState<string | null>(null);
+  // "Review policy rules" from a policy-blocked send navigates here with the key to open.
+  const location = useLocation();
+  const [handledLocationKey, setHandledLocationKey] = useState<string | null>(null);
+  const requestedPolicyKeyId = (location.state as { openPolicyKeyId?: string } | null)?.openPolicyKeyId;
+  if (requestedPolicyKeyId && handledLocationKey !== location.key) {
+    setHandledLocationKey(location.key);
+    setPolicyKeyId(requestedPolicyKeyId);
+    setActiveTab("accounts");
+    // Drop the request so a reload does not open the rules again.
+    history.replaceState(null, "", window.location.pathname + window.location.search);
+  }
   const [manageDisplayKeyId, setManageDisplayKeyId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -248,7 +263,7 @@ export function Wallet() {
 
   // Group account rows by key
   const keyGroups = useMemo(() => {
-    const groups: { keyId: string; keyName: string | null; selfCustody: boolean; backedUp: boolean; rows: AccountRow[] }[] = [];
+    const groups: { keyId: string; keyName: string | null; selfCustody: boolean; rows: AccountRow[] }[] = [];
     for (const row of accountRows) {
       const existing = groups.find((g) => g.keyId === row.keyId);
       if (existing) {
@@ -256,11 +271,24 @@ export function Wallet() {
       } else {
         const key = keys.find((k) => k.id === row.keyId);
         const serverKeyExported = !!key?.selfCustodyAt || !!key?.hkdfDownloadedAt;
-        groups.push({ keyId: row.keyId, keyName: key?.name ?? null, selfCustody: serverKeyExported, backedUp: !!key?.hasClientBackup, rows: [row] });
+        groups.push({ keyId: row.keyId, keyName: key?.name ?? null, selfCustody: serverKeyExported, rows: [row] });
       }
     }
     return groups;
   }, [accountRows, keys]);
+
+  // Protection status (UX spec: onboarding-create-wallet.md): a wallet is fully protected only once
+  // its emergency kit is verified; the PRF escrow backup does not count. Self-custody wallets
+  // (server share exported) stay out of the nag.
+  const protectableKeyIds = keyGroups.filter((g) => !g.selfCustody).map((g) => g.keyId);
+  const { verified: kitVerified, allVerified: allKitsVerified } = useKitVerified(protectableKeyIds);
+  const notFullyProtected = !isRecovery && protectableKeyIds.some((id) => !kitVerified.has(id));
+  // One banner at a time: frozen (App) > offline > not fully protected > incomplete keygen.
+  const homeBanner: "protection" | "incomplete" | null = frozen || !online
+    ? null
+    : notFullyProtected ? "protection" : incompleteKeys.length > 0 ? "incomplete" : null;
+  const walletName = (keyId: string) =>
+    keyGroups.length > 1 ? keyGroups.find((g) => g.keyId === keyId)?.keyName ?? null : null;
 
   async function toggleKey(id: string, enabled: boolean) {
     const res = await fetch(apiUrl(`/api/keys/${id}`), {
@@ -421,9 +449,26 @@ export function Wallet() {
 
   return (
     <div className="space-y-6">
-      {/* Portfolio total */}
+      {homeBanner === "protection" && (
+        <BackupReminder onBackup={() => navigate("/backup-recovery")} />
+      )}
+      {homeBanner === "incomplete" && (
+        <div className="bg-yellow-500/5 border border-yellow-500/15 rounded-lg px-4 py-3 flex items-start gap-3">
+          <svg className="w-4 h-4 text-yellow-500/70 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          </svg>
+          <p className="text-xs text-yellow-500/80 leading-relaxed">
+            {t(incompleteKeys.length !== 1 ? "wallet.incompleteKeys_plural" : "wallet.incompleteKeys", { count: incompleteKeys.length })}
+          </p>
+        </div>
+      )}
+
+      {/* Portfolio total, protection label, home-level Send / Receive */}
       {keyGroups.length > 0 && (
-        <PortfolioHeader totalUsd={portfolioTotal} loading={loading} />
+        <div>
+          <PortfolioHeader totalUsd={portfolioTotal} loading={loading} fullyProtected={!isRecovery && allKitsVerified} />
+          <HomeSendReceive rows={accountRows} prices={prices} walletName={walletName} />
+        </div>
       )}
 
       {/* Accounts / Activity tab bar */}
@@ -592,11 +637,6 @@ export function Wallet() {
       {/* Elements below only shown on Accounts tab */}
       {activeTab === "accounts" && (
         <>
-      {/* Backup reminder for keys without backup */}
-      {keyGroups.some(g => !g.backedUp && !g.selfCustody) && !isRecovery && (
-        <BackupReminder onBackup={() => navigate("/backup-recovery")} />
-      )}
-
       {policyKeyId && (
         <PolicyRules
           keyId={policyKeyId}
@@ -623,27 +663,6 @@ export function Wallet() {
           </svg>
           {t("wallet.addAccount")}
         </button>
-      )}
-
-      {incompleteKeys.length > 0 && (
-        <div className="bg-yellow-500/5 border border-yellow-500/15 rounded-lg px-4 py-3 flex items-start gap-3">
-          <svg
-            className="w-4 h-4 text-yellow-500/70 shrink-0 mt-0.5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
-            />
-          </svg>
-          <p className="text-xs text-yellow-500/80 leading-relaxed">
-            {t(incompleteKeys.length !== 1 ? "wallet.incompleteKeys_plural" : "wallet.incompleteKeys", { count: incompleteKeys.length })}
-          </p>
-        </div>
       )}
 
       {disabledKeys.length > 0 && (

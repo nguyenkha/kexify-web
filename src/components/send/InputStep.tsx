@@ -1,10 +1,22 @@
-import { maskBalance } from "../../context/HideBalancesContext";
+import { maskAmount } from "../../lib/hidden-amount";
 import { formatUsd } from "../../lib/prices";
 import { truncateBalance } from "../sendTypes";
 import type { InputStepProps } from "./types";
 import { KeyShareSection } from "./KeyShareSection";
 import { AddressSection } from "./AddressSection";
 import { ExpertOverrides, ExpertFeeLevelSelector } from "./ExpertOverrides";
+
+/** Fee quote failed: say so and offer a retry instead of "Estimating..." forever. */
+function FeeFailed({ onRetry, t }: { onRetry: () => void; t: InputStepProps["t"] }) {
+  return (
+    <span className="text-[10px] text-red-400">
+      {t("send.feeFailed")}{" "}
+      <button type="button" onClick={onRetry} className="font-medium text-blue-400 hover:text-blue-300 underline">
+        {t("common.retry")}
+      </button>
+    </span>
+  );
+}
 
 export function InputStep({
   chain,
@@ -60,6 +72,8 @@ export function InputStep({
   setFeeLevel,
   feeDisplay,
   feeCountdown,
+  feeError,
+  onRetryFee,
   btcFeeRates,
   ltcFeeRates,
   bchFeeRates,
@@ -125,7 +139,7 @@ export function InputStep({
           <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5">
             <p className="text-xs font-mono text-text-tertiary truncate">{address}</p>
             <p className="text-[10px] text-text-muted mt-0.5">
-              {t("send.balance")}: {maskBalance(truncateBalance(balance), balancesHidden)} {asset.symbol} &middot; {chain.displayName}
+              {t("send.balance")}: {maskAmount(truncateBalance(balance), asset.symbol, balancesHidden)} &middot; {chain.displayName}
             </p>
           </div>
         </div>
@@ -170,8 +184,10 @@ export function InputStep({
           <div className="flex items-center justify-between mb-1.5">
             <label className="text-xs text-text-muted">{t("send.amount")}</label>
             <button
-              onClick={() => { setAmount(maxSendable); setAmountTouched(true); }}
-              className="text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
+              onClick={() => { if (maxSendable != null) { setAmount(maxSendable); setAmountTouched(true); } }}
+              disabled={maxSendable == null}
+              title={maxSendable == null ? t("common.estimating") : undefined}
+              className="text-[10px] text-blue-400 hover:text-blue-300 disabled:text-text-muted disabled:cursor-not-allowed transition-colors"
             >
               {t("send.max")}
             </button>
@@ -223,7 +239,7 @@ export function InputStep({
                   ? formatUsd(feeDisplay.usd)
                   : feeDisplay.formatted != null
                     ? `${feeDisplay.formatted} ${feeDisplay.symbol}`
-                    : t("common.estimating")}
+                    : feeError ? <FeeFailed onRetry={onRetryFee} t={t} /> : t("common.estimating")}
               </span>
             </div>
           )
@@ -282,6 +298,8 @@ export function InputStep({
                 <span className="text-text-muted ml-1">({formatUsd(feeDisplay.usd)})</span>
               )}
             </span>
+          ) : feeError ? (
+            <FeeFailed onRetry={onRetryFee} t={t} />
           ) : (
             <span className="text-[10px] text-text-muted animate-pulse">{t("common.estimating")}</span>
           )}

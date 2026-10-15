@@ -15,6 +15,7 @@ import { authPublicKeyHex, performShareAuth } from "../lib/share-auth";
 import { apiUrl } from "../lib/apiBase";
 import { Spinner, ErrorBox } from "./ui";
 import { PassphraseInput } from "./PassphraseInput";
+import { KitVerifyStep } from "./KitVerifyStep";
 import { PasskeyGate } from "./PasskeyGate";
 import { useSteppedProgress, CREATING_DURATION_MS, ProgressBar } from "./ProgressBar";
 import { getStandaloneShares, deleteKeyShare } from "../lib/keystore";
@@ -74,6 +75,8 @@ export function StandaloneKeygen() {
   const [rawKeyData, setRawKeyData] = useState<KeyFileData | null>(null);
   const [keyFile, setKeyFile] = useState<{ blob: Blob; fileName: string } | null>(null);
   const [downloaded, setDownloaded] = useState(false);
+  // Passphrase of the backup file, kept in memory only for the verify step
+  const [kitPassphrase, setKitPassphrase] = useState<string | null>(null);
   const [creatingStep, setCreatingStep] = useState(0);
   const [creatingDone, setCreatingDone] = useState(false);
   const turnstileRef = useRef<HTMLDivElement>(null);
@@ -239,6 +242,7 @@ export function StandaloneKeygen() {
       const blob = new Blob([JSON.stringify(fileData, null, 2)], { type: "application/json" });
       const fileName = `kexify-${(name.trim() || "anonymous").toLowerCase().replace(/\s+/g, "-")}-${rawKeyData.id.slice(0, 8)}.json`;
       setKeyFile({ blob, fileName });
+      setKitPassphrase(passphrase);
 
       setStep("passkey");
     } catch (err) {
@@ -668,6 +672,10 @@ export function StandaloneKeygen() {
                 </svg>
               )}
             </button>
+
+            {downloaded && rawKeyData && kitPassphrase && (
+              <KitVerifyStep keyId={rawKeyData.id} passphrase={kitPassphrase} />
+            )}
 
             <button
               onClick={() => navigate("/", { replace: true })}

@@ -1,29 +1,56 @@
 // Shared error state for Send/WC/Token Enable signing failures
 
 import { useTranslation } from "react-i18next";
+import { PolicyBlockedNotice } from "./PolicyBlockedNotice";
 
 export function SigningError({
   error,
   title,
   onClose,
   onRetry,
+  policyBlocked,
+  onReviewPolicy,
+  nothingSent,
+  detail,
 }: {
   error: string;
   title?: string;
   onClose: () => void;
   onRetry: () => void;
+  /** Policy block at signing time: shown as "Blocked by policy", not "Transaction Failed". */
+  policyBlocked?: boolean;
+  onReviewPolicy?: () => void;
+  /** Failed before broadcast: say "Nothing was sent." */
+  nothingSent?: boolean;
+  /** Raw text of an unrecognised error, behind a "Details" disclosure. */
+  detail?: string;
 }) {
   const { t } = useTranslation();
   return (
     <div className="text-center py-6">
-      <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
-        <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </div>
-      <p className="text-sm font-medium text-text-primary mb-1">{title ?? t("send.txFailed")}</p>
-      <p className="text-xs text-red-400 break-all mb-2">{error}</p>
-      <p className="text-[10px] text-text-muted mb-5">{t("send.checkActivityLog")}</p>
+      {policyBlocked ? (
+        <div className="mb-5">
+          <PolicyBlockedNotice reason={error} nothingSent={nothingSent} onReviewPolicy={onReviewPolicy} />
+        </div>
+      ) : (
+        <>
+          <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </div>
+          <p className="text-sm font-medium text-text-primary mb-1">{title ?? t("send.txFailed")}</p>
+          <p role="alert" className="text-xs text-red-400 break-words mb-2">{error}</p>
+          {nothingSent && !error.includes(t("send.nothingSent")) && <p className="text-xs text-text-secondary mb-2">{t("send.nothingSent")}</p>}
+          {detail && (
+            <details className="text-left mb-2 mx-auto max-w-[300px]">
+              <summary className="text-[10px] text-text-muted cursor-pointer">{t("common.details")}</summary>
+              <p className="text-[10px] font-mono text-text-muted break-all mt-1 select-all">{detail}</p>
+            </details>
+          )}
+          <p className="text-[10px] text-text-muted mb-5">{t("send.checkActivityLog")}</p>
+        </>
+      )}
       <div className="flex gap-3">
         <button
           onClick={onClose}

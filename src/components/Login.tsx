@@ -1,15 +1,26 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { DomainMovedNotice } from "./DomainMovedNotice";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { requestMagicLink, verifyCode } from "../lib/auth";
-import { getStoredTheme, setTheme } from "../lib/theme";
+import { requestMagicLink } from "../lib/auth";
+import { authErrorMessage } from "../lib/auth-error-message";
 import { ErrorBox } from "./ui";
+import { LoginCodeForm } from "./login-code-form";
+import { ThemeToggleButton } from "./theme-toggle-button";
 import { LangSwitcher } from "./LangSwitcher";
 import { cleanupStaleShares } from "../lib/keystore";
 import { Mail } from "lucide-react";
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
+const RESEND_SECONDS = 30;
+const LAST_EMAIL_KEY = "kxi:lastEmail";
+
+type TurnstileApi = {
+  render: (el: HTMLElement, opts: Record<string, unknown>) => string;
+  reset: (id: string) => void;
+  remove: (id: string) => void;
+};
+const turnstileApi = () => (window as unknown as { turnstile?: TurnstileApi }).turnstile;
 
 /** Detect in-app browsers (Facebook, Instagram, TikTok, etc.) */
 function isInAppBrowser(): boolean {
@@ -20,12 +31,14 @@ function isInAppBrowser(): boolean {
 export function Login() {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const [email, setEmail] = useState("");
+  const [searchParams] = useSearchParams();
+  const sessionEnded = searchParams.get("session") === "ended";
+  const [email, setEmail] = useState(() => localStorage.getItem(LAST_EMAIL_KEY) ?? "");
   const [sent, setSent] = useState(false);
+  const [sendCount, setSendCount] = useState(0);
+  const [resendIn, setResendIn] = useState(0);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [code, setCode] = useState("");
-  const [verifying, setVerifying] = useState(false);
   const inApp = useMemo(isInAppBrowser, []);
   const [copied, setCopied] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
@@ -34,13 +47,25 @@ export function Login() {
   // Cleanup corrupted shares on login page mount
   useEffect(() => { cleanupStaleShares(); }, []);
 
-  // Load Turnstile script and render widget
+  // Resend countdown (30 s after each send)
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const id = setTimeout(() => setResendIn((s) => s - 1), 1000);
+    return () => clearTimeout(id);
+  }, [resendIn]);
+
+  // The widget lives under the email field (step 1) or above Resend (step 2, once allowed)
+  const turnstileSlot = !sent ? "email" : resendIn <= 0 ? "resend" : null;
+
+  // Load Turnstile script and render widget into the current slot
   const renderTurnstile = useCallback(() => {
-    if (!TURNSTILE_SITE_KEY || !turnstileRef.current) return;
-    const w = window as unknown as { turnstile?: { render: (el: HTMLElement, opts: Record<string, unknown>) => string; reset: (id: string) => void; remove: (id: string) => void } };
-    if (!w.turnstile) return;
-    if (widgetIdRef.current) w.turnstile.remove(widgetIdRef.current);
-    widgetIdRef.current = w.turnstile.render(turnstileRef.current, {
+    const api = turnstileApi();
+    if (!TURNSTILE_SITE_KEY || !turnstileRef.current || !api) return;
+    if (widgetIdRef.current) {
+      try { api.remove(widgetIdRef.current); } catch { /* old node already gone */ }
+    }
+    setCaptchaToken(null);
+    widgetIdRef.current = api.render(turnstileRef.current, {
       sitekey: TURNSTILE_SITE_KEY,
       theme: "dark",
       callback: (token: string) => setCaptchaToken(token),
@@ -50,21 +75,26 @@ export function Login() {
   }, []);
 
   useEffect(() => {
-    if (!TURNSTILE_SITE_KEY) return;
-    // Load Turnstile script if not already loaded
-    if (document.querySelector('script[src*="turnstile"]')) {
+    if (!TURNSTILE_SITE_KEY || !turnstileSlot) return;
+    if (turnstileApi()) {
       renderTurnstile();
       return;
     }
+    if (document.querySelector('script[src*="turnstile"]')) return; // still loading; onload renders
     const script = document.createElement("script");
     script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
     script.async = true;
     script.onload = renderTurnstile;
     document.head.appendChild(script);
-  }, [renderTurnstile]);
+  }, [renderTurnstile, turnstileSlot]);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function resetCaptcha() {
+    setCaptchaToken(null);
+    const api = turnstileApi();
+    if (widgetIdRef.current && api) api.reset(widgetIdRef.current);
+  }
+
+  async function sendLink() {
     if (TURNSTILE_SITE_KEY && !captchaToken) {
       setError(t("login.captchaRequired"));
       return;
@@ -73,30 +103,28 @@ export function Login() {
     setError("");
     try {
       await requestMagicLink(email, captchaToken ?? undefined);
+      localStorage.setItem(LAST_EMAIL_KEY, email);
       setSent(true);
+      setSendCount((n) => n + 1);
+      setResendIn(RESEND_SECONDS);
     } catch (err) {
-      setError(String(err));
-      // Reset captcha on failure so user can retry
-      setCaptchaToken(null);
-      const w = window as unknown as { turnstile?: { reset: (id: string) => void } };
-      if (widgetIdRef.current && w.turnstile) w.turnstile.reset(widgetIdRef.current);
+      setError(authErrorMessage(err, t));
+      // Captcha tokens are single use: reset so the user can retry
+      resetCaptcha();
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleCodeSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setVerifying(true);
+    sendLink();
+  }
+
+  function changeEmail() {
+    setSent(false);
     setError("");
-    try {
-      await verifyCode(email, code);
-      navigate("/", { replace: true });
-    } catch (err) {
-      setError(String(err));
-    } finally {
-      setVerifying(false);
-    }
+    setResendIn(0);
   }
 
   return (
@@ -105,8 +133,14 @@ export function Login() {
         {/* Logo + branding */}
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold tracking-tight">kexify</h1>
-          <p className="text-[11px] text-text-muted mt-0.5">keys simplified</p>
+          <p className="text-[11px] text-text-muted mt-0.5">{t("login.tagline")}</p>
         </div>
+
+        {sessionEnded && !sent && (
+          <div role="status" className="mb-4 bg-surface-secondary border border-border-primary rounded-lg p-3 text-center text-xs text-text-secondary">
+            {t("lock.sessionEnded")}
+          </div>
+        )}
 
         {inApp && (
           <div className="mb-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 text-center">
@@ -134,27 +168,36 @@ export function Login() {
               </p>
             </div>
 
-            {/* Code input for PWA users */}
-            <form onSubmit={handleCodeSubmit} className="space-y-3">
-              <p className="text-text-muted text-xs text-center">{t("login.codePrompt")}</p>
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-                placeholder="000000"
-                className="w-full bg-surface-secondary border border-border-primary rounded-lg px-3 py-2.5 text-center text-2xl font-mono tracking-[0.3em] text-text-primary placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
-              />
-              <button
-                type="submit"
-                disabled={code.length !== 6 || verifying}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted disabled:cursor-not-allowed px-4 py-2.5 rounded-lg text-sm font-medium transition-colors text-white"
-              >
-                {verifying ? t("login.verifying") : t("login.verifyCode")}
-              </button>
-              {error && <ErrorBox>{error}</ErrorBox>}
-            </form>
+            {/* Code input for PWA users; remounted on every send */}
+            <LoginCodeForm key={sendCount} email={email} onVerified={() => navigate("/", { replace: true })} />
+
+            <div className="space-y-2 text-center text-xs">
+              {resendIn > 0 ? (
+                <p className="text-text-muted tabular-nums">{t("auth.resendIn", { seconds: resendIn })}</p>
+              ) : (
+                <>
+                  {TURNSTILE_SITE_KEY && <div ref={turnstileRef} className="flex justify-center" />}
+                  <button
+                    type="button"
+                    onClick={sendLink}
+                    disabled={loading || (!!TURNSTILE_SITE_KEY && !captchaToken)}
+                    className="text-blue-400 hover:text-blue-300 disabled:text-text-muted disabled:cursor-not-allowed transition-colors"
+                  >
+                    {loading ? t("login.sending") : t("auth.resend")}
+                  </button>
+                  {error && <ErrorBox>{error}</ErrorBox>}
+                </>
+              )}
+              <div>
+                <button
+                  type="button"
+                  onClick={changeEmail}
+                  className="text-text-muted hover:text-text-secondary transition-colors"
+                >
+                  {t("auth.changeEmail")}
+                </button>
+              </div>
+            </div>
           </div>
         ) : (
           <>
@@ -187,7 +230,7 @@ export function Login() {
               {loading ? t("login.sending") : <><Mail className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("login.sendMagicLink")}</>}
             </button>
 
-            {error && <ErrorBox>{error}</ErrorBox>}
+            {error && <div role="alert"><ErrorBox>{error}</ErrorBox></div>}
           </form>
           </>
         )}
@@ -208,38 +251,9 @@ export function Login() {
 
       {/* Theme & language toggle - bottom left */}
       <div className="fixed bottom-4 left-4 flex items-center gap-1">
-        <ThemeToggle />
+        <ThemeToggleButton className="p-2 rounded-md text-text-muted hover:text-text-secondary hover:bg-surface-tertiary transition-colors" />
         <LangSwitcher />
       </div>
     </div>
-  );
-}
-
-function ThemeToggle() {
-  const { t } = useTranslation();
-  const [current, setCurrent] = useState(getStoredTheme);
-
-  function toggle() {
-    const next = current === "dark" ? "light" : "dark";
-    setTheme(next);
-    setCurrent(next);
-  }
-
-  return (
-    <button
-      onClick={toggle}
-      className="p-2 rounded-md text-text-muted hover:text-text-secondary hover:bg-surface-tertiary transition-colors"
-      title={current === "dark" ? t("login.switchToLight") : t("login.switchToDark")}
-    >
-      {current === "dark" ? (
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
-        </svg>
-      ) : (
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
-        </svg>
-      )}
-    </button>
   );
 }

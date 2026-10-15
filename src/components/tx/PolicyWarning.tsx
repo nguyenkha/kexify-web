@@ -1,6 +1,8 @@
 // Shared policy pre-check warning banner for Send/WC preview
 
 import { useTranslation } from "react-i18next";
+import { PolicyBlockedNotice } from "./PolicyBlockedNotice";
+import { policyBlockReason } from "../send/send-error";
 
 interface PolicyCheckResult {
   allowed: boolean;
@@ -10,23 +12,26 @@ interface PolicyCheckResult {
   fraudCheck?: { flagged: boolean; flags: string[]; level: string; address: string };
 }
 
-export function PolicyWarning({ policyCheck }: { policyCheck: PolicyCheckResult | null }) {
+export function PolicyWarning({ policyCheck, onReviewPolicy }: {
+  policyCheck: PolicyCheckResult | null;
+  /** Shows a "Review policy rules" link on a policy block. */
+  onReviewPolicy?: () => void;
+}) {
   const { t } = useTranslation();
   if (!policyCheck || policyCheck.allowed) return null;
+
+  if (!policyCheck.fraudCheck?.flagged) {
+    // The server reason is English; the leg maps to a localised reason instead.
+    return <PolicyBlockedNotice reason={policyBlockReason(policyCheck.blockedLeg, t)} onReviewPolicy={onReviewPolicy} />;
+  }
 
   return (
     <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3">
       <p className="text-xs font-medium text-red-400">
-        {policyCheck.fraudCheck?.flagged
-          ? `\uD83D\uDEE1\uFE0F ${t("send.riskyAddress")}`
-          : `\u26D4 ${t("send.blockedByPolicy")}`}
+        {`🛡️ ${t("send.riskyAddress")}`}
       </p>
       <p className="text-[11px] text-red-400/80 mt-1 leading-relaxed">
-        {policyCheck.fraudCheck?.flagged
-          ? t("send.fraudFlagDesc", { flags: policyCheck.fraudCheck.flags.map(f => f.replace(/_/g, " ")).join(", ") })
-          : policyCheck.blockedLeg && ["approval", "account_control", "value_message", "unknown", "fee"].includes(policyCheck.blockedLeg)
-            ? t(`send.policyBlockedLeg.${policyCheck.blockedLeg}`)
-            : policyCheck.reason || t("send.policyBlockedDefault")}
+        {t("send.fraudFlagDesc", { flags: policyCheck.fraudCheck.flags.map(f => f.replace(/_/g, " ")).join(", ") })}
       </p>
     </div>
   );

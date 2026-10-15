@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { notify } from "../lib/notify";
 import type { Chain, Asset } from "../lib/api";
@@ -82,6 +83,8 @@ import { InputStep } from "./send/InputStep";
 import { PreviewStep } from "./send/PreviewStep";
 import { ResultStep } from "./send/ResultStep";
 import { computeFeeDisplay, computeMaxSendable } from "./send/fee-helpers";
+import type { SendError } from "./send/send-error";
+import { useFirstTimeRecipient } from "./send/use-first-time-recipient";
 
 export function SendDialog({
   keyId,
@@ -105,6 +108,7 @@ export function SendDialog({
   speedUpData?: SpeedUpData;
 }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { hidden: balancesHidden } = useHideBalances();
   const expert = useExpertMode();
   const [step, setStep] = useState<SendStep>("input");
@@ -154,6 +158,9 @@ export function SendDialog({
   const [xlmDestExists, setXlmDestExists] = useState<boolean | null>(null);
   const [xlmMemo, setXlmMemo] = useState("");
   const [feeCountdown, setFeeCountdown] = useState(10);
+  // Last fee quote request failed; feeRetry re-runs the fee effect on "Retry".
+  const [feeError, setFeeError] = useState(false);
+  const [feeRetry, setFeeRetry] = useState(0);
 
   // Keyshare file
   const [keyFile, setKeyFile] = useState<KeyFile | null>(null);
@@ -198,7 +205,16 @@ export function SendDialog({
   const [simResult, setSimResult] = useState<import("../lib/txSimulation").SimulationResult | null>(null);
 
   const [signingPhase, setSigningPhase] = useState<SigningPhase>("loading-keyshare");
-  const [signingError, setSigningError] = useState<string | null>(null);
+  const [signingError, setSigningErrorState] = useState<SendError | null>(null);
+  // A cancelled passkey prompt is not an error: back to Review unchanged (send.md step 4).
+  function setSigningError(e: SendError | null) {
+    if (e?.kind === "cancelled") {
+      setSigningErrorState(null);
+      setStep("preview");
+      return;
+    }
+    setSigningErrorState(e);
+  }
   const [txResult, setTxResult] = useState<TxResult | null>(null);
   const [pendingTxHash, setPendingTxHash] = useState<string | null>(null);
   const [signedRawTx, setSignedRawTx] = useState<string | null>(null);
@@ -345,39 +361,44 @@ export function SendDialog({
   useEffect(() => {
     fetchPrices().then(setPrices);
 
+    function onFeeFail() { setFeeError(true); }
+
     function refreshFees() {
       if (chain.type === "btc") {
         const btcApi = mempoolApiUrl(chain.explorerUrl);
         fetchFeeRates(btcApi)
           .then((rates) => {
+            setFeeError(false);
             setBtcFeeRates({
               low: rates.hourFee,
               medium: rates.halfHourFee,
               high: rates.fastestFee,
             });
           })
-          .catch(() => {});
+          .catch(onFeeFail);
       } else if (chain.type === "ltc") {
         const ltcApi = ltcApiUrl(chain.explorerUrl);
         fetchLtcFeeRates(ltcApi)
           .then((rates) => {
+            setFeeError(false);
             setLtcFeeRates({
               low: rates.hourFee,
               medium: rates.halfHourFee,
               high: rates.fastestFee,
             });
           })
-          .catch(() => {});
+          .catch(onFeeFail);
       } else if (chain.type === "bch") {
         fetchBchFeeRates()
           .then((rates) => {
+            setFeeError(false);
             setBchFeeRates({
               low: rates.suggested,
               medium: rates.suggested,
               high: rates.suggested,
             });
           })
-          .catch(() => {});
+          .catch(onFeeFail);
       } else if (chain.type === "evm") {
         if (!chain.rpcUrl) return;
         fetch(chain.rpcUrl, {
@@ -387,9 +408,11 @@ export function SendDialog({
         })
           .then((r) => r.json())
           .then((data) => {
-            if (data.result) setBaseGasPrice(BigInt(data.result));
+            if (!data.result) throw new Error("no gas price");
+            setFeeError(false);
+            setBaseGasPrice(BigInt(data.result));
           })
-          .catch(() => {});
+          .catch(onFeeFail);
       }
       else if (chain.type === "xlm") {
         if (!chain.rpcUrl) return;
@@ -399,9 +422,10 @@ export function SendDialog({
             const p10 = parseInt(data.fee_charged?.p10 ?? "100", 10);
             const p50 = parseInt(data.fee_charged?.p50 ?? "100", 10);
             const p90 = parseInt(data.fee_charged?.p90 ?? "100", 10);
+            setFeeError(false);
             setXlmFeeRates({ low: p10, medium: p50, high: p90 });
           })
-          .catch(() => {});
+          .catch(onFeeFail);
       }
       // Solana / XRP: fixed fee, no polling needed
     }
@@ -411,7 +435,7 @@ export function SendDialog({
     const feeIv = setInterval(() => { refreshFees(); setFeeCountdown(10); }, 10_000);
     const countIv = setInterval(() => setFeeCountdown((c) => Math.max(0, c - 1)), 1_000);
     return () => { clearInterval(feeIv); clearInterval(countIv); };
-  }, [chain.rpcUrl, chain.explorerUrl, chain.type]);
+  }, [chain.rpcUrl, chain.explorerUrl, chain.type, feeRetry]);
 
   // Fetch estimated gas and nonce for EVM chains
   useEffect(() => {
@@ -431,7 +455,7 @@ export function SendDialog({
     setGasEstimateError(null);
     estimateGas(chain.rpcUrl, { from: address, to: txTo, value, data })
       .then((gas) => { setEstimatedGas(gas); setGasEstimateError(null); })
-      .catch((err) => { setEstimatedGas(null); setGasEstimateError(err?.message || "Gas estimation failed — transaction may revert"); });
+      .catch((err) => { setEstimatedGas(null); setGasEstimateError(err?.message || "gas_estimate_failed"); });
   }, [chain.type, chain.rpcUrl, address, to, amount, asset]);
 
   // Effective fee values based on selected level + expert overrides
@@ -484,7 +508,7 @@ export function SendDialog({
   const toError = toTouched && to.length > 0 && !toValid && !resolving && !isNameInput ? t("send.invalidAddress") : null;
   const toSelf = toValid && (chain.type === "solana" ? toAddr === address : toAddr.toLowerCase() === address.toLowerCase());
   const amountCheck = isValidAmount(amount, balance);
-  const amountError = amountTouched && amount.length > 0 && !amountCheck.valid ? amountCheck.error : null;
+  const amountError = amountTouched && amount.length > 0 && !amountCheck.valid && amountCheck.error ? t(amountCheck.error) : null;
   const amountUsd = amount ? getUsdValue(amount, asset.symbol, prices) : null;
 
   const destTagValid = chain.type !== "xrp" || destinationTag === "" || (/^\d+$/.test(destinationTag) && Number(destinationTag) <= 4294967295);
@@ -496,8 +520,20 @@ export function SendDialog({
     estimatedFeeWei,
     btcEstimatedFee,
     ltcEstimatedFee,
+    bchEstimatedFee,
     xlmFeeRates,
   });
+
+  const firstTimeRecipient = useFirstTimeRecipient(step === "preview", effectiveTo, address, chain, asset);
+
+  // "Review policy rules": close the send flow and open this wallet's policy rules on /accounts.
+  function openPolicyRules() {
+    onClose();
+    navigate("/accounts", { state: { openPolicyKeyId: keyId } });
+  }
+
+  // Failed before anything left this device (build / passkey / MPC signing): "Nothing was sent."
+  const nothingSent = signingPhase === "loading-keyshare" || signingPhase === "building-tx" || signingPhase === "mpc-signing";
 
   const ADDR_PLACEHOLDER: Record<string, string> = { btc: "bc1q...", ltc: "ltc1q...", bch: "bitcoincash:q...", solana: "So1ana...", evm: "0x" + "0".repeat(40), xrp: "r...", tron: "T..." };
   const placeholder = ADDR_PLACEHOLDER[chain.type] ?? "Address";
@@ -720,6 +756,8 @@ export function SendDialog({
             setFeeLevel={setFeeLevel}
             feeDisplay={feeDisplay}
             feeCountdown={feeCountdown}
+            feeError={feeError}
+            onRetryFee={() => { setFeeError(false); setFeeRetry((n) => n + 1); }}
             btcFeeRates={btcFeeRates}
             ltcFeeRates={ltcFeeRates}
             bchFeeRates={bchFeeRates}
@@ -860,6 +898,8 @@ export function SendDialog({
             }}
             setSigningError={setSigningError}
             confirmBeforeBroadcast={confirmBeforeBroadcast}
+            firstTimeRecipient={firstTimeRecipient}
+            onReviewPolicy={isRecoveryMode() ? undefined : openPolicyRules}
             t={t}
           />
         )}
@@ -868,7 +908,11 @@ export function SendDialog({
           <div className="p-5">
             {signingError ? (
               <SigningError
-                error={signingError}
+                error={signingError.message}
+                detail={signingError.detail}
+                policyBlocked={signingError.kind === "policy"}
+                onReviewPolicy={signingError.kind === "policy" && !recovery ? openPolicyRules : undefined}
+                nothingSent={nothingSent}
                 onClose={onClose}
                 onRetry={() => { setSigningError(null); setStep("preview"); }}
               />
@@ -878,7 +922,7 @@ export function SendDialog({
                   {phaseLabels[signingPhase]}
                 </p>
                 <p className="text-[11px] text-text-muted text-center mb-4">
-                  {amount} {asset.symbol} to {shortAddrPreview(to)}
+                  {t("send.signingLine", { amount, symbol: asset.symbol, to: shortAddrPreview(to) })}
                 </p>
                 <div className="mb-5">
                   <ProgressBar {...progress} minimal={!expert} />

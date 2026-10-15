@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { useTokenRefresh } from "../lib/use-token-refresh";
 import { fetchPasskeys } from "../lib/passkey";
-import { clearToken, getToken, wasAuthenticated, getTokenTtl, getIdentityId } from "../lib/auth";
+import { signOut, getToken, wasAuthenticated, getTokenTtl, getIdentityId } from "../lib/auth";
 import { isRecoveryMode } from "../lib/recovery";
 
 const LS_HAS_PASSKEYS = "idleLock.hasPasskeys";
@@ -11,6 +11,8 @@ interface IdleLockContextValue {
   /** Identity ID from the JWT (for passkey unlock) */
   ownerId: string | null;
   hasPasskeys: boolean;
+  /** Locked since page load (new tab / restart): nothing in progress, unlock may reload. */
+  coldStart: boolean;
   unlock: () => void;
 }
 
@@ -18,6 +20,7 @@ const IdleLockContext = createContext<IdleLockContextValue>({
   locked: false,
   ownerId: null,
   hasPasskeys: false,
+  coldStart: false,
   unlock: () => {},
 });
 
@@ -39,6 +42,8 @@ export function IdleLockProvider({ children }: { children: ReactNode }) {
     if (wasAuthenticated() && getCachedHasPasskeys()) return true;
     return false;
   });
+
+  const [coldStart, setColdStart] = useState(locked);
 
   // Compute ownerId synchronously from locked state (no effect needed)
   const [ownerId, setOwnerId] = useState<string | null>(() =>
@@ -68,9 +73,15 @@ export function IdleLockProvider({ children }: { children: ReactNode }) {
     if (getCachedHasPasskeys() && id) {
       setLocked(true);
     } else {
-      clearToken();
-      window.location.href = "/login";
+      // No passkey on this browser: app lock cannot unlock, go to sign-in with the reason
+      signOut({ sessionEnded: true });
     }
+  }, []);
+
+  // New tab / restart with a "was signed in" flag but no session and no passkey to unlock with
+  useEffect(() => {
+    if (isRecoveryMode()) return;
+    if (!getToken() && wasAuthenticated() && !getCachedHasPasskeys()) signOut({ sessionEnded: true });
   }, []);
 
   // Auto-refresh session JWT while active (uses valid session JWT)
@@ -78,11 +89,12 @@ export function IdleLockProvider({ children }: { children: ReactNode }) {
 
   const unlock = useCallback(() => {
     setLocked(false);
+    setColdStart(false);
     setOwnerId(null);
   }, []);
 
   return (
-    <IdleLockContext.Provider value={{ locked, ownerId, hasPasskeys, unlock }}>
+    <IdleLockContext.Provider value={{ locked, ownerId, hasPasskeys, coldStart, unlock }}>
       {children}
     </IdleLockContext.Provider>
   );

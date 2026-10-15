@@ -181,10 +181,15 @@ interface ComputeMaxSendableParams {
   estimatedFeeWei: bigint | null;
   btcEstimatedFee: bigint | null;
   ltcEstimatedFee: bigint | null;
+  bchEstimatedFee: bigint | null;
   xlmFeeRates: { low: number; medium: number; high: number } | null;
 }
 
-export function computeMaxSendable(p: ComputeMaxSendableParams): string {
+// Native coins whose fee comes from a live quote: Max must wait for it rather than fill the full balance.
+const QUOTED_FEE_CHAINS = ["evm", "btc", "ltc", "bch", "xlm"];
+
+/** Max amount: native coin = balance minus the estimated fee; null while that fee is unknown. */
+export function computeMaxSendable(p: ComputeMaxSendableParams): string | null {
   const { chain, asset, balance, feeLevel } = p;
   if (!asset.isNative) return balance;
 
@@ -201,6 +206,8 @@ export function computeMaxSendable(p: ComputeMaxSendableParams): string {
     feeBaseUnits = BigInt(p.btcEstimatedFee);
   } else if (chain.type === "ltc" && p.ltcEstimatedFee != null) {
     feeBaseUnits = BigInt(p.ltcEstimatedFee);
+  } else if (chain.type === "bch" && p.bchEstimatedFee != null) {
+    feeBaseUnits = BigInt(p.bchEstimatedFee);
   } else if (chain.type === "xlm" && p.xlmFeeRates != null) {
     feeBaseUnits = BigInt(p.xlmFeeRates[feeLevel]);
   } else if (chain.type === "algo") {
@@ -211,7 +218,7 @@ export function computeMaxSendable(p: ComputeMaxSendableParams): string {
     feeBaseUnits = 200_000n; // ~0.2 ADA conservative estimate
   }
 
-  if (feeBaseUnits == null) return balance;
+  if (feeBaseUnits == null) return QUOTED_FEE_CHAINS.includes(chain.type) ? null : balance;
 
   const [intPart, fracPart = ""] = balance.replace(/,/g, "").split(".");
   const padded = fracPart.padEnd(asset.decimals, "0").slice(0, asset.decimals);

@@ -6,6 +6,7 @@
 
 import { blake2b } from "@noble/hashes/blake2b";
 import { bech32 } from "@scure/base";
+import { adaTipFromRosettaStatus } from "./ada-slot-from-time";
 
 // ── Minimal CBOR encoder (Cardano canonical format) ──
 
@@ -173,11 +174,7 @@ export async function getAdaTip(rpcUrl: string): Promise<{ slot: number; blockHe
     network_identifier: rosettaNetworkId(rpcUrl),
   });
   if (!res.ok) throw new Error(`Failed to fetch ADA tip: ${res.status}`);
-  const data = await res.json();
-  // Rosetta provides block index; use index * 20 as approximate slot (Cardano ~20s slots)
-  // For TTL we just need a rough future value
-  const blockHeight = data.current_block_identifier?.index ?? 0;
-  return { slot: blockHeight * 20, blockHeight };
+  return adaTipFromRosettaStatus(rosettaNetworkId(rpcUrl).network as "mainnet" | "preprod", await res.json());
 }
 
 /** Get protocol parameters — use hardcoded Cardano mainnet values (stable across epochs) */

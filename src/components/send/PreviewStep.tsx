@@ -45,19 +45,33 @@ export function PreviewStep({
   signingFlows,
   setSigningError,
   confirmBeforeBroadcast,
+  firstTimeRecipient,
+  onReviewPolicy,
   t,
 }: PreviewStepProps) {
   return (
     <>
       {/* Body — Preview step */}
       <div className="p-5 space-y-5">
-        <PolicyWarning policyCheck={policyCheck} />
+        {/* Warnings in spec order: policy / risky address -> first-time recipient -> gas estimate */}
+        <PolicyWarning policyCheck={policyCheck} onReviewPolicy={onReviewPolicy} />
+
+        {firstTimeRecipient && (
+          <div role="status" className="bg-yellow-500/5 border border-yellow-500/15 rounded-lg px-3 py-2">
+            <p className="text-xs font-medium text-yellow-500">{t("send.newAddress.title")}</p>
+            <p className="text-[11px] text-yellow-500/80 mt-0.5 leading-relaxed">{t("send.newAddress.body")}</p>
+          </div>
+        )}
 
         {chain.type === "evm" && gasEstimateError && (
-          <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
-            <p className="text-xs text-red-400 leading-relaxed">
-              {t("send.gasEstFailed")}: {gasEstimateError}
-            </p>
+          <div className="bg-yellow-500/5 border border-yellow-500/15 rounded-lg px-3 py-2">
+            <p className="text-xs text-yellow-500 leading-relaxed">{t("send.gasEstFailed")}</p>
+            {gasEstimateError !== "gas_estimate_failed" && (
+              <details className="mt-1">
+                <summary className="text-[10px] text-text-muted cursor-pointer">{t("common.details")}</summary>
+                <p className="text-[10px] font-mono text-text-muted break-all mt-1">{gasEstimateError}</p>
+              </details>
+            )}
           </div>
         )}
 
@@ -246,7 +260,7 @@ export function PreviewStep({
             };
             const flow = flows[chain.type];
             if (flow) guardedSign(flow);
-            else setSigningError(`Send is not yet supported for ${chain.displayName}.`);
+            else setSigningError({ kind: "error", message: t("send.unsupportedChain", { chain: chain.displayName }), detail: chain.type });
           }}
           className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
         >

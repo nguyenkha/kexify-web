@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { verifyToken } from "../lib/auth";
+import { authErrorMessage } from "../lib/auth-error-message";
 
 export function VerifyToken() {
   const { t } = useTranslation();
@@ -20,7 +21,7 @@ export function VerifyToken() {
       .then(() => {
         navigate("/", { replace: true });
       })
-      .catch((err) => setError(String(err)));
+      .catch((err) => setError(authErrorMessage(err, t)));
   }, [searchParams, navigate, t]);
 
   return (

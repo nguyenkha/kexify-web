@@ -3,6 +3,8 @@
  * User can toggle notifications on/off via localStorage flag.
  */
 
+import { MASK, balancesHiddenNow } from "./hidden-amount";
+
 const NOTIFY_ENABLED_KEY = "kxi:notifications_enabled";
 
 /** Request notification permission. Call once on app init. */
@@ -36,13 +38,20 @@ interface NotifyOptions {
   tag?: string;
 }
 
+/** With "hide balances" on, OS notifications must not show amounts (UX spec: home-assets.md).
+ *  Callers mask what they know; this is the safety net for any number left in the body. */
+function maskAmounts(body: string | undefined): string | undefined {
+  if (!body || !balancesHiddenNow()) return body;
+  return body.replace(/\b\d[\d.,]*/g, MASK);
+}
+
 /** Show a browser notification when enabled. Clicking navigates to `path` if provided.
  *  Uses `tag` to deduplicate — same tag replaces previous notification instead of stacking. */
 export function notify({ title, body, icon, path, tag }: NotifyOptions): void {
   if (!isNotifyEnabled()) return;
 
   const n = new Notification(title, {
-    body,
+    body: maskAmounts(body),
     icon: icon || "/icon-192.png",
     tag,
   });

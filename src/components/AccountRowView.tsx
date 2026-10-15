@@ -7,7 +7,9 @@ import { usePolledBalance } from "../lib/use-polled-balance";
 import { formatUsd, getUsdValue } from "../lib/prices";
 import { isTokenVisible, findNewTokens } from "../lib/displayPrefs";
 import { explorerLink } from "../shared/utils";
-import { useHideBalances, maskBalance } from "../context/HideBalancesContext";
+import { useHideBalances } from "../context/HideBalancesContext";
+import { MASK } from "../lib/hidden-amount";
+import { CopyableText } from "./ui";
 import { fetchTransactions } from "../lib/transactions";
 import { getStaleCache, setCache, txCacheKey } from "../lib/dataCache";
 import { CompactTxPreview } from "./CompactTxPreview";
@@ -40,7 +42,6 @@ export function AccountRowView({
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { hidden } = useHideBalances();
-  const [copied, setCopied] = useState(false);
   const [dismissedTokens, setDismissedTokens] = useState<Set<string>>(new Set());
 
   // Recent transactions preview (fetch once, cached)
@@ -81,13 +82,6 @@ export function AccountRowView({
     if (nativeState !== "loaded" || !nativeAsset) return;
     const suffix = row.btcAddrType ? `/${row.btcAddrType}` : "";
     navigate(`/accounts/${row.keyId}/${row.chain.name.toLowerCase()}/${nativeAsset.symbol}${suffix}`);
-  }
-
-  function copyAddress(e: React.MouseEvent) {
-    e.stopPropagation();
-    navigator.clipboard.writeText(row.address);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
   }
 
   const shortAddr =
@@ -146,17 +140,9 @@ export function AccountRowView({
               ) : null}
             </div>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <span
-                className="text-[11px] text-text-muted font-mono transition-colors cursor-pointer hover:text-text-tertiary"
-                onClick={copyAddress}
-                title={row.address}
-              >
-                {copied ? (
-                  <span className="text-green-500">{t("common.copied")}</span>
-                ) : (
-                  shortAddr
-                )}
-              </span>
+              <CopyableText value={row.address} className="text-[11px] text-text-muted" textClassName="font-mono">
+                {shortAddr}
+              </CopyableText>
               <a
                 href={explorerLink(row.chain.explorerUrl, `/address/${row.address}`)}
                 target="_blank"
@@ -193,11 +179,11 @@ export function AccountRowView({
             {nativeState === "loaded" && (
               <div>
                 <div className={`flex items-baseline justify-end gap-1 text-sm tabular-nums font-medium text-text-primary transition-colors duration-700 ${changeClass(nativeChanged)}`}>
-                  <span>{maskBalance(nativeBalance ? truncateBalance(nativeBalance.formatted) : "0", hidden)}</span>
+                  <span>{hidden ? MASK : (nativeBalance ? truncateBalance(nativeBalance.formatted) : "0")}</span>
                   <span className="text-[11px] text-text-muted font-normal">{nativeSymbol}</span>
                 </div>
                 {nativeUsd != null && (
-                  <div className={`text-[11px] text-text-muted tabular-nums transition-colors duration-700 ${changeClass(nativeChanged)}`}>{hidden ? "••••" : formatUsd(nativeUsd)}</div>
+                  <div className={`text-[11px] text-text-muted tabular-nums transition-colors duration-700 ${changeClass(nativeChanged)}`}>{hidden ? MASK : formatUsd(nativeUsd)}</div>
                 )}
               </div>
             )}
@@ -250,11 +236,11 @@ export function AccountRowView({
                 <div className="flex items-center gap-3 shrink-0">
                   <div className="text-right min-w-[4rem]">
                     <div className={`flex items-baseline justify-end gap-1 text-xs tabular-nums font-medium text-text-secondary transition-colors duration-700 ${changeClass(tokenDir)}`}>
-                      <span>{maskBalance(truncateBalance(b.formatted), hidden)}</span>
+                      <span>{hidden ? MASK : truncateBalance(b.formatted)}</span>
                       <span className="text-text-muted font-normal">{b.asset.symbol}</span>
                     </div>
                     {tokenUsd != null && (
-                      <div className={`text-[10px] text-text-muted tabular-nums transition-colors duration-700 ${changeClass(tokenDir)}`}>{hidden ? "••••" : formatUsd(tokenUsd)}</div>
+                      <div className={`text-[10px] text-text-muted tabular-nums transition-colors duration-700 ${changeClass(tokenDir)}`}>{hidden ? MASK : formatUsd(tokenUsd)}</div>
                     )}
                   </div>
                   <svg className="w-4 h-4 text-text-muted/30 group-hover:text-text-muted transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -274,7 +260,7 @@ export function AccountRowView({
         return (
           <div className="border-t border-border-secondary/50">
             {fresh.map((tx, i) => (
-              <CompactTxPreview key={`${tx.hash}-${i}`} tx={tx} explorerUrl={row.chain.explorerUrl} />
+              <CompactTxPreview key={`${tx.hash}-${i}`} tx={tx} explorerUrl={row.chain.explorerUrl} networkName={row.chain.displayName} />
             ))}
           </div>
         );
@@ -293,7 +279,7 @@ export function AccountRowView({
             <div className="flex items-center justify-between">
               <p className="text-[11px] text-text-muted">
                 {t("account.tokenFound", { symbol: token.symbol })}
-                <span className="tabular-nums ml-1">({maskBalance(token.balance, hidden)})</span>
+                <span className="tabular-nums ml-1">({hidden ? MASK : token.balance})</span>
               </p>
               <div className="flex items-center gap-3 shrink-0 mr-8">
                 <button
