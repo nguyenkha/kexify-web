@@ -52,15 +52,6 @@ function bigintToBytes(n: bigint): Uint8Array {
   return hexToBytes(hex);
 }
 
-function bigintTo32Bytes(n: bigint): Uint8Array {
-  const result = new Uint8Array(32);
-  for (let i = 31; i >= 0; i--) {
-    result[i] = Number(n & 0xffn);
-    n >>= 8n;
-  }
-  return result;
-}
-
 function bytesToBigint(bytes: Uint8Array): bigint {
   let n = 0n;
   for (const b of bytes) n = (n << 8n) | BigInt(b);
@@ -261,8 +252,10 @@ export function assembleSignedTx(
     bigintToBytes(tx.value),
     tx.data,
     bigintToBytes(v),
-    bigintTo32Bytes(r),
-    bigintTo32Bytes(s),
+    // RLP integers are minimal (no leading zero bytes): a 32-byte r/s with a leading zero is
+    // rejected by nodes as non-canonical (~1 in 128 signatures).
+    bigintToBytes(r),
+    bigintToBytes(s),
   ]);
 
   const rawTransaction = bytesToHex0x(signed);
