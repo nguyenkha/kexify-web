@@ -21,7 +21,6 @@ import {
   broadcastTronTransaction,
   type TronTransaction,
 } from "./chains/tronTx";
-import { sha256 } from "@noble/hashes/sha256";
 import { base58 } from "@scure/base";
 import type { KeyFileData } from "./crypto";
 
@@ -279,22 +278,44 @@ export async function wcSolanaSignAndSendTransaction(
 
 // ── solana_signMessage ──────────────────────────────────────────
 
+/**
+ * Off-chain messages are signed as-is with the EdDSA key that also signs SOL/XLM/TON/ALGO/ADA
+ * transactions, so (like the server) only accept printable UTF-8 text that is not 32 bytes
+ * long, at most 4096 bytes and without an Algorand signing prefix — it can then never be
+ * another chain's signing payload.
+ */
+const ALGORAND_SIGNING_PREFIXES = ["TX", "TG", "MX", "Program", "MsigProgram", "ProgData"];
+
+export function isSignableSolanaMessage(bytes: Uint8Array): boolean {
+  if (bytes.length === 0 || bytes.length === 32 || bytes.length > 4096) return false;
+  // Algorand signs these domains with the same EdDSA key ("Program" + TEAL can be printable)
+  const head = String.fromCharCode(...bytes.subarray(0, 16));
+  if (ALGORAND_SIGNING_PREFIXES.some((p) => head.startsWith(p))) return false;
+  try {
+    const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    // eslint-disable-next-line no-control-regex
+    return !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/.test(text);
+  } catch {
+    return false;
+  }
+}
+
 export async function wcSolanaSignMessage(
   messageBase64: string, // base64-encoded message bytes
   keyFile: KeyFileData,
   address: string,
 ): Promise<{ signature: string }> {
   const messageBytes = base64ToUint8(messageBase64);
-  const hash = sha256(messageBytes);
 
   if (!clientKeys.has(keyFile.id)) {
     await restoreKeyHandles(keyFile.id, keyFile.share, keyFile.eddsaShare);
   }
 
+  // Ed25519 signs the message bytes themselves (what dApps verify against)
   const { signature: sigRaw } = await performMpcSign({
     algorithm: "eddsa",
     keyId: keyFile.id,
-    hash,
+    hash: messageBytes,
     initPayload: {
       id: keyFile.id,
       algorithm: "eddsa",

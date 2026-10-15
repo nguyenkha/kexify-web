@@ -135,7 +135,7 @@ export function StandaloneKeygen() {
       const PARTY_NAMES: [string, string] = ["client", "server"];
 
       // Phase 1: ECDSA keygen (no auth — standalone-init)
-      const { transport: ecdsaTransport, getSessionId: getEcdsaSessionId, getServerResult: getEcdsaResult, transportFailed: ecdsaFailed } = createHttpTransport({
+      const { transport: ecdsaTransport, getServerResult: getEcdsaResult, transportFailed: ecdsaFailed } = createHttpTransport({
         initUrl: apiUrl("/api/generate/standalone-init"),
         stepUrl: apiUrl("/api/generate/step"),
         initExtra: { name: keyName || undefined, captchaToken },
@@ -157,7 +157,7 @@ export function StandaloneKeygen() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sessionId: getEcdsaSessionId(),
+          registrationToken: ecdsaResult?.registrationToken,
           authPublicKey: authPubKey,
         }),
       });
@@ -196,14 +196,7 @@ export function StandaloneKeygen() {
       const eddsaKeyInfo = mpc.ecKey2pInfo(eddsaKey);
       const eddsaSerialized = mpc.serializeEcKey2p(eddsaKey);
       const eddsaShareData = eddsaSerialized.map((buf: Uint8Array) => toBase64(buf)).join(",");
-
-      // Correct EdDSA public key (party-0 view)
       const eddsaPubHex = toHex(eddsaKeyInfo.publicKey);
-      await fetch(apiUrl("/api/generate/eddsa-pubkey-correction"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...jwtHeaders },
-        body: JSON.stringify({ keyId: newKeyId, eddsaPublicKey: eddsaPubHex }),
-      });
 
       // Cache key handles
       const entry: ClientKeyHandles = { mpc, ecdsa: ecdsaKey, eddsa: eddsaKey };

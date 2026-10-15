@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { registerPasskey, authenticatePasskey } from "../lib/passkey";
+import { passkeyErrorMessage } from "../lib/passkey-error-message";
 import { ErrorBox } from "./ui";
 
 /**
@@ -39,7 +40,7 @@ export function PasskeyGate({
         onRegistered();
       }
     } catch (err) {
-      setError(String(err));
+      setError(passkeyErrorMessage(err, t));
       setRegistering(false);
     }
   }

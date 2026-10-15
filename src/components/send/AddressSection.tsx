@@ -3,6 +3,7 @@ import { getAddressSuggestions, saveAddressEntry } from "../../lib/addressBook";
 import { isResolvableName } from "../../lib/nameResolution";
 import type { Chain } from "../../lib/api";
 import type { AddressEntry } from "../../lib/addressBook";
+import { truncateUtf8 } from "../../lib/chains/xlmTx";
 
 interface AddressSectionProps {
   chain: Chain;
@@ -290,7 +291,10 @@ export function AddressSection({
           <input
             type="text"
             value={xlmMemo}
-            onChange={(e) => setXlmMemo(e.target.value.slice(0, 28))}
+            onChange={(e) => {
+              // Stellar MEMO_TEXT is 28 bytes of UTF-8 (Vietnamese diacritics take 2-3 bytes each)
+              setXlmMemo(new TextDecoder().decode(truncateUtf8(e.target.value, 28)));
+            }}
             placeholder={t("send.memoPlaceholder")}
             className="w-full bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-blue-500"
           />

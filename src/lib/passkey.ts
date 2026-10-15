@@ -50,25 +50,73 @@ export interface PasskeyInfo {
   name: string | null;
   createdAt: string;
   lastUsedAt: string | null;
+  /** Set while the passkey is in probation: it cannot be used before this time. */
+  activeAt?: string | null;
+  /** Pending passkey from the other domain, listed here only so it can be removed. */
+  otherSite?: boolean;
+}
+
+/** Registered, but in probation — the server will not accept it until `activeAt`. */
+export class PasskeyPendingError extends Error {
+  readonly passkey: PasskeyInfo & { activeAt: string };
+  constructor(passkey: PasskeyInfo & { activeAt: string }) {
+    super(`Passkey becomes active on ${new Date(passkey.activeAt).toLocaleString()}`);
+    this.name = "PasskeyPendingError";
+    this.passkey = passkey;
+  }
+}
+
+export function isPasskeyPending(p: PasskeyInfo): p is PasskeyInfo & { activeAt: string } {
+  return !!p.activeAt && new Date(p.activeAt).getTime() > Date.now();
+}
+
+/**
+ * Call an endpoint that needs a passkey assertion when the account already has a passkey
+ * (adding or removing one). Uses the cached passkey token if any; when the server asks
+ * for a fresh one, prompts for the passkey once and retries.
+ */
+export async function fetchWithPasskeyStepUp(url: string, init: RequestInit): Promise<Response> {
+  const send = () => fetch(url, { ...init, headers: { ...(init.headers as Record<string, string>), ...passkeyHeaders() } });
+  const res = await send();
+  if (res.status !== 401) return res;
+  const data = await res.clone().json().catch(() => ({}));
+  if (data?.error !== "passkey_auth_required" && data?.error !== "Invalid passkey token") return res;
+  await authenticatePasskey();
+  return send();
 }
 
 // ── API calls ───────────────────────────────────────────────────
 
-export async function fetchPasskeys(): Promise<PasskeyInfo[]> {
+/**
+ * Passkeys usable on this domain. Pass includePending to also get passkeys still in
+ * probation (from this or the other domain) — only for listing and managing them.
+ */
+export async function fetchPasskeys(opts?: { includePending?: boolean; strict?: boolean }): Promise<PasskeyInfo[]> {
   const res = await fetch(apiUrl("/api/passkeys"), {
     headers: authHeaders(),
   });
+  // strict: an error must not read as "no passkeys" (callers that branch on it).
+  if (opts?.strict && !res.ok) throw new Error(`passkeys ${res.status}`);
   const data = await res.json();
-  return data.passkeys ?? [];
+  const list: PasskeyInfo[] = data.passkeys ?? [];
+  return opts?.includePending ? list : list.filter((p) => !isPasskeyPending(p));
 }
 
 export async function registerPasskey(name?: string): Promise<PasskeyInfo> {
+  // Only pending passkeys so far: another one would just wait out its own probation
+  // (and send another email), so report the date of the one already waiting.
+  const current = await fetchPasskeys({ includePending: true });
+  const pending = current.find(isPasskeyPending);
+  if (pending && current.every(isPasskeyPending)) throw new PasskeyPendingError(pending);
+
   // 1. Get registration options
-  const optRes = await fetch(apiUrl("/api/passkeys/register-options"), {
+  const optRes = await fetchWithPasskeyStepUp(apiUrl("/api/passkeys/register-options"), {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
   });
-  const { options, challengeId } = await optRes.json();
+  const optData = await optRes.json();
+  if (!optRes.ok) throw new Error(optData?.message || optData?.error || "Could not start passkey registration");
+  const { options, challengeId } = optData;
 
   // 2. Trigger browser WebAuthn prompt
   const credential = await startRegistration({ optionsJSON: options });
@@ -76,14 +124,17 @@ export async function registerPasskey(name?: string): Promise<PasskeyInfo> {
   // 3. Send credential to server
   const regRes = await fetch(apiUrl("/api/passkeys/register"), {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
+    headers: { "Content-Type": "application/json", ...authHeaders(), ...passkeyHeaders() },
     body: JSON.stringify({ challengeId, credential, name }),
   });
   const data = await regRes.json();
-  if (data.error) throw new Error(data.error);
+  if (data.error) throw new Error(data.message || data.error);
+  const info = data as PasskeyInfo;
+  // Without an existing passkey to vouch for it, a new one waits out a probation period.
+  if (isPasskeyPending(info)) throw new PasskeyPendingError(info);
   // Cache that user now has passkeys (for idle lock on next session)
   localStorage.setItem("idleLock.hasPasskeys", "true");
-  return data as PasskeyInfo;
+  return info;
 }
 
 /**
@@ -92,6 +143,7 @@ export async function registerPasskey(name?: string): Promise<PasskeyInfo> {
  * instead of failing with "No passkeys registered".
  */
 export async function authenticatePasskeyForImport(): Promise<PasskeyAuthResult> {
+  // registerPasskey reports a passkey still in probation instead of adding another.
   if ((await fetchPasskeys()).length === 0) await registerPasskey();
   return authenticatePasskey({ withPrf: true });
 }
@@ -310,7 +362,7 @@ export async function renamePasskey(id: string, name: string): Promise<void> {
 }
 
 export async function deletePasskey(id: string): Promise<void> {
-  const res = await fetch(apiUrl(`/api/passkeys/${id}`), {
+  const res = await fetchWithPasskeyStepUp(apiUrl(`/api/passkeys/${id}`), {
     method: "DELETE",
     headers: authHeaders(),
   });

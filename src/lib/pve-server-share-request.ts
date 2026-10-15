@@ -5,6 +5,7 @@ import { apiUrl } from "./apiBase";
 import { sensitiveHeaders } from "./passkey";
 import type { KeyFileData } from "./crypto";
 import { sealPveExport, type PveSharePayload } from "./pve-server-share";
+import { throwIfExportGated } from "./server-share-export-request";
 /**
  * Request a PVE export of the server share and verify it. Returns the peer-2 key file
  * (unencrypted; the caller encrypts it with the user's passphrase before saving) and
@@ -23,6 +24,7 @@ export async function requestPveServerExport(
       headers: { ...sensitiveHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({ ek: toBase64(ek) }),
     });
+    if (!res.ok) await throwIfExportGated(keyId, res);
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || "Export failed");
 

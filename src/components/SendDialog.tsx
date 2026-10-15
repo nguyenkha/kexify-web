@@ -188,6 +188,7 @@ export function SendDialog({
   const [policyCheck, setPolicyCheck] = useState<{
     allowed: boolean;
     reason?: string;
+    blockedLeg?: string | null;
     fraudCheck?: { flagged: boolean; flags: string[]; level: string; address: string };
   } | null>(null);
   const [policyChecking, setPolicyChecking] = useState(false);
@@ -773,6 +774,8 @@ export function SendDialog({
                       nativeSymbol: asset.isNative ? asset.symbol : undefined,
                       contractAddress: asset.contractAddress || undefined,
                       chainId: chain.evmChainId ?? undefined,
+                      chainType: chain.type,
+                      from: address,
                       ...(resolvedName?.input === to ? { resolvedFrom: to, resolvedVia: resolvedName.source } : {}),
                     }),
                   });

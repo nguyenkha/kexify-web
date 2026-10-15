@@ -5,6 +5,8 @@ import { useTranslation } from "react-i18next";
 interface PolicyCheckResult {
   allowed: boolean;
   reason?: string;
+  /** Which part of the transaction the policy blocked (approval, account_control, unknown, fee, ...). */
+  blockedLeg?: string | null;
   fraudCheck?: { flagged: boolean; flags: string[]; level: string; address: string };
 }
 
@@ -22,7 +24,9 @@ export function PolicyWarning({ policyCheck }: { policyCheck: PolicyCheckResult 
       <p className="text-[11px] text-red-400/80 mt-1 leading-relaxed">
         {policyCheck.fraudCheck?.flagged
           ? t("send.fraudFlagDesc", { flags: policyCheck.fraudCheck.flags.map(f => f.replace(/_/g, " ")).join(", ") })
-          : policyCheck.reason || t("send.policyBlockedDefault")}
+          : policyCheck.blockedLeg && ["approval", "account_control", "value_message", "unknown", "fee"].includes(policyCheck.blockedLeg)
+            ? t(`send.policyBlockedLeg.${policyCheck.blockedLeg}`)
+            : policyCheck.reason || t("send.policyBlockedDefault")}
       </p>
     </div>
   );

@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Spinner, ErrorBox } from "./ui";
 import { getMpcInstance, createHttpTransport, clientKeys, toBase64, toHex, NID_secp256k1, NID_ED25519 } from "../lib/mpc";
 import type { ClientKeyHandles } from "../lib/mpc";
-import { sensitiveHeaders, authenticatePasskey, fetchPasskeys, isWithinPasskeyGrace } from "../lib/passkey";
+import { sensitiveHeaders, authenticatePasskey, fetchPasskeys, isWithinPasskeyGrace, fetchWithPasskeyStepUp } from "../lib/passkey";
 import { PasskeyChallenge } from "./PasskeyChallenge";
 import { isRecoveryMode } from "../lib/recovery";
 import { encryptKeyFile, type KeyFileData } from "../lib/crypto";
@@ -17,7 +17,7 @@ import {
 } from "../lib/keystore";
 import { apiUrl } from "../lib/apiBase";
 import { useExpertMode, useSetExpertMode } from "../context/ExpertModeContext";
-import { getMe, isStandaloneJwt } from "../lib/auth";
+import { getMe, isStandaloneJwt, authHeaders } from "../lib/auth";
 import { getUserOverrides, setUserOverrides } from "../lib/userOverrides";
 import { useSteppedProgress, CREATING_DURATION_MS, ProgressBar } from "./ProgressBar";
 
@@ -233,13 +233,11 @@ export function CreateAccountDialog({
       const party0PubKey = toHex(eddsaInfo.publicKey);
 
       // Only correct the DB if party-0's pubkey differs from what the server stored (party-1's key).
+      // The server records the EdDSA key from its own keygen result; both parties derive the
+      // same key, so a mismatch means something is wrong — flag it, never overwrite the server's.
       const serverEddsaPubKey = getEddsaServerResult()?.eddsaPublicKey as string | undefined;
       if (serverEddsaPubKey && serverEddsaPubKey !== party0PubKey) {
-        fetch(apiUrl("/api/generate/eddsa-pubkey-correction"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...headers },
-          body: JSON.stringify({ keyId, eddsaPublicKey: party0PubKey }),
-        }).catch(() => {});
+        console.warn("[keygen] EdDSA public key differs between client and server", keyId);
       }
 
       // Store key handles in memory for signing
@@ -287,9 +285,10 @@ export function CreateAccountDialog({
           try {
             const stored = localStorage.getItem(`keyshare:${keyId}`);
             if (stored) {
-              await fetch(apiUrl(`/api/keys/${keyId}/backup`), {
+              // Needs a fresh passkey token; prompts again if the keygen one expired.
+              await fetchWithPasskeyStepUp(apiUrl(`/api/keys/${keyId}/backup`), {
                 method: "POST",
-                headers: { ...sensitiveHeaders(), "Content-Type": "application/json" },
+                headers: { ...authHeaders(), "Content-Type": "application/json" },
                 body: JSON.stringify({
                   encryptedData: stored,
                   publicKey: newRawKeyData.publicKey,
@@ -680,9 +679,10 @@ export function CreateAccountDialog({
 
                     if (!isStandaloneJwt()) {
                       try {
-                        await fetch(apiUrl(`/api/keys/${rawKeyData.id}/backup`), {
+                        // Needs a fresh passkey token; prompts again if the keygen one expired.
+                        await fetchWithPasskeyStepUp(apiUrl(`/api/keys/${rawKeyData.id}/backup`), {
                           method: "POST",
-                          headers: { ...sensitiveHeaders(), "Content-Type": "application/json" },
+                          headers: { ...authHeaders(), "Content-Type": "application/json" },
                           body: JSON.stringify({
                             encryptedData: encryptedJson,
                             publicKey: rawKeyData.publicKey,
@@ -750,18 +750,18 @@ export function CreateAccountDialog({
                     if (!rawKeyData || !keyFile) return;
                     setEscrowStatus("uploading");
                     try {
-                      const headers = sensitiveHeaders();
                       const encryptedJson = await keyFile.blob.text();
-                      await fetch(apiUrl(`/api/keys/${rawKeyData.id}/backup`), {
+                      // Needs a fresh passkey token; prompts again if the keygen one expired.
+                      const res = await fetchWithPasskeyStepUp(apiUrl(`/api/keys/${rawKeyData.id}/backup`), {
                         method: "POST",
-                        headers: { ...headers, "Content-Type": "application/json" },
+                        headers: { ...authHeaders(), "Content-Type": "application/json" },
                         body: JSON.stringify({
                           encryptedData: encryptedJson,
                           publicKey: rawKeyData.publicKey,
                           eddsaPublicKey: rawKeyData.eddsaPublicKey,
                         }),
                       });
-                      setEscrowStatus("done");
+                      setEscrowStatus(res.ok ? "done" : "error");
                     } catch {
                       setEscrowStatus("error");
                     }

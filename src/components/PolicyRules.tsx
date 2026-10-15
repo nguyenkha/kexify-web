@@ -6,6 +6,7 @@ import type { PolicyRuleBody, PolicyVersion } from "../shared/types";
 import { useFrozen } from "../context/FrozenContext";
 import { apiUrl } from "../lib/apiBase";
 import { useTranslation } from "react-i18next";
+import { sanitizeRule, ValueRuleFields, ValueRuleSummary, FraudCheckSelect, AccountControlWarning } from "./policy/PolicyRuleFields";
 
 type RuleType = PolicyRuleBody["type"];
 type RuleEffect = PolicyRuleBody["effect"];
@@ -102,7 +103,7 @@ export function PolicyRules({
 
   function addRuleToDraft() {
     if (!draft) return;
-    setDraft([...draft, { ...newRule, priority: draft.length }]);
+    setDraft([...draft, { ...sanitizeRule(newRule), priority: draft.length }]);
     setNewRule({ ...EMPTY_RULE });
     setAdding(false);
   }
@@ -209,21 +210,15 @@ export function PolicyRules({
                 <span className={`text-[10px] ${rule.fraudCheck === "low" ? "text-green-400" : rule.fraudCheck === "medium" ? "text-yellow-400" : "text-red-400"}`}> {"\uD83D\uDEE1\uFE0F"} {rule.fraudCheck === "low" ? t("policy.fraudMax") : rule.fraudCheck === "medium" ? t("policy.fraudStrict") : t("policy.fraudStandard")}</span>
               )}
             </span>
-          ) : (
+          ) : rule.type === "value_message" ? (
             <span>
-              {t("policy.ruleTransfer")}
-              {rule.asset && <span className="text-text-muted"> asset={rule.asset}</span>}
-              {rule.amountMax && <span className="text-text-muted"> max={rule.amountMax}</span>}
-              {rule.usdMax && <span className="text-text-muted"> usd_max=${rule.usdMax}</span>}
-              {rule.toAddress && (
-                <span className="text-text-muted font-mono text-[10px]">
-                  {" "}to={rule.toAddress.slice(0, 10)}…
-                </span>
-              )}
-              {rule.fraudCheck && (
-                <span className={`text-[10px] ${rule.fraudCheck === "low" ? "text-green-400" : rule.fraudCheck === "medium" ? "text-yellow-400" : "text-red-400"}`}> {"\uD83D\uDEE1\uFE0F"} {rule.fraudCheck === "low" ? t("policy.fraudMax") : rule.fraudCheck === "medium" ? t("policy.fraudStrict") : t("policy.fraudStandard")}</span>
-              )}
+              {t("policy.ruleValueMessage")}
+              {rule.toAddress && <span className="text-text-muted font-mono text-[10px]"> contract={rule.toAddress.slice(0, 10)}…</span>}
             </span>
+          ) : rule.type === "account_control" ? (
+            <span className="text-red-400">{t("policy.ruleAccountControl")}</span>
+          ) : (
+            <ValueRuleSummary rule={rule} t={t} />
           )}
         </div>
 
@@ -277,6 +272,9 @@ export function PolicyRules({
             >
               <option value="transfer">{t("policy.ruleTransfer")}</option>
               <option value="contract_call">{t("policy.ruleContractCall")}</option>
+              <option value="approval">{t("policy.ruleApproval")}</option>
+              <option value="account_control">{t("policy.ruleAccountControl")}</option>
+              <option value="value_message">{t("policy.ruleValueMessage")}</option>
               <option value="personal_sign">{t("policy.rulePersonalSign")}</option>
               <option value="typed_message">{t("policy.ruleTypedMessage")}</option>
               <option value="raw_message">{t("policy.ruleRawMessage")}</option>
@@ -295,72 +293,15 @@ export function PolicyRules({
           </div>
         </div>
 
-        {newRule.type === "transfer" && (
-          <div className="space-y-2">
-            <div>
-              <label className="text-[10px] text-text-muted block mb-1">
-                {t("policy.asset")} <span className="text-text-muted/50">({t("policy.assetHint")})</span>
-              </label>
-              <input
-                value={newRule.asset || ""}
-                onChange={(e) => setNewRule({ ...newRule, asset: e.target.value || null })}
-                placeholder="ETH, USDC, *, ..."
-                className="w-full bg-surface-secondary border border-border-primary rounded px-2 py-1.5 text-xs text-text-primary"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] text-text-muted block mb-1">
-                {t("policy.maxAmount")} <span className="text-text-muted/50">({t("policy.unlimitedHint")})</span>
-              </label>
-              <input
-                value={newRule.amountMax || ""}
-                onChange={(e) => setNewRule({ ...newRule, amountMax: e.target.value || null })}
-                placeholder="1.0"
-                className="w-full bg-surface-secondary border border-border-primary rounded px-2 py-1.5 text-xs text-text-primary"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] text-text-muted block mb-1">
-                {t("policy.maxUsdValue")} <span className="text-text-muted/50">({t("policy.unlimitedHint")})</span>
-              </label>
-              <input
-                value={newRule.usdMax || ""}
-                onChange={(e) => setNewRule({ ...newRule, usdMax: e.target.value || null })}
-                placeholder="100"
-                className="w-full bg-surface-secondary border border-border-primary rounded px-2 py-1.5 text-xs text-text-primary"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] text-text-muted block mb-1">
-                {t("policy.toAddress")} <span className="text-text-muted/50">({t("policy.toAddressHint")})</span>
-              </label>
-              <input
-                value={newRule.toAddress || ""}
-                onChange={(e) => setNewRule({ ...newRule, toAddress: e.target.value || null })}
-                placeholder="0x..."
-                className="w-full bg-surface-secondary border border-border-primary rounded px-2 py-1.5 text-xs text-text-primary font-mono"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] text-text-muted block mb-1">
-                {t("policy.fraudCheck")} <span className="text-text-muted/50">({t("policy.fraudCheckHint")})</span>
-              </label>
-              <select
-                value={newRule.fraudCheck || ""}
-                onChange={(e) => setNewRule({ ...newRule, fraudCheck: (e.target.value || null) as PolicyRuleBody["fraudCheck"] })}
-                className="w-full bg-surface-secondary border border-border-primary rounded px-2 py-1.5 text-xs text-text-primary"
-              >
-                <option value="">{t("policy.disabled")}</option>
-                <option value="high">{t("policy.fraudHighDesc")}</option>
-                <option value="medium">{t("policy.fraudMediumDesc")}</option>
-                <option value="low">{t("policy.fraudLowDesc")}</option>
-              </select>
-            </div>
-          </div>
+        {(newRule.type === "transfer" || newRule.type === "approval") && (
+          <ValueRuleFields rule={newRule} onChange={setNewRule} t={t} />
         )}
 
-        {newRule.type === "contract_call" && (
+        {newRule.type === "account_control" && <AccountControlWarning t={t} />}
+
+        {(newRule.type === "contract_call" || newRule.type === "value_message") && (
           <div className="space-y-2">
+            {newRule.type === "value_message" && <p className="text-[10px] text-text-muted leading-relaxed">{t("policy.valueMessageHint")}</p>}
             <div>
               <label className="text-[10px] text-text-muted block mb-1">
                 {t("policy.contractAddress")} <span className="text-text-muted/50">({t("policy.contractAddressHint")})</span>
@@ -372,31 +313,17 @@ export function PolicyRules({
                 className="w-full bg-surface-secondary border border-border-primary rounded px-2 py-1.5 text-xs text-text-primary font-mono"
               />
             </div>
-            <div>
-              <label className="text-[10px] text-text-muted block mb-1">
-                {t("policy.fraudCheck")} <span className="text-text-muted/50">({t("policy.fraudCheckContracts")})</span>
-              </label>
-              <select
-                value={newRule.fraudCheck || ""}
-                onChange={(e) => setNewRule({ ...newRule, fraudCheck: (e.target.value || null) as PolicyRuleBody["fraudCheck"] })}
-                className="w-full bg-surface-secondary border border-border-primary rounded px-2 py-1.5 text-xs text-text-primary"
-              >
-                <option value="">{t("policy.disabled")}</option>
-                <option value="high">{t("policy.fraudHighDesc")}</option>
-                <option value="medium">{t("policy.fraudMediumDesc")}</option>
-                <option value="low">{t("policy.fraudLowDesc")}</option>
-              </select>
-            </div>
+            <FraudCheckSelect rule={newRule} onChange={setNewRule} hint={t("policy.fraudCheckContracts")} t={t} />
           </div>
         )}
 
-        {newRule.amountMax && !newRule.asset && (
+        {newRule.amountMax && (!newRule.asset || newRule.asset === "*") && (
           <p className="text-[10px] text-red-400">{t("policy.assetRequired")}</p>
         )}
         <div className="flex gap-2">
           <button
             onClick={addRuleToDraft}
-            disabled={!!(newRule.amountMax && !newRule.asset)}
+            disabled={!!(newRule.amountMax && (!newRule.asset || newRule.asset === "*"))}
             className="bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs px-3 py-1.5 rounded transition-colors"
           >
             {t("policy.addRuleButton")}
@@ -511,6 +438,7 @@ export function PolicyRules({
               {active ? (
                 <div className="space-y-2">
                   <p className="text-[10px] text-text-muted uppercase tracking-wide">{t("policy.activeRules")}</p>
+                  <p className="text-[10px] text-text-muted leading-relaxed">{t("policy.semanticsNotice")}</p>
                   {(active.rules as PolicyRuleBody[]).length === 0 ? (
                     <p className="text-xs text-text-muted text-center py-4">{t("policy.noRulesSigningBlockedView")}</p>
                   ) : (

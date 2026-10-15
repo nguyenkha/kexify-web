@@ -1,8 +1,12 @@
 import { initCbMpc, NID_secp256k1, NID_ED25519 } from "cb-mpc";
+import i18n from "i18next"; // singleton, initialised by src/i18n/i18n.ts
 import type { CbMpc, DataTransport, Ecdsa2pKeyHandle, EcKey2pHandle } from "cb-mpc";
 import { isRecoveryMode, performLocalMpcSign } from "./recovery";
 import { apiUrl } from "./apiBase";
 import cbmpcWasmUrl from "cb-mpc/cbmpc.wasm?url";
+
+/** Policy-blocked tx parts that have their own user-facing message (send.policyBlockedLeg.*). */
+const POLICY_BLOCKED_LEGS = ["approval", "account_control", "value_message", "unknown", "fee"];
 
 export { NID_secp256k1, NID_ED25519 };
 export type { CbMpc, Ecdsa2pKeyHandle, EcKey2pHandle };
@@ -151,7 +155,13 @@ export function createHttpTransport(opts: {
       });
       const data = await res.json();
       if (data.error) {
-        transportError = new Error(data.error);
+        // A policy block names the part of the tx it refused; show that instead of the generic text.
+        const leg = typeof data.blockedLeg === "string" && POLICY_BLOCKED_LEGS.includes(data.blockedLeg) ? data.blockedLeg : null;
+        // BTC/LTC chain binding (server looks up each input on both chains).
+        const chainCode = data.code === "CHAIN_MISMATCH" ? "mismatch" : data.code === "CHAIN_LOOKUP_UNAVAILABLE" ? "unavailable" : null;
+        transportError = new Error(leg ? i18n.t(`send.policyBlockedLeg.${leg}`)
+          : chainCode ? i18n.t(`send.chainBinding.${chainCode}`)
+          : data.error);
         rejectTransport?.(transportError);
         throw transportError;
       }

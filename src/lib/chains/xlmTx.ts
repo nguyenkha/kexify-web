@@ -135,8 +135,22 @@ function xdrMuxedAccount(pubKey: Uint8Array): Uint8Array {
 // MEMO_NONE = 0, MEMO_TEXT = 1 (var-length string, max 28 bytes)
 function xdrMemo(text?: string): Uint8Array {
   if (!text) return xdrUint32(0); // MEMO_NONE
-  const bytes = new TextEncoder().encode(text.slice(0, 28));
-  return concat(xdrUint32(1), xdrVar(bytes)); // MEMO_TEXT
+  return concat(xdrUint32(1), xdrVar(truncateUtf8(text, 28))); // MEMO_TEXT
+}
+
+/** UTF-8 bytes of `text`, cut to at most `maxBytes` on a character boundary (memo limit is bytes, not chars). */
+export function truncateUtf8(text: string, maxBytes: number): Uint8Array {
+  const encoder = new TextEncoder();
+  let out = new Uint8Array(0);
+  for (const ch of text) {
+    const next = encoder.encode(ch);
+    if (out.length + next.length > maxBytes) break;
+    const joined = new Uint8Array(out.length + next.length);
+    joined.set(out);
+    joined.set(next, out.length);
+    out = joined;
+  }
+  return out;
 }
 
 function xdrAccountId(pubKey: Uint8Array): Uint8Array {

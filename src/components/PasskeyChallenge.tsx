@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { authenticatePasskey, registerPasskey, type PasskeyAuthResult } from "../lib/passkey";
+import { passkeyErrorMessage } from "../lib/passkey-error-message";
 import { KeyRound } from "lucide-react";
 
 /**
@@ -49,7 +50,7 @@ export function PasskeyChallenge({
       const result = await authenticatePasskey({ withPrf });
       onAuthenticated(result);
     } catch (err) {
-      setError(String(err));
+      setError(passkeyErrorMessage(err, t));
       setAuthenticating(false);
     }
   }

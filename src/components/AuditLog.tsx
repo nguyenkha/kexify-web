@@ -137,6 +137,15 @@ function describeEntry(entry: AuditEntry, t: TFn): EntryDesc {
         iconBg: "bg-purple-500/10",
         iconColor: "text-purple-400",
       };
+    case "auth.code_attempt":
+      return {
+        title: t("activity.loginCodeFailed"),
+        subtitle: entry.ip && entry.ip !== "unknown" ? entry.ip : "",
+        detail: t("activity.loginCodeFailedDetail"),
+        icon: LoginIcon,
+        iconBg: "bg-red-500/10",
+        iconColor: "text-red-400",
+      };
     case "passkey.delete":
       return {
         title: t("activity.passkeyDeleted"),

@@ -3,12 +3,13 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import type { MeUser } from "../lib/auth";
 import { PasskeyChallenge } from "./PasskeyChallenge";
-import { sensitiveHeaders } from "../lib/passkey";
+import { sensitiveHeaders, fetchPasskeys } from "../lib/passkey";
+import { UnfreezeWithWalletDialog } from "./UnfreezeWithWalletDialog";
 import { apiUrl } from "../lib/apiBase";
 import { ErrorBox, Button } from "./ui";
 import { Snowflake, LockOpen } from "lucide-react";
 
-type Action = "idle" | "freeze-confirm" | "unfreeze-challenge" | "cancel-challenge";
+type Action = "idle" | "freeze-confirm" | "unfreeze-challenge" | "cancel-challenge" | "wallet-proof";
 
 export function FrozenBanner({
   user,
@@ -118,6 +119,13 @@ export function FrozenBanner({
     }
   }
 
+  // No active passkey (e.g. freeze dropped the only pending one): prove a wallet instead.
+  async function startUnfreeze() {
+    // If the list cannot be loaded, keep the usual passkey path rather than guess "none".
+    const active = await fetchPasskeys({ strict: true }).catch(() => null);
+    setAction(active === null || active.length > 0 ? "unfreeze-challenge" : "wallet-proof");
+  }
+
   // Non-frozen: show freeze button in sidebar
   if (!frozen) {
     return (
@@ -196,6 +204,10 @@ export function FrozenBanner({
         </div>
       )}
 
+      {action === "wallet-proof" && (
+        <UnfreezeWithWalletDialog onDone={() => { onUpdate(); setAction("idle"); }} onCancel={dismiss} />
+      )}
+
       {/* Cancel unfreeze passkey challenge */}
       {action === "cancel-challenge" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -251,7 +263,7 @@ export function FrozenBanner({
               </button>
             ) : (
               <button
-                onClick={() => setAction("unfreeze-challenge")}
+                onClick={startUnfreeze}
                 disabled={loading}
                 className="text-xs text-blue-400 hover:text-blue-300 transition-colors disabled:text-text-muted disabled:cursor-not-allowed"
               >

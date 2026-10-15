@@ -3,9 +3,11 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { listKeyShares, deleteKeyShare, saveKeyShareWithPrf, saveKeyShareWithPassphrase, hasKeyShare, getKeyShareFromStoredShare, getKeyShareMode, getKeyShareWithPrf, type KeyShareInfo } from "../lib/keystore";
 import { authenticatePasskey, authenticatePasskeyForImport, sensitiveHeaders } from "../lib/passkey";
+import { passkeyErrorMessage } from "../lib/passkey-error-message";
 import { encryptKeyFile, decryptKeyFile, type KeyFileData } from "../lib/crypto";
 import { isPveShare } from "../lib/pve-server-share";
 import { requestPveServerExport } from "../lib/pve-server-share-request";
+import { ExportNotReadyError, ExportRequestError, throwIfExportGated, cancelServerShareExport } from "../lib/server-share-export-request";
 import { PassphraseInput } from "./PassphraseInput";
 import { authHeaders, isStandaloneJwt, getIdentityId } from "../lib/auth";
 import { apiUrl } from "../lib/apiBase";
@@ -22,6 +24,8 @@ interface ServerKey {
   name: string | null;
   selfCustodyAt: string | null;
   hkdfDownloadedAt: string | null;
+  /** Pending or ready server-share export request (unlocks at this time). */
+  serverShareExportAt?: string | null;
   hasClientBackup: boolean;
 }
 
@@ -38,7 +42,8 @@ export function KeyShareManager() {
   // Server share export state
   const [serverKeys, setServerKeys] = useState<ServerKey[]>([]);
   const [serverExportId, setServerExportId] = useState<string | null>(null);
-  const [serverExportStep, setServerExportStep] = useState<"idle" | "loading" | "passphrase" | "done" | "error">("idle");
+  const [serverExportStep, setServerExportStep] = useState<"idle" | "loading" | "passphrase" | "done" | "error" | "scheduled">("idle");
+  const [exportReadyAt, setExportReadyAt] = useState<string | null>(null);
   const [serverExportError, setServerExportError] = useState("");
   const [pveFullyVerified, setPveFullyVerified] = useState<boolean | null>(null);
 
@@ -97,6 +102,7 @@ export function KeyShareManager() {
           name: k.name as string | null,
           selfCustodyAt: k.selfCustodyAt as string | null,
           hkdfDownloadedAt: k.hkdfDownloadedAt as string | null,
+          serverShareExportAt: (k.serverShareExportAt as string | null) ?? null,
           hasClientBackup: !!k.hasClientBackup,
         })));
       })
@@ -184,7 +190,7 @@ export function KeyShareManager() {
       setImportStep("idle");
       setShares(listKeyShares());
     } catch (err) {
-      setError(String(err));
+      setError(passkeyErrorMessage(err, t));
       setImportStep("encrypt");
     }
   }
@@ -199,7 +205,7 @@ export function KeyShareManager() {
       setImportStep("idle");
       setShares(listKeyShares());
     } catch (err) {
-      setError(String(err));
+      setError(passkeyErrorMessage(err, t));
       setImportStep("encrypt");
     }
   }
@@ -336,6 +342,7 @@ export function KeyShareManager() {
             name: k.name as string | null,
             selfCustodyAt: k.selfCustodyAt as string | null,
             hkdfDownloadedAt: k.hkdfDownloadedAt as string | null,
+          serverShareExportAt: (k.serverShareExportAt as string | null) ?? null,
             hasClientBackup: !!k.hasClientBackup,
           })));
         })
@@ -367,6 +374,7 @@ export function KeyShareManager() {
       });
 
       if (!res.ok) {
+        await throwIfExportGated(keyId, res);
         const data = await res.json().catch(() => ({}));
         setServerExportError(data.error || t("keyShare.exportFailed"));
         setServerExportStep("error");
@@ -399,7 +407,21 @@ export function KeyShareManager() {
 
       setServerExportStep("passphrase");
     } catch (err) {
-      setServerExportError(String(err));
+      if (err instanceof ExportNotReadyError) { setExportReadyAt(err.readyAt); setServerExportStep("scheduled"); return; }
+      setServerExportError(err instanceof ExportRequestError ? t("keyShare.exportRequestFailed") : String(err));
+      setServerExportStep("error");
+    }
+  }
+
+  async function handleCancelExport(keyId: string) {
+    try {
+      await cancelServerShareExport(keyId);
+      setServerExportStep("idle");
+      setServerExportId(null);
+      setExportReadyAt(null);
+      setServerKeys((prev) => prev.map((k) => (k.id === keyId ? { ...k, serverShareExportAt: null } : k)));
+    } catch {
+      setServerExportError(t("keyShare.exportCancelFailed"));
       setServerExportStep("error");
     }
   }
@@ -419,6 +441,8 @@ export function KeyShareManager() {
       setPveFullyVerified(fullyVerified);
       setServerExportStep("passphrase");
     } catch (err) {
+      if (err instanceof ExportNotReadyError) { setExportReadyAt(err.readyAt); setServerExportStep("scheduled"); return; }
+      if (err instanceof ExportRequestError) { setServerExportError(t("keyShare.exportRequestFailed")); setServerExportStep("error"); return; }
       const msg = err instanceof Error ? err.message : String(err);
       setServerExportError(msg.includes("verification") ? t("keyShare.pveVerifyFailed") : msg || t("keyShare.exportFailed"));
       setServerExportStep("error");
@@ -451,6 +475,7 @@ export function KeyShareManager() {
           name: k.name as string | null,
           selfCustodyAt: k.selfCustodyAt as string | null,
           hkdfDownloadedAt: k.hkdfDownloadedAt as string | null,
+          serverShareExportAt: (k.serverShareExportAt as string | null) ?? null,
           hasClientBackup: !!k.hasClientBackup,
         })));
       })
@@ -679,6 +704,28 @@ export function KeyShareManager() {
                   <p className={`px-3 md:px-5 pb-3 text-[10px] leading-relaxed ${pveFullyVerified ? "text-green-400/80" : "text-yellow-500/80"}`}>
                     {t(pveFullyVerified ? "keyShare.pveFullyVerified" : "keyShare.pveServerClaimOnly")}
                   </p>
+                )}
+
+                {k.serverShareExportAt && !(serverExportId === k.id && serverExportStep === "scheduled") && (
+                  <div className="px-3 md:px-5 pb-3 space-y-1">
+                    <p className="text-xs text-yellow-500">
+                      {new Date(k.serverShareExportAt).getTime() > Date.now()
+                        ? t("keyShare.exportPending", { date: new Date(k.serverShareExportAt).toLocaleString() })
+                        : t("keyShare.exportReady")}
+                    </p>
+                    <button onClick={() => handleCancelExport(k.id)} className="text-[11px] text-blue-500 hover:underline">
+                      {t("keyShare.exportCancel")}
+                    </button>
+                  </div>
+                )}
+
+                {serverExportId === k.id && serverExportStep === "scheduled" && exportReadyAt && (
+                  <div className="px-3 md:px-5 pb-3 space-y-1">
+                    <p className="text-xs text-yellow-500">{t("keyShare.exportScheduled", { date: new Date(exportReadyAt).toLocaleString() })}</p>
+                    <button onClick={() => handleCancelExport(k.id)} className="text-[11px] text-blue-500 hover:underline">
+                      {t("keyShare.exportCancel")}
+                    </button>
+                  </div>
                 )}
 
                 {serverExportId === k.id && serverExportStep === "error" && (

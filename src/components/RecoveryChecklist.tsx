@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useExpertMode } from "../context/ExpertModeContext";
 import { authHeaders, isStandaloneJwt, getIdentityId } from "../lib/auth";
-import { sensitiveHeaders, authenticatePasskey, authenticatePasskeyForImport } from "../lib/passkey";
+import { sensitiveHeaders, authenticatePasskey, authenticatePasskeyForImport, PasskeyPendingError } from "../lib/passkey";
+import { passkeyErrorMessage } from "../lib/passkey-error-message";
 import { Spinner } from "./ui";
 import { apiUrl } from "../lib/apiBase";
 import {
@@ -190,7 +191,7 @@ export function RecoveryChecklist() {
       setImportAccountId(null);
       fetchAccounts();
     } catch (err) {
-      setImportError(err instanceof Error ? err.message : String(err));
+      setImportError(err instanceof PasskeyPendingError ? passkeyErrorMessage(err, t) : err instanceof Error ? err.message : String(err));
       setImportStep("idle");
     }
   }

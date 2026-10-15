@@ -18,7 +18,7 @@ import { authenticatePasskey } from "../lib/passkey";
 import { hasKeyShare, getKeyShareMode, getKeyShareWithPrf, getKeyShareWithPassphrase } from "../lib/keystore";
 import { decryptKeyFile, isEncryptedKeyFile, type KeyFileData } from "../lib/crypto";
 import { isRecoveryMode, getRecoveryKeys, getRecoveryKeyFile } from "../lib/recovery";
-import { wcPersonalSign, wcEthSign, wcSignTypedData, wcSendTransaction, wcSolanaSignTransaction, wcSolanaSignAndSendTransaction, wcSolanaSignMessage, wcTronSignTransaction, wcTronSignMessage, type WcSignPhase } from "../lib/wcSigning";
+import { wcPersonalSign, wcEthSign, wcSignTypedData, wcSendTransaction, wcSolanaSignTransaction, wcSolanaSignAndSendTransaction, wcSolanaSignMessage, isSignableSolanaMessage, wcTronSignTransaction, wcTronSignMessage, type WcSignPhase } from "../lib/wcSigning";
 import { waitForReceipt, estimateGas, getTransactionCount } from "../lib/chains/evmTx";
 import { decodeSolanaTransaction, formatLamports, formatTokenAmount as formatSplAmount, waitForSolanaConfirmation, type DecodedSolanaTx } from "../lib/chains/solanaTx";
 import { formatSun, waitForTronConfirmation, estimateTronFee, type TronTransaction } from "../lib/chains/tronTx";
@@ -546,6 +546,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   const [policyCheck, setPolicyCheck] = useState<{
     allowed: boolean;
     reason?: string;
+    blockedLeg?: string | null;
     fraudCheck?: { flagged: boolean; flags: string[]; level: string; address: string };
   } | null>(null);
   const [policyChecking, setPolicyChecking] = useState(false);
@@ -593,7 +594,12 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
           const res = await fetch(apiUrl(`/api/keys/${account.keyId}/rules/check`), {
             method: "POST",
             headers: { ...authHeaders(), "Content-Type": "application/json" },
-            body: JSON.stringify({ to, amount, nativeSymbol, contractAddress, chainId: reqChainId }),
+            body: JSON.stringify({
+              to, amount, nativeSymbol, contractAddress, chainId: reqChainId,
+              chainType: isSolana ? "solana" : isTronTx ? "tron" : "evm",
+              from: account.address,
+              ...(!isSolana && !isTronTx && txParams?.data ? { data: txParams.data } : {}),
+            }),
           });
           if (res.ok) {
             setPolicyCheck(await res.json());
@@ -729,6 +735,9 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
           setSigningStepIdx(0);
           const msgBase64 = request.params?.message;
           if (!msgBase64) throw new Error("Missing message data");
+          if (!isSignableSolanaMessage(Uint8Array.from(atob(msgBase64), (c) => c.charCodeAt(0)))) {
+            throw new Error(t("wc.solanaMessageNotText"));
+          }
           setSigningStepIdx(1);
           const msgResult = await wcSolanaSignMessage(msgBase64, kf, account!.address);
           setSigningStepIdx(2);

@@ -5,8 +5,11 @@ import {
   registerPasskey,
   renamePasskey,
   deletePasskey,
+  isPasskeyPending,
+  PasskeyPendingError,
   type PasskeyInfo,
 } from "../lib/passkey";
+import { passkeyErrorMessage } from "../lib/passkey-error-message";
 import { ErrorBox } from "./ui";
 import { KeyRound } from "lucide-react";
 
@@ -89,7 +92,7 @@ export function Passkeys() {
 
   async function loadData() {
     try {
-      const list = await fetchPasskeys();
+      const list = await fetchPasskeys({ includePending: true });
       setPasskeys(list);
     } catch {
       /* ignore */
@@ -110,7 +113,9 @@ export function Passkeys() {
       setPasskeys((prev) => [...prev, info]);
       localStorage.setItem("idleLock.hasPasskeys", "true");
     } catch (err) {
-      setError(String(err));
+      // Reload rather than append, so the list shows exactly what the server stored.
+      if (err instanceof PasskeyPendingError) await loadData();
+      setError(passkeyErrorMessage(err, t));
     } finally {
       setAdding(false);
     }
@@ -254,6 +259,11 @@ export function Passkeys() {
                     <span className="text-[11px] text-text-muted">
                       {t("passkey.lastUsed")}: {formatTimeAgo(pk.lastUsedAt)}
                     </span>
+                    {isPasskeyPending(pk) && (
+                      <span className="text-[11px] text-amber-500">
+                        {t(pk.otherSite ? "passkey.pendingOtherSiteBadge" : "passkey.pendingBadge", { date: formatDate(pk.activeAt) })}
+                      </span>
+                    )}
                   </div>
                 </>
               )}
@@ -263,9 +273,9 @@ export function Passkeys() {
             {deletingId !== pk.id && (
               <button
                 onClick={() => setDeletingId(pk.id)}
-                disabled={passkeys.length <= 1}
+                disabled={!isPasskeyPending(pk) && passkeys.filter((p) => !isPasskeyPending(p)).length <= 1}
                 className="p-1.5 rounded-md text-text-muted hover:text-red-400 hover:bg-surface-tertiary transition-colors md:opacity-0 md:group-hover:opacity-100 disabled:opacity-20 disabled:cursor-not-allowed shrink-0"
-                title={passkeys.length <= 1 ? "Cannot delete last passkey" : "Delete passkey"}
+                title={!isPasskeyPending(pk) && passkeys.filter((p) => !isPasskeyPending(p)).length <= 1 ? "Cannot delete last passkey" : "Delete passkey"}
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
