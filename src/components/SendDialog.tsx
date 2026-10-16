@@ -9,7 +9,7 @@ import { useExpertMode } from "../context/ExpertModeContext";
 import { SigningError, SigningStepper } from "./tx";
 import { fetchPrices, getUsdValue } from "../lib/prices";
 import { clearClientKey } from "../lib/mpc";
-import { Clock, CircleCheck, Radio, CircleX, Zap, Send, Eye } from "lucide-react";
+import { Clock, CircleCheck, Radio, CircleX, Zap, Send } from "lucide-react";
 import { authHeaders, isStandaloneJwt } from "../lib/auth";
 import { apiUrl } from "../lib/apiBase";
 import { fetchPasskeys } from "../lib/passkey";
@@ -663,15 +663,19 @@ export function SendDialog({
         {/* Header */}
         <div className={`flex items-center justify-between px-5 py-4 border-b border-border-secondary shrink-0 ${!isCompact ? "pt-[calc(1rem+env(safe-area-inset-top))] md:pt-4" : ""}`}>
           {step === "preview" ? (
-            <button
-              onClick={() => setStep("input")}
-              className="flex items-center gap-1.5 text-xs text-text-tertiary hover:text-text-primary transition-colors"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
-              {t("send.edit")}
-            </button>
+            <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+              <button
+                onClick={() => setStep("input")}
+                aria-label={t("send.edit")}
+                className="p-1 -ml-1 rounded-md text-text-tertiary hover:text-text-primary transition-colors shrink-0"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <h3 className="text-sm font-semibold text-text-primary truncate">{t("send.review")}</h3>
+              <span className="ml-auto"><NetworkChip name={chain.displayName} iconUrl={chain.iconUrl} /></span>
+            </div>
           ) : step === "signing" ? (
             <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5"><Clock className="w-4 h-4" />{t("send.signing")}</h3>
           ) : step === "result" ? (
@@ -684,12 +688,6 @@ export function SendDialog({
 
             </h3>
           )}
-          {step === "preview" && (
-            <h3 className="text-sm font-semibold text-text-primary absolute left-1/2 -translate-x-1/2">
-              <Eye className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("send.review")}
-            </h3>
-          )}
-          {step === "preview" && <span className="ml-auto mr-2"><NetworkChip name={chain.displayName} iconUrl={chain.iconUrl} /></span>}
           {canClose && (
             <button
               onClick={onClose}
