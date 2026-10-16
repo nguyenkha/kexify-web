@@ -93,7 +93,7 @@
     "client": "Client",
     "server": "Server",
     "scanWalletConnect": "Scan WalletConnect QR",
-    "apps": "Apps"
+    "explore": "Explore"
   },
   "wallet": {
     "importKeyFileLink": "Have a key file? Import an existing wallet",
@@ -1473,8 +1473,8 @@
     },
     "setLimit": "Set a limit (recommended)"
   },
-  "apps": {
-    "title": "Apps",
+  "explore": {
+    "title": "Explore",
     "webHint": "Apps listed by kexify. They open in a new tab: choose WalletConnect there and connect it in",
     "openWalletConnect": "WalletConnect",
     "loadFailed": "Could not load the app list.",

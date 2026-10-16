@@ -93,7 +93,7 @@
     "client": "Ứng dụng",
     "server": "Máy chủ",
     "scanWalletConnect": "Quét mã QR WalletConnect",
-    "apps": "Khám phá"
+    "explore": "Khám phá"
   },
   "wallet": {
     "importKeyFileLink": "Đã có file key? Nhập ví có sẵn",
@@ -1473,7 +1473,7 @@
     },
     "setLimit": "Đặt hạn mức (nên làm)"
   },
-  "apps": {
+  "explore": {
     "title": "Khám phá",
     "webHint": "Ứng dụng do kexify chọn. Ứng dụng mở trong tab mới: chọn WalletConnect ở đó rồi kết nối trong",
     "openWalletConnect": "WalletConnect",
