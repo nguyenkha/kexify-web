@@ -18,6 +18,7 @@ import { hasKeyShare, getKeyShareMode, getKeyShareWithPrf, getKeyShareWithPassph
 import { decryptKeyFile, isEncryptedKeyFile, type KeyFileData } from "../lib/crypto";
 import { isRecoveryMode, getRecoveryKeys, getRecoveryKeyFile } from "../lib/recovery";
 import { wcPersonalSign, wcEthSign, wcSignTypedData, wcSendTransaction, wcSolanaSignTransaction, wcSolanaSignAndSendTransaction, wcSolanaSignMessage, isSignableSolanaMessage, wcTronSignTransaction, wcTronSignMessage, type WcSignPhase } from "../lib/wcSigning";
+import { decodeSolanaMessageParam } from "../lib/solana-wc-message";
 import { evmReceiptRpcUrls } from "../lib/chains/evm-read-rpc-fallbacks";
 import { usePendingEvmReceipt } from "./send/use-pending-evm-receipt";
 import { waitForReceipt, estimateGas, getTransactionCount } from "../lib/chains/evmTx";
@@ -747,13 +748,13 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
         }
         case "solana_signMessage": {
           setSigningStepIdx(0);
-          const msgBase64 = request.params?.message;
-          if (!msgBase64) throw new Error("Missing message data");
-          if (!isSignableSolanaMessage(Uint8Array.from(atob(msgBase64), (c) => c.charCodeAt(0)))) {
+          const msgBase58 = request.params?.message;
+          if (!msgBase58) throw new Error("Missing message data");
+          if (!isSignableSolanaMessage(decodeSolanaMessageParam(msgBase58))) {
             throw new Error(t("wc.solanaMessageNotText"));
           }
           setSigningStepIdx(1);
-          const msgResult = await wcSolanaSignMessage(msgBase64, kf, account!.address);
+          const msgResult = await wcSolanaSignMessage(msgBase58, kf, account!.address);
           setSigningStepIdx(2);
           result = { signature: msgResult.signature };
           break;
@@ -2300,10 +2301,10 @@ function formatRequest(request: PendingRequest, expertMode = false, permitTokenI
     case "solana_signMessage": {
       const items: Array<{ label: string; value: string }> = [];
       try {
-        const msgBytes = atob(request.params?.message || "");
-        items.push({ label: "Message", value: msgBytes });
+        const msgText = new TextDecoder().decode(decodeSolanaMessageParam(request.params?.message || ""));
+        items.push({ label: "Message", value: msgText });
       } catch {
-        items.push({ label: "Message (base64)", value: request.params?.message || "" });
+        items.push({ label: "Message (base58)", value: request.params?.message || "" });
       }
       return items;
     }

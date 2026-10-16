@@ -22,6 +22,7 @@ import {
   type TronTransaction,
 } from "./chains/tronTx";
 import { base58 } from "@scure/base";
+import { decodeSolanaMessageParam, encodeSolanaSignature } from "./solana-wc-message";
 import type { KeyFileData } from "./crypto";
 
 // ── Helpers ──────────────────────────────────────────────────────
@@ -301,11 +302,11 @@ export function isSignableSolanaMessage(bytes: Uint8Array): boolean {
 }
 
 export async function wcSolanaSignMessage(
-  messageBase64: string, // base64-encoded message bytes
+  messageBase58: string, // WalletConnect spec: base58-encoded message bytes
   keyFile: KeyFileData,
   address: string,
 ): Promise<{ signature: string }> {
-  const messageBytes = base64ToUint8(messageBase64);
+  const messageBytes = decodeSolanaMessageParam(messageBase58);
 
   if (!clientKeys.has(keyFile.id)) {
     await restoreKeyHandles(keyFile.id, keyFile.share, keyFile.eddsaShare);
@@ -327,7 +328,7 @@ export async function wcSolanaSignMessage(
     headers: sensitiveHeaders(),
   });
 
-  return { signature: base58.encode(sigRaw) };
+  return { signature: encodeSolanaSignature(sigRaw) };
 }
 
 // ── tron_signTransaction ──────────────────────────────────────
