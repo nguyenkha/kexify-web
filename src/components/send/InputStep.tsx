@@ -1,6 +1,7 @@
 import { maskAmount } from "../../lib/hidden-amount";
 import { formatUsd } from "../../lib/prices";
 import { shortAddress } from "../../lib/review";
+import { NetworkChip } from "../review/review-header";
 import { truncateBalance } from "../sendTypes";
 import type { InputStepProps } from "./types";
 import { KeyShareSection } from "./KeyShareSection";
@@ -138,9 +139,19 @@ export function InputStep({
         <div>
           <label className="block text-xs text-text-muted mb-1.5">{t("send.from")}</label>
           <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-text-primary">{asset.symbol}</p>
-              <p className="text-xs text-text-muted truncate">{chain.displayName} &middot; <span className="font-mono">{shortAddress(address)}</span></p>
+            <div className="flex items-center gap-3 min-w-0">
+              {asset.iconUrl || chain.iconUrl ? (
+                <img src={asset.iconUrl || chain.iconUrl!} alt="" className="w-9 h-9 rounded-full bg-surface-tertiary object-cover shrink-0" />
+              ) : (
+                <span className="w-9 h-9 rounded-full bg-surface-tertiary shrink-0" aria-hidden />
+              )}
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-text-primary">{asset.symbol}</p>
+                <p className="text-xs text-text-muted truncate flex items-center gap-1.5">
+                  <NetworkChip name={chain.displayName} iconUrl={chain.iconUrl} />
+                  <span className="font-mono">{shortAddress(address)}</span>
+                </p>
+              </div>
             </div>
             <div className="text-right shrink-0">
               <p className="text-xs text-text-muted">{t("send.balance")}</p>
