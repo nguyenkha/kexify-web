@@ -2,6 +2,7 @@
 // PBKDF2 (600k iterations, SHA-256) + AES-GCM-256
 
 import { toBase64, fromBase64 } from "./mpc";
+import { wipe } from "./secret-bytes";
 
 const PBKDF2_ITERATIONS = 600_000;
 const SALT_BYTES = 16;
@@ -28,14 +29,19 @@ export function isHkdfEncrypted(data: KeyFileData): boolean {
 /** Decrypt HKDF-encrypted fields using a hex key from support */
 export async function decryptHkdfKeyFile(data: KeyFileData, hexKey: string): Promise<KeyFileData> {
   const keyBytes = new Uint8Array(hexKey.match(/.{2}/g)!.map((b) => parseInt(b, 16)));
-  const cryptoKey = await crypto.subtle.importKey("raw", keyBytes, "AES-GCM", false, ["decrypt"]);
+  const cryptoKey = await crypto.subtle.importKey("raw", keyBytes, "AES-GCM", false, ["decrypt"])
+    .finally(() => wipe(keyBytes));
 
   async function dec(encB64: string): Promise<string> {
     const combined = fromBase64(encB64);
     const iv = combined.slice(0, 12);
     const ciphertext = combined.slice(12);
-    const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, cryptoKey, ciphertext);
-    return new TextDecoder().decode(plain);
+    const plain = new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv }, cryptoKey, ciphertext));
+    try {
+      return new TextDecoder().decode(plain);
+    } finally {
+      wipe(plain);
+    }
   }
 
   try {
@@ -65,7 +71,7 @@ async function deriveKey(passphrase: string, salt: Uint8Array): Promise<CryptoKe
 async function encryptField(plaintext: string, key: CryptoKey): Promise<string> {
   const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES));
   const data = new TextEncoder().encode(plaintext);
-  const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, data);
+  const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, data).finally(() => wipe(data));
   const combined = new Uint8Array(IV_BYTES + ciphertext.byteLength);
   combined.set(iv);
   combined.set(new Uint8Array(ciphertext), IV_BYTES);
@@ -76,8 +82,12 @@ async function decryptField(encryptedBase64: string, key: CryptoKey): Promise<st
   const combined = fromBase64(encryptedBase64);
   const iv = combined.slice(0, IV_BYTES);
   const ciphertext = combined.slice(IV_BYTES);
-  const plaintext = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
-  return new TextDecoder().decode(plaintext);
+  const plaintext = new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext));
+  try {
+    return new TextDecoder().decode(plaintext);
+  } finally {
+    wipe(plaintext);
+  }
 }
 
 export function isEncryptedKeyFile(data: KeyFileData): boolean {

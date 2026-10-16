@@ -8,18 +8,21 @@ import { ed25519 } from "@noble/curves/ed25519.js";
 import { setToken } from "./auth";
 import { apiUrl } from "./apiBase";
 import { toHex } from "./mpc";
+import { wipe } from "./secret-bytes";
 
 /** Derive Ed25519 auth keypair from ECDSA share data (deterministic) */
 export function deriveAuthKeyPair(ecdsaShareData: string) {
   const shareBytes = new TextEncoder().encode(ecdsaShareData);
   const seed = hkdf(sha256, shareBytes, "kexify-share-auth", "", 32);
+  wipe(shareBytes);
   const publicKey = ed25519.getPublicKey(seed);
   return { privateKey: seed, publicKey };
 }
 
 /** Get the auth public key hex from ECDSA share data */
 export function authPublicKeyHex(ecdsaShareData: string): string {
-  const { publicKey } = deriveAuthKeyPair(ecdsaShareData);
+  const { privateKey, publicKey } = deriveAuthKeyPair(ecdsaShareData);
+  wipe(privateKey);
   return toHex(publicKey);
 }
 
@@ -38,22 +41,27 @@ export async function performShareAuth(
   captchaToken?: string
 ): Promise<{ token: string; keyShareId: string }> {
   const { privateKey, publicKey } = deriveAuthKeyPair(ecdsaShareData);
-  const pubHex = toHex(publicKey);
-
-  // Step 1: Request challenge
-  const authRes = await fetch(apiUrl("/api/auth/share-auth"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ authPublicKey: pubHex, captchaToken }),
-  });
-  if (!authRes.ok) {
-    const data = await authRes.json().catch(() => null);
-    throw new Error((data?.error as string) || "Share authentication failed");
+  let challengeId: string;
+  let signature: string;
+  try {
+    // Step 1: Request challenge
+    const authRes = await fetch(apiUrl("/api/auth/share-auth"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ authPublicKey: toHex(publicKey), captchaToken }),
+    });
+    if (!authRes.ok) {
+      const data = await authRes.json().catch(() => null);
+      throw new Error((data?.error as string) || "Share authentication failed");
+    }
+    const res = await authRes.json();
+    challengeId = res.challengeId;
+    // Step 2: Sign challenge (the derived key is wiped right after)
+    signature = signChallenge(res.challenge, privateKey);
+  } finally {
+    wipe(privateKey);
   }
-  const { challenge, challengeId } = await authRes.json();
 
-  // Step 2: Sign challenge and verify
-  const signature = signChallenge(challenge, privateKey);
   const verifyRes = await fetch(apiUrl("/api/auth/share-verify"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },

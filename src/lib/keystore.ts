@@ -4,6 +4,7 @@
 import type { KeyFileData } from "./crypto";
 import { toBase64, fromBase64, DEFERRED_PRF_SHARE } from "./mpc";
 import { linkKeyShareToSite } from "./key-share-site-link";
+import { findJsonStringField, sharePartsFromAscii, wipe } from "./secret-bytes";
 
 const STORAGE_PREFIX = "keyshare:";
 
@@ -80,8 +81,47 @@ function serialize(data: KeyFileData): Uint8Array {
   return new TextEncoder().encode(JSON.stringify(data));
 }
 
+/** Parse a decrypted key file and wipe the plaintext bytes (the parsed strings remain). */
 function deserialize(buf: Uint8Array): KeyFileData {
-  return JSON.parse(new TextDecoder().decode(buf));
+  try {
+    return JSON.parse(new TextDecoder().decode(buf));
+  } finally {
+    wipe(buf);
+  }
+}
+
+/** Decoded client share, never turned into a string. The caller wipes `ecdsa` / `eddsa`. */
+export interface KeyShareParts {
+  ecdsa: Uint8Array[];
+  eddsa: Uint8Array[];
+  /** The rest of the key file, with share values blanked. */
+  meta: KeyFileData;
+}
+
+/**
+ * Like deserialize, but the share fields go bytes -> decoded parts, and only the
+ * non-secret rest of the JSON becomes strings. Wipes `buf`.
+ */
+function deserializeParts(buf: Uint8Array): KeyShareParts {
+  const parts: KeyShareParts = { ecdsa: [], eddsa: [], meta: null as unknown as KeyFileData };
+  try {
+    const ecdsaAt = findJsonStringField(buf, "share");
+    const eddsaAt = findJsonStringField(buf, "eddsaShare");
+    if (ecdsaAt) parts.ecdsa = sharePartsFromAscii(buf.subarray(...ecdsaAt));
+    if (eddsaAt) parts.eddsa = sharePartsFromAscii(buf.subarray(...eddsaAt));
+    // Spaces are valid string content: blank the secrets in place, then parse the rest.
+    if (ecdsaAt) buf.fill(0x20, ...ecdsaAt);
+    if (eddsaAt) buf.fill(0x20, ...eddsaAt);
+    parts.meta = JSON.parse(new TextDecoder().decode(buf));
+    parts.meta.share = "";
+    parts.meta.eddsaShare = "";
+    return parts;
+  } catch (err) {
+    wipe(parts.ecdsa, parts.eddsa);
+    throw err;
+  } finally {
+    wipe(buf);
+  }
 }
 
 // Helper to convert Uint8Array to ArrayBuffer (avoids TS BufferSource issues)
@@ -128,7 +168,8 @@ export async function saveKeyShareWithPrf(
   credentialId: string,
   type: "email" | "standalone" = "email",
 ): Promise<void> {
-  const { iv, ciphertext } = await aesEncrypt(prfKey, serialize(data));
+  const plain = serialize(data);
+  const { iv, ciphertext } = await aesEncrypt(prfKey, plain).finally(() => wipe(plain));
   lsPut({
     keyId,
     mode: "prf",
@@ -162,7 +203,8 @@ export async function saveKeyShareWithPassphrase(
 ): Promise<void> {
   const salt = crypto.getRandomValues(new Uint8Array(SALT_BYTES));
   const key = await derivePassphraseKey(passphrase, salt);
-  const { iv, ciphertext } = await aesEncrypt(key, serialize(data));
+  const plain = serialize(data);
+  const { iv, ciphertext } = await aesEncrypt(key, plain).finally(() => wipe(plain));
   lsPut({
     keyId,
     mode: "passphrase",
@@ -195,12 +237,38 @@ export async function getKeyShareWithPrf(keyId: string, prfKey: CryptoKey): Prom
   } catch {
     return null;
   }
-  // Shares stored before the public EdDSA key was kept in the clear: backfill it, so the
-  // next send can defer the unlock to its signing tap.
+  backfillPublicMeta(entry, data);
+  return data;
+}
+
+/**
+ * PRF unlock for signing: the share goes straight from the decrypted bytes into wipeable
+ * parts (no share string). Null when the entry is missing or does not decrypt.
+ */
+export async function getKeySharePartsWithPrf(keyId: string, prfKey: CryptoKey): Promise<KeyShareParts | null> {
+  const entry = lsGet(keyId);
+  if (!entry || entry.mode !== "prf") return null;
+  let plain: Uint8Array;
+  try {
+    plain = await aesDecrypt(prfKey, entry.iv, entry.ciphertext);
+  } catch {
+    return null;
+  }
+  const parts = deserializeParts(plain);
+  try {
+    backfillPublicMeta(entry, parts.meta);
+  } catch {
+    // Only a metadata convenience (e.g. storage full): never drop the decoded share unwiped over it.
+  }
+  return parts;
+}
+
+// Shares stored before the public EdDSA key was kept in the clear: backfill it, so the
+// next send can defer the unlock to its signing tap.
+function backfillPublicMeta(entry: StoredShare, data: KeyFileData): void {
   if (entry.meta.eddsaPublicKey === undefined && data.eddsaPublicKey !== undefined) {
     lsPut({ ...entry, meta: { ...entry.meta, eddsaPublicKey: data.eddsaPublicKey ?? "", peer: data.peer } });
   }
-  return data;
 }
 
 /**

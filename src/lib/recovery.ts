@@ -4,7 +4,8 @@
 import type { KeyFileData } from "./crypto";
 import type { KeyShare } from "../shared/types";
 import type { CbMpc, DataTransport, Ecdsa2pKeyHandle, EcKey2pHandle } from "cb-mpc";
-import { getMpcInstance, fromBase64 } from "./mpc";
+import { allOrFailure, getMpcInstance } from "./mpc";
+import { sharePartsFromString, wipe } from "./secret-bytes";
 import { isPveShare, restorePveServerShare } from "./pve-server-share";
 import type { MpcSignResult, BatchMpcSignResult } from "./mpc";
 
@@ -23,6 +24,37 @@ interface RecoveryHandles {
 }
 
 let handles: RecoveryHandles | null = null;
+/** Local signing runs in flight, and handles retired while they ran (freed when the last ends). */
+let signing = 0;
+const retired: RecoveryHandles[] = [];
+
+/** Free (and so zero, inside cb-mpc) every key handle of a recovery session. */
+function freeRecoveryHandles(h: RecoveryHandles): void {
+  try { if (h.ecdsa0) h.mpc0.freeEcdsa2pKey(h.ecdsa0); } catch { /* already gone */ }
+  try { if (h.ecdsa1) h.mpc1.freeEcdsa2pKey(h.ecdsa1); } catch { /* already gone */ }
+  try { if (h.eddsa0) h.mpc0.freeEcKey2p(h.eddsa0); } catch { /* already gone */ }
+  try { if (h.eddsa1) h.mpc1.freeEcKey2p(h.eddsa1); } catch { /* already gone */ }
+  h.ecdsa0 = h.ecdsa1 = undefined;
+  h.eddsa0 = h.eddsa1 = undefined;
+}
+
+function retire(h: RecoveryHandles): void {
+  if (signing > 0) retired.push(h);
+  else freeRecoveryHandles(h);
+}
+
+/** Run with the current handles; an exit meanwhile frees them only after the run. */
+async function withHandles<T>(fn: (h: RecoveryHandles) => Promise<T>): Promise<T> {
+  const h = handles;
+  if (!h) throw new Error("Recovery mode not initialized");
+  signing++;
+  try {
+    return await fn(h);
+  } finally {
+    signing--;
+    if (signing === 0) retired.splice(0).forEach(freeRecoveryHandles);
+  }
+}
 
 // ── Auto-lock (15 min inactivity) ──
 
@@ -86,22 +118,39 @@ export async function enterRecoveryMode(p1: KeyFileData, p2: KeyFileData): Promi
     };
   }
 
-  // Restore ECDSA handles
-  if (p1.share && p2.share) {
-    const parts0 = p1.share.split(",").map((s) => fromBase64(s));
-    const parts1 = p2.share.split(",").map((s) => fromBase64(s));
-    h.ecdsa0 = mpc0.deserializeEcdsa2p(parts0);
-    h.ecdsa1 = mpc1.deserializeEcdsa2p(parts1);
+  try {
+    // Restore ECDSA handles (the decoded parts are wiped; cb-mpc keeps its own copy)
+    if (p1.share && p2.share) {
+      const parts0 = sharePartsFromString(p1.share);
+      let parts1: Uint8Array[] = [];
+      try {
+        parts1 = sharePartsFromString(p2.share);
+        h.ecdsa0 = mpc0.deserializeEcdsa2p(parts0);
+        h.ecdsa1 = mpc1.deserializeEcdsa2p(parts1);
+      } finally {
+        wipe(parts0, parts1);
+      }
+    }
+
+    // Restore EdDSA handles
+    if (p1.eddsaShare && p2.eddsaShare) {
+      const parts0 = sharePartsFromString(p1.eddsaShare);
+      let parts1: Uint8Array[] = [];
+      try {
+        parts1 = sharePartsFromString(p2.eddsaShare);
+        h.eddsa0 = mpc0.deserializeEcKey2p(parts0);
+        h.eddsa1 = mpc1.deserializeEcKey2p(parts1);
+      } finally {
+        wipe(parts0, parts1);
+      }
+    }
+  } catch (err) {
+    freeRecoveryHandles(h);
+    throw err;
   }
 
-  // Restore EdDSA handles
-  if (p1.eddsaShare && p2.eddsaShare) {
-    const parts0 = p1.eddsaShare.split(",").map((s) => fromBase64(s));
-    const parts1 = p2.eddsaShare.split(",").map((s) => fromBase64(s));
-    h.eddsa0 = mpc0.deserializeEcKey2p(parts0);
-    h.eddsa1 = mpc1.deserializeEcKey2p(parts1);
-  }
-
+  // Re-entering replaces a previous session: free its handles.
+  if (handles) retire(handles);
   peer1 = p1;
   peer2 = p2;
   handles = h;
@@ -114,6 +163,7 @@ export function exitRecoveryMode(): void {
   stopAutoLock();
   peer1 = null;
   peer2 = null;
+  if (handles) retire(handles);
   handles = null;
   document.documentElement.removeAttribute("data-recovery");
 }
@@ -144,7 +194,8 @@ export function getRecoveryKeyFile(): KeyFileData | null {
 
 const PARTY_NAMES: [string, string] = ["client", "server"];
 
-function createLocalTransport(): { t0: DataTransport; t1: DataTransport } {
+/** In-memory transport between the two local peers (exported for tests). */
+export function createLocalTransport(): { t0: DataTransport; t1: DataTransport; abort: (err: unknown) => void } {
   // Two message queues: queue01 (party 0 → party 1), queue10 (party 1 → party 0)
   // Each queue buffers messages so send() never drops if receive() hasn't been called yet.
   const queue01: Uint8Array[] = [];
@@ -161,8 +212,13 @@ function createLocalTransport(): { t0: DataTransport; t1: DataTransport } {
     }
   }
 
+  // A failed peer aborts the transport, so the other one stops waiting for a message that never comes.
+  let aborted: unknown = null;
+
   async function dequeue(queue: Uint8Array[], wake: { current: (() => void) | null }): Promise<Uint8Array> {
     while (queue.length === 0) {
+      // Not a Uint8Array = an error status for cb-mpc (a throw would leave the WASM call suspended forever).
+      if (aborted) return null as unknown as Uint8Array;
       await new Promise<void>((resolve) => { wake.current = resolve; });
     }
     return queue.shift()!;
@@ -177,7 +233,7 @@ function createLocalTransport(): { t0: DataTransport; t1: DataTransport } {
       return 0;
     },
     receive: async (_sender) => dequeue(queue10, wake10Ref),
-    receiveAll: async (senders) => Promise.all(senders.map((s) => t0.receive(s))),
+    receiveAll: async (senders) => allOrFailure(await Promise.all(senders.map((s) => t0.receive(s)))),
   };
 
   const t1: DataTransport = {
@@ -186,13 +242,34 @@ function createLocalTransport(): { t0: DataTransport; t1: DataTransport } {
       return 0;
     },
     receive: async (_sender) => dequeue(queue01, wake01Ref),
-    receiveAll: async (senders) => Promise.all(senders.map((s) => t1.receive(s))),
+    receiveAll: async (senders) => allOrFailure(await Promise.all(senders.map((s) => t1.receive(s)))),
   };
 
-  return { t0, t1 };
+  const abort = (err: unknown) => {
+    aborted = err ?? new Error("Local MPC peer failed");
+    for (const ref of [wake01Ref, wake10Ref]) {
+      const w = ref.current;
+      ref.current = null;
+      w?.();
+    }
+  };
+
+  return { t0, t1, abort };
 }
 
 // ── Local MPC signing ──
+
+/**
+ * Like Promise.all, but settles only once both peers have, so a failed peer never lets the handles go while the
+ * other still runs. The first failure aborts the transport, which makes the other peer fail fast too.
+ */
+async function bothPeers<A, B>(runs: [Promise<A>, Promise<B>], abort: (err: unknown) => void): Promise<[A, B]> {
+  runs.forEach((r) => r.catch(abort));
+  const [a, b] = await Promise.allSettled(runs);
+  if (a.status === "rejected") throw a.reason;
+  if (b.status === "rejected") throw b.reason;
+  return [a.value, b.value];
+}
 
 export async function performLocalMpcSign(opts: {
   algorithm: "ecdsa" | "eddsa";
@@ -201,15 +278,16 @@ export async function performLocalMpcSign(opts: {
   onStep?: (step: number) => void;
 }): Promise<MpcSignResult> {
   const { algorithm, hash, onStep } = opts;
+  return withHandles((handles) => localSign(handles, algorithm, hash, onStep));
+}
 
-  if (!handles) {
-    throw new Error("Recovery mode not initialized");
-  }
-
+async function localSign(
+  handles: RecoveryHandles, algorithm: "ecdsa" | "eddsa", hash: Uint8Array, onStep?: (step: number) => void,
+): Promise<MpcSignResult> {
   const startedAt = Date.now();
   onStep?.(1);
 
-  const { t0, t1 } = createLocalTransport();
+  const { t0, t1, abort } = createLocalTransport();
   let sigRaw: Uint8Array;
 
   if (algorithm === "eddsa") {
@@ -217,10 +295,10 @@ export async function performLocalMpcSign(opts: {
     const key1 = handles.eddsa1;
     if (!key0 || !key1) throw new Error("No EdDSA key handles available");
 
-    const [sig0] = await Promise.all([
+    const [sig0] = await bothPeers([
       handles.mpc0.schnorr2pEddsaSign(t0, 0, PARTY_NAMES, key0, hash),
       handles.mpc1.schnorr2pEddsaSign(t1, 1, PARTY_NAMES, key1, hash),
-    ]);
+    ], abort);
     sigRaw = sig0;
   } else {
     const key0 = handles.ecdsa0;
@@ -231,10 +309,10 @@ export async function performLocalMpcSign(opts: {
     const sigSessionId = new Uint8Array(32);
     crypto.getRandomValues(sigSessionId);
 
-    const [sigs0] = await Promise.all([
+    const [sigs0] = await bothPeers([
       handles.mpc0.ecdsa2pSign(t0, 0, PARTY_NAMES, key0, sigSessionId, [hash]),
       handles.mpc1.ecdsa2pSign(t1, 1, PARTY_NAMES, key1, sigSessionId, [hash]),
-    ]);
+    ], abort);
     sigRaw = sigs0[0];
   }
 
@@ -264,11 +342,12 @@ export async function performLocalBatchMpcSign(opts: {
   onStep?: (step: number) => void;
 }): Promise<BatchMpcSignResult> {
   const { hashes, onStep } = opts;
+  return withHandles((handles) => localBatchSign(handles, hashes, onStep));
+}
 
-  if (!handles) {
-    throw new Error("Recovery mode not initialized");
-  }
-
+async function localBatchSign(
+  handles: RecoveryHandles, hashes: Uint8Array[], onStep?: (step: number) => void,
+): Promise<BatchMpcSignResult> {
   const key0 = handles.ecdsa0;
   const key1 = handles.ecdsa1;
   if (!key0 || !key1) throw new Error("No ECDSA key handles available");
@@ -279,12 +358,12 @@ export async function performLocalBatchMpcSign(opts: {
   const sigSessionId = new Uint8Array(32);
   crypto.getRandomValues(sigSessionId);
 
-  const { t0, t1 } = createLocalTransport();
+  const { t0, t1, abort } = createLocalTransport();
 
-  const [sigs0] = await Promise.all([
+  const [sigs0] = await bothPeers([
     handles.mpc0.ecdsa2pSign(t0, 0, PARTY_NAMES, key0, sigSessionId, hashes),
     handles.mpc1.ecdsa2pSign(t1, 1, PARTY_NAMES, key1, sigSessionId, hashes),
-  ]);
+  ], abort);
 
   onStep?.(3);
 

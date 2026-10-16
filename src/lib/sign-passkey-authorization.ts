@@ -7,8 +7,8 @@
 
 import { sha256Hex, type PasskeyAction } from "./passkey";
 import { authenticateWithTapFallback } from "./passkey-tap-prompt";
-import { getKeyShareWithPrf } from "./keystore";
-import { clientKeys, deferredPrfKeys, restoreKeyHandles } from "./mpc";
+import { getKeySharePartsWithPrf, getKeyShareWithPrf } from "./keystore";
+import { clientKeys, deferredPrfKeys, restoreKeyHandles, restoreKeyHandlesFromParts } from "./mpc";
 
 export class PrfUnavailableError extends Error {
   constructor() {
@@ -27,13 +27,28 @@ export async function authorizeSign(keyId: string, keyShareId: string, payloads:
   if (unlock) {
     // No PRF from this ceremony (e.g. a provider that rejects PRF): the share stays locked.
     if (!prfKey) throw new PrfUnavailableError();
+    await unlockDeferredShare(keyId, prfKey);
+  }
+  if (!token) throw new Error("passkey_auth_required");
+  return token;
+}
+
+/** Decrypt the PRF share straight into the key handles; the share never becomes a string. */
+async function unlockDeferredShare(keyId: string, prfKey: CryptoKey): Promise<void> {
+  let parts;
+  try {
+    parts = await getKeySharePartsWithPrf(keyId, prfKey);
+  } catch {
+    // A stored file the byte reader does not handle: fall back to the parsed key file.
     const data = await getKeyShareWithPrf(keyId, prfKey);
     if (!data) throw new Error("Could not decrypt the key share with this passkey");
     deferredPrfKeys.delete(keyId);
     await restoreKeyHandles(keyId, data.share, data.eddsaShare);
+    return;
   }
-  if (!token) throw new Error("passkey_auth_required");
-  return token;
+  if (!parts) throw new Error("Could not decrypt the key share with this passkey");
+  deferredPrfKeys.delete(keyId);
+  await restoreKeyHandlesFromParts(keyId, parts.ecdsa, parts.eddsa);
 }
 
 /** Chains whose signer needs the EdDSA public key before the share is unlocked. */

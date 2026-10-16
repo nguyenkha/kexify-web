@@ -6,7 +6,8 @@
  */
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import type { KeyFileData } from "./crypto";
-import { getMpcInstance, fromBase64 } from "./mpc";
+import { getMpcInstance } from "./mpc";
+import { sharePartsFromString, wipe } from "./secret-bytes";
 import { authHeaders } from "./auth";
 import { apiUrl } from "./apiBase";
 
@@ -20,7 +21,13 @@ function proofMessage(challengeHex: string, keyShareId: string): Uint8Array {
 /** x1 mod n from the client's serialized ECDSA share, as 32 bytes; the key handle is freed. */
 async function clientScalar(share: string): Promise<Uint8Array> {
   const mpc = await getMpcInstance();
-  const key = mpc.deserializeEcdsa2p(share.split(",").map((s) => fromBase64(s)));
+  const parts = sharePartsFromString(share);
+  let key;
+  try {
+    key = mpc.deserializeEcdsa2p(parts);
+  } finally {
+    wipe(parts);
+  }
   try {
     const info = mpc.ecdsa2pKeyInfo(key);
     try {

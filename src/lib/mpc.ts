@@ -4,6 +4,8 @@ import type { CbMpc, DataTransport, Ecdsa2pKeyHandle, EcKey2pHandle } from "cb-m
 import { isRecoveryMode, performLocalMpcSign } from "./recovery";
 import { apiUrl } from "./apiBase";
 import cbmpcWasmUrl from "cb-mpc/cbmpc.wasm?url";
+import { clientKeys, freeClientKeyHandles, type ClientKeyHandles } from "./client-key-cache";
+import { sharePartsFromString, wipe } from "./secret-bytes";
 
 /** Policy-blocked tx parts that have their own user-facing message (send.policyBlockedLeg.*). */
 const POLICY_BLOCKED_LEGS = ["approval", "account_control", "value_message", "unknown", "fee"];
@@ -38,15 +40,9 @@ export async function getMpcInstance(): Promise<CbMpc> {
   return mpcInstance;
 }
 
-// ── In-memory key handle cache (lost on page reload) ──
+// ── In-memory key handle cache (lost on page reload; freed when idle, see client-key-cache.ts) ──
 
-export interface ClientKeyHandles {
-  mpc: CbMpc;
-  ecdsa?: Ecdsa2pKeyHandle;
-  eddsa?: EcKey2pHandle;
-}
-
-export const clientKeys = new Map<string, ClientKeyHandles>();
+export { clientKeys, type ClientKeyHandles };
 
 /**
  * Placeholder share of a key file whose browser share is still PRF-encrypted: it is
@@ -68,23 +64,40 @@ export async function restoreKeyHandles(keyId: string, shareData: string, eddsaS
     return;
   }
 
-  const mpc = await getMpcInstance();
-  const entry: ClientKeyHandles = { mpc };
-
-  if (shareData) {
-    const parts = shareData.split(",").map((s) => fromBase64(s));
-    entry.ecdsa = mpc.deserializeEcdsa2p(parts);
+  const ecdsaParts = sharePartsFromString(shareData);
+  let eddsaParts: Uint8Array[];
+  try {
+    eddsaParts = sharePartsFromString(eddsaShareData ?? "");
+  } catch (err) {
+    wipe(ecdsaParts);
+    throw err;
   }
-
-  if (eddsaShareData) {
-    const parts = eddsaShareData.split(",").map((s) => fromBase64(s));
-    entry.eddsa = mpc.deserializeEcKey2p(parts);
-  }
-
-  clientKeys.set(keyId, entry);
+  await restoreKeyHandlesFromParts(keyId, ecdsaParts, eddsaParts);
 }
 
-/** Remove a key handle from the in-memory cache (call after signing is done or on dialog close). */
+/**
+ * Build the handles straight from decoded share parts (no share string), then wipe the parts.
+ * cb-mpc copies them into WASM memory and zeroes that copy itself.
+ */
+export async function restoreKeyHandlesFromParts(keyId: string, ecdsaParts: Uint8Array[], eddsaParts: Uint8Array[]): Promise<void> {
+  try {
+    if (clientKeys.has(keyId)) return;
+    const mpc = await getMpcInstance();
+    const entry: ClientKeyHandles = { mpc };
+    try {
+      if (ecdsaParts.length) entry.ecdsa = mpc.deserializeEcdsa2p(ecdsaParts);
+      if (eddsaParts.length) entry.eddsa = mpc.deserializeEcKey2p(eddsaParts);
+    } catch (err) {
+      freeClientKeyHandles(entry);
+      throw err;
+    }
+    clientKeys.set(keyId, entry);
+  } finally {
+    wipe(ecdsaParts, eddsaParts);
+  }
+}
+
+/** Remove and free a key handle (call after signing is done or on dialog close). */
 export function clearClientKey(keyId: string): void {
   clientKeys.delete(keyId);
   deferredPrfKeys.delete(keyId);
@@ -130,6 +143,11 @@ export async function sha256(message: string): Promise<Uint8Array> {
 
 // ── HTTP Transport ──
 
+/** receiveAll result for cb-mpc: a failed receive makes the whole call an error status (non-array), never a throw. */
+export function allOrFailure(msgs: Uint8Array[]): Uint8Array[] {
+  return msgs.every((m) => m instanceof Uint8Array) ? msgs : (null as unknown as Uint8Array[]);
+}
+
 const PARTY_NAMES: [string, string] = ["client", "server"];
 
 /**
@@ -160,8 +178,15 @@ export function createHttpTransport(opts: {
   // Prevent unhandled rejection when transportFailed rejects outside of Promise.race
   transportFailed.catch(() => {});
 
+  // cb-mpc's async bridge has no rejection path: a callback that throws leaves the WASM call suspended forever
+  // (and its key handle pinned). So a failed send (server error, network, bad JSON) is reported as a non-zero
+  // status, and every later receive as a failure, which makes the protocol unwind; the error itself reaches the
+  // caller through transportFailed.
+  let sendFailed = false;
+
   const transport: DataTransport = {
     send: async (_receiver, message) => {
+     try {
       // Copy — WASM memory views may be invalidated after return
       const msgCopy = new Uint8Array(message);
       const url = isFirst ? opts.initUrl : opts.stepUrl;
@@ -189,7 +214,6 @@ export function createHttpTransport(opts: {
           code: typeof data.code === "string" ? data.code : undefined,
           blockedLeg: typeof data.blockedLeg === "string" ? data.blockedLeg : undefined,
         });
-        rejectTransport?.(transportError);
         throw transportError;
       }
 
@@ -209,9 +233,17 @@ export function createHttpTransport(opts: {
       }
 
       return 0;
+     } catch (err) {
+      transportError ??= err instanceof Error ? err : new Error(String(err));
+      rejectTransport?.(transportError);
+      sendFailed = true;
+      return -1;
+     }
     },
 
     receive: async (_sender) => {
+      // Not a Uint8Array = the bridge returns an error status (see sendFailed above).
+      if (sendFailed) return null as unknown as Uint8Array;
       if (inbox) {
         const msg = inbox;
         inbox = null;
@@ -221,8 +253,7 @@ export function createHttpTransport(opts: {
       return new Uint8Array(0);
     },
 
-    receiveAll: async (senders) =>
-      Promise.all(senders.map((s) => transport.receive(s))),
+    receiveAll: async (senders) => allOrFailure(await Promise.all(senders.map((s) => transport.receive(s)))),
   };
 
   return {
@@ -248,9 +279,18 @@ export interface BatchMpcSignResult {
 
 /**
  * Run the MPC signing protocol.
- * Requires the key handle to be in the clientKeys cache.
+ * Requires the key handle to be in the clientKeys cache; it stays pinned (not freed) for the run.
  */
-export async function performMpcSign(opts: {
+export async function performMpcSign(opts: Parameters<typeof runMpcSign>[0]): Promise<MpcSignResult> {
+  clientKeys.pin(opts.keyId);
+  try {
+    return await runMpcSign(opts);
+  } finally {
+    clientKeys.unpin(opts.keyId);
+  }
+}
+
+async function runMpcSign(opts: {
   algorithm: "ecdsa" | "eddsa";
   keyId: string;
   hash: Uint8Array;
@@ -314,6 +354,11 @@ export async function performMpcSign(opts: {
     }
   })();
 
+  // A transport error ends the race while WASM may still be in the protocol: the handle stays
+  // pinned (not freed) until that run settles too.
+  clientKeys.pin(keyId);
+  mpcPromise.then(() => clientKeys.unpin(keyId), () => clientKeys.unpin(keyId));
+
   try {
     sigRaw = await Promise.race([mpcPromise, transportFailed]);
   } catch (err) {
@@ -350,7 +395,16 @@ export async function performMpcSign(opts: {
  * Used for UTXO chains (BTC/BCH/LTC) where each input needs a separate signature.
  * Only supports ECDSA (ecdsa2pSign natively accepts multiple hashes).
  */
-export async function performBatchMpcSign(opts: {
+export async function performBatchMpcSign(opts: Parameters<typeof runBatchMpcSign>[0]): Promise<BatchMpcSignResult> {
+  clientKeys.pin(opts.keyId);
+  try {
+    return await runBatchMpcSign(opts);
+  } finally {
+    clientKeys.unpin(opts.keyId);
+  }
+}
+
+async function runBatchMpcSign(opts: {
   keyId: string;
   hashes: Uint8Array[];
   initPayload: Record<string, unknown>;
@@ -428,6 +482,11 @@ export async function performBatchMpcSign(opts: {
   })();
 
   let rawSigs: Uint8Array[];
+  // A transport error ends the race while WASM may still be in the protocol: the handle stays
+  // pinned (not freed) until that run settles too.
+  clientKeys.pin(keyId);
+  mpcPromise.then(() => clientKeys.unpin(keyId), () => clientKeys.unpin(keyId));
+
   try {
     rawSigs = await Promise.race([mpcPromise, transportFailed]);
   } catch (err) {

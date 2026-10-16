@@ -13,6 +13,7 @@
 // MPC server's test suite; the network call lives in pve-server-share-request.ts.
 
 import type { CbMpc, PointHandle } from "cb-mpc";
+import { sharePartsFromString, wipe } from "./secret-bytes";
 
 // OpenSSL NIDs (same values as cb-mpc's exports; kept local so this module has no
 // runtime dependency and the MPC server's tests can import it without frontend deps).
@@ -170,60 +171,65 @@ function openPveServerShare(
   if (!p.ek || !p.dk) throw new Error("PVE server share has no decryption key");
   if (!clientShare) throw new Error(`Client file has no ${kind === "ecdsa" ? "ECDSA" : "EdDSA"} share`);
 
-  const clientParts = clientShare.split(",").map((s) => fromBase64(s));
-  const detached = p.detached.split(",").map((s) => fromBase64(s));
-  // Everything the server sends besides x2 must match what the client already holds
-  // (c_key is created in DKG and kept by both parties), so a server cannot hand back
-  // a key that loads but cannot sign.
-  const bound = [CURVE_INDEX, Q_INDEX, ...(kind === "ecdsa" ? [C_KEY_INDEX] : [])];
-  if (clientParts.length !== detached.length || !bound.every((i) => sameBytes(clientParts[i], detached[i]))) {
-    throw new Error("Server share does not match this key");
-  }
-  if (kind === "ecdsa" && !samePaillierModulus(clientParts[PAILLIER_INDEX], detached[PAILLIER_INDEX])) {
-    throw new Error("Server share does not match this key");
-  }
-
-  const points: PointHandle[] = [];
-  const track = (pt: PointHandle): PointHandle => (points.push(pt), pt);
-  let x1: Uint8Array = new Uint8Array(0);
-  let x2: Uint8Array = new Uint8Array(0);
-  let dk: Uint8Array = new Uint8Array(0);
-  let curve: ReturnType<CbMpc["createCurve"]> | undefined;
+  const clientParts = sharePartsFromString(clientShare);
+  // The client parts hold x1 and the Paillier key: wiped however this ends.
   try {
-    x1 = clientScalar(mpc, clientParts, kind);
-    curve = mpc.createCurve(p.curve);
-    const Q = track(mpc.pointFromBytes(clientParts[Q_INDEX]));
-    const Q2 = track(mpc.pointSubtract(Q, track(mpc.mulGenerator(curve, x1))));
-    const q2Trusted = mpc.pointToBytes(Q2);
-    const label = new TextEncoder().encode(p.label);
-    const ek = fromBase64(p.ek);
-    const ct = fromBase64(p.ct);
-    if (!mpc.pveBatchVerify(p.curve, ek, ct, [q2Trusted], label)) {
-      throw new Error("Server share backup failed verification");
+    const detached = p.detached.split(",").map((s) => fromBase64(s));
+    // Everything the server sends besides x2 must match what the client already holds
+    // (c_key is created in DKG and kept by both parties), so a server cannot hand back
+    // a key that loads but cannot sign.
+    const bound = [CURVE_INDEX, Q_INDEX, ...(kind === "ecdsa" ? [C_KEY_INDEX] : [])];
+    if (clientParts.length !== detached.length || !bound.every((i) => sameBytes(clientParts[i], detached[i]))) {
+      throw new Error("Server share does not match this key");
     }
-    dk = fromBase64(p.dk);
-    [x2] = mpc.pveBatchDecrypt(p.curve, dk, ek, ct, label);
-    if (!mpc.pointEquals(track(mpc.mulGenerator(curve, x2)), Q2)) {
-      throw new Error("Decrypted server share does not match");
+    if (kind === "ecdsa" && !samePaillierModulus(clientParts[PAILLIER_INDEX], detached[PAILLIER_INDEX])) {
+      throw new Error("Server share does not match this key");
     }
 
-    const parts = detached.map((b, i) => (i === X_SHARE_INDEX ? serializeScalar(x2) : b));
-    // Load the rebuilt key once: runs cb-mpc's own key checks and pins the role
-    // (a server-supplied role 0 would load but never sign).
-    let role = -1;
+    const points: PointHandle[] = [];
+    const track = (pt: PointHandle): PointHandle => (points.push(pt), pt);
+    let x1: Uint8Array = new Uint8Array(0);
+    let x2: Uint8Array = new Uint8Array(0);
+    let dk: Uint8Array = new Uint8Array(0);
+    let curve: ReturnType<CbMpc["createCurve"]> | undefined;
     try {
-      role = serverRole(mpc, parts, kind);
+      x1 = clientScalar(mpc, clientParts, kind);
+      curve = mpc.createCurve(p.curve);
+      const Q = track(mpc.pointFromBytes(clientParts[Q_INDEX]));
+      const Q2 = track(mpc.pointSubtract(Q, track(mpc.mulGenerator(curve, x1))));
+      const q2Trusted = mpc.pointToBytes(Q2);
+      const label = new TextEncoder().encode(p.label);
+      const ek = fromBase64(p.ek);
+      const ct = fromBase64(p.ct);
+      if (!mpc.pveBatchVerify(p.curve, ek, ct, [q2Trusted], label)) {
+        throw new Error("Server share backup failed verification");
+      }
+      dk = fromBase64(p.dk);
+      [x2] = mpc.pveBatchDecrypt(p.curve, dk, ek, ct, label);
+      if (!mpc.pointEquals(track(mpc.mulGenerator(curve, x2)), Q2)) {
+        throw new Error("Decrypted server share does not match");
+      }
+
+      const parts = detached.map((b, i) => (i === X_SHARE_INDEX ? serializeScalar(x2) : b));
+      // Load the rebuilt key once: runs cb-mpc's own key checks and pins the role
+      // (a server-supplied role 0 would load but never sign).
+      let role = -1;
+      try {
+        role = serverRole(mpc, parts, kind);
+      } finally {
+        if (role !== 1) parts[X_SHARE_INDEX].fill(0);
+      }
+      if (role !== 1) throw new Error("Server share does not match this key");
+      return parts;
     } finally {
-      if (role !== 1) parts[X_SHARE_INDEX].fill(0);
+      x1.fill(0);
+      x2.fill(0);
+      dk.fill(0);
+      for (const pt of points) mpc.freePoint(pt);
+      if (curve !== undefined) mpc.freeCurve(curve);
     }
-    if (role !== 1) throw new Error("Server share does not match this key");
-    return parts;
   } finally {
-    x1.fill(0);
-    x2.fill(0);
-    dk.fill(0);
-    for (const pt of points) mpc.freePoint(pt);
-    if (curve !== undefined) mpc.freeCurve(curve);
+    wipe(clientParts);
   }
 }
 
