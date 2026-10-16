@@ -1,5 +1,6 @@
 import { base58 } from "@scure/base";
 import { sha256 } from "@noble/hashes/sha256";
+import { decodeSolanaInstructions, estimateSolanaFee, formatLamports, formatTokenAmount, type DecodedSolanaIx, type RawSolanaIx, type SolanaFeeEstimate } from "./solanaIx";
 
 // Solana System Program ID (all zeros)
 const SYSTEM_PROGRAM_ID = new Uint8Array(32);
@@ -13,8 +14,7 @@ const ATA_PROGRAM_ID = base58.decode("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8k
 // System Program transfer instruction index
 const TRANSFER_IX_INDEX = 2;
 
-// Base fee per signature (5000 lamports)
-export const SOLANA_BASE_FEE = 5000n;
+export { SOLANA_BASE_FEE, formatLamports, formatTokenAmount } from "./solanaIx";
 
 function encodeCompactU16(value: number): Uint8Array {
   const bytes: number[] = [];
@@ -212,28 +212,6 @@ export async function waitForSolanaConfirmation(
   return { confirmed: false };
 }
 
-/**
- * Parse lamports amount to human-readable SOL string.
- */
-export function formatLamports(lamports: bigint): string {
-  if (lamports === 0n) return "0";
-  const str = lamports.toString().padStart(10, "0");
-  const intPart = str.slice(0, str.length - 9) || "0";
-  const fracPart = str.slice(str.length - 9).replace(/0+$/, "");
-  return fracPart ? `${intPart}.${fracPart}` : intPart;
-}
-
-/**
- * Format a token amount with decimals (e.g. 1000000n with 6 decimals → "1").
- */
-export function formatTokenAmount(amount: bigint, decimals: number): string {
-  if (amount === 0n) return "0";
-  const str = amount.toString().padStart(decimals + 1, "0");
-  const intPart = str.slice(0, str.length - decimals) || "0";
-  const fracPart = str.slice(str.length - decimals).replace(/0+$/, "");
-  return fracPart ? `${intPart}.${fracPart}` : intPart;
-}
-
 // ── Transaction Decoder ──────────────────────────────────────
 
 function readCompactU16(buf: Uint8Array, offset: number): { value: number; bytesRead: number } {
@@ -301,6 +279,10 @@ export interface DecodedSolanaTx {
   programs: string[]; // all unique program IDs involved
   numInstructions: number;
   isVersioned: boolean;
+  /** Every instruction, in order, decoded (shared decoder, same coverage as the API policy). */
+  instructions: DecodedSolanaIx[];
+  numRequiredSignatures: number;
+  fee: SolanaFeeEstimate;
 }
 
 /**
@@ -325,7 +307,7 @@ export function decodeSolanaTransaction(txBase64: string): DecodedSolanaTx {
   }
 
   // Header
-  void msg[offset++]; // numRequiredSigs
+  const numRequiredSignatures = msg[offset++];
   void msg[offset++]; // numReadonlySigned
   void msg[offset++]; // numReadonlyUnsigned
 
@@ -356,6 +338,7 @@ export function decodeSolanaTransaction(txBase64: string): DecodedSolanaTx {
     data: Uint8Array;
   }
   const instructions: ParsedIx[] = [];
+  const rawIxs: RawSolanaIx[] = [];
 
   for (let i = 0; i < numIx; i++) {
     const programIdIndex = msg[offset++];
@@ -372,7 +355,11 @@ export function decodeSolanaTransaction(txBase64: string): DecodedSolanaTx {
     if (i === 0) firstProgramId = programId;
     if (programId) programSet.add(programId);
     instructions.push({ programId, accountIndices, data });
+    rawIxs.push({ programId, accounts: accountIndices.map((k) => accountKeys[k] ?? null), data });
   }
+
+  const decodedIxs = decodeSolanaInstructions(rawIxs, KNOWN_PROGRAMS, from);
+  const extra = { instructions: decodedIxs, numRequiredSignatures, fee: estimateSolanaFee(decodedIxs, numRequiredSignatures) };
 
   const programs = [...programSet];
 
@@ -408,6 +395,7 @@ export function decodeSolanaTransaction(txBase64: string): DecodedSolanaTx {
           programs,
           numInstructions: numIx,
           isVersioned,
+          ...extra,
         };
       }
     }
@@ -428,6 +416,7 @@ export function decodeSolanaTransaction(txBase64: string): DecodedSolanaTx {
         programs,
         numInstructions: numIx,
         isVersioned,
+        ...extra,
       };
     }
 
@@ -443,6 +432,7 @@ export function decodeSolanaTransaction(txBase64: string): DecodedSolanaTx {
         programs,
         numInstructions: numIx,
         isVersioned,
+        ...extra,
       };
     }
 
@@ -461,6 +451,7 @@ export function decodeSolanaTransaction(txBase64: string): DecodedSolanaTx {
         programs,
         numInstructions: numIx,
         isVersioned,
+        ...extra,
       };
     }
   }
@@ -477,6 +468,7 @@ export function decodeSolanaTransaction(txBase64: string): DecodedSolanaTx {
     programs,
     numInstructions: numIx,
     isVersioned,
+    ...extra,
   };
 }
 

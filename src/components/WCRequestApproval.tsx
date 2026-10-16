@@ -18,10 +18,12 @@ import { hasKeyShare, getKeyShareMode, getKeyShareWithPrf, getKeyShareWithPassph
 import { decryptKeyFile, isEncryptedKeyFile, type KeyFileData } from "../lib/crypto";
 import { isRecoveryMode, getRecoveryKeys, getRecoveryKeyFile } from "../lib/recovery";
 import { wcPersonalSign, wcEthSign, wcSignTypedData, wcSendTransaction, wcSolanaSignTransaction, wcSolanaSignAndSendTransaction, wcSolanaSignMessage, isSignableSolanaMessage, wcTronSignTransaction, wcTronSignMessage, type WcSignPhase } from "../lib/wcSigning";
+import { SolanaInstructionList } from "./SolanaInstructionList";
 import { decodeSolanaMessageParam } from "../lib/solana-wc-message";
 import { evmReceiptRpcUrls } from "../lib/chains/evm-read-rpc-fallbacks";
 import { usePendingEvmReceipt } from "./send/use-pending-evm-receipt";
 import { waitForReceipt, estimateGas, getTransactionCount } from "../lib/chains/evmTx";
+import { solanaSolOutflow } from "../lib/chains/solanaIx";
 import { decodeSolanaTransaction, formatLamports, formatTokenAmount as formatSplAmount, waitForSolanaConfirmation, type DecodedSolanaTx } from "../lib/chains/solanaTx";
 import { formatSun, waitForTronConfirmation, estimateTronFee, type TronTransaction } from "../lib/chains/tronTx";
 import { fetchPrices, getUsdValue, formatUsd } from "../lib/prices";
@@ -1404,64 +1406,12 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                     </div>
                   </div>
 
-                  {/* To */}
-                  {decodedSolTx.to && (
-                    <div>
-                      <label className="block text-xs text-text-muted mb-1.5">To</label>
-                      <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5">
-                        <p className="text-xs font-mono text-text-tertiary truncate">{decodedSolTx.to}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Amount */}
-                  {decodedSolTx.amount && (
-                    <div>
-                      <label className="block text-xs text-text-muted mb-1.5">Amount</label>
-                      <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 flex items-center justify-between">
-                        <p className="text-sm text-text-tertiary tabular-nums">
-                          {decodedSolTx.type === "sol_transfer"
-                            ? formatLamports(BigInt(decodedSolTx.amount))
-                            : decodedSolTx.formattedAmount
-                              ? decodedSolTx.formattedAmount
-                              : solTokenInfo
-                                ? formatSplAmount(BigInt(decodedSolTx.amount), solTokenInfo.decimals)
-                                : decodedSolTx.amount}
-                        </p>
-                        <span className="text-xs text-text-muted shrink-0">
-                          {decodedSolTx.type === "sol_transfer" ? "SOL" : solTokenInfo?.symbol || "tokens"}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Mint (for SPL transfers) */}
-                  {decodedSolTx.mint && (
-                    <div>
-                      <label className="block text-xs text-text-muted mb-1.5">Token Mint</label>
-                      <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5">
-                        <p className="text-xs font-mono text-text-muted truncate">{decodedSolTx.mint}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Program (for contract calls) */}
-                  {decodedSolTx.type === "contract_call" && decodedSolTx.programId && (
-                    <div>
-                      <label className="block text-xs text-text-muted mb-1.5">Program</label>
-                      <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5">
-                        {decodedSolTx.programLabel && (
-                          <p className="text-xs text-text-secondary mb-0.5">{decodedSolTx.programLabel}</p>
-                        )}
-                        <p className="text-xs font-mono text-text-muted truncate">{decodedSolTx.programId}</p>
-                      </div>
-                    </div>
-                  )}
+                  <SolanaInstructionList decoded={decodedSolTx} />
 
                   {/* Fee info */}
                   <div className="flex items-center justify-between px-1">
                     <span className="text-[10px] text-text-muted">Est. fee</span>
-                    <span className="text-[11px] tabular-nums text-text-secondary">0.000005 SOL</span>
+                    <span className="text-[11px] tabular-nums text-text-secondary">{formatLamports(BigInt(decodedSolTx.fee.totalLamports))} SOL</span>
                   </div>
 
                   {/* Instruction count */}
@@ -1810,7 +1760,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
               ) : isSolanaTx && decodedSolTx ? (
                 <div className="space-y-5">
                   {/* Value hero */}
-                  {decodedSolTx.amount && (decodedSolTx.type === "sol_transfer" || decodedSolTx.type === "spl_transfer") && (
+                  {decodedSolTx.amount && (decodedSolTx.type === "sol_transfer" || decodedSolTx.type === "spl_transfer") && decodedSolTx.instructions.filter((i) => i.type === "sol_transfer" || i.type === "spl_transfer").length === 1 && (
                     <div className="text-center py-2">
                       <p className="text-2xl font-semibold tabular-nums text-text-primary">
                         {decodedSolTx.type === "sol_transfer"
@@ -1833,32 +1783,9 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                       <span className="text-xs text-text-muted">From</span>
                       <span className="text-[9px] font-mono text-text-secondary">{account ? account.address : decodedSolTx.from}</span>
                     </div>
-                    {decodedSolTx.to && (
-                      <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                        <span className="text-xs text-text-muted">To</span>
-                        <span className="text-[9px] font-mono text-text-secondary">{decodedSolTx.to}</span>
-                      </div>
-                    )}
-                    {decodedSolTx.mint && (
-                      <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                        <span className="text-xs text-text-muted">Token Mint</span>
-                        <span className="text-xs font-mono text-text-muted truncate max-w-[200px]">{decodedSolTx.mint}</span>
-                      </div>
-                    )}
-                    {decodedSolTx.type === "spl_transfer" && decodedSolTx.amount && (
-                      <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                        <span className="text-xs text-text-muted">Amount</span>
-                        <span className="text-xs tabular-nums text-text-secondary">
-                          {decodedSolTx.formattedAmount
-                            ? decodedSolTx.formattedAmount
-                            : solTokenInfo
-                              ? formatSplAmount(BigInt(decodedSolTx.amount), solTokenInfo.decimals)
-                              : decodedSolTx.amount}
-                          {" "}{solTokenInfo?.symbol || "tokens"}
-                        </span>
-                      </div>
-                    )}
                   </div>
+
+                  <SolanaInstructionList decoded={decodedSolTx} />
 
                   {/* Details */}
                   <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
@@ -1868,19 +1795,13 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                         <span className="text-xs text-text-secondary">{chain.displayName}</span>
                       </div>
                     )}
-                    {decodedSolTx.type === "contract_call" && decodedSolTx.programId && (
-                      <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                        <span className="text-xs text-text-muted">Program</span>
-                        <span className="text-xs text-text-secondary truncate max-w-[200px]">
-                          {decodedSolTx.programLabel || decodedSolTx.programId}
-                        </span>
-                      </div>
-                    )}
                     <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
                       <span className="text-xs text-text-muted">Estimated fee</span>
                       <div className="text-right">
-                        <span className="text-xs tabular-nums text-text-secondary font-medium">0.000005 SOL</span>
-                        {(() => { const u = getUsdValue("0.000005", "SOL", prices); return u != null ? <span className="text-[10px] text-text-muted ml-1.5">({formatUsd(u)})</span> : null; })()}
+                        <span className="text-xs tabular-nums text-text-secondary font-medium">{formatLamports(BigInt(decodedSolTx.fee.totalLamports))} SOL</span>
+                        {(() => { const u = getUsdValue(formatLamports(BigInt(decodedSolTx.fee.totalLamports)), "SOL", prices); return u != null ? <span className="text-[10px] text-text-muted ml-1.5">({formatUsd(u)})</span> : null; })()}
+                        {BigInt(decodedSolTx.fee.priorityLamports) > 0n && <div className="text-[10px] text-text-muted">{t("wc.sol.priorityFee", { amount: formatLamports(BigInt(decodedSolTx.fee.priorityLamports)) })}</div>}
+                        {BigInt(decodedSolTx.fee.rentLamports) > 0n && <div className="text-[10px] text-text-muted">{t("wc.sol.rent", { amount: formatLamports(BigInt(decodedSolTx.fee.rentLamports)) })}</div>}
                       </div>
                     </div>
                     {expert && decodedSolTx.numInstructions > 1 && (
@@ -1890,8 +1811,8 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                       </div>
                     )}
                     {(() => {
-                      const fee = 5000n;
-                      const solAmount = decodedSolTx.type === "sol_transfer" && decodedSolTx.amount ? BigInt(decodedSolTx.amount) : 0n;
+                      const fee = BigInt(decodedSolTx.fee.costLamports);
+                      const solAmount = solanaSolOutflow(decodedSolTx.instructions);
                       const totalLamports = solAmount + fee;
                       const totalSol = Number(totalLamports) / 1e9;
                       const totalUsd = getUsdValue(String(totalSol), "SOL", prices);
@@ -1909,16 +1830,16 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                   {/* Balance preview */}
                   {nativeBalance != null && (
                     (() => {
-                      const fee = 5000n; // SOLANA_BASE_FEE in lamports
+                      const fee = BigInt(decodedSolTx.fee.costLamports);
                       const changes: BalanceChange[] = [];
 
                       if (decodedSolTx.type === "sol_transfer" && decodedSolTx.amount) {
-                        // SOL transfer: deduct amount + fee
+                        // SOL transfers (all of them): deduct amount + fee
                         changes.push({
                           symbol: "SOL",
                           decimals: 9,
                           currentBalance: nativeBalance,
-                          delta: -(BigInt(decodedSolTx.amount) + fee),
+                          delta: -(solanaSolOutflow(decodedSolTx.instructions) + fee),
                         });
                       } else if (decodedSolTx.type === "spl_transfer" && decodedSolTx.amount) {
                         // SPL transfer: SOL fee + token amount
@@ -1926,7 +1847,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                           symbol: "SOL",
                           decimals: 9,
                           currentBalance: nativeBalance,
-                          delta: -fee,
+                          delta: -(solanaSolOutflow(decodedSolTx.instructions) + fee),
                         });
                         const tokenSymbol = solTokenInfo?.symbol || "tokens";
                         const tokenDecimals = decodedSolTx.decimals ?? solTokenInfo?.decimals ?? 0;
@@ -1945,7 +1866,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                           symbol: "SOL",
                           decimals: 9,
                           currentBalance: nativeBalance,
-                          delta: -fee,
+                          delta: -(solanaSolOutflow(decodedSolTx.instructions) + fee),
                         });
                       }
 
