@@ -55,6 +55,8 @@ interface TypedGrant {
   deadline?: number;
   /** DaiPermit(allowed=false) / PermitForAll(approved=false): an explicit revoke. */
   revoke?: boolean;
+  /** PermitForAll(approved=true): every NFT of the collection. */
+  nftAll?: boolean;
 }
 
 const UINT_MAX = 2n ** 256n - 1n;
@@ -76,7 +78,7 @@ function typedGrant(td: TypedData): TypedGrant | null {
       return token ? { spender: str(m.spender), allowances: [{ token, amount: 1n, nftId: str(m.tokenId), expires: toSeconds(m.deadline) }] } : null;
     case "PermitForAll": {
       const approved = m.approved === true || m.approved === "true";
-      return token ? { spender: str(m.operator), allowances: [{ token, amount: approved ? UINT_MAX : 0n, expires: toSeconds(m.deadline) }], revoke: !approved } : null;
+      return token ? { spender: str(m.operator), allowances: [{ token, amount: approved ? UINT_MAX : 0n, expires: toSeconds(m.deadline) }], revoke: !approved, nftAll: approved } : null;
     }
     case "PermitSingle":
     case "PermitBatch":
@@ -155,8 +157,11 @@ export function buildTypedDataReview(i: TypedDataReviewInput): ReviewModel {
     });
     for (const l of legs) {
       if (permit.revoke) continue;
-      warnings.push(l.unlimited
-        ? warning("unlimitedApproval", { spender: spenderName, symbol: l.symbol })
+      // The server signs no unlimited fungible permit (Permit2 / EIP-2612 / DAI): blocking, the
+      // amount is in the signature so it cannot be capped here. A collection-wide NFT grant is allowed.
+      if (permit.nftAll) warnings.push(warning("nftApprovalForAll", { spender: spenderName, collection: l.symbol }));
+      else warnings.push(l.unlimited
+        ? warning("unlimitedApproval", { spender: spenderName, symbol: l.symbol }, true)
         : warning("approval", { spender: spenderName, amount: l.text ?? "" }));
     }
     const one = legs.length === 1 ? legs[0] : null;
@@ -173,8 +178,8 @@ export function buildTypedDataReview(i: TypedDataReviewInput): ReviewModel {
     if (contract) rows.push({ label: { key: "review.signedFor" }, party: partyOf(contract, i.nameOf) });
     return {
       hero: {
-        icon: "approve", tone: permit.revoke ? "accent" : "warning", verb: { key: permit.revoke ? "review.verb.revoke" : "review.verb.approve" },
-        amount: permit.revoke ? { text: one?.symbol ?? "" } : one ? (one.unlimited ? { key: "review.unlimited", params: { symbol: one.symbol } } : { text: one.text ?? "" }) : { key: "review.tokenCount", params: { count: String(legs.length) } },
+        icon: "approve", tone: permit.revoke ? "accent" : permit.nftAll ? "danger" : "warning", verb: { key: permit.revoke ? "review.verb.revoke" : "review.verb.approve" },
+        amount: permit.revoke ? { text: one?.symbol ?? "" } : permit.nftAll && one ? { key: "review.nftAll", params: { collection: one.symbol } } : one ? (one.unlimited ? { key: "review.unlimited", params: { symbol: one.symbol } } : { text: one.text ?? "" }) : { key: "review.tokenCount", params: { count: String(legs.length) } },
         usd: one?.usd,
         counterparty: { prefix: "for", party: spender },
       },
@@ -183,6 +188,7 @@ export function buildTypedDataReview(i: TypedDataReviewInput): ReviewModel {
       actions,
       noFee: "signature",
       raw,
+      ...(permit.nftAll ? { extraConfirm: "nftApprovalForAll" as const } : {}),
       permitFixed: true,
     };
   }

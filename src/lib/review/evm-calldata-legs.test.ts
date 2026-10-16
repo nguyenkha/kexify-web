@@ -40,10 +40,15 @@ describe("EVM calldata legs", () => {
   const review = (to: string, data: string, token?: { symbol: string; decimals: number }) =>
     buildEvmTxReview({ tx: { to, data: "0x" + data }, from: { address: SELF }, nativeSymbol: "ETH", token, feeWei: 1n, prices: {} });
 
-  test("setApprovalForAll(true) is an unlimited approval, not a plain contract call", () => {
+  test("setApprovalForAll(true) is a collection-wide NFT approval: red warning + extra confirm", () => {
     const m = review(TOKEN, "a22cb465" + w(SPENDER) + n(1n));
     expect(m.hero.icon).toBe("approve");
-    expect(m.warnings.map((x) => x.code)).toEqual(["unlimitedApproval"]);
+    expect(m.hero.tone).toBe("danger");
+    expect(m.warnings.map((x) => x.code)).toEqual(["nftApprovalForAll"]);
+    expect(m.extraConfirm).toBe("nftApprovalForAll");
+    const revoke = review(TOKEN, "a22cb465" + w(SPENDER) + n(0n));
+    expect(revoke.extraConfirm).toBeUndefined();
+    expect(revoke.warnings.map((x) => x.code)).not.toContain("nftApprovalForAll");
     expect(m.allowance).toBeUndefined(); // not editable
   });
 
@@ -76,3 +81,4 @@ describe("EVM calldata legs", () => {
     expect(m.raw?.endsWith(n(5n))).toBe(true);
   });
 });
+

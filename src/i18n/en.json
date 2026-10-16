@@ -1426,7 +1426,7 @@
       },
       "unlimitedApproval": {
         "title": "Unlimited approval",
-        "body": "{{spender}} can spend all your {{symbol}}, now and later. Only allow apps you trust."
+        "body": "{{spender}} asks to spend all your {{symbol}}. kexify only signs approvals with a limit: set a spending cap to continue."
       },
       "approval": {
         "title": "Spending approval",
@@ -1447,6 +1447,10 @@
       "feeCap": {
         "title": "Fee above your limit",
         "body": "The fee can reach more than {{cap}}; your policy may block it."
+      },
+      "nftApprovalForAll": {
+        "title": "Access to all your NFTs",
+        "body": "{{spender}} can transfer every {{collection}} NFT you own, now and later. Only continue on a marketplace you trust. You can revoke it later."
       }
     },
     "program": "program",
@@ -1471,7 +1475,11 @@
       },
       "done": "Done"
     },
-    "setLimit": "Set a limit (recommended)"
+    "setLimit": "Set a limit (recommended)",
+    "nftAll": "All {{collection}} NFTs",
+    "extraConfirm": {
+      "nftApprovalForAll": "I understand this app can move ALL my {{collection}} NFTs, now and later, without asking again."
+    }
   },
   "explore": {
     "title": "Explore",
@@ -1489,5 +1497,46 @@
       "tools": "Tools",
       "games": "Games"
     }
+  },
+  "simplePolicy": {
+    "title": "Policy",
+    "change": "Change settings",
+    "save": "Save",
+    "customExpert": "Custom rules (expert)",
+    "customBadge": "Custom policy",
+    "dailyLimit": "Daily limit",
+    "noLimit": "No limit",
+    "dailyLimitHint": "Total value you can send or approve in any 24 hours, in USD. Tokens without a price cannot be sent while a limit is on.",
+    "limitInvalid": "Enter an amount above $0 (up to 2 decimals).",
+    "sendTo": "Send to",
+    "sendTo_anywhere": "Anywhere",
+    "sendTo_anywhereHint": "Any address, after a risky-address check.",
+    "sendTo_trusted": "Trusted addresses only",
+    "sendTo_trustedHint": "Only addresses you pick from your address book. Apps (swaps, NFT) still work within your daily limit.",
+    "noAddressBook": "Your address book is empty. Add addresses first, or you will not be able to send.",
+    "noTrustedSelected": "No address selected: direct sends will be blocked.",
+    "trustedCount_one": "{{count}} trusted address",
+    "trustedCount_other": "{{count}} trusted addresses",
+    "overLimit": "Above the limit",
+    "overLimit_block": "Block",
+    "overLimit_wait_1h": "Allow after a 1 hour wait",
+    "overLimit_wait_24h": "Allow after a 24 hour wait",
+    "overLimitHint": "A wait gives you time to notice and cancel a send you did not make. You get an email when one is scheduled.",
+    "appliesNow": "Stricter than now: applies as soon as you confirm.",
+    "appliesIn24h": "Less strict than now: takes effect 24 hours after you confirm (you can cancel it until then).",
+    "appliedNow": "Policy updated.",
+    "scheduled24h": "Change scheduled: it takes effect in 24 hours.",
+    "scheduled": "Scheduled large sends",
+    "readyAt": "Can be sent from {{time}}",
+    "cardTitle": "Update to the new simple policy",
+    "cardBody": "Three settings instead of rules: a daily limit, who you can send to, and a wait for large amounts. Swaps and NFT listings work with it. Like any less strict change, it needs your passkey and takes effect after 24 hours.",
+    "cardAction": "Review settings",
+    "cardLater": "Not now",
+    "overLimitTitle": "Above your daily limit",
+    "scheduleBody": "Your policy allows this send after a {{hours}} h wait. Schedule it now, then send it again when the wait is over.",
+    "scheduleAction": "Schedule (wait {{hours}} h)",
+    "scheduledDone": "Scheduled. Send it again from {{time}}.",
+    "replacesCustom_one": "Saving replaces your {{count}} custom rule, including any block rule.",
+    "replacesCustom_other": "Saving replaces your {{count}} custom rules, including any block rules."
   }
 }

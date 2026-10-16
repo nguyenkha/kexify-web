@@ -74,6 +74,7 @@ const WARNING_ORDER: WarningCode[] = [
   "unreadable",
   "signHash",
   "accountControl",
+  "nftApprovalForAll",
   "riskyAction",
   "unlimitedApproval",
   "approval",
@@ -93,6 +94,6 @@ export function sortWarnings(list: ReviewWarning[]): ReviewWarning[] {
 }
 
 export function warning(code: WarningCode, params: Record<string, string> = {}, blocks = false): ReviewWarning {
-  const danger: WarningCode[] = ["policyBlocked", "riskyAddress", "unreadable", "signHash", "accountControl"];
+  const danger: WarningCode[] = ["policyBlocked", "riskyAddress", "unreadable", "signHash", "accountControl", "nftApprovalForAll"];
   return { code, tone: danger.includes(code) ? "danger" : "warning", blocks, params };
 }

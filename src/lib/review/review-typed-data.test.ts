@@ -52,7 +52,9 @@ describe("known typed-data formats", () => {
   });
 
   test("PermitForAll approved and ERC-721 permit are approvals", () => {
-    expect(review(TYPES.PermitForAll, { owner: FROM.address, operator: DRAINER, approved: true, nonce: "0", deadline: "1" }).warnings[0].code).toBe("unlimitedApproval");
+    const all = review(TYPES.PermitForAll, { owner: FROM.address, operator: DRAINER, approved: true, nonce: "0", deadline: "1" });
+    expect(all.warnings[0]).toMatchObject({ code: "nftApprovalForAll", tone: "danger", blocks: false });
+    expect(all.extraConfirm).toBe("nftApprovalForAll");
     const nft = review(TYPES.Erc721Permit, { spender: DRAINER, tokenId: "42", nonce: "0", deadline: "1" }, DRAINER);
     expect(nft.warnings.map((w) => w.code)).toEqual(["approval"]);
     expect(nft.hero.amount).toEqual({ text: "0xdddd…dddd #42" });
@@ -66,5 +68,12 @@ describe("known typed-data formats", () => {
 
   test("a look-alike Permit is not shown as an approval", () => {
     expect(review(TYPES.LookAlike, { owner: FROM.address, spender: DRAINER, value: "1", deadline: "1" }).hero.icon).toBe("sign");
+  });
+});
+
+describe("unlimited fungible permits", () => {
+  test("an unlimited EIP-2612 permit blocks Confirm (the server signs none)", () => {
+    const m = review(TYPES.Permit, { owner: FROM.address, spender: DRAINER, value: (2n ** 256n - 1n).toString(), nonce: "0", deadline: "1" });
+    expect(m.warnings[0]).toMatchObject({ code: "unlimitedApproval", blocks: true });
   });
 });

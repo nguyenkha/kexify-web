@@ -141,6 +141,8 @@ export interface PolicyVersion {
   status: "pending" | "active" | "cancelled";
   createdAt: string;
   effectiveAt: string | null;
+  /** The 3 simple settings when the rules are exactly a compiled simple policy; null = Custom. */
+  simple?: import("../lib/simple-policy-api").SimplePolicy | null;
 }
 
 // ── Settings ──

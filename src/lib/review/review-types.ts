@@ -14,6 +14,7 @@ export type WarningCode =
   | "unreadable"
   | "signHash"
   | "accountControl"
+  | "nftApprovalForAll"
   | "riskyAction"
   | "unlimitedApproval"
   | "approval"
@@ -119,6 +120,11 @@ export interface ReviewModel {
   allowance?: ReviewAllowance;
   /** Permit / Permit2: the signature binds the amount, so it cannot be edited (the UI says why). */
   permitFixed?: boolean;
+  /**
+   * A second, explicit confirm before signing: "nftApprovalForAll" = the request lets someone move
+   * every NFT of a collection (setApprovalForAll / PermitForAll). The policy allows it per action.
+   */
+  extraConfirm?: "nftApprovalForAll";
 }
 
 export interface ReviewAllowance {

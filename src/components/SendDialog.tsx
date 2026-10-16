@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { ScheduleSendOffer } from "./send/schedule-send-offer";
 import { useTranslation } from "react-i18next";
 import { notify } from "../lib/notify";
 import type { Chain, Asset } from "../lib/api";
@@ -199,8 +200,12 @@ export function SendDialog({
     reason?: string;
     blockedLeg?: string | null;
     fraudCheck?: { flagged: boolean; flags: string[]; level: string; address: string };
+    /** Blocked only by the daily limit: a scheduled send can pass after the wait. */
+    overDailyLimit?: boolean;
   } | null>(null);
   const [policyChecking, setPolicyChecking] = useState(false);
+  // What the pre-check was asked: also the description a scheduled send binds.
+  const [precheckBody, setPrecheckBody] = useState<Record<string, unknown> | null>(null);
 
   // Transaction simulation
   const [simResult, setSimResult] = useState<import("../lib/txSimulation").SimulationResult | null>(null);
@@ -804,19 +809,21 @@ export function SendDialog({
                 setPolicyCheck(null);
                 try {
                   const baseUnits = parseUnits(amount, asset.decimals).toString();
+                  const checkBody = {
+                    to: resolvedName?.input === to ? resolvedName.address : to,
+                    amount: baseUnits,
+                    nativeSymbol: asset.isNative ? asset.symbol : undefined,
+                    contractAddress: asset.contractAddress || undefined,
+                    chainId: chain.evmChainId ?? undefined,
+                    chainType: chain.type,
+                    from: address,
+                    ...(resolvedName?.input === to ? { resolvedFrom: to, resolvedVia: resolvedName.source } : {}),
+                  };
+                  setPrecheckBody(checkBody);
                   const res = await fetch(apiUrl(`/api/keys/${keyId}/rules/check`), {
                     method: "POST",
                     headers: { ...authHeaders(), "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      to: resolvedName?.input === to ? resolvedName.address : to,
-                      amount: baseUnits,
-                      nativeSymbol: asset.isNative ? asset.symbol : undefined,
-                      contractAddress: asset.contractAddress || undefined,
-                      chainId: chain.evmChainId ?? undefined,
-                      chainType: chain.type,
-                      from: address,
-                      ...(resolvedName?.input === to ? { resolvedFrom: to, resolvedVia: resolvedName.source } : {}),
-                    }),
+                    body: JSON.stringify(checkBody),
                   });
                   if (res.ok) {
                     const result = await res.json();
@@ -902,6 +909,9 @@ export function SendDialog({
             onReviewPolicy={isRecoveryMode() ? undefined : openPolicyRules}
             t={t}
           />
+        )}
+        {step === "preview" && policyCheck?.allowed === false && policyCheck.overDailyLimit && !policyCheck.fraudCheck?.flagged && precheckBody && !isRecoveryMode() && (
+          <ScheduleSendOffer keyId={keyId} body={precheckBody} />
         )}
 
         {step === "signing" && (

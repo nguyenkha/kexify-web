@@ -36,7 +36,7 @@ import { BalancePreview, type BalanceChange } from "./BalancePreview";
 import { simulateEvmTransaction, type SimulationResult } from "../lib/txSimulation";
 import { useExpertMode } from "../context/ExpertModeContext";
 import { PolicyWarning, ExpertWarnings, SimulationPreview, SigningError, SigningStepper } from "./tx";
-import { ReviewBody, useScrollGate, DappTitle, NetworkChip, AllowanceEditor } from "./review";
+import { ReviewBody, useScrollGate, DappTitle, NetworkChip, AllowanceEditor, ReviewExtraConfirm } from "./review";
 import { buildWcRequestReview, decodeEvmCall, knownEvmContract, withEvmApproveAmount, withTronApproveAmount, type ReviewModel, type TronTxJson, type WcReviewContext } from "../lib/review";
 import { addressLabel } from "../lib/address-label";
 import { KNOWN_PROGRAMS } from "../lib/chains/solanaTx";
@@ -133,6 +133,8 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   // Spending cap the user set in the editor (review-and-sign.md "Spending cap"); null = the dApp's request.
   const [approveOverride, setApproveOverride] = useState<bigint | null>(null);
   const [capInvalid, setCapInvalid] = useState(false);
+  // Second confirm for a collection-wide NFT approval (model.extraConfirm).
+  const [extraAck, setExtraAck] = useState(false);
   const [approveToken, setApproveToken] = useState<{ symbol: string; decimals: number } | null>(null);
   const [permitToken, setPermitToken] = useState<{ symbol: string; decimals: number } | null>(null);
   const [nativeBalance, setNativeBalance] = useState<string | null>(null); // raw wei as string
@@ -530,6 +532,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
     fraudCheck?: { flagged: boolean; flags: string[]; level: string; address: string };
   } | null>(null);
   const [policyChecking, setPolicyChecking] = useState(false);
+  const policyCheckSeq = useRef(0);
 
   // Transaction simulation
   const [simResult, setSimResult] = useState<SimulationResult | null>(null);
@@ -548,11 +551,15 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
     return withTronApproveAmount(tx as unknown as TronTxJson, approveOverride) as unknown as TronSignTransactionRequest["tx"];
   }
 
-  /** Approve button: key must already be loaded → pre-check policy → go to preview */
-  async function handleApproveClick() {
-    if (!account || !keyFile) return;
-
-    // Policy pre-check for transactions (skip in recovery mode and for message signing)
+  /**
+   * Policy pre-check of the request as it will be signed (skip in recovery mode and for message
+   * signing). Re-run when the user edits an approval cap: the server blocks unlimited approvals,
+   * so a capped one must be checked again before Confirm unlocks.
+   */
+  async function runPolicyCheck() {
+    if (!account) return;
+    // Only the latest check may set the result: an older "allowed" must not land after a newer block.
+    const seq = ++policyCheckSeq.current;
     if (isTx && !isRecoveryMode()) {
       setPolicyChecking(true);
       setPolicyCheck(null);
@@ -596,14 +603,30 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
             }),
           });
           if (res.ok) {
-            setPolicyCheck(await res.json());
+            const result = await res.json();
+            if (seq === policyCheckSeq.current) setPolicyCheck(result);
           }
         }
       } catch {
         // Fail-open
       }
-      setPolicyChecking(false);
+      if (seq === policyCheckSeq.current) setPolicyChecking(false);
     }
+  }
+
+  // An edited cap (EVM approve or TRC-20 approve) is checked again, debounced while the user types.
+  useEffect(() => {
+    if (phase !== "preview" || !(isApprove || tronDecoded?.kind === "trc20_approve")) return;
+    setPolicyChecking(true);
+    const h = setTimeout(() => void runPolicyCheck(), 250);
+    return () => clearTimeout(h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [approveOverride]);
+
+  /** Approve button: key must already be loaded → pre-check policy → go to preview */
+  async function handleApproveClick() {
+    if (!account || !keyFile) return;
+    await runPolicyCheck();
 
     // EVM transaction simulation (non-blocking)
     if (!isSolana && !isTron && isTx && txParams && chain?.rpcUrl) {
@@ -1565,7 +1588,9 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
         {/* Footer — preview phase */}
         {phase === "preview" && (
-          <div className="px-5 py-4 border-t border-border-secondary shrink-0 sticky bottom-0 bg-surface-secondary flex gap-2 pb-[calc(1rem+env(safe-area-inset-bottom))] md:pb-4">
+          <div className="px-5 py-4 border-t border-border-secondary shrink-0 sticky bottom-0 bg-surface-secondary space-y-3 pb-[calc(1rem+env(safe-area-inset-bottom))] md:pb-4">
+            <ReviewExtraConfirm model={previewModel} checked={extraAck} onChange={setExtraAck} />
+            <div className="flex gap-2">
             <button
               onClick={onReject}
               className="flex-1 border border-border-primary text-text-secondary hover:text-text-primary text-sm font-medium py-2.5 rounded-lg transition-colors"
@@ -1573,12 +1598,13 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
               {t("wc.reject")}
             </button>
             <button
-              disabled={previewBlocked || !reviewedAll || capInvalid}
+              disabled={previewBlocked || policyChecking || !reviewedAll || capInvalid || (!!previewModel?.extraConfirm && !extraAck)}
               onClick={() => onPasskeyAuth({} as PasskeyAuthResult)}
               className="flex-[2] bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
             >
               {previewBlocked ? t("wc.blockedByPolicy") : !reviewedAll ? t("review.scrollToReview") : t("wc.confirmSign")}
             </button>
+            </div>
           </div>
         )}
       </div>

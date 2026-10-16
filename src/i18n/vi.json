@@ -1426,7 +1426,7 @@
       },
       "unlimitedApproval": {
         "title": "Cho phép không giới hạn",
-        "body": "{{spender}} có thể tiêu toàn bộ {{symbol}} của bạn, cả về sau. Chỉ cho phép ứng dụng bạn tin tưởng."
+        "body": "{{spender}} muốn chi tiêu toàn bộ {{symbol}} của bạn. kexify chỉ ký cấp quyền có giới hạn: hãy đặt hạn mức chi tiêu để tiếp tục."
       },
       "approval": {
         "title": "Cho phép chi tiêu",
@@ -1447,6 +1447,10 @@
       "feeCap": {
         "title": "Phí vượt giới hạn",
         "body": "Phí có thể vượt {{cap}}; quy tắc bảo mật có thể chặn giao dịch."
+      },
+      "nftApprovalForAll": {
+        "title": "Quyền với toàn bộ NFT",
+        "body": "{{spender}} có thể chuyển mọi NFT {{collection}} bạn sở hữu, cả hiện tại lẫn sau này. Chỉ tiếp tục với sàn bạn tin cậy. Bạn có thể thu hồi quyền sau."
       }
     },
     "program": "chương trình",
@@ -1471,7 +1475,11 @@
       },
       "done": "Xong"
     },
-    "setLimit": "Đặt hạn mức (nên làm)"
+    "setLimit": "Đặt hạn mức (nên làm)",
+    "nftAll": "Toàn bộ NFT {{collection}}",
+    "extraConfirm": {
+      "nftApprovalForAll": "Tôi hiểu ứng dụng này có thể chuyển TOÀN BỘ NFT {{collection}} của tôi, cả hiện tại lẫn sau này, mà không cần hỏi lại."
+    }
   },
   "explore": {
     "title": "Khám phá",
@@ -1489,5 +1497,46 @@
       "tools": "Công cụ",
       "games": "Trò chơi"
     }
+  },
+  "simplePolicy": {
+    "title": "Chính sách",
+    "change": "Đổi thiết lập",
+    "save": "Lưu",
+    "customExpert": "Quy tắc tùy chỉnh (chuyên gia)",
+    "customBadge": "Chính sách tùy chỉnh",
+    "dailyLimit": "Hạn mức mỗi ngày",
+    "noLimit": "Không giới hạn",
+    "dailyLimitHint": "Tổng giá trị bạn có thể gửi hoặc cấp quyền trong 24 giờ bất kỳ, tính bằng USD. Token không có giá sẽ không gửi được khi bật hạn mức.",
+    "limitInvalid": "Nhập số tiền lớn hơn $0 (tối đa 2 chữ số thập phân).",
+    "sendTo": "Gửi đến",
+    "sendTo_anywhere": "Mọi địa chỉ",
+    "sendTo_anywhereHint": "Mọi địa chỉ, sau khi kiểm tra địa chỉ rủi ro.",
+    "sendTo_trusted": "Chỉ địa chỉ tin cậy",
+    "sendTo_trustedHint": "Chỉ những địa chỉ bạn chọn trong sổ địa chỉ. Ứng dụng (swap, NFT) vẫn dùng được trong hạn mức mỗi ngày.",
+    "noAddressBook": "Sổ địa chỉ đang trống. Hãy thêm địa chỉ trước, nếu không bạn sẽ không gửi được.",
+    "noTrustedSelected": "Chưa chọn địa chỉ nào: gửi trực tiếp sẽ bị chặn.",
+    "trustedCount_one": "{{count}} địa chỉ tin cậy",
+    "trustedCount_other": "{{count}} địa chỉ tin cậy",
+    "overLimit": "Vượt hạn mức",
+    "overLimit_block": "Chặn",
+    "overLimit_wait_1h": "Cho phép sau khi chờ 1 giờ",
+    "overLimit_wait_24h": "Cho phép sau khi chờ 24 giờ",
+    "overLimitHint": "Thời gian chờ giúp bạn kịp phát hiện và hủy lệnh gửi không phải của bạn. Bạn sẽ nhận email khi có lệnh được lên lịch.",
+    "appliesNow": "Chặt hơn hiện tại: áp dụng ngay khi bạn xác nhận.",
+    "appliesIn24h": "Nới lỏng hơn hiện tại: có hiệu lực 24 giờ sau khi xác nhận (bạn có thể hủy trước đó).",
+    "appliedNow": "Đã cập nhật chính sách.",
+    "scheduled24h": "Đã lên lịch thay đổi: có hiệu lực sau 24 giờ.",
+    "scheduled": "Lệnh gửi lớn đã lên lịch",
+    "readyAt": "Có thể gửi từ {{time}}",
+    "cardTitle": "Chuyển sang chính sách đơn giản mới",
+    "cardBody": "Ba thiết lập thay cho các quy tắc: hạn mức mỗi ngày, gửi đến ai, và thời gian chờ cho số tiền lớn. Swap và đăng bán NFT đều dùng được. Như mọi thay đổi nới lỏng, cần passkey và có hiệu lực sau 24 giờ.",
+    "cardAction": "Xem thiết lập",
+    "cardLater": "Để sau",
+    "overLimitTitle": "Vượt hạn mức mỗi ngày",
+    "scheduleBody": "Chính sách cho phép lệnh gửi này sau {{hours}} giờ chờ. Lên lịch ngay, rồi gửi lại khi hết thời gian chờ.",
+    "scheduleAction": "Lên lịch (chờ {{hours}} giờ)",
+    "scheduledDone": "Đã lên lịch. Gửi lại từ {{time}}.",
+    "replacesCustom_one": "Lưu sẽ thay thế {{count}} quy tắc tùy chỉnh của bạn, kể cả quy tắc chặn.",
+    "replacesCustom_other": "Lưu sẽ thay thế {{count}} quy tắc tùy chỉnh của bạn, kể cả các quy tắc chặn."
   }
 }

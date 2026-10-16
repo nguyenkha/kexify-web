@@ -114,7 +114,12 @@ export function buildEvmTxReview(i: EvmTxReviewInput): ReviewModel {
     const amt: AssetAmount | null = info ? { raw: amount, decimals: info.decimals, symbol } : null;
     // approve(x, 0) is a revoke only on a known fungible token; on an unknown (maybe ERC-721) contract the same
     // bytes approve NFT id 0 to x (api evaluate-intent.ts), so it stays an approval.
-    if (amount === 0n && info) {
+    if (call.nft) {
+      // setApprovalForAll(true): every NFT of the collection, allowed per action with a red warning
+      // and a second confirm (the server prices nothing here; revoke is a plain contract call).
+      warnings.push(warning("nftApprovalForAll", { spender: spenderName, collection: symbol }));
+      model = { hero: { icon: "approve", tone: "danger", verb: { key: "review.verb.approve" }, amount: { key: "review.nftAll", params: { collection: symbol } }, counterparty: { prefix: "for", party: spender } } };
+    } else if (amount === 0n && info) {
       model = { hero: { icon: "approve", tone: "accent", verb: { key: "review.verb.revoke" }, amount: { text: symbol }, sub: editedSub, counterparty: { prefix: "for", party: spender } } };
     } else if (unlimited) {
       warnings.push(warning("unlimitedApproval", { spender: spenderName, symbol }));
@@ -165,6 +170,7 @@ export function buildEvmTxReview(i: EvmTxReviewInput): ReviewModel {
     // The bytes as they will be signed (an edited cap is re-encoded).
     raw: i.tx.data && i.tx.data !== "0x" ? (allowance?.edited ? withEvmApproveAmount(i.tx.data, BigInt(allowance.current)) : i.tx.data) : undefined,
     allowance,
+    ...(call.kind === "approve" && call.nft ? { extraConfirm: "nftApprovalForAll" as const } : {}),
   };
 }
 

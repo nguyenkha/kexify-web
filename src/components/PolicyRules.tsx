@@ -8,6 +8,9 @@ import { apiUrl } from "../lib/apiBase";
 import { useTranslation } from "react-i18next";
 import { mapCommonError } from "../lib/error-message";
 import { sanitizeRule, ValueRuleFields, ValueRuleSummary, FraudCheckSelect, AccountControlWarning } from "./policy/PolicyRuleFields";
+import { ScheduledSendsList, SimplePolicyEditor, SimplePolicySummary } from "./policy/simple-policy-panel";
+import { PolicyUpdateCard } from "./policy/policy-update-card";
+import type { SimplePolicy } from "../lib/simple-policy-api";
 
 type RuleType = PolicyRuleBody["type"];
 type RuleEffect = PolicyRuleBody["effect"];
@@ -47,6 +50,12 @@ export function PolicyRules({
   const [loading, setLoading] = useState(true);
   // A failed fetch is never shown as "No policy configured"
   const [loadFailed, setLoadFailed] = useState(false);
+  const [defaultSimple, setDefaultSimple] = useState<SimplePolicy | null>(null);
+  // Simple-settings editor open, starting from these settings.
+  const [simpleEdit, setSimpleEdit] = useState<SimplePolicy | null>(null);
+  // Simple mode hides the full rule list under "Custom (expert)".
+  const [showCustom, setShowCustom] = useState(false);
+  const [notice, setNotice] = useState("");
 
   // Draft editing state
   const [draft, setDraft] = useState<PolicyRuleBody[] | null>(null);
@@ -73,6 +82,7 @@ export function PolicyRules({
       const data = await res.json();
       setActive(data.active);
       setPending(data.pending);
+      setDefaultSimple(data.defaultSimple ?? null);
     } catch {
       setLoadFailed(true);
     }
@@ -399,6 +409,18 @@ export function PolicyRules({
                 {t("common.retry")}
               </button>
             </div>
+          ) : simpleEdit ? (
+            <SimplePolicyEditor
+              keyId={keyId}
+              initial={simpleEdit}
+              replacesCustom={active && !active.simple ? (active.rules as PolicyRuleBody[]).length : 0}
+              onCancel={() => setSimpleEdit(null)}
+              onDone={(applied) => {
+                setSimpleEdit(null);
+                setNotice(applied ? t("simplePolicy.appliedNow") : t("simplePolicy.scheduled24h"));
+                fetchPolicy();
+              }}
+            />
           ) : draft ? (
             // ── Draft editing mode ──
             <>
@@ -446,15 +468,40 @@ export function PolicyRules({
                     )}
                   </div>
                   <div className="mt-2 space-y-1.5">
-                    {(pending.rules as PolicyRuleBody[]).map((rule, idx) =>
+                    {pending.simple ? <SimplePolicySummary value={pending.simple} /> : (pending.rules as PolicyRuleBody[]).map((rule, idx) =>
                       renderRuleRow(rule, idx),
                     )}
                   </div>
                 </div>
               )}
 
+              {notice && <p className="text-xs rounded-lg px-3 py-2 bg-green-500/10 text-green-700 dark:text-green-400">{notice}</p>}
+              {/* Simple policy (3 settings) */}
+              {active?.simple && (
+                <div className="space-y-3">
+                  <p className="text-[10px] text-text-muted uppercase tracking-wide">{t("simplePolicy.title")}</p>
+                  <SimplePolicySummary value={active.simple} />
+                  {!frozen && (
+                    <button onClick={() => setSimpleEdit(active.simple!)} className="w-full text-sm font-medium text-blue-600 dark:text-blue-400 py-2 rounded-lg border border-border-secondary hover:bg-blue-500/5">
+                      {t("simplePolicy.change")}
+                    </button>
+                  )}
+                  <ScheduledSendsList keyId={keyId} />
+                  <button onClick={() => setShowCustom(!showCustom)} className="text-xs text-text-tertiary hover:text-text-primary">
+                    {showCustom ? "▾" : "▸"} {t("simplePolicy.customExpert")}
+                  </button>
+                </div>
+              )}
+              {active && !active.simple && (
+                <>
+                  <span className="inline-block text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded bg-surface-tertiary text-text-secondary">{t("simplePolicy.customBadge")}</span>
+                  {!frozen && defaultSimple && (
+                    <PolicyUpdateCard keyId={keyId} onUpdate={() => setSimpleEdit(defaultSimple)} />
+                  )}
+                </>
+              )}
               {/* Active rules */}
-              {active ? (
+              {active && active.simple && !showCustom ? null : active ? (
                 <div className="space-y-2">
                   <p className="text-[10px] text-text-muted uppercase tracking-wide">{t("policy.activeRules")}</p>
                   <p className="text-[10px] text-text-muted leading-relaxed">{t("policy.semanticsNotice")}</p>
@@ -506,7 +553,7 @@ export function PolicyRules({
                 {submitting ? t("policy.submitting") : t("policy.submit")}
               </button>
             </div>
-          ) : !pending && !frozen && !loadFailed ? (
+          ) : !pending && !frozen && !loadFailed && !simpleEdit && (!active?.simple || showCustom) ? (
             <button
               onClick={startEditing}
               className="text-blue-400 hover:text-blue-300 text-xs px-3 py-1.5 rounded hover:bg-blue-500/10 transition-colors"
