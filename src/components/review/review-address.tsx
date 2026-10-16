@@ -14,7 +14,9 @@ export function GroupedAddress({ address, className = "" }: { address: string; c
   const last = groups.length - 1;
   const firstBody = groups[0] === "0x" ? 1 : 0;
   return (
-    <span className={`font-mono text-xs leading-relaxed break-normal text-text-tertiary ${className}`} aria-label={address}>
+    // Long addresses (Solana, 44 chars) get a smaller face so they fit one line on desktop; where they still
+    // wrap (phones), `balance` splits the groups evenly instead of leaving a lone group on the second line.
+    <span className={`block font-mono ${address.length > 42 ? "text-[11px]" : "text-xs"} leading-relaxed break-normal [text-wrap:balance] text-text-tertiary ${className}`} aria-label={address}>
       {groups.map((g, i) => (
         <span key={i} className={i <= firstBody || i === last ? "text-text-primary font-semibold" : undefined}>
           {g}
