@@ -18,10 +18,10 @@ import { broadcastSolanaTransaction } from "./chains/solanaTx";
 import {
   hashForSigning as tronHashForSigning,
   assembleSignedTx as tronAssembleSignedTx,
-  broadcastTronTransaction,
   type TronTransaction,
 } from "./chains/tronTx";
 import { base58 } from "@scure/base";
+import { tronMessageHash } from "./tron-wc-requests";
 import { decodeSolanaMessageParam, encodeSolanaSignature } from "./solana-wc-message";
 import type { KeyFileData } from "./crypto";
 
@@ -333,13 +333,16 @@ export async function wcSolanaSignMessage(
 
 // ── tron_signTransaction ──────────────────────────────────────
 
+/**
+ * WalletConnect TRON spec: sign `tronTx` (already checked by parseTronSignTransaction: txID = sha256(raw_data_hex))
+ * and return the signed transaction object; the dApp broadcasts it, nothing is sent from here.
+ */
 export async function wcTronSignTransaction(
   tronTx: TronTransaction,
   keyFile: KeyFileData,
   address: string,
-  rpcUrl: string,
   onProgress?: (phase: WcSignPhase) => void,
-): Promise<{ txId: string; signedTxJson: string }> {
+): Promise<TronTransaction & { signature: string[] }> {
   onProgress?.("building-tx");
 
   const sighash = tronHashForSigning(tronTx);
@@ -369,32 +372,21 @@ export async function wcTronSignTransaction(
   const { r, s } = parseDerSignature(sigRaw);
   const pubKeyRaw = hexToBytes(keyFile.publicKey);
   const recoveryBit = recoverV(sighash, r, s, pubKeyRaw);
-  const { signedTxJson, txId } = tronAssembleSignedTx(tronTx, r, s, recoveryBit);
-
-  onProgress?.("broadcasting");
-
-  const txHash = await broadcastTronTransaction(rpcUrl, signedTxJson);
-  return { txId: txHash || txId, signedTxJson };
+  return JSON.parse(tronAssembleSignedTx(tronTx, r, s, recoveryBit).signedTxJson);
 }
 
 // ── tron_signMessage ──────────────────────────────────────────
 
+/** WalletConnect TRON spec: `message` is plain text (UTF-8 bytes here); the answer is `{ signature }` (0x r‖s‖v). */
 export async function wcTronSignMessage(
-  messageHex: string,
+  message: Uint8Array,
   keyFile: KeyFileData,
   address: string,
-): Promise<string> {
-  // TRON message signing: prefix + SHA-256
-  const messageBytes = hexToBytes(messageHex.startsWith("0x") ? messageHex.slice(2) : messageHex);
-  const prefix = new TextEncoder().encode("\x19TRON Signed Message:\n" + messageBytes.length);
-  const prefixed = new Uint8Array(prefix.length + messageBytes.length);
-  prefixed.set(prefix, 0);
-  prefixed.set(messageBytes, prefix.length);
-  const hash = keccak_256(prefixed);
-
-  return signHash(hash, keyFile, address, "tron_signMessage", {
-    raw: messageHex.startsWith("0x") ? messageHex.slice(2) : messageHex,
+): Promise<{ signature: string }> {
+  const signature = await signHash(tronMessageHash(message), keyFile, address, "tron_signMessage", {
+    raw: toHex(message),
   });
+  return { signature };
 }
 
 function readCompactU16(buf: Uint8Array, offset: number): { numSigs: number; bytesRead: number } {

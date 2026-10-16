@@ -461,6 +461,10 @@
   },
   "wc": {
     "title": "WalletConnect",
+    "tronUnlimitedApproval": "This dApp asks for an unlimited allowance: the spender can move all of this token from your account. Reject unless you trust it.",
+    "unlimited": "Unlimited",
+    "tronUnreadable": "This TRON transaction is not a TRX transfer, TRC-20 transfer or TRC-20 approval from this account, so Kexify cannot sign it.",
+    "tronMainnetOnly": "This dApp requires {{chains}}. Kexify web signs on TRON mainnet only.",
     "desc": "Connect your accounts to dApps. Signing requests will appear here for your approval.",
     "notConfigured": "WalletConnect is not configured. Set VITE_WC_PROJECT_ID environment variable.",
     "pasteUri": "Paste wc: URI",

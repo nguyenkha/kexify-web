@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useToast } from "../context/ToastContext";
 import { notify } from "../lib/notify";
@@ -25,7 +25,8 @@ import { usePendingEvmReceipt } from "./send/use-pending-evm-receipt";
 import { waitForReceipt, estimateGas, getTransactionCount } from "../lib/chains/evmTx";
 import { solanaSolOutflow } from "../lib/chains/solanaIx";
 import { decodeSolanaTransaction, formatLamports, formatTokenAmount as formatSplAmount, waitForSolanaConfirmation, type DecodedSolanaTx } from "../lib/chains/solanaTx";
-import { formatSun, waitForTronConfirmation, estimateTronFee, type TronTransaction } from "../lib/chains/tronTx";
+import { formatSun, waitForTronConfirmation, estimateTronFee } from "../lib/chains/tronTx";
+import { parseTronSignTransaction, parseTronSignMessage, type TronSignTransactionRequest } from "../lib/tron-wc-requests";
 import { fetchPrices, getUsdValue, formatUsd } from "../lib/prices";
 import { fetchNativeBalance, getCachedNativeBalance, fetchTokenBalances } from "../lib/balance";
 import { clearCache, tokenBalancesCacheKey, notifyBalanceRefresh } from "../lib/dataCache";
@@ -190,18 +191,36 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   const [tronResources, setTronResources] = useState<{ bandwidthFree: number; energyFree: number } | null>(null);
   const [tronTokenInfo, setTronTokenInfo] = useState<{ symbol: string; decimals: number } | null>(null);
 
-  // Parse TRON transaction contract info
-  const tronContract = isTronTx ? (request.params?.transaction?.raw_data?.contract?.[0] ?? null) : null;
-  const isTronNative = tronContract?.type === "TransferContract";
-  const isTronSmartContract = tronContract?.type === "TriggerSmartContract";
-  const tronTo = tronContract?.parameter?.value?.to_address || tronContract?.parameter?.value?.contract_address || "";
-  const tronAmountSun = isTronNative ? BigInt(tronContract?.parameter?.value?.amount || 0) : 0n;
-  // TRC-20 transfer(address,uint256) selector = a9059cbb
-  const tronCallData = isTronSmartContract ? (tronContract?.parameter?.value?.data || "") : "";
-  const isTrc20Transfer = isTronSmartContract && tronCallData.toLowerCase().startsWith("a9059cbb");
-  // Fee limit (TRON's equivalent of gas limit — max TRX burned for energy)
-  const tronFeeLimit = isTronTx ? (request.params?.transaction?.raw_data?.fee_limit ?? null) : null;
-  const tronFeeLimitSun = tronFeeLimit != null ? BigInt(tronFeeLimit) : null;
+  // TRON: what the signed bytes (raw_data_hex) do, never the dApp's JSON raw_data view of them. A request whose
+  // bytes are not one TRX / TRC-20 transfer or TRC-20 approve of the session account cannot be signed.
+  const tronParsed = useMemo((): { req: TronSignTransactionRequest | null; error: string | null } => {
+    if (!isTronTx) return { req: null, error: null };
+    try {
+      return { req: parseTronSignTransaction(request.params, request.params?.account ?? ""), error: null };
+    } catch (e) {
+      return { req: null, error: e instanceof Error ? e.message : String(e) };
+    }
+  }, [isTronTx, request.params]);
+  const tronDecoded = tronParsed.req?.decoded ?? null;
+  const isTronNative = tronDecoded?.kind === "trx_transfer";
+  const isTronSmartContract = !!tronDecoded && tronDecoded.kind !== "trx_transfer";
+  const isTrc20Transfer = tronDecoded?.kind === "trc20_transfer";
+  const isTrc20Approve = tronDecoded?.kind === "trc20_approve";
+  // Transfer: the recipient. Approve: the token contract called (the spender is shown in its own row).
+  const tronTo = (isTrc20Approve ? tronDecoded?.contractAddress : tronDecoded?.to) ?? "";
+  const tronAmountSun = isTronNative ? tronDecoded!.amount : 0n;
+  const tronTokenAmount = isTronSmartContract ? tronDecoded!.amount : 0n;
+  const tronTokenContract = tronDecoded?.contractAddress ?? null;
+  // Fee limit (TRON's equivalent of gas limit — max TRX burned for energy), from the signed bytes
+  const tronFeeLimitSun = tronDecoded && tronDecoded.feeLimit > 0n ? tronDecoded.feeLimit : null;
+  /** TRC-20 amount in the token's decimals; raw base units while the token is unknown (decimals not guessed). */
+  const formatTronTokenAmount = (raw: bigint): string => {
+    if (!tronTokenInfo) return raw.toString();
+    const decimals = tronTokenInfo.decimals;
+    const divisor = 10n ** BigInt(decimals);
+    const fracStr = (raw % divisor).toString().padStart(decimals, "0").replace(/0+$/, "");
+    return fracStr ? `${raw / divisor}.${fracStr}` : (raw / divisor).toString();
+  };
   // Estimated fee: native TRX uses bandwidth (free if available), TRC-20 uses energy (~15 TRX)
   const tronEstFeeSun = isTronNative ? 0n : 15_000_000n;
   const tronFeeFormatted = formatSun(tronEstFeeSun);
@@ -273,8 +292,8 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   // Resolve TRC-20 token info from chain assets
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (!isTrc20Transfer || !chain) return;
-    const contractAddr = tronContract?.parameter?.value?.contract_address;
+    if (!isTronSmartContract || !chain) return;
+    const contractAddr = tronTokenContract;
     if (!contractAddr) return;
     fetchAssets(chain.id).then((assets) => {
       const token = assets.find(
@@ -282,7 +301,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
       );
       if (token) setTronTokenInfo({ symbol: token.symbol, decimals: token.decimals });
     });
-  }, [isTrc20Transfer, tronContract?.parameter?.value?.contract_address, chain?.id]);
+  }, [isTronSmartContract, tronTokenContract, chain?.id]);
 
   // Gas limit: use user override, estimated, dApp's value, or heuristic
   const txParams = isTx && !isTronTx ? request.params[0] : null;
@@ -587,19 +606,20 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
         let nativeSymbol: string | undefined;
         let contractAddress: string | undefined;
         let reqChainId: number | undefined;
+        let tronRawDataHex: string | undefined;
 
         if (isSolana && decodedSolTx) {
           to = decodedSolTx.to || "";
           amount = decodedSolTx.amount || "0";
           nativeSymbol = decodedSolTx.mint ? undefined : "SOL";
           contractAddress = decodedSolTx.mint || undefined;
-        } else if (isTronTx) {
-          const tronTx = request.params?.transaction;
-          const contract = tronTx?.raw_data?.contract?.[0];
-          to = contract?.parameter?.value?.to_address || contract?.parameter?.value?.contract_address || "";
-          amount = contract?.type === "TransferContract" ? String(contract.parameter?.value?.amount || 0) : "0";
-          nativeSymbol = contract?.type === "TransferContract" ? "TRX" : undefined;
-          contractAddress = contract?.type === "TriggerSmartContract" ? contract.parameter?.value?.contract_address : undefined;
+        } else if (isTronTx && tronDecoded) {
+          // rawDataHex lets the API read the very leg /sign/init will (a TRC-20 approve is an approval).
+          to = tronDecoded.to;
+          amount = tronDecoded.amount.toString();
+          nativeSymbol = isTronNative ? "TRX" : undefined;
+          contractAddress = tronTokenContract ?? undefined;
+          tronRawDataHex = tronParsed.req!.tx.raw_data_hex;
         } else if (txParams) {
           to = txParams.to || "";
           amount = txParams.value ? BigInt(txParams.value).toString() : "0";
@@ -616,6 +636,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
               chainType: isSolana ? "solana" : isTronTx ? "tron" : "evm",
               from: account.address,
               ...(!isSolana && !isTronTx && txParams?.data ? { data: txParams.data } : {}),
+              ...(tronRawDataHex ? { rawDataHex: tronRawDataHex } : {}),
             }),
           });
           if (res.ok) {
@@ -762,20 +783,15 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
           break;
         }
         case "tron_signTransaction": {
-          if (!rpcUrl) throw new Error("No RPC URL for TRON chain");
-          const tronTx = request.params?.transaction as TronTransaction;
-          if (!tronTx?.txID) throw new Error("Missing TRON transaction data");
-          const tronResult = await wcTronSignTransaction(
-            tronTx, kf, account!.address, rpcUrl,
-            (p) => setSigningStepIdx(txPhaseIndex[p]),
-          );
-          result = tronResult.txId;
+          // WalletConnect TRON spec: answer with the signed transaction; the dApp broadcasts it.
+          const { tx } = parseTronSignTransaction(request.params, account!.address);
+          result = await wcTronSignTransaction(tx, kf, account!.address, (p) => setSigningStepIdx(txPhaseIndex[p]));
           break;
         }
         case "tron_signMessage": {
+          // WalletConnect TRON spec: plain-text message, answer `{ signature }`.
           setSigningStepIdx(0);
-          const tronMsg = request.params?.message;
-          if (!tronMsg) throw new Error("Missing message data");
+          const tronMsg = parseTronSignMessage(request.params, account!.address);
           setSigningStepIdx(1);
           result = await wcTronSignMessage(tronMsg, kf, account!.address);
           setSigningStepIdx(2);
@@ -787,10 +803,11 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
       onApprove(result);
 
-      if (isTronTx && typeof result === "string") {
-        // TRON transaction — poll for confirmation
+      if (isTronTx && typeof result === "object" && result !== null) {
+        // TRON transaction — the dApp broadcasts it; poll its txID for confirmation
+        const txId = (result as { txID: string }).txID;
         setSigningStepIdx(3);
-        setTxResult({ txHash: result, status: "pending" });
+        setTxResult({ txHash: txId, status: "pending" });
 
         if (account && chain) {
           const prefix = `cache:bal:${account.address}:${chain.id}:`;
@@ -805,8 +822,8 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
         const rpcUrl = chain?.rpcUrl;
         if (rpcUrl) {
           try {
-            const conf = await waitForTronConfirmation(rpcUrl, result, () => {}, 30, 3000);
-            setTxResult({ txHash: result, status: conf.confirmed ? "success" : "pending", blockNumber: conf.blockNumber?.toString() });
+            const conf = await waitForTronConfirmation(rpcUrl, txId, () => {}, 30, 3000);
+            setTxResult({ txHash: txId, status: conf.confirmed ? "success" : "pending", blockNumber: conf.blockNumber?.toString() });
           } catch {
             // Polling timed out
           }
@@ -923,7 +940,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                 : phase === "done"
                   ? (txResult?.status === "success" ? <><CircleCheck className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("wc.success")}</> : txResult?.status === "pending" ? <><Radio className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("wc.broadcast")}</> : <><CircleX className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("wc.failed")}</>)
                   : isTx
-                    ? (isApprove ? <><LockOpen className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("wc.tokenApproval")}</> : <><PenLine className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("wc.signTx")}</>)
+                    ? (isApprove || isTrc20Approve ? <><LockOpen className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("wc.tokenApproval")}</> : <><PenLine className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("wc.signTx")}</>)
                     : <><PenLine className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("wc.signMessage")}</>}
             </h3>
           )}
@@ -1115,36 +1132,48 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                     </div>
                   )}
 
-                  {/* TRC-20 transfer amount (decoded from call data) */}
-                  {isTrc20Transfer && (() => {
-                    const amountHex = tronCallData.slice(72, 136); // skip selector (8) + padded address (64)
-                    const rawAmount = amountHex ? BigInt("0x" + amountHex) : 0n;
-                    const decimals = tronTokenInfo?.decimals ?? 6;
-                    const divisor = 10n ** BigInt(decimals);
-                    const whole = rawAmount / divisor;
-                    const frac = rawAmount % divisor;
-                    const fracStr = frac.toString().padStart(decimals, "0").replace(/0+$/, "");
-                    const formatted = fracStr ? `${whole}.${fracStr}` : whole.toString();
-                    return (
+                  {/* TRC-20 transfer amount (decoded from the signed bytes) */}
+                  {isTrc20Transfer && (
+                    <div>
+                      <label className="block text-xs text-text-muted mb-1.5">Amount</label>
+                      <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 flex items-center justify-between">
+                        <p className="text-sm text-text-tertiary tabular-nums">{formatTronTokenAmount(tronTokenAmount)}</p>
+                        <span className="text-xs text-text-muted shrink-0">{tronTokenInfo?.symbol || "base units"}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TRC-20 approve: spender + allowance (decoded from the signed bytes) */}
+                  {isTrc20Approve && (
+                    <>
                       <div>
-                        <label className="block text-xs text-text-muted mb-1.5">Amount</label>
-                        <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 flex items-center justify-between">
-                          <p className="text-sm text-text-tertiary tabular-nums">{formatted}</p>
-                          <span className="text-xs text-text-muted shrink-0">{tronTokenInfo?.symbol || "tokens"}</span>
+                        <label className="block text-xs text-text-muted mb-1.5">{t("wc.approveSpender")}</label>
+                        <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5">
+                          <p className={`text-xs font-mono text-text-tertiary ${expert ? "text-[9px]" : "truncate"}`}>{tronDecoded!.to}</p>
                         </div>
                       </div>
-                    );
-                  })()}
-
-                  {/* Data (for non-transfer smart contract calls) */}
-                  {isTronSmartContract && !isTrc20Transfer && tronCallData && (
-                    <div>
-                      <label className="block text-xs text-text-muted mb-1.5">Data</label>
-                      <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 overflow-auto max-h-20">
-                        <p className={`text-xs font-mono text-text-muted ${expert ? "text-[9px]" : "truncate"}`}>
-                          {expert ? tronCallData : (tronCallData.length > 66 ? tronCallData.slice(0, 66) + "..." : tronCallData)}
-                        </p>
+                      <div>
+                        <label className="block text-xs text-text-muted mb-1.5">{t("wc.approvalAmount")}</label>
+                        <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 flex items-center justify-between">
+                          <p className={`text-sm tabular-nums ${tronDecoded!.unlimited ? "text-yellow-400" : "text-text-tertiary"}`}>
+                            {tronDecoded!.unlimited ? t("wc.unlimited") : formatTronTokenAmount(tronTokenAmount)}
+                          </p>
+                          <span className="text-xs text-text-muted shrink-0">{tronTokenInfo?.symbol || "base units"}</span>
+                        </div>
                       </div>
+                      {tronDecoded!.unlimited && (
+                        <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 py-2">
+                          <p className="text-xs text-yellow-400">{t("wc.tronUnlimitedApproval")}</p>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Bytes the server would not co-sign: never offered for signing */}
+                  {tronParsed.error && (
+                    <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2">
+                      <p className="text-xs text-red-400">{t("wc.tronUnreadable")}</p>
+                      {expert && <p className="text-[10px] font-mono text-red-400/80 mt-1 break-all">{tronParsed.error}</p>}
                     </div>
                   )}
 
@@ -1174,10 +1203,10 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                           </div>
                         </div>
                       )}
-                      {request.params?.transaction?.txID && (
+                      {tronParsed.req && (
                         <div>
                           <p className="text-[10px] text-text-muted mb-0.5">Tx ID</p>
-                          <p className="text-[9px] font-mono text-text-muted break-all">{request.params.transaction.txID}</p>
+                          <p className="text-[9px] font-mono text-text-muted break-all">{tronParsed.req.tx.txID}</p>
                         </div>
                       )}
                     </div>
@@ -1483,23 +1512,13 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                         {formatSun(tronAmountSun)} <span className="text-text-tertiary text-sm">TRX</span>
                       </p>
                     </div>
-                  ) : isTrc20Transfer ? (
+                  ) : isTronSmartContract ? (
                     <div className="text-center py-2">
-                      {(() => {
-                        const amountHex = tronCallData.slice(72, 136);
-                        const rawAmount = amountHex ? BigInt("0x" + amountHex) : 0n;
-                        const decimals = tronTokenInfo?.decimals ?? 6;
-                        const divisor = 10n ** BigInt(decimals);
-                        const whole = rawAmount / divisor;
-                        const frac = rawAmount % divisor;
-                        const fracStr = frac.toString().padStart(decimals, "0").replace(/0+$/, "");
-                        const formatted = fracStr ? `${whole}.${fracStr}` : whole.toString();
-                        return (
-                          <p className="text-2xl font-semibold tabular-nums text-text-primary">
-                            {formatted} <span className="text-text-tertiary text-sm">{tronTokenInfo?.symbol || "tokens"}</span>
-                          </p>
-                        );
-                      })()}
+                      {isTrc20Approve && <p className="text-xs text-text-muted mb-1">{t("wc.tokenApproval")}</p>}
+                      <p className="text-2xl font-semibold tabular-nums text-text-primary">
+                        {isTrc20Approve && tronDecoded!.unlimited ? t("wc.unlimited") : formatTronTokenAmount(tronTokenAmount)}{" "}
+                        <span className="text-text-tertiary text-sm">{tronTokenInfo?.symbol || "base units"}</span>
+                      </p>
                     </div>
                   ) : null}
 
@@ -1522,18 +1541,16 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                         <span className="text-[9px] font-mono text-text-secondary">{tronTo}</span>
                       </div>
                     )}
-                    {isTrc20Transfer && tronTokenInfo && (
+                    {isTrc20Approve && (
+                      <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
+                        <span className="text-xs text-text-muted">{t("wc.approveSpender")}</span>
+                        <span className="text-[9px] font-mono text-text-secondary">{tronDecoded!.to}</span>
+                      </div>
+                    )}
+                    {isTronSmartContract && tronTokenInfo && (
                       <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
                         <span className="text-xs text-text-muted">Token</span>
                         <span className="text-xs text-text-secondary">{tronTokenInfo.symbol}</span>
-                      </div>
-                    )}
-                    {expert && isTronSmartContract && !isTrc20Transfer && tronCallData && (
-                      <div className="border-t border-border-secondary px-3 py-2.5">
-                        <span className="text-xs text-text-muted">Data</span>
-                        <pre className="text-[10px] font-mono text-text-muted break-all mt-1 leading-relaxed max-h-24 overflow-auto">
-                          {tronCallData}
-                        </pre>
                       </div>
                     )}
                   </div>
@@ -1559,7 +1576,8 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                       <span className="text-xs text-text-muted">Fee type</span>
                       <span className="text-xs text-text-muted">{isTronNative ? "Bandwidth (usually free)" : "Energy (~15 TRX)"}</span>
                     </div>
-                    {expert && tronFeeLimitSun != null && (
+                    {/* The signed cap on TRX burned: shown to everyone, not only experts */}
+                    {tronFeeLimitSun != null && (
                       <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
                         <span className="text-xs text-text-muted">Fee limit</span>
                         <span className="text-xs tabular-nums text-text-muted">{formatSun(tronFeeLimitSun)} TRX</span>
@@ -1601,11 +1619,10 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                     }];
                     // For TRC-20 transfers, also show token balance change
                     if (isTrc20Transfer) {
-                      const amountHex = tronCallData.slice(72, 136);
-                      const rawAmount = amountHex ? BigInt("0x" + amountHex) : 0n;
+                      const rawAmount = tronTokenAmount;
                       const tokenSymbol = tronTokenInfo?.symbol || "tokens";
                       const tokenDecimals = tronTokenInfo?.decimals ?? 6;
-                      const contractAddr = tronContract?.parameter?.value?.contract_address;
+                      const contractAddr = tronTokenContract;
                       const tokenBal = tokenBalances.find(
                         (b) => b.asset.contractAddress?.toLowerCase() === contractAddr?.toLowerCase()
                       );
@@ -1974,16 +1991,11 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                       {formatWei(BigInt(txParams.value))} {chain?.type === "evm" ? (chain.name?.includes("BASE") ? "ETH" : "ETH") : ""}
                     </p>
                   )}
-                  {isTronTx && (() => {
-                    const contract = request.params?.transaction?.raw_data?.contract?.[0];
-                    if (contract?.type !== "TransferContract") return null;
-                    const amountSun = BigInt(contract.parameter?.value?.amount || 0);
-                    return (
-                      <p className="text-sm text-text-muted tabular-nums">
-                        {formatSun(amountSun)} TRX
-                      </p>
-                    );
-                  })()}
+                  {isTronNative && (
+                    <p className="text-sm text-text-muted tabular-nums">
+                      {formatSun(tronAmountSun)} TRX
+                    </p>
+                  )}
                   {isSolanaTx && decodedSolTx?.amount && (decodedSolTx.type === "sol_transfer" || decodedSolTx.type === "spl_transfer") && (
                     <p className="text-sm text-text-muted tabular-nums">
                       {decodedSolTx.type === "sol_transfer"
@@ -2093,7 +2105,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
           <div className="px-5 py-4 border-t border-border-secondary shrink-0">
             <button
               onClick={handleApproveClick}
-              disabled={!account || !keyFile || policyChecking}
+              disabled={!account || !keyFile || policyChecking || !!tronParsed.error}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
             >
               {policyChecking ? t("wc.checking") : <><Eye className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("wc.reviewTx")}</>}
@@ -2230,30 +2242,22 @@ function formatRequest(request: PendingRequest, expertMode = false, permitTokenI
       return items;
     }
     case "tron_signTransaction": {
-      const items: Array<{ label: string; value: string }> = [];
-      const tronTx = request.params?.transaction;
-      if (tronTx?.txID) items.push({ label: "Tx ID", value: tronTx.txID });
-      const contract = tronTx?.raw_data?.contract?.[0];
-      if (contract?.type) items.push({ label: "Type", value: contract.type });
-      const to = contract?.parameter?.value?.to_address || contract?.parameter?.value?.contract_address;
-      if (to) items.push({ label: "To", value: to });
-      if (contract?.type === "TransferContract" && contract.parameter?.value?.amount) {
-        items.push({ label: "Amount", value: `${Number(contract.parameter.value.amount) / 1e6} TRX` });
+      // Read from the signed bytes (raw_data_hex), never the dApp's JSON raw_data.
+      try {
+        const { tx, decoded } = parseTronSignTransaction(request.params, request.params?.account ?? "");
+        const items: Array<{ label: string; value: string }> = [{ label: "Tx ID", value: tx.txID }, { label: "Type", value: decoded.kind }];
+        if (decoded.contractAddress) items.push({ label: "Token", value: decoded.contractAddress });
+        items.push({ label: decoded.kind === "trc20_approve" ? "Spender" : "To", value: decoded.to });
+        const amount = decoded.kind === "trx_transfer" ? `${formatSun(decoded.amount)} TRX` : decoded.unlimited ? "Unlimited" : decoded.amount.toString();
+        items.push({ label: "Amount", value: amount });
+        return items;
+      } catch (e) {
+        return [{ label: "Error", value: e instanceof Error ? e.message : String(e) }];
       }
-      return items;
     }
     case "tron_signMessage": {
-      const items: Array<{ label: string; value: string }> = [];
-      const msg = request.params?.message || "";
-      try {
-        const h = msg.startsWith("0x") ? msg.slice(2) : msg;
-        const bytes = new Uint8Array(h.length / 2);
-        for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(h.slice(i * 2, i * 2 + 2), 16);
-        items.push({ label: "Message", value: new TextDecoder().decode(bytes) });
-      } catch {
-        items.push({ label: "Message", value: msg });
-      }
-      return items;
+      // WalletConnect TRON spec: the message is plain text.
+      return [{ label: "Message", value: typeof request.params?.message === "string" ? request.params.message : "" }];
     }
     default:
       return [{ label: "Method", value: request.method }, { label: "Params", value: JSON.stringify(request.params) }];

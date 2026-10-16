@@ -33,8 +33,8 @@ export function WCRequestQueue() {
         onApprove={async (accounts) => {
           await approveSession(pendingProposal.params, accounts);
         }}
-        onReject={async () => {
-          await rejectSession(pendingProposal.params);
+        onReject={async (reason) => {
+          await rejectSession(pendingProposal.params, reason);
         }}
       />
     );

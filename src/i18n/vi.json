@@ -461,6 +461,10 @@
   },
   "wc": {
     "title": "WalletConnect",
+    "tronUnlimitedApproval": "dApp này yêu cầu quyền không giới hạn: bên được cấp quyền có thể chuyển toàn bộ token này khỏi tài khoản của bạn. Hãy từ chối nếu bạn không tin tưởng.",
+    "unlimited": "Không giới hạn",
+    "tronUnreadable": "Giao dịch TRON này không phải chuyển TRX, chuyển TRC-20 hay cấp quyền TRC-20 từ tài khoản này, nên Kexify không thể ký.",
+    "tronMainnetOnly": "dApp này yêu cầu {{chains}}. Kexify web chỉ ký trên TRON mainnet.",
     "desc": "Kết nối tài khoản với dApp. Yêu cầu ký sẽ xuất hiện ở đây để bạn phê duyệt.",
     "notConfigured": "WalletConnect chưa được cấu hình. Đặt biến môi trường VITE_WC_PROJECT_ID.",
     "pasteUri": "Dán wc: URI",

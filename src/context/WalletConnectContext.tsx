@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { wcService } from "../lib/walletconnect";
+import { wcService, type WCRejectReason } from "../lib/walletconnect";
+import { TRON_MAINNET_CHAIN } from "../lib/tron-wc-requests";
 import { notify } from "../lib/notify";
 import type { SessionTypes, ProposalTypes } from "@walletconnect/types";
 import type { Web3WalletTypes } from "@walletconnect/web3wallet";
@@ -21,7 +22,7 @@ interface WCContextValue {
   pair: (uri: string) => Promise<void>;
   disconnect: (topic: string) => Promise<void>;
   approveSession: (proposal: ProposalTypes.Struct, accounts: string[]) => Promise<void>;
-  rejectSession: (proposal: ProposalTypes.Struct) => Promise<void>;
+  rejectSession: (proposal: ProposalTypes.Struct, reason?: WCRejectReason) => Promise<void>;
   approveRequest: (topic: string, id: number, result: unknown) => Promise<void>;
   rejectRequest: (topic: string, id: number) => Promise<void>;
   dismissProposal: () => void;
@@ -66,6 +67,11 @@ export function WalletConnectProvider({ children }: { children: ReactNode }) {
 
     const onRequest = (request: Web3WalletTypes.SessionRequest) => {
       const { topic, id, params } = request;
+      if (params.request.method.startsWith("tron_") && params.chainId !== TRON_MAINNET_CHAIN) {
+        // Sessions are only approved on TRON mainnet; never show (or sign) a request for another TRON chain.
+        wcService.rejectRequest(topic, id, { code: 5100, message: `Unsupported chain ${params.chainId}: Kexify web signs on TRON mainnet only` }).catch(() => {});
+        return;
+      }
       const session = wcService.getSessions().find((s) => s.topic === topic);
       const dappName = session?.peer.metadata.name || "dApp";
       notify({ title: t("notify.wcRequest"), body: `${dappName}: ${params.request.method}` });
@@ -86,15 +92,14 @@ export function WalletConnectProvider({ children }: { children: ReactNode }) {
       }
       if (params.request.method.startsWith("tron_") && params.chainId) {
         const session = wcService.getSessions().find((s) => s.topic === topic);
-        if (session?.namespaces?.tron?.accounts) {
-          const match = session.namespaces.tron.accounts.find((a) =>
-            a.startsWith(params.chainId),
-          );
-          if (match) {
-            const address = match.split(":").slice(2).join(":");
-            reqParams = { ...reqParams, account: address };
-          }
-        }
+        // The signer is a session account on this chain: the one the dApp names in `address`, else the first.
+        // An `account` the dApp sent itself is never trusted.
+        const onChain = (session?.namespaces?.tron?.accounts ?? [])
+          .filter((a) => a.startsWith(params.chainId + ":"))
+          .map((a) => a.split(":").slice(2).join(":"));
+        const named = (reqParams as { address?: unknown } | undefined)?.address;
+        const address = onChain.find((a) => a === named) ?? onChain[0];
+        reqParams = { ...reqParams, account: address };
       }
       setRequestQueue((q) => [
         ...q,
@@ -144,8 +149,8 @@ export function WalletConnectProvider({ children }: { children: ReactNode }) {
     setSessions(wcService.getSessions());
   }, []);
 
-  const rejectSession = useCallback(async (proposal: ProposalTypes.Struct) => {
-    await wcService.rejectSession(proposal);
+  const rejectSession = useCallback(async (proposal: ProposalTypes.Struct, reason?: WCRejectReason) => {
+    await wcService.rejectSession(proposal, reason);
     setPendingProposal(null);
   }, []);
 

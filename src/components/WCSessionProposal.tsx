@@ -12,11 +12,13 @@ import { fetchPasskeys } from "../lib/passkey";
 import { PasskeyGate } from "./PasskeyGate";
 import { PasskeyChallenge } from "./PasskeyChallenge";
 import { isRecoveryMode, getRecoveryKeys } from "../lib/recovery";
+import { TRON_MAINNET_CHAIN, tronProposalSupport } from "../lib/tron-wc-requests";
+import type { WCRejectReason } from "../lib/walletconnect";
 
 interface Props {
   proposal: Web3WalletTypes.SessionProposal;
   onApprove: (accounts: string[]) => void;
-  onReject: () => void;
+  onReject: (reason?: WCRejectReason) => void;
 }
 
 const KNOWN_EVM_CHAINS: Record<number, string> = {
@@ -77,9 +79,12 @@ export function WCSessionProposal({ proposal, onApprove, onReject }: Props) {
   const wantsEvm = uniqueEvmChains.length > 0 ||
     !!proposal.params.requiredNamespaces?.eip155 ||
     !!proposal.params.optionalNamespaces?.eip155;
-  const wantsTron = uniqueTronChains.length > 0 ||
-    !!proposal.params.requiredNamespaces?.tron ||
-    !!proposal.params.optionalNamespaces?.tron;
+  // The web signs TRON on mainnet only: a proposal that requires another TRON chain is refused (5100).
+  const tronSupport = tronProposalSupport(proposal.params.requiredNamespaces, proposal.params.optionalNamespaces);
+  const wantsTron = tronSupport.ok && tronSupport.offerAccounts;
+  const unsupportedTron = tronSupport.ok ? [] : tronSupport.unsupportedChains;
+  const handleReject = () =>
+    onReject(unsupportedTron.length > 0 ? { code: 5100, message: `Unsupported chains: ${unsupportedTron.join(", ")}` } : undefined);
 
   useEffect(() => {
     const keysPromise = isRecoveryMode()
@@ -194,10 +199,8 @@ export function WCSessionProposal({ proposal, onApprove, onReject }: Props) {
     // TRON accounts
     const selectedTron = selected.filter((a) => a.type === "tron");
     if (selectedTron.length > 0) {
-      // TRON mainnet chainId: 0x2b6653dc (728126428)
-      const tronChainId = "0x2b6653dc";
       for (const a of selectedTron) {
-        accountStrings.push(`tron:${tronChainId}:${a.address}`);
+        accountStrings.push(`${TRON_MAINNET_CHAIN}:${a.address}`);
       }
     }
 
@@ -236,13 +239,13 @@ export function WCSessionProposal({ proposal, onApprove, onReject }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50" onClick={onReject} />
+      <div className="absolute inset-0 bg-black/50" onClick={handleReject} />
       <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl max-h-[85vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border-secondary shrink-0">
           <h3 className="text-sm font-semibold text-text-primary">{t("wc.sessionRequest")}</h3>
           <button
-            onClick={onReject}
+            onClick={handleReject}
             className="p-1 rounded-md text-text-tertiary hover:text-text-primary hover:bg-surface-tertiary transition-colors"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -298,6 +301,11 @@ export function WCSessionProposal({ proposal, onApprove, onReject }: Props) {
                   );
                 })}
               </div>
+            </div>
+          )}
+          {unsupportedTron.length > 0 && (
+            <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2">
+              <p className="text-xs text-red-400">{t("wc.tronMainnetOnly", { chains: unsupportedTron.join(", ") })}</p>
             </div>
           )}
 
@@ -413,14 +421,14 @@ export function WCSessionProposal({ proposal, onApprove, onReject }: Props) {
         {/* Footer */}
         <div className="px-5 py-4 border-t border-border-secondary flex gap-3 shrink-0">
           <button
-            onClick={onReject}
+            onClick={handleReject}
             className="flex-1 px-4 py-2.5 rounded-lg text-xs font-medium bg-surface-tertiary text-text-secondary hover:bg-border-primary transition-colors"
           >
             {t("wc.reject")}
           </button>
           <button
             onClick={handleApprove}
-            disabled={loading || approving || accounts.filter((a) => a.selected).length === 0}
+            disabled={loading || approving || unsupportedTron.length > 0 || accounts.filter((a) => a.selected).length === 0}
             className="flex-1 px-4 py-2.5 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50"
           >
             {approving ? t("wc.approving") : t("wc.approve")}

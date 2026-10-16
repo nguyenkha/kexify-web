@@ -2,6 +2,9 @@ import { Core } from "@walletconnect/core";
 import { Web3Wallet, type Web3WalletTypes } from "@walletconnect/web3wallet";
 import type { SessionTypes, ProposalTypes, PendingRequestTypes } from "@walletconnect/types";
 
+export type WCRejectReason = { code: number; message: string };
+const USER_REJECTED: WCRejectReason = { code: 4001, message: "User rejected" };
+
 export type WCEvent = "session_proposal" | "session_request" | "session_delete" | "sessions_changed";
 
 type Listener = (...args: any[]) => void;
@@ -122,7 +125,9 @@ class WalletConnectService {
 
     // TRON
     const tronAccounts = accounts.filter((a) => a.startsWith("tron:"));
-    if (allRequested.tron && tronAccounts.length > 0) {
+    // TRON may be requested as `tron` (with chains) or as a chain-scoped key such as `tron:0x2b6653dc`.
+    const wantsTron = !!allRequested.tron || Object.keys(allRequested).some((k) => k.startsWith("tron:"));
+    if (wantsTron && tronAccounts.length > 0) {
       namespaces.tron = {
         accounts: tronAccounts,
         methods: TRON_METHODS,
@@ -139,12 +144,9 @@ class WalletConnectService {
     return session;
   }
 
-  async rejectSession(proposal: ProposalTypes.Struct): Promise<void> {
+  async rejectSession(proposal: ProposalTypes.Struct, reason: WCRejectReason = USER_REJECTED): Promise<void> {
     if (!this.web3wallet) throw new Error("WalletConnect not initialized");
-    await this.web3wallet.rejectSession({
-      id: proposal.id,
-      reason: { code: 4001, message: "User rejected" },
-    });
+    await this.web3wallet.rejectSession({ id: proposal.id, reason });
   }
 
   async approveRequest(topic: string, id: number, result: unknown): Promise<void> {
@@ -155,11 +157,11 @@ class WalletConnectService {
     });
   }
 
-  async rejectRequest(topic: string, id: number, message = "User rejected"): Promise<void> {
+  async rejectRequest(topic: string, id: number, reason: WCRejectReason = USER_REJECTED): Promise<void> {
     if (!this.web3wallet) throw new Error("WalletConnect not initialized");
     await this.web3wallet.respondSessionRequest({
       topic,
-      response: { id, jsonrpc: "2.0", error: { code: 4001, message } },
+      response: { id, jsonrpc: "2.0", error: reason },
     });
   }
 
