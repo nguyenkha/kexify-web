@@ -92,7 +92,8 @@
     "wallet": "Wallet",
     "client": "Client",
     "server": "Server",
-    "scanWalletConnect": "Scan WalletConnect QR"
+    "scanWalletConnect": "Scan WalletConnect QR",
+    "apps": "Apps"
   },
   "wallet": {
     "importKeyFileLink": "Have a key file? Import an existing wallet",
@@ -1471,5 +1472,22 @@
       "done": "Done"
     },
     "setLimit": "Set a limit (recommended)"
+  },
+  "apps": {
+    "title": "Apps",
+    "webHint": "Apps listed by kexify. They open in a new tab: choose WalletConnect there and connect it in",
+    "openWalletConnect": "WalletConnect",
+    "loadFailed": "Could not load the app list.",
+    "featured": "Featured",
+    "allChains": "All",
+    "footer": "Chosen by kexify: well-known, audited, no known incident. Never paid placement. The list is signed by kexify and checked in your browser; every signature still shows a review first.",
+    "category": {
+      "swap": "Swap",
+      "earn": "Lend & earn",
+      "nft": "NFT",
+      "bridge": "Bridge",
+      "tools": "Tools",
+      "games": "Games"
+    }
   }
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import * as Sentry from "@sentry/react";
+import { AppsDirectoryPage } from "./components/apps-directory-page";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, Outlet } from "react-router-dom";
 import { Wallet } from "./components/Wallet";
 import { AccountDetail } from "./components/AccountDetail";
@@ -60,7 +61,7 @@ import { Broadcast as BroadcastPage } from "./components/Broadcast";
 import { RecoveryProvider } from "./context/RecoveryContext";
 import { isRecoveryMode, getRecoveryKeys, exitRecoveryMode } from "./lib/recovery";
 import { isStandaloneJwt, getIdentityId } from "./lib/auth";
-import { Briefcase, Archive, ClipboardList, Settings, KeyRound, PenLine, Radio } from "lucide-react";
+import { Briefcase, Archive, ClipboardList, Settings, KeyRound, PenLine, Radio, LayoutGrid } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 const WalletConnectIcon = () => (
@@ -80,6 +81,7 @@ type NavItem = {
 const mainNavItems: NavItem[] = [
   { path: "/accounts", labelKey: "nav.wallet", icon: Briefcase },
   { path: "/walletconnect", labelKey: "nav.walletconnect", customIcon: WalletConnectIcon },
+  { path: "/apps", labelKey: "nav.apps", icon: LayoutGrid },
 ];
 
 const advancedNavItems: NavItem[] = [
@@ -540,6 +542,7 @@ function App() {
           <Route path="/activity" element={<ActivityLogPage />} />
           <Route path="/config" element={<ConfigPage />} />
           <Route path="/walletconnect" element={<WalletConnectPage />} />
+          <Route path="/apps" element={<AppsDirectoryPage />} />
           <Route path="/sign" element={<Sign />} />
           <Route path="/broadcast" element={<BroadcastPage />} />
           <Route path="/" element={<Navigate to="/accounts" replace />} />

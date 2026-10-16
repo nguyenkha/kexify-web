@@ -92,7 +92,8 @@
     "wallet": "Ví",
     "client": "Ứng dụng",
     "server": "Máy chủ",
-    "scanWalletConnect": "Quét mã QR WalletConnect"
+    "scanWalletConnect": "Quét mã QR WalletConnect",
+    "apps": "Khám phá"
   },
   "wallet": {
     "importKeyFileLink": "Đã có file key? Nhập ví có sẵn",
@@ -1471,5 +1472,22 @@
       "done": "Xong"
     },
     "setLimit": "Đặt hạn mức (nên làm)"
+  },
+  "apps": {
+    "title": "Khám phá",
+    "webHint": "Ứng dụng do kexify chọn. Ứng dụng mở trong tab mới: chọn WalletConnect ở đó rồi kết nối trong",
+    "openWalletConnect": "WalletConnect",
+    "loadFailed": "Không tải được danh sách ứng dụng.",
+    "featured": "Nổi bật",
+    "allChains": "Tất cả",
+    "footer": "Do kexify chọn: ứng dụng uy tín, đã kiểm toán, chưa có sự cố. Không nhận tiền quảng cáo. Danh sách được kexify ký và kiểm tra ngay trên trình duyệt; mọi lần ký vẫn hiện màn hình xem lại trước.",
+    "category": {
+      "swap": "Đổi token",
+      "earn": "Cho vay & sinh lời",
+      "nft": "NFT",
+      "bridge": "Chuyển chain",
+      "tools": "Công cụ",
+      "games": "Trò chơi"
+    }
   }
 }
