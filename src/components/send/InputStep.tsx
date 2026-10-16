@@ -1,5 +1,6 @@
 import { maskAmount } from "../../lib/hidden-amount";
 import { formatUsd } from "../../lib/prices";
+import { shortAddress } from "../../lib/review";
 import { truncateBalance } from "../sendTypes";
 import type { InputStepProps } from "./types";
 import { KeyShareSection } from "./KeyShareSection";
@@ -133,14 +134,18 @@ export function InputStep({
           t={t}
         />
 
-        {/* From */}
+        {/* From: asset + chain + balance (same order as the iOS form), address short */}
         <div>
           <label className="block text-xs text-text-muted mb-1.5">{t("send.from")}</label>
-          <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5">
-            <p className="text-xs font-mono text-text-tertiary truncate">{address}</p>
-            <p className="text-[10px] text-text-muted mt-0.5">
-              {t("send.balance")}: {maskAmount(truncateBalance(balance), asset.symbol, balancesHidden)} &middot; {chain.displayName}
-            </p>
+          <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-text-primary">{asset.symbol}</p>
+              <p className="text-xs text-text-muted truncate">{chain.displayName} &middot; <span className="font-mono">{shortAddress(address)}</span></p>
+            </div>
+            <div className="text-right shrink-0">
+              <p className="text-xs text-text-muted">{t("send.balance")}</p>
+              <p className="text-sm tabular-nums text-text-primary">{maskAmount(truncateBalance(balance), asset.symbol, balancesHidden)}</p>
+            </div>
           </div>
         </div>
 
@@ -179,42 +184,35 @@ export function InputStep({
           t={t}
         />
 
-        {/* Amount */}
+        {/* Amount: Max inside the field, fiat value under it */}
         <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="text-xs text-text-muted">{t("send.amount")}</label>
-            <button
-              onClick={() => { if (maxSendable != null) { setAmount(maxSendable); setAmountTouched(true); } }}
-              disabled={maxSendable == null}
-              title={maxSendable == null ? t("common.estimating") : undefined}
-              className="text-[10px] text-blue-400 hover:text-blue-300 disabled:text-text-muted disabled:cursor-not-allowed transition-colors"
-            >
-              {t("send.max")}
-            </button>
-          </div>
-          <div className="relative">
+          <label className="block text-xs text-text-muted mb-1.5">{t("send.amount")}</label>
+          <div className={`flex items-center gap-2 bg-surface-primary border rounded-lg pl-3 pr-2 py-1.5 ${amountError ? "border-red-500/50 focus-within:border-red-500" : "border-border-primary focus-within:border-blue-500"}`}>
             <input
               type="text"
+              inputMode="decimal"
               value={amount}
               onChange={(e) => { if (!speedUpData) setAmount(e.target.value); }}
               onBlur={() => setAmountTouched(true)}
               placeholder="0.00"
               readOnly={!!speedUpData}
-              className={`w-full bg-surface-primary border rounded-lg px-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none tabular-nums pr-16 ${
-                amountError
-                  ? "border-red-500/50 focus:border-red-500"
-                  : "border-border-primary focus:border-blue-500"
-              }`}
+              className="min-w-0 flex-1 bg-transparent text-lg font-semibold text-text-primary placeholder:text-text-muted focus:outline-none tabular-nums"
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-text-muted">
-              {asset.symbol}
-            </span>
+            <span className="text-sm text-text-muted shrink-0">{asset.symbol}</span>
+            <button
+              onClick={() => { if (maxSendable != null) { setAmount(maxSendable); setAmountTouched(true); } }}
+              disabled={maxSendable == null}
+              title={maxSendable == null ? t("common.estimating") : undefined}
+              className="shrink-0 rounded-full border border-border-primary px-3 py-1 text-xs font-semibold text-blue-400 hover:bg-surface-tertiary disabled:text-text-muted disabled:cursor-not-allowed transition-colors"
+            >
+              {t("send.max")}
+            </button>
           </div>
-          <div className="flex items-center justify-end mt-1">
+          <div className="mt-1.5 min-h-5">
             {amountError ? (
-              <p className="text-[10px] text-red-400">{amountError}</p>
+              <p className="text-xs text-red-400">{amountError}</p>
             ) : amountUsd != null ? (
-              <p className="text-[10px] text-text-muted tabular-nums">{formatUsd(amountUsd)}</p>
+              <p className="text-sm text-text-muted tabular-nums">&asymp; {formatUsd(amountUsd)}</p>
             ) : null}
           </div>
         </div>
@@ -233,7 +231,7 @@ export function InputStep({
             />
           ) : (
             <div className="flex items-center justify-between px-3 py-2 bg-surface-primary border border-border-primary rounded-lg">
-              <span className="text-xs text-text-muted">{t("send.networkFee")}</span>
+              <span className="text-sm text-text-muted">{t("send.networkFee")}</span>
               <span className="text-xs tabular-nums text-text-secondary">
                 {feeDisplay.usd != null && feeDisplay.usd > 0
                   ? formatUsd(feeDisplay.usd)
@@ -281,8 +279,8 @@ export function InputStep({
           />
         )}
 
-        {/* Fee summary */}
-        <div className="flex items-center justify-between px-1">
+        {/* Fee summary (expert; the simple view already shows one Network fee row) */}
+        {(expert || !feeDisplay.hasLevelSelector) && <div className="flex items-center justify-between px-1">
           <span className="text-[10px] text-text-muted flex items-center gap-1">
             {t("send.estFee")}
             {!feeDisplay.isFixed && (
@@ -303,7 +301,7 @@ export function InputStep({
           ) : (
             <span className="text-[10px] text-text-muted animate-pulse">{t("common.estimating")}</span>
           )}
-        </div>
+        </div>}
       </div>
 
       {/* Footer — Input step */}
