@@ -1291,5 +1291,10 @@
     "verify": "Xác nhận",
     "verified": "Đã xác nhận bản sao lưu",
     "verifyLater": "Xác nhận sau"
+  },
+  "updateRequired": {
+    "title": "Đã có phiên bản mới",
+    "description": "Phiên bản kexify này đã cũ. Đang tải lại phiên bản mới nhất…",
+    "reload": "Tải lại ngay"
   }
 }

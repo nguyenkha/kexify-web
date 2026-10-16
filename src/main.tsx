@@ -8,10 +8,12 @@ import './i18n/i18n'
 import App from './App.tsx'
 import { initTheme } from './lib/theme'
 import { initSentry } from './lib/sentry'
+import { installClientVersionGate } from './lib/client-version-gate'
 import { initAlgoAdapter } from './lib/chains/algoAdapter'
 import { initAdaAdapter } from './lib/chains/adaAdapter'
 
 initSentry()
+installClientVersionGate()
 initTheme()
 initAlgoAdapter()
 initAdaAdapter()

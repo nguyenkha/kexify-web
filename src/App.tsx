@@ -20,6 +20,7 @@ import { RecoveryChecklist } from "./components/RecoveryChecklist";
 import { RecoveryGuide } from "./components/RecoveryGuide";
 import { useExpertMode } from "./context/ExpertModeContext";
 import { WalletTutorial } from "./components/WalletTutorial";
+import { UpdateRequiredScreen } from "./components/update-required-screen";
 
 function BackupRecoveryPage() {
   const expert = useExpertMode();
@@ -502,6 +503,8 @@ function LangFromUrl() {
 
 function App() {
   return (
+    <>
+    <UpdateRequiredScreen />
     <Sentry.ErrorBoundary fallback={<p>Something went wrong.</p>}>
     <BrowserRouter>
       <LangFromUrl />
@@ -544,6 +547,7 @@ function App() {
       </Routes>
     </BrowserRouter>
     </Sentry.ErrorBoundary>
+    </>
   );
 }
 

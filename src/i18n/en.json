@@ -1291,5 +1291,10 @@
     "verify": "Verify",
     "verified": "Backup verified",
     "verifyLater": "Verify later"
+  },
+  "updateRequired": {
+    "title": "New version available",
+    "description": "This version of kexify is out of date. Reloading to the latest version…",
+    "reload": "Reload now"
   }
 }

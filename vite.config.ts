@@ -5,6 +5,7 @@ import tailwindcss from "@tailwindcss/vite";
 import wasm from "vite-plugin-wasm";
 import inject from "@rollup/plugin-inject";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
+import pkg from "./package.json";
 
 function git(cmd: string): string {
   try { return execSync(cmd, { encoding: "utf8" }).trim(); } catch { return ""; }
@@ -18,6 +19,7 @@ export default defineConfig({
     __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
     __GIT_HASH__: JSON.stringify(gitHash),
     __GIT_TAG__: JSON.stringify(gitTag),
+    __APP_VERSION__: JSON.stringify(pkg.version),
   },
   plugins: [
     react(),
