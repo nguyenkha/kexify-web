@@ -1499,14 +1499,14 @@
     }
   },
   "simplePolicy": {
-    "title": "Chính sách",
+    "title": "Quy tắc bảo mật",
     "change": "Đổi thiết lập",
     "save": "Lưu",
     "customExpert": "Quy tắc tùy chỉnh (chuyên gia)",
     "customBadge": "Chính sách tùy chỉnh",
     "dailyLimit": "Hạn mức mỗi ngày",
     "noLimit": "Không giới hạn",
-    "dailyLimitHint": "Tổng giá trị bạn có thể gửi hoặc cấp quyền trong 24 giờ bất kỳ, tính bằng USD. Token không có giá sẽ không gửi được khi bật hạn mức.",
+    "dailyLimitHint": "Tổng giá trị bạn có thể gửi hoặc cấp quyền trong 24 giờ bất kỳ, tính bằng USD. Token không có giá được tính là vượt hạn mức.",
     "limitInvalid": "Nhập số tiền lớn hơn $0 (tối đa 2 chữ số thập phân).",
     "sendTo": "Gửi đến",
     "sendTo_anywhere": "Mọi địa chỉ",

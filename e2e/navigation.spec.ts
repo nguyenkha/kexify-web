@@ -19,7 +19,7 @@ test.describe("Unauthenticated navigation", () => {
 
   test("visiting /recovery renders the recovery import page", async ({ page }) => {
     await page.goto("/recovery");
-    await expect(page.getByText("Wallet Recovery")).toBeVisible();
+    await expect(page.getByText("Wallet recovery")).toBeVisible();
     await expect(page.getByText("Your key file")).toBeVisible();
   });
 });

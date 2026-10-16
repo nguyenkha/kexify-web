@@ -553,7 +553,7 @@ export function CreateAccountDialog({
                     <p>Message signing — allowed for logins and approvals</p>
                     <p>Raw signing — blocked unless you enable it</p>
                   </div>
-                  <p className="text-[10px] text-green-400/50">Customize anytime in Policy Rules.</p>
+                  <p className="text-[10px] text-green-400/50">Customize anytime in Policy rules.</p>
                 </div>
               )}
 

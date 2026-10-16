@@ -201,7 +201,7 @@ function DashboardLayout() {
   }, []);
 
   useEffect(() => {
-    document.title = recovery ? "[Recovery Mode] kexify" : "kexify";
+    document.title = recovery ? "[Recovery mode] kexify" : "kexify";
   }, [recovery]);
 
   // Session restored by an in-place unlock: refresh server-backed shell data

@@ -5,7 +5,7 @@ test.describe("Wallet page (authenticated)", () => {
     await authedPage.goto("/accounts");
     await expect(authedPage.getByText("Welcome to kexify")).toBeVisible();
     // Use the button in the empty state (not any dialog that may open)
-    await expect(authedPage.getByRole("button", { name: "Create Your Wallet" })).toBeVisible();
+    await expect(authedPage.getByRole("button", { name: "Create your wallet" })).toBeVisible();
   });
 
   test("shows how-it-works info cards for new user", async ({ authedPage }) => {

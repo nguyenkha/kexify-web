@@ -8,7 +8,7 @@ test.describe("Login page", () => {
   test("renders kexify branding, email input, and send magic link button", async ({ page }) => {
     await expect(page.getByRole("heading", { name: "kexify" })).toBeVisible();
     await expect(page.getByPlaceholder("you@example.com")).toBeVisible();
-    await expect(page.getByRole("button", { name: /Send Magic Link/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Send magic link/i })).toBeVisible();
   });
 
   test("email input accepts typed text", async ({ page }) => {
@@ -17,8 +17,8 @@ test.describe("Login page", () => {
     await expect(input).toHaveValue("test@example.com");
   });
 
-  test("Recovery Mode link exists and points to /recovery", async ({ page }) => {
-    const link = page.getByRole("link", { name: "Recovery Mode" });
+  test("Recovery mode link exists and points to /recovery", async ({ page }) => {
+    const link = page.getByRole("link", { name: "Recovery mode" });
     await expect(link).toBeVisible();
     await expect(link).toHaveAttribute("href", "/recovery");
   });
