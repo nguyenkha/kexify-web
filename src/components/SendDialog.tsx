@@ -81,6 +81,7 @@ import {
 } from "./send/signing-flows";
 import { InputStep } from "./send/InputStep";
 import { PreviewStep } from "./send/PreviewStep";
+import { NetworkChip } from "./review";
 import { ResultStep } from "./send/ResultStep";
 import { computeFeeDisplay, computeMaxSendable } from "./send/fee-helpers";
 import type { SendError } from "./send/send-error";
@@ -688,6 +689,7 @@ export function SendDialog({
               <Eye className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("send.review")}
             </h3>
           )}
+          {step === "preview" && <span className="ml-auto mr-2"><NetworkChip name={chain.displayName} iconUrl={chain.iconUrl} /></span>}
           {canClose && (
             <button
               onClick={onClose}

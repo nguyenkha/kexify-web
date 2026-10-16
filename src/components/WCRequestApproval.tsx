@@ -18,16 +18,15 @@ import { hasKeyShare, getKeyShareMode, getKeyShareWithPrf, getKeyShareWithPassph
 import { decryptKeyFile, isEncryptedKeyFile, type KeyFileData } from "../lib/crypto";
 import { isRecoveryMode, getRecoveryKeys, getRecoveryKeyFile } from "../lib/recovery";
 import { wcPersonalSign, wcEthSign, wcSignTypedData, wcSendTransaction, wcSolanaSignTransaction, wcSolanaSignAndSendTransaction, wcSolanaSignMessage, isSignableSolanaMessage, wcTronSignTransaction, wcTronSignMessage, type WcSignPhase } from "../lib/wcSigning";
-import { SolanaInstructionList } from "./SolanaInstructionList";
 import { decodeSolanaMessageParam } from "../lib/solana-wc-message";
 import { evmReceiptRpcUrls } from "../lib/chains/evm-read-rpc-fallbacks";
 import { usePendingEvmReceipt } from "./send/use-pending-evm-receipt";
 import { waitForReceipt, estimateGas, getTransactionCount } from "../lib/chains/evmTx";
 import { solanaSolOutflow } from "../lib/chains/solanaIx";
-import { decodeSolanaTransaction, formatLamports, formatTokenAmount as formatSplAmount, waitForSolanaConfirmation, type DecodedSolanaTx } from "../lib/chains/solanaTx";
+import { decodeSolanaTransaction, formatLamports, waitForSolanaConfirmation, type DecodedSolanaTx } from "../lib/chains/solanaTx";
 import { formatSun, waitForTronConfirmation, estimateTronFee } from "../lib/chains/tronTx";
 import { parseTronSignTransaction, parseTronSignMessage, type TronSignTransactionRequest } from "../lib/tron-wc-requests";
-import { fetchPrices, getUsdValue, formatUsd } from "../lib/prices";
+import { fetchPrices } from "../lib/prices";
 import { fetchNativeBalance, getCachedNativeBalance, fetchTokenBalances } from "../lib/balance";
 import { clearCache, tokenBalancesCacheKey, notifyBalanceRefresh } from "../lib/dataCache";
 import type { BalanceResult } from "../lib/balance";
@@ -37,9 +36,14 @@ import { BalancePreview, type BalanceChange } from "./BalancePreview";
 import { simulateEvmTransaction, type SimulationResult } from "../lib/txSimulation";
 import { useExpertMode } from "../context/ExpertModeContext";
 import { PolicyWarning, ExpertWarnings, SimulationPreview, SigningError, SigningStepper } from "./tx";
+import { ReviewBody, useScrollGate, DappTitle, NetworkChip, AllowanceEditor } from "./review";
+import { buildWcRequestReview, decodeEvmCall, knownEvmContract, withEvmApproveAmount, withTronApproveAmount, type ReviewModel, type TronTxJson, type WcReviewContext } from "../lib/review";
+import { addressLabel } from "../lib/address-label";
+import { KNOWN_PROGRAMS } from "../lib/chains/solanaTx";
+import { isKnownRecipient } from "./send/use-first-time-recipient";
 import Prism from "prismjs";
 import "prismjs/components/prism-json";
-import { Clock, CircleCheck, Radio, CircleX, LockOpen, PenLine, Eye, AlertTriangle } from "lucide-react";
+import { Clock, CircleCheck, Radio, CircleX, Eye } from "lucide-react";
 
 function friendlyError(err: unknown, t: (k: string) => string): string {
   const msg = (err as { message?: string })?.message || String(err);
@@ -70,24 +74,7 @@ const FEE_MULTIPLIER: Record<FeeLevel, number> = { low: 0.8, medium: 1.0, high: 
 const GAS_LIMIT_DEFAULT = 21_000n;
 const GAS_LIMIT_CONTRACT = 200_000n;
 
-// ERC-20 approve detection
-const APPROVE_SELECTOR = "0x095ea7b3";
 const MAX_UINT256 = 2n ** 256n - 1n;
-
-function parseApproveData(data: string): { spender: string; amount: bigint } | null {
-  if (!data || data.length < 10) return null;
-  if (data.slice(0, 10).toLowerCase() !== APPROVE_SELECTOR) return null;
-  if (data.length < 138) return null; // 10 + 64 + 64
-  const spender = "0x" + data.slice(34, 74); // skip selector (10) + 12 bytes zero-padding (24)
-  const amount = BigInt("0x" + data.slice(74, 138));
-  return { spender, amount };
-}
-
-function encodeApproveData(spender: string, amount: bigint): string {
-  const addr = spender.toLowerCase().replace("0x", "").padStart(64, "0");
-  const amt = amount.toString(16).padStart(64, "0");
-  return APPROVE_SELECTOR + addr + amt;
-}
 
 function formatTokenAmount(amount: bigint, decimals: number): string {
   if (amount === MAX_UINT256) return "Unlimited";
@@ -99,29 +86,9 @@ function formatTokenAmount(amount: bigint, decimals: number): string {
   return `${whole}.${fracStr}`;
 }
 
-function parseTokenAmount(input: string, decimals: number): bigint | null {
-  if (input.toLowerCase() === "unlimited" || input === "") return MAX_UINT256;
-  const parts = input.split(".");
-  if (parts.length > 2) return null;
-  const whole = parts[0] || "0";
-  const frac = (parts[1] || "").padEnd(decimals, "0").slice(0, decimals);
-  try {
-    return BigInt(whole) * 10n ** BigInt(decimals) + BigInt(frac);
-  } catch {
-    return null;
-  }
-}
-
 function formatGwei(wei: bigint): string {
   const gwei = Number(wei) / 1e9;
   return gwei < 0.01 ? "< 0.01" : gwei.toFixed(2);
-}
-
-function formatEthFee(wei: bigint): string {
-  const eth = Number(wei) / 1e18;
-  if (eth === 0) return "0";
-  if (eth < 0.000001) return "< 0.000001";
-  return eth.toFixed(6).replace(/0+$/, "").replace(/\.$/, "");
 }
 
 // ── Component ────────────────────────────────────────────────────
@@ -159,23 +126,24 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   // Fee state (for eth_sendTransaction)
   const [baseGasPrice, setBaseGasPrice] = useState<bigint | null>(null);
   const [feeLevel, setFeeLevel] = useState<FeeLevel>("medium");
-  const [feeCountdown, setFeeCountdown] = useState(10);
   const [prices, setPrices] = useState<Record<string, number>>({});
   const [gasLimitInput, setGasLimitInput] = useState<string>("");
   const [maxFeeOverride, setMaxFeeOverride] = useState("");
   const [priorityFeeOverride, setPriorityFeeOverride] = useState("");
-  const [approveAmountInput, setApproveAmountInput] = useState<string>("");
+  // Spending cap the user set in the editor (review-and-sign.md "Spending cap"); null = the dApp's request.
+  const [approveOverride, setApproveOverride] = useState<bigint | null>(null);
+  const [capInvalid, setCapInvalid] = useState(false);
   const [approveToken, setApproveToken] = useState<{ symbol: string; decimals: number } | null>(null);
   const [permitToken, setPermitToken] = useState<{ symbol: string; decimals: number } | null>(null);
   const [nativeBalance, setNativeBalance] = useState<string | null>(null); // raw wei as string
   const [tokenBalances, setTokenBalances] = useState<BalanceResult[]>([]);
+  const [chainAssets, setChainAssets] = useState<Asset[]>([]);
 
   const isSolana = request.method.startsWith("solana_");
   const isSolanaTx = request.method === "solana_signTransaction" || request.method === "solana_signAndSendTransaction";
   const isTron = request.method.startsWith("tron_");
   const isTronTx = request.method === "tron_signTransaction";
   const isTx = request.method === "eth_sendTransaction" || isSolanaTx || isTronTx;
-  const isContractCall = !isSolana && !isTron && isTx && request.params[0]?.data && request.params[0].data !== "0x";
 
   // Stepped progress: 90% for MPC signing, 10% for other steps (1s each)
   const wcStepsAfterMain = isTx ? 2 : 1; // tx: broadcast+confirm; msg: verify
@@ -205,25 +173,14 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   const isTronNative = tronDecoded?.kind === "trx_transfer";
   const isTronSmartContract = !!tronDecoded && tronDecoded.kind !== "trx_transfer";
   const isTrc20Transfer = tronDecoded?.kind === "trc20_transfer";
-  const isTrc20Approve = tronDecoded?.kind === "trc20_approve";
-  // Transfer: the recipient. Approve: the token contract called (the spender is shown in its own row).
-  const tronTo = (isTrc20Approve ? tronDecoded?.contractAddress : tronDecoded?.to) ?? "";
   const tronAmountSun = isTronNative ? tronDecoded!.amount : 0n;
   const tronTokenAmount = isTronSmartContract ? tronDecoded!.amount : 0n;
   const tronTokenContract = tronDecoded?.contractAddress ?? null;
   // Fee limit (TRON's equivalent of gas limit — max TRX burned for energy), from the signed bytes
   const tronFeeLimitSun = tronDecoded && tronDecoded.feeLimit > 0n ? tronDecoded.feeLimit : null;
-  /** TRC-20 amount in the token's decimals; raw base units while the token is unknown (decimals not guessed). */
-  const formatTronTokenAmount = (raw: bigint): string => {
-    if (!tronTokenInfo) return raw.toString();
-    const decimals = tronTokenInfo.decimals;
-    const divisor = 10n ** BigInt(decimals);
-    const fracStr = (raw % divisor).toString().padStart(decimals, "0").replace(/0+$/, "");
-    return fracStr ? `${raw / divisor}.${fracStr}` : (raw / divisor).toString();
-  };
+
   // Estimated fee: native TRX uses bandwidth (free if available), TRC-20 uses energy (~15 TRX)
   const tronEstFeeSun = isTronNative ? 0n : 15_000_000n;
-  const tronFeeFormatted = formatSun(tronEstFeeSun);
 
   // Decode Solana transaction for display
   const [decodedSolTx, setDecodedSolTx] = useState<DecodedSolanaTx | null>(null);
@@ -331,8 +288,9 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   const gasLimit = gasLimitInput && /^\d+$/.test(gasLimitInput) ? BigInt(gasLimitInput) : defaultGasLimit;
 
   // ERC-20 approve detection
-  const approveData = txParams?.data ? parseApproveData(txParams.data) : null;
-  const isApprove = approveData !== null;
+  // Same decoder as the review (and the API policy): only a plain ERC-20 approve has an editable cap.
+  const evmCall = txParams?.data ? decodeEvmCall(txParams.data, txParams.from, txParams.to) : null;
+  const isApprove = evmCall?.kind === "approve" && evmCall.plain;
 
   const gasPrice = maxFeeOverride && /^\d+(\.\d+)?$/.test(maxFeeOverride)
     ? BigInt(Math.round(parseFloat(maxFeeOverride) * 1e9))
@@ -340,8 +298,6 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
       ? BigInt(Math.round(Number(baseGasPrice) * FEE_MULTIPLIER[feeLevel]))
     : null;
   const estimatedFeeWei = gasPrice != null ? gasPrice * gasLimit : null;
-  const feeEth = estimatedFeeWei != null ? formatEthFee(estimatedFeeWei) : null;
-  const feeUsd = estimatedFeeWei != null ? getUsdValue(String(Number(estimatedFeeWei) / 1e18), "ETH", prices) : null;
 
   // Resolve account from request
   useEffect(() => {
@@ -413,18 +369,8 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
       const token = assets.find(
         (a) => a.contractAddress?.toLowerCase() === txParams.to.toLowerCase()
       );
-      if (token) {
-        setApproveToken({ symbol: token.symbol, decimals: token.decimals });
-        if (approveData) {
-          setApproveAmountInput(formatTokenAmount(approveData.amount, token.decimals));
-        }
-      } else {
-        // Unknown token — show raw with 18 decimals as fallback
-        setApproveToken({ symbol: "tokens", decimals: 18 });
-        if (approveData) {
-          setApproveAmountInput(formatTokenAmount(approveData.amount, 18));
-        }
-      }
+      // Unknown token: no decimals, so the cap cannot be edited (the review shows raw units).
+      setApproveToken(token ? { symbol: token.symbol, decimals: token.decimals } : { symbol: "tokens", decimals: 18 });
     });
   }, [isApprove, txParams?.to, chain?.id]);
 
@@ -451,6 +397,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   useEffect(() => {
     if (!account || !chain) return;
     fetchAssets(chain.id).then((assets) => {
+      setChainAssets(assets);
       // Try cached first for instant display
       const cached = getCachedNativeBalance(account.address, chain, assets);
       if (cached) setNativeBalance(cached.data.balance);
@@ -468,9 +415,8 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   // Fetch gas price and USD prices (for fee estimation)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (!isTx) return;
-
     fetchPrices().then(setPrices);
+    if (!isTx) return;
 
     // Gas price polling is EVM-only
     if (!chain || chain.type !== "evm") return;
@@ -491,10 +437,8 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
     }
 
     refreshGasPrice();
-    setFeeCountdown(10);
-    const feeIv = setInterval(() => { refreshGasPrice(); setFeeCountdown(10); }, 10_000);
-    const countIv = setInterval(() => setFeeCountdown((c) => Math.max(0, c - 1)), 1_000);
-    return () => { clearInterval(feeIv); clearInterval(countIv); };
+    const feeIv = setInterval(refreshGasPrice, 10_000);
+    return () => clearInterval(feeIv);
   }, [isTx, isSolana, chain?.rpcUrl]);
 
   function getRequestAddress(req: PendingRequest): string | null {
@@ -592,6 +536,18 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
   // ── Approve flow (passkey #2 for MPC signing) ──────────────────
 
+  /** EVM calldata as it will be signed: the approve re-encoded with the edited cap, else unchanged. */
+  function signedEvmData(data: string): string {
+    return isApprove && approveOverride != null ? withEvmApproveAmount(data, approveOverride) : data;
+  }
+
+  /** The TRON transaction as it will be signed: a TRC-20 approve rewritten to the edited cap, else the dApp's. */
+  function signedTronTx(): TronSignTransactionRequest["tx"] | null {
+    const tx = tronParsed.req?.tx ?? null;
+    if (!tx || approveOverride == null || tronDecoded?.kind !== "trc20_approve") return tx;
+    return withTronApproveAmount(tx as unknown as TronTxJson, approveOverride) as unknown as TronSignTransactionRequest["tx"];
+  }
+
   /** Approve button: key must already be loaded → pre-check policy → go to preview */
   async function handleApproveClick() {
     if (!account || !keyFile) return;
@@ -619,7 +575,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
           amount = tronDecoded.amount.toString();
           nativeSymbol = isTronNative ? "TRX" : undefined;
           contractAddress = tronTokenContract ?? undefined;
-          tronRawDataHex = tronParsed.req!.tx.raw_data_hex;
+          tronRawDataHex = signedTronTx()!.raw_data_hex;
         } else if (txParams) {
           to = txParams.to || "";
           amount = txParams.value ? BigInt(txParams.value).toString() : "0";
@@ -635,7 +591,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
               to, amount, nativeSymbol, contractAddress, chainId: reqChainId,
               chainType: isSolana ? "solana" : isTronTx ? "tron" : "evm",
               from: account.address,
-              ...(!isSolana && !isTronTx && txParams?.data ? { data: txParams.data } : {}),
+              ...(!isSolana && !isTronTx && txParams?.data ? { data: signedEvmData(txParams.data) } : {}),
               ...(tronRawDataHex ? { rawDataHex: tronRawDataHex } : {}),
             }),
           });
@@ -736,13 +692,8 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
             txWithFee.gasPrice = "0x" + gasPrice.toString(16);
           }
           txWithFee.gasLimit = "0x" + gasLimit.toString(16);
-          // Override ERC-20 approve amount if user edited it
-          if (isApprove && approveData && approveToken) {
-            const newAmount = parseTokenAmount(approveAmountInput, approveToken.decimals);
-            if (newAmount !== null && newAmount !== approveData.amount) {
-              txWithFee.data = encodeApproveData(approveData.spender, newAmount);
-            }
-          }
+          // The spending cap the user set: the signed calldata carries it (the policy judges these bytes).
+          if (txWithFee.data) txWithFee.data = signedEvmData(txWithFee.data);
           result = await wcSendTransaction(
             txWithFee, rpcUrl, chainId, kf, account!.address,
             (p) => setSigningStepIdx(txPhaseIndex[p]),
@@ -784,8 +735,8 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
         }
         case "tron_signTransaction": {
           // WalletConnect TRON spec: answer with the signed transaction; the dApp broadcasts it.
-          const { tx } = parseTronSignTransaction(request.params, account!.address);
-          result = await wcTronSignTransaction(tx, kf, account!.address, (p) => setSigningStepIdx(txPhaseIndex[p]));
+          parseTronSignTransaction(request.params, account!.address); // re-check owner / txID before signing
+          result = await wcTronSignTransaction(signedTronTx()!, kf, account!.address, (p) => setSigningStepIdx(txPhaseIndex[p]));
           break;
         }
         case "tron_signMessage": {
@@ -892,8 +843,59 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
     }
   }
 
-  // Format request for display
+  // Format request for display (fallback when no review model applies)
   const requestDisplay = formatRequest(request, expert, permitToken);
+
+  // Review models (UX spec: docs/ux/review-and-sign.md), from the same decoded bytes as signing.
+  const dappMeta = wcService.getSessions().find((s) => s.topic === request.topic)?.peer.metadata;
+  const reviewCtx: WcReviewContext = {
+    from: { address: account?.address ?? "", name: account?.keyName },
+    dappName: dappMeta?.name || "dApp",
+    chainId: chainId || undefined,
+    nativeSymbol: chainAssets.find((a) => a.isNative)?.symbol ?? (isSolana ? "SOL" : isTron ? "TRX" : "ETH"),
+    tokenOf: (addr) => {
+      const a = chainAssets.find((x) => x.contractAddress?.toLowerCase() === addr.toLowerCase());
+      return a ? { symbol: a.symbol, decimals: a.decimals } : undefined;
+    },
+    prices,
+    nameOf: (addr) => addressLabel(addr) ?? knownEvmContract(addr) ?? KNOWN_PROGRAMS[addr],
+    isKnownRecipient: chain ? (addr) => isKnownRecipient(addr, chain.type) : undefined,
+    feeWei: estimatedFeeWei,
+    approveOverride,
+    tokenBalanceRawOf: (addr) => {
+      const b = tokenBalances.find((x) => x.asset.contractAddress?.toLowerCase() === addr.toLowerCase());
+      return b ? BigInt(b.balance) : undefined;
+    },
+    tokenBalanceOf: (addr) => {
+      const b = tokenBalances.find((x) => x.asset.contractAddress?.toLowerCase() === addr.toLowerCase());
+      return b ? `${b.formatted} ${b.asset.symbol}` : undefined;
+    },
+    solana: decodedSolTx,
+    tron: isTronTx ? { decoded: tronDecoded, feeSun: tronEstFeeSun, raw: tronParsed.req?.tx.raw_data_hex } : null,
+  };
+  const buildReview = (policy: WcReviewContext["policy"]): ReviewModel | null => {
+    try {
+      return buildWcRequestReview(request.method, request.params, { ...reviewCtx, policy });
+    } catch {
+      return null; // malformed params: the raw fallback below still shows everything
+    }
+  };
+  const reviewModel = buildReview(null);
+  const previewModel = phase === "preview" ? buildReview(policyCheck) : null;
+  // Confirm stays off until the end of the review was on screen once (Rabby-style).
+  // Re-armed when the signed bytes change (an edited cap): the new review must be seen to the end again.
+  const gate = useScrollGate(`${request.topic}:${request.id}:${approveOverride ?? ""}`);
+  // A Solana tx the decoder could not read is never signable (iOS fails closed the same way).
+  const solanaUnreadable = isSolanaTx && !decodedSolTx;
+  const previewBlocked = policyCheck?.allowed === false || !!previewModel?.warnings.some((w) => w.blocks) || solanaUnreadable;
+  const reviewedAll = !previewModel || gate.seen;
+  const capEditor = (m: ReviewModel) => m.allowance
+    ? <AllowanceEditor allowance={m.allowance} dappName={reviewCtx.dappName} onChange={setApproveOverride} onInvalid={setCapInvalid} />
+    : null;
+  const reviewPolicy = isRecoveryMode() || !account ? undefined : () => {
+    onReject();
+    navigate("/accounts", { state: { openPolicyKeyId: account.keyId } });
+  };
 
 
   // Signing progress steps
@@ -923,30 +925,29 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
       <div className={`relative bg-surface-secondary ${isCompactPhase ? "flex flex-col w-full max-w-md rounded-2xl overflow-hidden border border-border-primary shadow-xl max-h-[85vh]" : "min-h-full pb-[env(safe-area-inset-bottom)] md:min-h-0 md:pb-0 md:max-h-[85vh] md:w-full md:max-w-md md:overflow-y-auto md:rounded-2xl md:overflow-hidden md:border md:border-border-primary md:shadow-xl"}`}>
         {/* Header — sticky so close button is always reachable */}
         <div className={`flex items-center justify-between px-5 py-4 border-b border-border-secondary shrink-0 sticky top-0 bg-surface-secondary z-10 ${!isCompactPhase ? "pt-[calc(1rem+env(safe-area-inset-top))] md:pt-4" : ""}`}>
-          {phase === "preview" ? (
-            <button
-              onClick={() => setPhase("review")}
-              className="flex items-center gap-1.5 text-xs text-text-tertiary hover:text-text-primary transition-colors"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
-              {t("common.edit")}
-            </button>
+          {phase === "review" || phase === "preview" ? (
+            <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+              {phase === "preview" && (
+                <button
+                  onClick={() => setPhase("review")}
+                  aria-label={t("common.edit")}
+                  className="p-1 -ml-1 rounded-md text-text-tertiary hover:text-text-primary transition-colors shrink-0"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+              )}
+              <DappTitle name={dappMeta?.name || "dApp"} url={dappMeta?.url} iconUrl={dappMeta?.icons?.[0]} />
+              {chain && <span className="ml-auto"><NetworkChip name={chain.displayName} iconUrl={chain.iconUrl} /></span>}
+            </div>
           ) : (
             <h3 className="text-sm font-semibold text-text-primary">
               {phase === "signing"
                 ? <><Clock className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("wc.signing")}</>
                 : phase === "done"
                   ? (txResult?.status === "success" ? <><CircleCheck className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("wc.success")}</> : txResult?.status === "pending" ? <><Radio className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("wc.broadcast")}</> : <><CircleX className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("wc.failed")}</>)
-                  : isTx
-                    ? (isApprove || isTrc20Approve ? <><LockOpen className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("wc.tokenApproval")}</> : <><PenLine className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("wc.signTx")}</>)
-                    : <><PenLine className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("wc.signMessage")}</>}
-            </h3>
-          )}
-          {phase === "preview" && (
-            <h3 className="text-sm font-semibold text-text-primary absolute left-1/2 -translate-x-1/2">
-              <Eye className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("wc.review")}
+                  : null}
             </h3>
           )}
           {canClose && (
@@ -1087,237 +1088,10 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                 </div>
               )}
 
-              {isTronTx ? (
-                <>
-                  {/* From */}
-                  <div>
-                    <label className="block text-xs text-text-muted mb-1.5">From</label>
-                    <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5">
-                      <p className="text-[9px] font-mono text-text-tertiary break-all">{account?.address ?? "—"}</p>
-                      {chain && (
-                        <p className="text-[10px] text-text-muted mt-0.5">{chain.displayName}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* To */}
-                  {tronTo && (
-                    <div>
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <label className="text-xs text-text-muted">To</label>
-                        {isTronSmartContract ? (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 font-medium">
-                            Contract
-                          </span>
-                        ) : (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-medium">
-                            Transfer
-                          </span>
-                        )}
-                      </div>
-                      <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5">
-                        <p className={`text-xs font-mono text-text-tertiary ${expert ? "text-[9px]" : "truncate"}`}>{tronTo}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Amount */}
-                  {isTronNative && (
-                    <div>
-                      <label className="block text-xs text-text-muted mb-1.5">Amount</label>
-                      <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 flex items-center justify-between">
-                        <p className="text-sm text-text-tertiary tabular-nums">{formatSun(tronAmountSun)}</p>
-                        <span className="text-xs text-text-muted shrink-0">TRX</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* TRC-20 transfer amount (decoded from the signed bytes) */}
-                  {isTrc20Transfer && (
-                    <div>
-                      <label className="block text-xs text-text-muted mb-1.5">Amount</label>
-                      <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 flex items-center justify-between">
-                        <p className="text-sm text-text-tertiary tabular-nums">{formatTronTokenAmount(tronTokenAmount)}</p>
-                        <span className="text-xs text-text-muted shrink-0">{tronTokenInfo?.symbol || "base units"}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* TRC-20 approve: spender + allowance (decoded from the signed bytes) */}
-                  {isTrc20Approve && (
+              {reviewModel ? (
+                <ReviewBody model={reviewModel} copyable expert={expert} heroAccessory={capEditor(reviewModel)}>
+                  {isTx && !isSolana && !isTron && (
                     <>
-                      <div>
-                        <label className="block text-xs text-text-muted mb-1.5">{t("wc.approveSpender")}</label>
-                        <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5">
-                          <p className={`text-xs font-mono text-text-tertiary ${expert ? "text-[9px]" : "truncate"}`}>{tronDecoded!.to}</p>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-xs text-text-muted mb-1.5">{t("wc.approvalAmount")}</label>
-                        <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 flex items-center justify-between">
-                          <p className={`text-sm tabular-nums ${tronDecoded!.unlimited ? "text-yellow-400" : "text-text-tertiary"}`}>
-                            {tronDecoded!.unlimited ? t("wc.unlimited") : formatTronTokenAmount(tronTokenAmount)}
-                          </p>
-                          <span className="text-xs text-text-muted shrink-0">{tronTokenInfo?.symbol || "base units"}</span>
-                        </div>
-                      </div>
-                      {tronDecoded!.unlimited && (
-                        <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 py-2">
-                          <p className="text-xs text-yellow-400">{t("wc.tronUnlimitedApproval")}</p>
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  {/* Bytes the server would not co-sign: never offered for signing */}
-                  {tronParsed.error && (
-                    <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2">
-                      <p className="text-xs text-red-400">{t("wc.tronUnreadable")}</p>
-                      {expert && <p className="text-[10px] font-mono text-red-400/80 mt-1 break-all">{tronParsed.error}</p>}
-                    </div>
-                  )}
-
-                  {/* Expert: TRON details */}
-                  {expert && (
-                    <div className="space-y-2">
-                      <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">{t("common.advanced")}</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5">
-                          <p className="text-[10px] text-text-muted mb-0.5">Bandwidth</p>
-                          <p className="text-xs text-text-primary font-mono tabular-nums">
-                            {tronResources ? tronResources.bandwidthFree.toLocaleString() : "..."}
-                          </p>
-                        </div>
-                        <div className="bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5">
-                          <p className="text-[10px] text-text-muted mb-0.5">Energy</p>
-                          <p className="text-xs text-text-primary font-mono tabular-nums">
-                            {tronResources ? tronResources.energyFree.toLocaleString() : "..."}
-                          </p>
-                        </div>
-                      </div>
-                      {tronFeeLimitSun != null && (
-                        <div>
-                          <label className="block text-xs text-text-muted mb-1">Fee limit</label>
-                          <div className="bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5">
-                            <p className="text-xs text-text-primary font-mono tabular-nums">{formatSun(tronFeeLimitSun)} TRX</p>
-                          </div>
-                        </div>
-                      )}
-                      {tronParsed.req && (
-                        <div>
-                          <p className="text-[10px] text-text-muted mb-0.5">Tx ID</p>
-                          <p className="text-[9px] font-mono text-text-muted break-all">{tronParsed.req.tx.txID}</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Fee summary */}
-                  <div className="flex items-center justify-between px-1">
-                    <span className="text-[10px] text-text-muted">Est. fee</span>
-                    <span className="text-[11px] tabular-nums text-text-secondary">
-                      {tronFeeFormatted === "0" ? "0" : `~${tronFeeFormatted}`} TRX
-                      <span className="text-text-muted ml-1">
-                        ({isTronNative ? "bandwidth" : "energy"})
-                      </span>
-                      {(() => {
-                        const usd = getUsdValue(String(Number(tronEstFeeSun) / 1e6), "TRX", prices);
-                        return usd != null && usd > 0 ? <span className="text-text-muted ml-1">({formatUsd(usd)})</span> : null;
-                      })()}
-                    </span>
-                  </div>
-                </>
-              ) : isTx && !isSolana ? (
-                <>
-                  {/* From */}
-                  <div>
-                    <label className="block text-xs text-text-muted mb-1.5">From</label>
-                    <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5">
-                      <p className="text-[9px] font-mono text-text-tertiary break-all">{account?.address ?? "—"}</p>
-                      {chain && (
-                        <p className="text-[10px] text-text-muted mt-0.5">{chain.displayName}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* To */}
-                  {txParams?.to && (
-                    <div>
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <label className="text-xs text-text-muted">To</label>
-                        {isContractCall ? (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 font-medium">
-                            Contract
-                          </span>
-                        ) : (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-medium">
-                            Transfer
-                          </span>
-                        )}
-                      </div>
-                      <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5">
-                        <p className={`text-xs font-mono text-text-tertiary ${expert ? "text-[9px]" : "truncate"}`}>{txParams.to}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Amount (read-only, matches From/To style) */}
-                  <div>
-                    <label className="block text-xs text-text-muted mb-1.5">Amount</label>
-                    <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 flex items-center justify-between">
-                      <p className="text-sm text-text-tertiary tabular-nums">
-                        {txParams?.value ? formatWei(BigInt(txParams.value)) : "0"}
-                      </p>
-                      <span className="text-xs text-text-muted shrink-0">ETH</span>
-                    </div>
-                  </div>
-
-                  {/* Data (if contract call, but not approve — approve shows parsed UI below) */}
-                  {!isApprove && txParams?.data && txParams.data !== "0x" && (
-                    <div>
-                      <label className="block text-xs text-text-muted mb-1.5">Data</label>
-                      <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 overflow-auto max-h-20">
-                        <p className={`text-xs font-mono text-text-muted ${expert ? "text-[9px]" : "truncate"}`}>
-                          {expert ? txParams.data : (txParams.data.length > 66 ? txParams.data.slice(0, 66) + "..." : txParams.data)}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ERC-20 Approve amount editor */}
-                  {isApprove && approveData && (
-                    <div>
-                      <label className="block text-xs text-text-muted mb-1.5">
-                        Approve Spender
-                      </label>
-                      <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5">
-                        <p className="text-xs font-mono text-text-tertiary truncate">{approveData.spender}</p>
-                      </div>
-                      <label className="block text-xs text-text-muted mt-3 mb-1.5">
-                        Approval Amount {approveToken ? `(${approveToken.symbol})` : ""}
-                      </label>
-                      <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={approveAmountInput}
-                          onChange={(e) => setApproveAmountInput(e.target.value)}
-                          onFocus={() => { if (approveAmountInput === "Unlimited") setApproveAmountInput(""); }}
-                          onBlur={() => { if (approveAmountInput.trim() === "") setApproveAmountInput("Unlimited"); }}
-                          placeholder="Enter amount"
-                          className="flex-1 text-sm text-text-primary bg-transparent outline-none tabular-nums"
-                        />
-                        {approveToken && (
-                          <span className="text-xs text-text-muted shrink-0">{approveToken.symbol}</span>
-                        )}
-                      </div>
-                      {approveData.amount === MAX_UINT256 && (
-                        <p className="text-[10px] text-yellow-400 mt-1 px-1">
-                          <AlertTriangle className="w-3.5 h-3.5 inline-block align-[-2px] mr-1" />dApp requested unlimited approval. Consider setting a specific amount.
-                        </p>
-                      )}
-                    </div>
-                  )}
-
                   {/* Fee level selector — expert only, non-expert uses default "medium" */}
                   {expert && <div className="bg-surface-primary border border-border-primary rounded-lg p-1.5">
                     <div className="grid grid-cols-3 gap-1">
@@ -1401,80 +1175,49 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                       />
                     </div>
                   )}
-
-                  {/* Fee summary */}
-                  <div className="flex items-center justify-between px-1">
-                    <span className="text-[10px] text-text-muted flex items-center gap-1">
-                      Est. fee
-                      <span className="text-text-muted/40 tabular-nums">
-                        {feeCountdown > 0 ? `\u00b7 ${feeCountdown}s` : "\u00b7 \u27f3"}
-                      </span>
-                    </span>
-                    {feeEth != null ? (
-                      <span className="text-[11px] tabular-nums text-text-secondary">
-                        {feeEth} ETH
-                        {feeUsd != null && feeUsd > 0 && (
-                          <span className="text-text-muted ml-1">({formatUsd(feeUsd)})</span>
-                        )}
-                      </span>
-                    ) : (
-                      <span className="text-[10px] text-text-muted animate-pulse">Estimating...</span>
-                    )}
-                  </div>
-                </>
-              ) : isSolanaTx && decodedSolTx ? (
-                <>
-                  {/* From */}
-                  <div>
-                    <label className="block text-xs text-text-muted mb-1.5">From</label>
-                    <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5">
-                      <p className="text-xs font-mono text-text-tertiary truncate">{account?.address ?? decodedSolTx.from}</p>
-                      {chain && (
-                        <p className="text-[10px] text-text-muted mt-0.5">{chain.displayName}</p>
+                    </>
+                  )}
+                  {isTronTx && (
+                    <>
+                  {/* Expert: TRON details */}
+                  {expert && (
+                    <div className="space-y-2">
+                      <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">{t("common.advanced")}</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5">
+                          <p className="text-[10px] text-text-muted mb-0.5">Bandwidth</p>
+                          <p className="text-xs text-text-primary font-mono tabular-nums">
+                            {tronResources ? tronResources.bandwidthFree.toLocaleString() : "..."}
+                          </p>
+                        </div>
+                        <div className="bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5">
+                          <p className="text-[10px] text-text-muted mb-0.5">Energy</p>
+                          <p className="text-xs text-text-primary font-mono tabular-nums">
+                            {tronResources ? tronResources.energyFree.toLocaleString() : "..."}
+                          </p>
+                        </div>
+                      </div>
+                      {tronFeeLimitSun != null && (
+                        <div>
+                          <label className="block text-xs text-text-muted mb-1">Fee limit</label>
+                          <div className="bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5">
+                            <p className="text-xs text-text-primary font-mono tabular-nums">{formatSun(tronFeeLimitSun)} TRX</p>
+                          </div>
+                        </div>
                       )}
-                    </div>
-                  </div>
-
-                  <SolanaInstructionList decoded={decodedSolTx} />
-
-                  {/* Fee info */}
-                  <div className="flex items-center justify-between px-1">
-                    <span className="text-[10px] text-text-muted">Est. fee</span>
-                    <span className="text-[11px] tabular-nums text-text-secondary">{formatLamports(BigInt(decodedSolTx.fee.totalLamports))} SOL</span>
-                  </div>
-
-                  {/* Instruction count */}
-                  {expert && decodedSolTx.numInstructions > 1 && (
-                    <div className="flex items-center justify-between px-1">
-                      <span className="text-[10px] text-text-muted">Instructions</span>
-                      <span className="text-[11px] tabular-nums text-text-secondary">{decodedSolTx.numInstructions}</span>
+                      {tronParsed.req && (
+                        <div>
+                          <p className="text-[10px] text-text-muted mb-0.5">Tx ID</p>
+                          <p className="text-[9px] font-mono text-text-muted break-all">{tronParsed.req.tx.txID}</p>
+                        </div>
+                      )}
                     </div>
                   )}
-                </>
+                    </>
+                  )}
+                </ReviewBody>
               ) : (
                 <>
-                  {/* From */}
-                  <div>
-                    <label className="block text-xs text-text-muted mb-1.5">From</label>
-                    <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5">
-                      <p className="text-[9px] font-mono text-text-tertiary break-all">{account?.address ?? "—"}</p>
-                      {chain && (
-                        <p className="text-[10px] text-text-muted mt-0.5">{chain.displayName}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Method */}
-                  <div>
-                    <label className="block text-xs text-text-muted mb-1.5">Method</label>
-                    <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5">
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 font-mono">
-                        {request.method}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Request details — read-only, faded to match transaction fields */}
                   {requestDisplay.map(({ label, value }, i) => {
                     const isJson = value.trimStart().startsWith("{") || value.trimStart().startsWith("[");
                     return (
@@ -1500,115 +1243,10 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
           {/* ── Preview phase (review before signing) ─────────────── */}
           {phase === "preview" && (
-            <>
-              <PolicyWarning policyCheck={policyCheck} />
-
-              {isTronTx ? (
-                <div className="space-y-5">
-                  {/* Value hero */}
-                  {isTronNative ? (
-                    <div className="text-center py-2">
-                      <p className="text-2xl font-semibold tabular-nums text-text-primary">
-                        {formatSun(tronAmountSun)} <span className="text-text-tertiary text-sm">TRX</span>
-                      </p>
-                    </div>
-                  ) : isTronSmartContract ? (
-                    <div className="text-center py-2">
-                      {isTrc20Approve && <p className="text-xs text-text-muted mb-1">{t("wc.tokenApproval")}</p>}
-                      <p className="text-2xl font-semibold tabular-nums text-text-primary">
-                        {isTrc20Approve && tronDecoded!.unlimited ? t("wc.unlimited") : formatTronTokenAmount(tronTokenAmount)}{" "}
-                        <span className="text-text-tertiary text-sm">{tronTokenInfo?.symbol || "base units"}</span>
-                      </p>
-                    </div>
-                  ) : null}
-
-                  {/* From → To */}
-                  <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
-                    <div className="px-3 py-2.5 flex items-center justify-between">
-                      <span className="text-xs text-text-muted">From</span>
-                      <span className="text-[9px] font-mono text-text-secondary">{account ? account.address : "—"}</span>
-                    </div>
-                    {tronTo && (
-                      <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-xs text-text-muted">To</span>
-                          {expert && isTronSmartContract && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 font-medium">
-                              Contract
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-[9px] font-mono text-text-secondary">{tronTo}</span>
-                      </div>
-                    )}
-                    {isTrc20Approve && (
-                      <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                        <span className="text-xs text-text-muted">{t("wc.approveSpender")}</span>
-                        <span className="text-[9px] font-mono text-text-secondary">{tronDecoded!.to}</span>
-                      </div>
-                    )}
-                    {isTronSmartContract && tronTokenInfo && (
-                      <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                        <span className="text-xs text-text-muted">Token</span>
-                        <span className="text-xs text-text-secondary">{tronTokenInfo.symbol}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Details */}
-                  <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
-                    {chain && (
-                      <div className="px-3 py-2.5 flex items-center justify-between">
-                        <span className="text-xs text-text-muted">Network</span>
-                        <span className="text-xs text-text-secondary">{chain.displayName}</span>
-                      </div>
-                    )}
-                    <div className={`${chain ? "border-t border-border-secondary " : ""}px-3 py-2.5 flex items-center justify-between`}>
-                      <span className="text-xs text-text-muted">Network fee</span>
-                      <span className="text-xs tabular-nums text-text-secondary font-medium">
-                        {(() => {
-                          const usd = getUsdValue(String(Number(tronEstFeeSun) / 1e6), "TRX", prices);
-                          return usd != null && usd > 0 ? formatUsd(usd) : `${tronFeeFormatted === "0" ? "0" : `~${tronFeeFormatted}`} TRX`;
-                        })()}
-                      </span>
-                    </div>
-                    <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                      <span className="text-xs text-text-muted">Fee type</span>
-                      <span className="text-xs text-text-muted">{isTronNative ? "Bandwidth (usually free)" : "Energy (~15 TRX)"}</span>
-                    </div>
-                    {/* The signed cap on TRX burned: shown to everyone, not only experts */}
-                    {tronFeeLimitSun != null && (
-                      <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                        <span className="text-xs text-text-muted">Fee limit</span>
-                        <span className="text-xs tabular-nums text-text-muted">{formatSun(tronFeeLimitSun)} TRX</span>
-                      </div>
-                    )}
-                    {expert && tronResources && (
-                      <>
-                        <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                          <span className="text-xs text-text-muted">Free bandwidth</span>
-                          <span className="text-xs tabular-nums text-text-muted">{tronResources.bandwidthFree.toLocaleString()}</span>
-                        </div>
-                        <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                          <span className="text-xs text-text-muted">Free energy</span>
-                          <span className="text-xs tabular-nums text-text-muted">{tronResources.energyFree.toLocaleString()}</span>
-                        </div>
-                      </>
-                    )}
-                    {(() => {
-                      const totalSun = tronAmountSun + tronEstFeeSun;
-                      const totalUsd = getUsdValue(String(Number(totalSun) / 1e6), "TRX", prices);
-                      return (
-                        <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                          <span className="text-xs text-text-muted font-medium">Total</span>
-                          <span className="text-xs tabular-nums text-text-primary font-semibold">
-                            {totalUsd != null ? formatUsd(totalUsd) : `${formatSun(totalSun)} TRX`}
-                          </span>
-                        </div>
-                      );
-                    })()}
-                  </div>
-
+            previewModel ? (
+              <ReviewBody model={previewModel} copyable expert={expert} onReviewPolicy={reviewPolicy} onSeenEnd={gate.onSeenEnd} heroAccessory={capEditor(previewModel)}>
+                {isTronTx ? (
+                  <>
                   {/* Balance preview */}
                   {nativeBalance != null && (() => {
                     const changes: BalanceChange[] = [{
@@ -1635,111 +1273,9 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                     }
                     return <BalancePreview changes={changes} prices={prices} />;
                   })()}
-                </div>
-              ) : isTx && !isSolana ? (
-                <div className="space-y-5">
-                  {/* Value hero */}
-                  {(() => {
-                    const tx = request.params[0];
-                    const val = tx.value ? formatWei(BigInt(tx.value)) : "0";
-                    return (
-                      <div className="text-center py-2">
-                        <p className="text-2xl font-semibold tabular-nums text-text-primary">
-                          {val} <span className="text-text-tertiary text-sm">ETH</span>
-                        </p>
-                      </div>
-                    );
-                  })()}
-
-                  {/* From → To */}
-                  <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
-                    <div className="px-3 py-2.5 flex items-center justify-between">
-                      <span className="text-xs text-text-muted">From</span>
-                      <span className="text-[9px] font-mono text-text-secondary">{account ? account.address : "—"}</span>
-                    </div>
-                    {request.params[0]?.to && (
-                      <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-xs text-text-muted">To</span>
-                          {expert && isContractCall && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 font-medium">
-                              Contract
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-[9px] font-mono text-text-secondary">{request.params[0].to}</span>
-                      </div>
-                    )}
-                    {isApprove && approveData && approveToken ? (
-                      <>
-                        <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                          <span className="text-xs text-text-muted">Spender</span>
-                          <span className="text-[9px] font-mono text-text-secondary">{approveData.spender}</span>
-                        </div>
-                        <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                          <span className="text-xs text-text-muted">Approval</span>
-                          <span className="text-xs tabular-nums text-text-secondary">
-                            {approveAmountInput || "Unlimited"} {approveToken.symbol}
-                          </span>
-                        </div>
-                      </>
-                    ) : expert && request.params[0]?.data && request.params[0].data !== "0x" ? (
-                      <div className="border-t border-border-secondary px-3 py-2.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-text-muted">Data</span>
-                        </div>
-                        <pre className="text-[10px] font-mono text-text-muted break-all mt-1 leading-relaxed max-h-24 overflow-auto">
-                          {request.params[0].data}
-                        </pre>
-                      </div>
-                    ) : null}
-                  </div>
-
-                  {/* Details */}
-                  <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
-                    {chain && (
-                      <div className="px-3 py-2.5 flex items-center justify-between">
-                        <span className="text-xs text-text-muted">Network</span>
-                        <span className="text-xs text-text-secondary">{chain.displayName}</span>
-                      </div>
-                    )}
-                    <div className={`${chain ? "border-t border-border-secondary " : ""}px-3 py-2.5 flex items-center justify-between`}>
-                      <span className="text-xs text-text-muted">Network fee</span>
-                      <span className="text-xs tabular-nums text-text-secondary font-medium">
-                        {(() => {
-                          const feeUsd = feeEth ? getUsdValue(feeEth, "ETH", prices) : null;
-                          return feeUsd != null && feeUsd > 0 ? formatUsd(feeUsd) : `${feeEth ?? "—"} ETH`;
-                        })()}
-                      </span>
-                    </div>
-                    {expert && gasPrice != null && (
-                      <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                        <span className="text-xs text-text-muted">{t("wc.gasPrice")}</span>
-                        <span className="text-xs tabular-nums text-text-muted">{formatGwei(gasPrice)} Gwei</span>
-                      </div>
-                    )}
-                    {expert && (
-                      <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                        <span className="text-xs text-text-muted">{t("wc.gasLimit")}</span>
-                        <span className="text-xs tabular-nums text-text-muted">{gasLimit.toLocaleString()}</span>
-                      </div>
-                    )}
-                    {(() => {
-                      const txValueWei = txParams?.value ? BigInt(txParams.value) : 0n;
-                      const totalWei = txValueWei + (estimatedFeeWei ?? 0n);
-                      const totalUsd = getUsdValue(String(Number(totalWei) / 1e18), "ETH", prices);
-                      const totalEth = formatEthFee(totalWei);
-                      return (
-                        <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                          <span className="text-xs text-text-muted font-medium">Total</span>
-                          <span className="text-xs tabular-nums text-text-primary font-semibold">
-                            {totalUsd != null ? formatUsd(totalUsd) : `${totalEth} ETH`}
-                          </span>
-                        </div>
-                      );
-                    })()}
-                  </div>
-
+                  </>
+                ) : isTx && !isSolana ? (
+                  <>
                   {/* Balance preview — simulation or static fallback */}
                   {simResult && simResult.changes.length > 0 ? (
                     <SimulationPreview simResult={simResult} prices={prices} />
@@ -1773,77 +1309,9 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                       return <BalancePreview changes={changes} prices={prices} />;
                     })()
                   ) : null}
-                </div>
-              ) : isSolanaTx && decodedSolTx ? (
-                <div className="space-y-5">
-                  {/* Value hero */}
-                  {decodedSolTx.amount && (decodedSolTx.type === "sol_transfer" || decodedSolTx.type === "spl_transfer") && decodedSolTx.instructions.filter((i) => i.type === "sol_transfer" || i.type === "spl_transfer").length === 1 && (
-                    <div className="text-center py-2">
-                      <p className="text-2xl font-semibold tabular-nums text-text-primary">
-                        {decodedSolTx.type === "sol_transfer"
-                          ? formatLamports(BigInt(decodedSolTx.amount))
-                          : decodedSolTx.formattedAmount
-                            ? decodedSolTx.formattedAmount
-                            : solTokenInfo
-                              ? formatSplAmount(BigInt(decodedSolTx.amount), solTokenInfo.decimals)
-                              : decodedSolTx.amount}
-                        {" "}<span className="text-text-tertiary text-sm">
-                          {decodedSolTx.type === "sol_transfer" ? "SOL" : solTokenInfo?.symbol || "tokens"}
-                        </span>
-                      </p>
-                    </div>
-                  )}
-
-                  {/* From → To */}
-                  <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
-                    <div className="px-3 py-2.5 flex items-center justify-between">
-                      <span className="text-xs text-text-muted">From</span>
-                      <span className="text-[9px] font-mono text-text-secondary">{account ? account.address : decodedSolTx.from}</span>
-                    </div>
-                  </div>
-
-                  <SolanaInstructionList decoded={decodedSolTx} />
-
-                  {/* Details */}
-                  <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
-                    {chain && (
-                      <div className="px-3 py-2.5 flex items-center justify-between">
-                        <span className="text-xs text-text-muted">Network</span>
-                        <span className="text-xs text-text-secondary">{chain.displayName}</span>
-                      </div>
-                    )}
-                    <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                      <span className="text-xs text-text-muted">Estimated fee</span>
-                      <div className="text-right">
-                        <span className="text-xs tabular-nums text-text-secondary font-medium">{formatLamports(BigInt(decodedSolTx.fee.totalLamports))} SOL</span>
-                        {(() => { const u = getUsdValue(formatLamports(BigInt(decodedSolTx.fee.totalLamports)), "SOL", prices); return u != null ? <span className="text-[10px] text-text-muted ml-1.5">({formatUsd(u)})</span> : null; })()}
-                        {BigInt(decodedSolTx.fee.priorityLamports) > 0n && <div className="text-[10px] text-text-muted">{t("wc.sol.priorityFee", { amount: formatLamports(BigInt(decodedSolTx.fee.priorityLamports)) })}</div>}
-                        {BigInt(decodedSolTx.fee.rentLamports) > 0n && <div className="text-[10px] text-text-muted">{t("wc.sol.rent", { amount: formatLamports(BigInt(decodedSolTx.fee.rentLamports)) })}</div>}
-                      </div>
-                    </div>
-                    {expert && decodedSolTx.numInstructions > 1 && (
-                      <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                        <span className="text-xs text-text-muted">Instructions</span>
-                        <span className="text-xs tabular-nums text-text-muted">{decodedSolTx.numInstructions}</span>
-                      </div>
-                    )}
-                    {(() => {
-                      const fee = BigInt(decodedSolTx.fee.costLamports);
-                      const solAmount = solanaSolOutflow(decodedSolTx.instructions);
-                      const totalLamports = solAmount + fee;
-                      const totalSol = Number(totalLamports) / 1e9;
-                      const totalUsd = getUsdValue(String(totalSol), "SOL", prices);
-                      return (
-                        <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                          <span className="text-xs text-text-muted font-medium">Total</span>
-                          <span className="text-xs tabular-nums text-text-primary font-semibold">
-                            {totalUsd != null ? formatUsd(totalUsd) : `${totalSol.toFixed(9)} SOL`}
-                          </span>
-                        </div>
-                      );
-                    })()}
-                  </div>
-
+                  </>
+                ) : isSolanaTx && decodedSolTx ? (
+                  <>
                   {/* Balance preview */}
                   {nativeBalance != null && (
                     (() => {
@@ -1890,29 +1358,12 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                       return <BalancePreview changes={changes} prices={prices} />;
                     })()
                   )}
-                </div>
-              ) : (
-                <div className="space-y-5">
-                  {/* From → Network */}
-                  <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
-                    <div className="px-3 py-2.5 flex items-center justify-between">
-                      <span className="text-xs text-text-muted">From</span>
-                      <span className="text-[9px] font-mono text-text-secondary">{account?.address ?? "—"}</span>
-                    </div>
-                    {chain && (
-                      <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                        <span className="text-xs text-text-muted">Network</span>
-                        <span className="text-xs text-text-secondary">{chain.displayName}</span>
-                      </div>
-                    )}
-                    <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                      <span className="text-xs text-text-muted">Method</span>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 font-mono">
-                        {request.method}
-                      </span>
-                    </div>
-                  </div>
-
+                  </>
+                ) : null}
+              </ReviewBody>
+            ) : (
+              <div className="space-y-5">
+                <PolicyWarning policyCheck={policyCheck} />
                   {/* Request details */}
                   {requestDisplay.map(({ label, value }, i) => {
                     const isJson = value.trimStart().startsWith("{") || value.trimStart().startsWith("[");
@@ -1932,9 +1383,8 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                       </div>
                     );
                   })}
-                </div>
-              )}
-            </>
+              </div>
+            )
           )}
 
           {/* ── Signing phase ────────────────────────────────────── */}
@@ -2102,10 +1552,10 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
         {/* Footer — review phase (safe-area bottom for PWA) */}
         {phase === "review" && (
-          <div className="px-5 py-4 border-t border-border-secondary shrink-0">
+          <div className="px-5 py-4 border-t border-border-secondary shrink-0 sticky bottom-0 bg-surface-secondary pb-[calc(1rem+env(safe-area-inset-bottom))] md:pb-4">
             <button
               onClick={handleApproveClick}
-              disabled={!account || !keyFile || policyChecking || !!tronParsed.error}
+              disabled={!account || !keyFile || policyChecking || !!tronParsed.error || capInvalid || solanaUnreadable}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
             >
               {policyChecking ? t("wc.checking") : <><Eye className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("wc.reviewTx")}</>}
@@ -2115,13 +1565,19 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
         {/* Footer — preview phase */}
         {phase === "preview" && (
-          <div className="px-5 py-4 border-t border-border-secondary shrink-0">
+          <div className="px-5 py-4 border-t border-border-secondary shrink-0 sticky bottom-0 bg-surface-secondary flex gap-2 pb-[calc(1rem+env(safe-area-inset-bottom))] md:pb-4">
             <button
-              disabled={policyCheck?.allowed === false}
-              onClick={() => onPasskeyAuth({} as PasskeyAuthResult)}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
+              onClick={onReject}
+              className="flex-1 border border-border-primary text-text-secondary hover:text-text-primary text-sm font-medium py-2.5 rounded-lg transition-colors"
             >
-              {policyCheck?.allowed === false ? `\u26D4 ${t("wc.blockedByPolicy")}` : isRecoveryMode() ? t("wc.confirmSign") : `\uD83D\uDD10 ${t("wc.confirmSign")}`}
+              {t("wc.reject")}
+            </button>
+            <button
+              disabled={previewBlocked || !reviewedAll || capInvalid}
+              onClick={() => onPasskeyAuth({} as PasskeyAuthResult)}
+              className="flex-[2] bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
+            >
+              {previewBlocked ? t("wc.blockedByPolicy") : !reviewedAll ? t("review.scrollToReview") : t("wc.confirmSign")}
             </button>
           </div>
         )}

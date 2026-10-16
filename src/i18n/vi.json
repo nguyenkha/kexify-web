@@ -1332,5 +1332,144 @@
     "title": "Đã có phiên bản mới",
     "description": "Phiên bản kexify này đã cũ. Đang tải lại phiên bản mới nhất…",
     "reload": "Tải lại ngay"
+  },
+  "review": {
+    "verb": {
+      "send": "Gửi",
+      "approve": "Cho phép chi tiêu",
+      "revoke": "Thu hồi quyền chi tiêu",
+      "contract": "Tương tác hợp đồng",
+      "solanaTx": "Duyệt giao dịch",
+      "signTyped": "Ký {{type}}",
+      "signMessage": "Ký tin nhắn",
+      "signHash": "Ký mã băm",
+      "unreadable": "Không đọc được giao dịch"
+    },
+    "to": "tới",
+    "for": "cho",
+    "account": "tài khoản",
+    "spender": "Bên được chi",
+    "contract": "Hợp đồng",
+    "token": "Token",
+    "expires": "Hết hạn",
+    "signedFor": "Ký cho",
+    "alsoSends": "Gửi kèm",
+    "unlimited": "Không giới hạn {{symbol}}",
+    "noValue": "Không gửi {{symbol}}",
+    "balanceAtRisk": "Số dư của bạn: {{amount}}",
+    "noFundsMove": "Không mất phí · không chuyển tiền",
+    "noFeeSignature": "Ký không mất phí mạng",
+    "signInTo": "Đăng nhập {{domain}}",
+    "tokenCount": "{{count}} token",
+    "baseUnits": "{{amount}} đơn vị gốc của {{symbol}}",
+    "actions_one": "{{count}} thao tác",
+    "actions_other": "{{count}} thao tác",
+    "inclPriority": "gồm phí ưu tiên",
+    "feeDetails": "Chi tiết phí",
+    "rawData": "Dữ liệu gốc",
+    "message": "Tin nhắn",
+    "moreWarnings_one": "+{{count}} cảnh báo khác",
+    "moreWarnings_other": "+{{count}} cảnh báo khác",
+    "scrollToReview": "Cuộn để xem hết",
+    "estimating": "Đang ước tính…",
+    "expired": "Yêu cầu đã hết hạn",
+    "showAddress": "Hiện đầy đủ địa chỉ",
+    "fee": {
+      "base": "Phí cơ bản",
+      "priority": "Phí ưu tiên",
+      "cuLimit": "Giới hạn compute unit",
+      "cuPrice": "Giá compute unit",
+      "microLamports": "{{price}} micro-lamport",
+      "rent": "Phí thuê tài khoản (hoàn lại được)",
+      "limit": "Phí tối đa (fee limit)"
+    },
+    "action": {
+      "send": "Gửi {{amount}}",
+      "sendBaseUnits": "Gửi {{amount}} đơn vị gốc của một token",
+      "approve": "Cho phép chi tiêu {{amount}}",
+      "approveUnlimited": "Cho phép chi tiêu toàn bộ {{symbol}}",
+      "setAuthority": "Đổi quyền quản lý tài khoản",
+      "noAuthority": "Xóa vĩnh viễn quyền quản lý",
+      "closeAccount": "Đóng tài khoản token",
+      "accountControl": "Đổi chủ tài khoản ({{op}})",
+      "createAta": "Tạo tài khoản token {{symbol}}",
+      "rentRefundable": "Phí thuê được hoàn khi đóng tài khoản",
+      "memo": "Ghi chú",
+      "tokenOp": "Thao tác token: {{op}}",
+      "programOp": "Hệ thống: {{op}}",
+      "callProgram": "Gọi {{name}}",
+      "unknownProgram": "Chương trình lạ",
+      "unreadable": "kexify không đọc được thao tác này làm gì",
+      "undecoded": "Lệnh kexify không đọc được"
+    },
+    "warn": {
+      "riskyAddress": {
+        "title": "Địa chỉ rủi ro",
+        "body": "Địa chỉ này bị đánh dấu rủi ro. Đừng tiếp tục nếu bạn không chắc chắn."
+      },
+      "unreadable": {
+        "title": "kexify không đọc được giao dịch này",
+        "body": "Đây không phải chuyển tiền hay cấp quyền thông thường nên không thể ký ở đây."
+      },
+      "signHash": {
+        "title": "Ký mã băm thô",
+        "body": "kexify không thể cho biết chữ ký này cho phép gì. Nó có thể chuyển tiền."
+      },
+      "accountControl": {
+        "title": "Đổi quyền kiểm soát tài khoản",
+        "body": "Sau thao tác {{index}}, người khác có thể kiểm soát tài khoản này."
+      },
+      "riskyAction": {
+        "title": "Thao tác token rủi ro",
+        "body": "Thao tác {{index}} có thể đúc, đốt hoặc đóng băng token."
+      },
+      "unlimitedApproval": {
+        "title": "Cho phép không giới hạn",
+        "body": "{{spender}} có thể tiêu toàn bộ {{symbol}} của bạn, cả về sau. Chỉ cho phép ứng dụng bạn tin tưởng."
+      },
+      "approval": {
+        "title": "Cho phép chi tiêu",
+        "body": "{{spender}} có thể tiêu tới {{amount}} mà không cần hỏi lại."
+      },
+      "unknownProgram": {
+        "title": "Chương trình lạ",
+        "body": "Thao tác {{index}} gọi {{program}}, kexify không đọc được. Chỉ tiếp tục nếu bạn tin {{dapp}}."
+      },
+      "mayFail": {
+        "title": "Giao dịch có thể thất bại",
+        "body": "Nếu thất bại bạn vẫn mất phí mạng."
+      },
+      "wrongNetwork": {
+        "title": "Khác mạng",
+        "body": "Chữ ký này ghi một mạng khác với mạng ứng dụng đang kết nối."
+      },
+      "feeCap": {
+        "title": "Phí vượt giới hạn",
+        "body": "Phí có thể vượt {{cap}}; quy tắc bảo mật có thể chặn giao dịch."
+      }
+    },
+    "program": "chương trình",
+    "editLimit": "Sửa hạn mức",
+    "editedFrom": "Đã sửa · ứng dụng xin {{amount}}",
+    "editedFromUnlimited": "Đã sửa · ứng dụng xin không giới hạn",
+    "permitFixed": "Chữ ký này cố định số lượng nên không sửa được ở đây. Hãy từ chối nếu nhiều hơn mức bạn muốn cho phép.",
+    "cap": {
+      "title": "Hạn mức chi tiêu",
+      "requested": "Theo yêu cầu của {{dapp}}",
+      "balance": "Số dư hiện có",
+      "custom": "Tự nhập",
+      "recommended": "Nên chọn",
+      "help": "Ứng dụng chỉ được tiêu tới mức này. Cần thêm thì duyệt lại sau.",
+      "zero": "Nhập 0 để thu hồi quyền.",
+      "overBalance": "Nhiều hơn số dư của bạn",
+      "err": {
+        "empty": "Nhập số lượng",
+        "invalid": "Nhập một số",
+        "tooManyDecimals": "{{symbol}} có tối đa {{decimals}} chữ số thập phân",
+        "tooLarge": "Số quá lớn"
+      },
+      "done": "Xong"
+    },
+    "setLimit": "Đặt hạn mức (nên làm)"
   }
 }

@@ -1,6 +1,8 @@
-import { PolicyWarning, ExpertWarnings, SimulationPreview } from "../tx";
+import { ExpertWarnings, SimulationPreview } from "../tx";
 import { BalancePreview, type BalanceChange } from "../BalancePreview";
-import { formatUsd } from "../../lib/prices";
+import { ReviewBody, useScrollGate } from "../review";
+import { buildSendReview } from "../../lib/review";
+import { addressLabel } from "../../lib/address-label";
 import { bytesToHex } from "../../shared/utils";
 import { encodeErc20Transfer, parseUnits } from "../../lib/chains/evmTx";
 import { SOLANA_BASE_FEE } from "../../lib/chains/solanaTx";
@@ -8,6 +10,9 @@ import { XRP_BASE_FEE } from "../../lib/chains/xrpTx";
 import { EVM_FEE_MULTIPLIER } from "../sendTypes";
 import type { PreviewStepProps } from "./types";
 import { Lock } from "lucide-react";
+
+/** Decimals of each chain's native asset (the fee asset). */
+const NATIVE_DECIMALS: Record<string, number> = { evm: 18, solana: 9, btc: 8, ltc: 8, bch: 8, xrp: 6, xlm: 7, tron: 6, ton: 9, algo: 6, ada: 6 };
 
 export function PreviewStep({
   chain,
@@ -32,7 +37,7 @@ export function PreviewStep({
   manualUtxos,
   rbfEnabled,
   currentNonce: _currentNonce,
-  totalUsd,
+  totalUsd: _totalUsd,
   amountUsd,
   balancesHidden: _balancesHidden,
   btcEstimatedFee,
@@ -49,67 +54,41 @@ export function PreviewStep({
   onReviewPolicy,
   t,
 }: PreviewStepProps) {
+  const model = buildSendReview({
+    asset,
+    amount,
+    to,
+    from: { address },
+    fee: feeDisplay.formatted != null
+      ? { amount: feeDisplay.formatted, symbol: feeDisplay.symbol, decimals: NATIVE_DECIMALS[chain.type] ?? asset.decimals, usd: feeDisplay.usd }
+      : null,
+    amountUsd,
+    prices,
+    nameOf: (a) => addressLabel(a) ?? undefined,
+    policy: policyCheck,
+    firstTimeRecipient: firstTimeRecipient === true,
+    gasEstimateFailed: chain.type === "evm" && !!gasEstimateError,
+    memo: destinationTag ? { labelKey: "send.destinationTag", value: destinationTag } : chain.type === "xlm" && xlmMemo ? { labelKey: "send.memo", value: xlmMemo } : null,
+  });
+  const gate = useScrollGate(`${chain.id}:${to}:${amount}`);
+  const blocked = policyCheck?.allowed === false;
   return (
     <>
       {/* Body — Preview step */}
       <div className="p-5 space-y-5">
-        {/* Warnings in spec order: policy / risky address -> first-time recipient -> gas estimate */}
-        <PolicyWarning policyCheck={policyCheck} onReviewPolicy={onReviewPolicy} />
-
-        {firstTimeRecipient && (
-          <div role="status" className="bg-yellow-500/5 border border-yellow-500/15 rounded-lg px-3 py-2">
-            <p className="text-xs font-medium text-yellow-500">{t("send.newAddress.title")}</p>
-            <p className="text-[11px] text-yellow-500/80 mt-0.5 leading-relaxed">{t("send.newAddress.body")}</p>
-          </div>
+        <ReviewBody model={model} copyable={false} expert={expert} onReviewPolicy={onReviewPolicy} onSeenEnd={gate.onSeenEnd}>
+        {chain.type === "xlm" && xlmDestExists === false && (
+          <p className="text-[10px] text-yellow-400">{t("send.xlmDestNotActive")}</p>
         )}
 
-        {chain.type === "evm" && gasEstimateError && (
-          <div className="bg-yellow-500/5 border border-yellow-500/15 rounded-lg px-3 py-2">
-            <p className="text-xs text-yellow-500 leading-relaxed">{t("send.gasEstFailed")}</p>
-            {gasEstimateError !== "gas_estimate_failed" && (
-              <details className="mt-1">
-                <summary className="text-[10px] text-text-muted cursor-pointer">{t("common.details")}</summary>
-                <p className="text-[10px] font-mono text-text-muted break-all mt-1">{gasEstimateError}</p>
-              </details>
-            )}
-          </div>
+        {chain.type === "evm" && gasEstimateError && gasEstimateError !== "gas_estimate_failed" && (
+          <details className="px-1">
+            <summary className="text-[10px] text-text-muted cursor-pointer">{t("common.details")}</summary>
+            <p className="text-[10px] font-mono text-text-muted break-all mt-1">{gasEstimateError}</p>
+          </details>
         )}
-
-        {/* Amount hero */}
-        <div className="text-center py-2">
-          <p className="text-2xl font-semibold tabular-nums text-text-primary">
-            {amount} <span className="text-text-tertiary text-sm">{asset.symbol}</span>
-          </p>
-          {amountUsd != null && (
-            <p className="text-sm text-text-muted tabular-nums mt-0.5">{formatUsd(amountUsd)}</p>
-          )}
-        </div>
-
-        {/* From → To */}
-        <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
-          <div className="px-3 py-2.5 flex items-center justify-between">
-            <span className="text-xs text-text-muted">{t("send.from")}</span>
-            <span className="text-[9px] font-mono text-text-secondary">{address}</span>
-          </div>
-          <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="text-xs text-text-muted">{t("send.to")}</span>
-              {expert && !asset.isNative && asset.contractAddress && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 font-medium">{t("send.contract")}</span>
-              )}
-            </div>
-            <span className="text-[9px] font-mono text-text-secondary">
-              {expert && !asset.isNative && asset.contractAddress
-                ? asset.contractAddress
-                : to}
-            </span>
-          </div>
-          {expert && !asset.isNative && asset.contractAddress && (
-            <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-              <span className="text-xs text-text-muted">{t("send.to")}</span>
-              <span className="text-[9px] font-mono text-text-secondary">{to}</span>
-            </div>
-          )}
+        {expert && (
+          <div className="bg-surface-primary border border-border-primary rounded-xl overflow-hidden empty:hidden [&>div:first-child]:border-t-0">
           {expert && !asset.isNative && asset.contractAddress && (
             <div className="border-t border-border-secondary px-3 py-2.5">
               <div className="flex items-center justify-between">
@@ -120,37 +99,6 @@ export function PreviewStep({
               </pre>
             </div>
           )}
-          {destinationTag && (
-            <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-              <span className="text-xs text-text-muted">{t("send.destinationTag")}</span>
-              <span className="text-xs tabular-nums text-text-secondary">{destinationTag}</span>
-            </div>
-          )}
-          {chain.type === "xlm" && xlmMemo && (
-            <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-              <span className="text-xs text-text-muted">{t("send.memo")}</span>
-              <span className="text-xs text-text-secondary">{xlmMemo}</span>
-            </div>
-          )}
-        </div>
-        {chain.type === "xlm" && xlmDestExists === false && (
-          <p className="text-[10px] text-yellow-400 -mt-3">{t("send.xlmDestNotActive")}</p>
-        )}
-
-        {/* Details */}
-        <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
-          <div className="px-3 py-2.5 flex items-center justify-between">
-            <span className="text-xs text-text-muted">{t("send.network")}</span>
-            <span className="text-xs text-text-secondary">{chain.displayName}</span>
-          </div>
-          <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-            <span className="text-xs text-text-muted">{t("send.networkFee")}</span>
-            <span className="text-xs tabular-nums text-text-secondary font-medium">
-              {feeDisplay.usd != null && feeDisplay.usd > 0
-                ? formatUsd(feeDisplay.usd)
-                : (feeDisplay.formatted ?? "—") + " " + feeDisplay.symbol}
-            </span>
-          </div>
           {expert && feeDisplay.rateLabel != null && (
             <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
               <span className="text-xs text-text-muted">
@@ -185,14 +133,8 @@ export function PreviewStep({
               </span>
             </div>
           )}
-          <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-            <span className="text-xs text-text-muted font-medium">{t("send.total")}</span>
-            <span className="text-xs tabular-nums text-text-primary font-semibold">
-              {totalUsd > 0 ? formatUsd(totalUsd) : `${amount} ${asset.symbol}`}
-            </span>
           </div>
-        </div>
-
+        )}
         {/* Expert warnings */}
         {expert && chain.type === "evm" && (
           <ExpertWarnings
@@ -237,12 +179,13 @@ export function PreviewStep({
 
           return <BalancePreview changes={changes} prices={prices} />;
         })()}
+        </ReviewBody>
       </div>
 
       {/* Footer — Preview step */}
-      <div className="px-5 py-4 border-t border-border-secondary shrink-0">
+      <div className="px-5 py-4 border-t border-border-secondary shrink-0 sticky bottom-0 bg-surface-secondary pb-[calc(1rem+env(safe-area-inset-bottom))] md:pb-4">
         <button
-          disabled={policyCheck?.allowed === false}
+          disabled={blocked || !gate.seen}
           onClick={() => {
             const { executeEvm, executeBtc, executeLtc, executeBch, executeSolana, executeXrp, executeXlm, executeTron, executeTon, executeAlgo, executeAda } = signingFlows;
             const flows: Record<string, () => void> = {
@@ -264,7 +207,7 @@ export function PreviewStep({
           }}
           className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
         >
-          {policyCheck?.allowed === false ? <><Lock className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("send.blockedByPolicy")}</> : <><Lock className="w-4 h-4 inline-block align-[-2px] mr-1" />{t(confirmBeforeBroadcast ? "send.confirmSign" : "send.confirmSend")}</>}
+          {blocked ? <><Lock className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("send.blockedByPolicy")}</> : !gate.seen ? t("review.scrollToReview") : <><Lock className="w-4 h-4 inline-block align-[-2px] mr-1" />{t(confirmBeforeBroadcast ? "send.confirmSign" : "send.confirmSend")}</>}
         </button>
       </div>
     </>

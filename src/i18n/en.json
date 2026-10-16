@@ -1332,5 +1332,144 @@
     "title": "New version available",
     "description": "This version of kexify is out of date. Reloading to the latest version…",
     "reload": "Reload now"
+  },
+  "review": {
+    "verb": {
+      "send": "Send",
+      "approve": "Allow spending",
+      "revoke": "Remove spending approval",
+      "contract": "Interact with contract",
+      "solanaTx": "Approve transaction",
+      "signTyped": "Sign {{type}}",
+      "signMessage": "Sign message",
+      "signHash": "Sign hash",
+      "unreadable": "Can't read this transaction"
+    },
+    "to": "to",
+    "for": "for",
+    "account": "account",
+    "spender": "Spender",
+    "contract": "Contract",
+    "token": "Token",
+    "expires": "Expires",
+    "signedFor": "Signed for",
+    "alsoSends": "Also sends",
+    "unlimited": "Unlimited {{symbol}}",
+    "noValue": "No {{symbol}} sent",
+    "balanceAtRisk": "Your balance: {{amount}}",
+    "noFundsMove": "No network fee · no funds move",
+    "noFeeSignature": "No network fee to sign",
+    "signInTo": "Sign in to {{domain}}",
+    "tokenCount": "{{count}} tokens",
+    "baseUnits": "{{amount}} base units of {{symbol}}",
+    "actions_one": "{{count}} action",
+    "actions_other": "{{count}} actions",
+    "inclPriority": "incl. priority fee",
+    "feeDetails": "Fee details",
+    "rawData": "Raw data",
+    "message": "Message",
+    "moreWarnings_one": "+{{count}} more warning",
+    "moreWarnings_other": "+{{count}} more warnings",
+    "scrollToReview": "Scroll to review all",
+    "estimating": "Estimating…",
+    "expired": "This request expired",
+    "showAddress": "Show full address",
+    "fee": {
+      "base": "Base fee",
+      "priority": "Priority fee",
+      "cuLimit": "Compute unit limit",
+      "cuPrice": "Compute unit price",
+      "microLamports": "{{price}} micro-lamports",
+      "rent": "Account rent (refundable)",
+      "limit": "Max fee (fee limit)"
+    },
+    "action": {
+      "send": "Send {{amount}}",
+      "sendBaseUnits": "Send {{amount}} base units of a token",
+      "approve": "Allow spending {{amount}}",
+      "approveUnlimited": "Allow spending all {{symbol}}",
+      "setAuthority": "Change account authority",
+      "noAuthority": "Removes the authority for good",
+      "closeAccount": "Close token account",
+      "accountControl": "Change account owner ({{op}})",
+      "createAta": "Create {{symbol}} token account",
+      "rentRefundable": "Rent is refunded when the account is closed",
+      "memo": "Memo",
+      "tokenOp": "Token action: {{op}}",
+      "programOp": "System: {{op}}",
+      "callProgram": "Call {{name}}",
+      "unknownProgram": "Unknown program",
+      "unreadable": "kexify cannot read what this does",
+      "undecoded": "Instruction kexify cannot read"
+    },
+    "warn": {
+      "riskyAddress": {
+        "title": "Risky address",
+        "body": "This address was flagged as risky. Do not continue unless you are sure."
+      },
+      "unreadable": {
+        "title": "kexify can't read this transaction",
+        "body": "It is not a plain transfer or approval, so it cannot be signed here."
+      },
+      "signHash": {
+        "title": "Signs a raw hash",
+        "body": "kexify cannot show what this signature allows. It can move funds."
+      },
+      "accountControl": {
+        "title": "Changes who controls an account",
+        "body": "After action {{index}}, someone else may control this account."
+      },
+      "riskyAction": {
+        "title": "Risky token action",
+        "body": "Action {{index}} can mint, burn or freeze tokens."
+      },
+      "unlimitedApproval": {
+        "title": "Unlimited approval",
+        "body": "{{spender}} can spend all your {{symbol}}, now and later. Only allow apps you trust."
+      },
+      "approval": {
+        "title": "Spending approval",
+        "body": "{{spender}} can spend up to {{amount}} without asking again."
+      },
+      "unknownProgram": {
+        "title": "Unknown program",
+        "body": "Action {{index}} calls {{program}}, which kexify cannot read. Continue only if you trust {{dapp}}."
+      },
+      "mayFail": {
+        "title": "This may fail",
+        "body": "The network fee is still charged if it fails."
+      },
+      "wrongNetwork": {
+        "title": "Different network",
+        "body": "This signature names a different network than the one the app is connected on."
+      },
+      "feeCap": {
+        "title": "Fee above your limit",
+        "body": "The fee can reach more than {{cap}}; your policy may block it."
+      }
+    },
+    "program": "program",
+    "editLimit": "Edit limit",
+    "editedFrom": "Edited · the app asked for {{amount}}",
+    "editedFromUnlimited": "Edited · the app asked for unlimited",
+    "permitFixed": "This signature fixes the amount, so it can't be changed here. Reject it if it is more than you want to allow.",
+    "cap": {
+      "title": "Spending limit",
+      "requested": "Requested by {{dapp}}",
+      "balance": "Your balance",
+      "custom": "Custom",
+      "recommended": "Recommended",
+      "help": "The app can spend up to this amount. You can approve more later.",
+      "zero": "0 removes the approval.",
+      "overBalance": "More than your balance",
+      "err": {
+        "empty": "Enter an amount",
+        "invalid": "Enter a number",
+        "tooManyDecimals": "{{symbol}} has at most {{decimals}} decimals",
+        "tooLarge": "Amount is too large"
+      },
+      "done": "Done"
+    },
+    "setLimit": "Set a limit (recommended)"
   }
 }
