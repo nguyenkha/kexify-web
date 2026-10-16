@@ -2,7 +2,8 @@
 // address formats and API endpoints (mempool-compatible Litecoin explorer).
 
 import { sha256 } from "@noble/hashes/sha256";
-import { bech32, base58check } from "@scure/base";
+import { base58check } from "@scure/base";
+import { decodeSegwitAddress, segwitScriptPubKey } from "./segwit-address";
 
 const b58check = base58check(sha256);
 
@@ -41,6 +42,7 @@ import {
   type BtcAddressType,
   type FeeRates,
   selectUtxos,
+  outputScriptsSameNetwork,
 } from "./btcTx";
 
 // ── Binary helpers ──────────────────────────────────────────────
@@ -82,46 +84,29 @@ export async function fetchFeeRates(apiBase?: string): Promise<FeeRates> {
 
 // ── Address ↔ scriptPubKey (LTC-specific) ────────────────────────
 
-export function addressToScriptPubKey(address: string): Uint8Array {
-  // P2WPKH: ltc1q... / tltc1q...
-  if (address.startsWith("ltc1q") || address.startsWith("tltc1q")) {
-    const { words } = bech32.decode(address as `${string}1${string}`);
-    const hashBytes = new Uint8Array(bech32.fromWords(words.slice(1)));
-    return concat(new Uint8Array([0x00, 0x14]), hashBytes);
+/** LTC address -> scriptPubKey + network. Throws on anything we cannot safely pay to. */
+export function parseLtcAddress(address: string): { scriptPubKey: Uint8Array; testnet: boolean } {
+  if (/^t?ltc1/i.test(address)) {
+    const seg = decodeSegwitAddress(address, ["ltc", "tltc"]);
+    return { scriptPubKey: segwitScriptPubKey(seg), testnet: seg.hrp === "tltc" };
   }
-
-  // P2PKH: LTC mainnet version 0x30 (starts with "L" or "M"), testnet version 0x6f (starts with "m" or "n")
-  if (
-    address.startsWith("L") ||
-    address.startsWith("M") ||
-    address.startsWith("m") ||
-    address.startsWith("n")
-  ) {
-    const decoded = b58check.decode(address);
-    const ver = decoded[0];
-    if (ver === 0x30 || ver === 0x6f) {
-      const h = decoded.slice(1);
-      return concat(
-        new Uint8Array([0x76, 0xa9, 0x14]),
-        h,
-        new Uint8Array([0x88, 0xac])
-      );
-    }
-    // P2SH: mainnet version 0x32 (starts with "M"), testnet 0xc4 (starts with "2")
-    if (ver === 0x32 || ver === 0xc4) {
-      const h = decoded.slice(1);
-      return concat(new Uint8Array([0xa9, 0x14]), h, new Uint8Array([0x87]));
-    }
+  const decoded = b58check.decode(address);
+  if (decoded.length !== 21) throw new Error(`Invalid LTC address: ${address}`);
+  const h = decoded.slice(1);
+  // Testnet version bytes (0x6f / 0xc4) are shared with BTC testnet, so those cannot be told apart.
+  switch (decoded[0]) {
+    // P2PKH: mainnet 0x30 ("L"), testnet 0x6f ("m"/"n")
+    case 0x30: case 0x6f:
+      return { scriptPubKey: concat(new Uint8Array([0x76, 0xa9, 0x14]), h, new Uint8Array([0x88, 0xac])), testnet: decoded[0] === 0x6f };
+    // P2SH: mainnet 0x32 ("M"), testnet 0xc4 ("2")
+    case 0x32: case 0xc4:
+      return { scriptPubKey: concat(new Uint8Array([0xa9, 0x14]), h, new Uint8Array([0x87])), testnet: decoded[0] === 0xc4 };
   }
-
-  // P2SH testnet: starts with "2"
-  if (address.startsWith("2")) {
-    const decoded = b58check.decode(address);
-    const h = decoded.slice(1);
-    return concat(new Uint8Array([0xa9, 0x14]), h, new Uint8Array([0x87]));
-  }
-
   throw new Error(`Unsupported LTC address format: ${address}`);
+}
+
+export function addressToScriptPubKey(address: string): Uint8Array {
+  return parseLtcAddress(address).scriptPubKey;
 }
 
 // ── Address type detection ───────────────────────────────────────
@@ -152,15 +137,11 @@ export function buildLtcTransaction(
     sequence: rbf ? 0xfffffffd : 0xffffffff,
   }));
 
-  const outputs: BtcOutput[] = [
-    { value: amountSats, scriptPubKey: addressToScriptPubKey(toAddress) },
-  ];
+  const scripts = outputScriptsSameNetwork(parseLtcAddress, toAddress, changeAddress);
+  const outputs: BtcOutput[] = [{ value: amountSats, scriptPubKey: scripts.to }];
 
   if (change > 0n) {
-    outputs.push({
-      value: change,
-      scriptPubKey: addressToScriptPubKey(changeAddress),
-    });
+    outputs.push({ value: change, scriptPubKey: scripts.change });
   }
 
   return { version: 2, inputs, outputs, locktime: 0 };
@@ -214,25 +195,8 @@ export async function waitForLtcConfirmation(
 
 export function isValidLtcAddress(address: string): boolean {
   try {
-    // Bech32 segwit: ltc1q... / tltc1q...
-    if (address.startsWith("ltc1") || address.startsWith("tltc1")) {
-      bech32.decode(address as `${string}1${string}`);
-      return true;
-    }
-    // Base58: L, M (P2PKH/P2SH mainnet), m, n (P2PKH testnet), 2 (P2SH testnet)
-    if (
-      address.startsWith("L") ||
-      address.startsWith("M") ||
-      address.startsWith("m") ||
-      address.startsWith("n") ||
-      address.startsWith("2")
-    ) {
-      const decoded = b58check.decode(address);
-      const ver = decoded[0];
-      // P2PKH mainnet=0x30, testnet=0x6f; P2SH mainnet=0x32, testnet=0xc4
-      return ver === 0x30 || ver === 0x6f || ver === 0x32 || ver === 0xc4;
-    }
-    return false;
+    parseLtcAddress(address);
+    return true;
   } catch {
     return false;
   }

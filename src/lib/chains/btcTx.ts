@@ -1,6 +1,7 @@
 import { sha256 } from "@noble/hashes/sha256";
 import { ripemd160 } from "@noble/hashes/ripemd160";
-import { bech32, bech32m, base58check } from "@scure/base";
+import { base58check } from "@scure/base";
+import { decodeSegwitAddress, segwitScriptPubKey } from "./segwit-address";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import { hexToBytes, bytesToHex } from "../../shared/utils";
 
@@ -133,48 +134,40 @@ export async function fetchFeeRates(apiBase?: string): Promise<FeeRates> {
 
 // ── Address ↔ scriptPubKey ──────────────────────────────────────
 
-export function addressToScriptPubKey(address: string): Uint8Array {
-  // P2WPKH: bc1q... / tb1q...
-  if (address.startsWith("bc1q") || address.startsWith("tb1q")) {
-    const { words } = bech32.decode(address as `${string}1${string}`);
-    const hashBytes = new Uint8Array(bech32.fromWords(words.slice(1)));
-    // OP_0 PUSH_20 <20-byte-hash>
-    return concat(new Uint8Array([0x00, 0x14]), hashBytes);
+/** BTC address -> scriptPubKey + network. Throws on anything we cannot safely pay to. */
+export function parseBtcAddress(address: string): { scriptPubKey: Uint8Array; testnet: boolean } {
+  if (/^(bc|tb)1/i.test(address)) {
+    const seg = decodeSegwitAddress(address, ["bc", "tb"]);
+    return { scriptPubKey: segwitScriptPubKey(seg), testnet: seg.hrp === "tb" };
   }
-
-  // P2TR: bc1p... / tb1p... (Taproot)
-  if (address.startsWith("bc1p") || address.startsWith("tb1p")) {
-    const { words } = bech32m.decode(address as `${string}1${string}`);
-    const pubkey = new Uint8Array(bech32m.fromWords(words.slice(1)));
-    // OP_1 PUSH_32 <32-byte-pubkey>
-    return concat(new Uint8Array([0x51, 0x20]), pubkey);
+  const decoded = b58check.decode(address);
+  if (decoded.length !== 21) throw new Error(`Invalid BTC address: ${address}`);
+  const h = decoded.slice(1);
+  switch (decoded[0]) {
+    // P2PKH: OP_DUP OP_HASH160 PUSH_20 <hash> OP_EQUALVERIFY OP_CHECKSIG
+    case 0x00: case 0x6f:
+      return { scriptPubKey: concat(new Uint8Array([0x76, 0xa9, 0x14]), h, new Uint8Array([0x88, 0xac])), testnet: decoded[0] === 0x6f };
+    // P2SH: OP_HASH160 PUSH_20 <hash> OP_EQUAL
+    case 0x05: case 0xc4:
+      return { scriptPubKey: concat(new Uint8Array([0xa9, 0x14]), h, new Uint8Array([0x87])), testnet: decoded[0] === 0xc4 };
   }
-
-  // P2PKH: starts with 1 (mainnet) or m/n (testnet)
-  if (
-    address.startsWith("1") ||
-    address.startsWith("m") ||
-    address.startsWith("n")
-  ) {
-    const decoded = b58check.decode(address);
-    const h = decoded.slice(1); // skip version byte
-    // OP_DUP OP_HASH160 PUSH_20 <hash> OP_EQUALVERIFY OP_CHECKSIG
-    return concat(
-      new Uint8Array([0x76, 0xa9, 0x14]),
-      h,
-      new Uint8Array([0x88, 0xac])
-    );
-  }
-
-  // P2SH: starts with 3 (mainnet) or 2 (testnet)
-  if (address.startsWith("3") || address.startsWith("2")) {
-    const decoded = b58check.decode(address);
-    const h = decoded.slice(1);
-    // OP_HASH160 PUSH_20 <hash> OP_EQUAL
-    return concat(new Uint8Array([0xa9, 0x14]), h, new Uint8Array([0x87]));
-  }
-
   throw new Error(`Unsupported address format: ${address}`);
+}
+
+export function addressToScriptPubKey(address: string): Uint8Array {
+  return parseBtcAddress(address).scriptPubKey;
+}
+
+/** Recipient and change must be on the same network (change is always our own address). */
+export function outputScriptsSameNetwork(
+  parse: (a: string) => { scriptPubKey: Uint8Array; testnet: boolean },
+  toAddress: string,
+  changeAddress: string,
+): { to: Uint8Array; change: Uint8Array } {
+  const to = parse(toAddress);
+  const change = parse(changeAddress);
+  if (to.testnet !== change.testnet) throw new Error("Recipient address is for a different network");
+  return { to: to.scriptPubKey, change: change.scriptPubKey };
 }
 
 // ── Public key helpers ──────────────────────────────────────────
@@ -194,13 +187,17 @@ export function pubKeyHash(compressedPubKey: Uint8Array): Uint8Array {
  * P2WPKH: 8(value) + 1(varint) + 22(script) = 31
  * P2PKH:  8(value) + 1(varint) + 25(script) = 34
  * P2SH:   8(value) + 1(varint) + 23(script) = 32
- * P2TR:   8(value) + 1(varint) + 34(script) = 43
+ * P2TR / P2WSH: 8(value) + 1(varint) + 34(script) = 43
  */
 function outputSize(address?: string): number {
   if (!address) return 34; // conservative default
-  if (address.startsWith("bc1p") || address.startsWith("tb1p")) return 43; // P2TR
-  if (address.startsWith("bc1q") || address.startsWith("tb1q") ||
-      address.startsWith("ltc1q") || address.startsWith("tltc1q")) return 31; // P2WPKH
+  if (/^(bc|tb|ltc|tltc)1/i.test(address)) {
+    try {
+      return 9 + segwitScriptPubKey(decodeSegwitAddress(address, ["bc", "tb", "ltc", "tltc"])).length;
+    } catch {
+      return 43; // invalid: the build rejects it; never underestimate
+    }
+  }
   if (address.startsWith("3") || address.startsWith("2") ||
       address.startsWith("M")) return 32; // P2SH
   return 34; // P2PKH (1, m, n, L)
@@ -358,15 +355,11 @@ export function buildBtcTransaction(
     sequence: rbf ? 0xfffffffd : 0xffffffff,
   }));
 
-  const outputs: BtcOutput[] = [
-    { value: amountSats, scriptPubKey: addressToScriptPubKey(toAddress) },
-  ];
+  const scripts = outputScriptsSameNetwork(parseBtcAddress, toAddress, changeAddress);
+  const outputs: BtcOutput[] = [{ value: amountSats, scriptPubKey: scripts.to }];
 
   if (change > 0n) {
-    outputs.push({
-      value: change,
-      scriptPubKey: addressToScriptPubKey(changeAddress),
-    });
+    outputs.push({ value: change, scriptPubKey: scripts.change });
   }
 
   return { version: 2, inputs, outputs, locktime: 0 };
@@ -703,25 +696,8 @@ export async function waitForBtcConfirmation(
 
 export function isValidBtcAddress(address: string): boolean {
   try {
-    if (address.startsWith("bc1") || address.startsWith("tb1")) {
-      if (address.startsWith("bc1p") || address.startsWith("tb1p")) {
-        bech32m.decode(address as `${string}1${string}`);
-      } else {
-        bech32.decode(address as `${string}1${string}`);
-      }
-      return true;
-    }
-    if (
-      address.startsWith("1") ||
-      address.startsWith("3") ||
-      address.startsWith("m") ||
-      address.startsWith("n") ||
-      address.startsWith("2")
-    ) {
-      b58check.decode(address);
-      return true;
-    }
-    return false;
+    parseBtcAddress(address);
+    return true;
   } catch {
     return false;
   }
