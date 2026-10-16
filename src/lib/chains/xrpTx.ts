@@ -3,6 +3,7 @@
 
 import { sha512 } from "@noble/hashes/sha512";
 import { bytesToHex, hexToBytes } from "../../shared/utils";
+import { encodeDerSignature } from "./bchTx";
 
 // ── Constants ───────────────────────────────────────────────────
 
@@ -219,6 +220,14 @@ export function hashForSigning(params: XrpPaymentParams): Uint8Array {
 export function assembleSignedTx(params: XrpPaymentParams, signature: Uint8Array): string {
   const serialized = serializePayment(params, signature);
   return bytesToHex(serialized).toUpperCase();
+}
+
+/**
+ * TxnSignature for a (low-S) r/s: strict minimal DER. rippled rejects non-canonical DER, so r/s must not keep the
+ * leading zero bytes of a 32-byte pad (a short r or s happens about once in 128 signatures).
+ */
+export function encodeXrpSignature(r: bigint, s: bigint): Uint8Array {
+  return encodeDerSignature(r, s);
 }
 
 /**

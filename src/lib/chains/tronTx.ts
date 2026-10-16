@@ -48,7 +48,7 @@ export async function buildTrxTransfer(
  * `to` is a TRON base58 address; we strip the 0x41 prefix and pad to 32 bytes.
  * `amount` is a uint256 padded to 32 bytes.
  */
-function encodeTransferParams(to: string, amount: bigint): string {
+export function encodeTransferParams(to: string, amount: bigint): string {
   // Convert to address to hex, strip 0x41 prefix -> 20-byte address
   const toHex = tronAddressToHex(to);
   const toAddr20 = toHex.slice(2); // strip "41" prefix -> 40 hex chars

@@ -10,6 +10,7 @@ import {
   getCurrentLedgerIndex,
   hashForSigning as xrpHashForSigning,
   assembleSignedTx as xrpAssembleSignedTx,
+  encodeXrpSignature,
   broadcastXrpTransaction,
   waitForXrpConfirmation,
   XRP_BASE_FEE,
@@ -89,20 +90,9 @@ export async function executeXrpSigningFlow(ctx: SigningContext): Promise<void> 
       headers: sensitiveHeaders(),
     });
 
-    // 3. Parse DER signature (low-S normalized) and re-encode for XRP
+    // 3. Parse DER signature (low-S normalized) and re-encode as minimal DER for XRP
     const { r, s } = parseDerSignature(sigRaw);
-    const rHex = r.toString(16).padStart(64, "0");
-    const sHex = s.toString(16).padStart(64, "0");
-    const rBytes = hexToBytes(rHex);
-    const sBytes = hexToBytes(sHex);
-    // DER encode: 30 <len> 02 <rlen> <r> 02 <slen> <s>
-    const rDer = rBytes[0] >= 0x80 ? new Uint8Array([0, ...rBytes]) : rBytes;
-    const sDer = sBytes[0] >= 0x80 ? new Uint8Array([0, ...sBytes]) : sBytes;
-    const derLen = 2 + rDer.length + 2 + sDer.length;
-    const sigDer = new Uint8Array(2 + derLen);
-    sigDer[0] = 0x30; sigDer[1] = derLen;
-    sigDer[2] = 0x02; sigDer[3] = rDer.length; sigDer.set(rDer, 4);
-    sigDer[4 + rDer.length] = 0x02; sigDer[5 + rDer.length] = sDer.length; sigDer.set(sDer, 6 + rDer.length);
+    const sigDer = encodeXrpSignature(r, s);
     const signedTxHex = xrpAssembleSignedTx(params, sigDer);
 
     if (confirmBeforeBroadcast) {

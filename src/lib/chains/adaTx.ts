@@ -337,43 +337,60 @@ export async function prepareAdaPaymentTx(
     getAdaTip(rpcUrl),
     getAdaProtocolParams(rpcUrl),
   ]);
+  return planAdaPaymentTx(utxos, tip.slot, fromAddress, toAddress, amountLovelace, params);
+}
 
-  const ttl = tip.slot + 7200; // ~2 hours from now
+/**
+ * Network-free part of prepareAdaPaymentTx: coin selection, fee and change from fetched UTXOs + tip slot.
+ * Shared with the iOS tx core (ios/chain-bundle), which fetches the UTXOs itself.
+ */
+export function planAdaPaymentTx(
+  utxos: CardanoUtxo[],
+  tipSlot: number,
+  fromAddress: string,
+  toAddress: string,
+  amountLovelace: bigint,
+  params: { minFeeA: number; minFeeB: number; minUtxoValue: bigint },
+): { txBody: Uint8Array; fee: bigint } {
+  if (amountLovelace < 1_000_000n) {
+    throw new Error("Minimum send amount is 1 ADA");
+  }
+  const ttl = tipSlot + 7200; // ~2 hours from now
 
   // 2. Estimate fee with a dummy tx (2 inputs, 2 outputs ≈ 300 bytes)
   const estimatedFee = calculateFee(300, params.minFeeA, params.minFeeB);
 
-  // 3. Select UTXOs
-  const totalNeeded = amountLovelace + estimatedFee;
-  const { selected, total } = selectUtxos(utxos, totalNeeded);
-
-  // 4. Calculate change
-  let change = total - amountLovelace - estimatedFee;
-
-  // 5. Build tx body to get actual size
-  const inputs = selected.map((u) => ({ txHash: u.txHash, txIndex: u.txIndex }));
-  let txBody = buildAdaPaymentTx(inputs, toAddress, amountLovelace, fromAddress, estimatedFee, ttl, change);
-
-  // 6. Recalculate fee with actual tx size (add ~150 bytes for witness overhead)
-  const actualFee = calculateFee(txBody.length + 150, params.minFeeA, params.minFeeB);
-
-  // 7. Rebuild if fee changed significantly
-  if (actualFee > estimatedFee) {
-    change = total - amountLovelace - actualFee;
-    if (change < 0n) throw new Error("Insufficient ADA after fee recalculation");
-    // If change is below minimum UTXO value, absorb it into fee
-    if (change > 0n && change < params.minUtxoValue) {
-      const adjustedFee = actualFee + change;
-      change = 0n;
-      txBody = buildAdaPaymentTx(inputs, toAddress, amountLovelace, fromAddress, adjustedFee, ttl, change);
-      return { txBody, fee: adjustedFee };
-    }
-    txBody = buildAdaPaymentTx(inputs, toAddress, amountLovelace, fromAddress, actualFee, ttl, change);
-    return { txBody, fee: actualFee };
+  // 3. Select UTXOs, with room for a valid change output when the balance allows it
+  let selection: { selected: CardanoUtxo[]; total: bigint };
+  try {
+    selection = selectUtxos(utxos, amountLovelace + estimatedFee + params.minUtxoValue);
+  } catch {
+    selection = selectUtxos(utxos, amountLovelace + estimatedFee);
   }
+  const { selected, total } = selection;
+  const inputs = selected.map((u) => ({ txHash: u.txHash, txIndex: u.txIndex }));
 
-  return { txBody, fee: estimatedFee };
+  // 4. Build with the estimated fee to get the real size, then recalculate (~150 bytes for witness overhead)
+  const sized = buildAdaPaymentTx(inputs, toAddress, amountLovelace, fromAddress, estimatedFee, ttl,
+    total - amountLovelace - estimatedFee);
+  let fee = calculateFee(sized.length + 150, params.minFeeA, params.minFeeB);
+  if (fee < estimatedFee) fee = estimatedFee;
+
+  // 5. Change: none, a valid output, or dust. Small dust goes to the fee; larger dust is refused, never burnt.
+  let change = total - amountLovelace - fee;
+  if (change < 0n) throw new Error("Insufficient ADA after fee recalculation");
+  if (change > 0n && change < params.minUtxoValue) {
+    if (change > ADA_MAX_ABSORBED_CHANGE) {
+      throw new Error("The ADA left over would be below the 1 ADA minimum output; send less or send the full balance");
+    }
+    fee += change;
+    change = 0n;
+  }
+  return { txBody: buildAdaPaymentTx(inputs, toAddress, amountLovelace, fromAddress, fee, ttl, change), fee };
 }
+
+/** Most sub-minimum change planAdaPaymentTx adds to the fee instead of refusing the send (0.2 ADA, about one fee). */
+const ADA_MAX_ABSORBED_CHANGE = 200_000n;
 
 // ── Utilities ──
 

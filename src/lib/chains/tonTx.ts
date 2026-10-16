@@ -290,6 +290,11 @@ export function assembleTonSignedMessage(
 
 // ── Broadcasting ────────────────────────────────────────────────
 
+/** Hash of an external message BOC: the id a send is reported and looked up by. */
+export function tonMessageHash(bocBase64: string): string {
+  return Cell.fromBoc(Buffer.from(bocBase64, "base64"))[0].hash().toString("hex");
+}
+
 export async function broadcastTonTransaction(rpcUrl: string, bocBase64: string): Promise<string> {
   // Retry on rate limit
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -304,9 +309,7 @@ export async function broadcastTonTransaction(rpcUrl: string, bocBase64: string)
     }
     const data = await res.json();
     if (!data.ok) throw new Error(`TON broadcast failed: ${data.error || res.statusText}`);
-    // Compute tx hash from the BOC
-    const cell = Cell.fromBoc(Buffer.from(bocBase64, "base64"))[0];
-    return cell.hash().toString("hex");
+    return tonMessageHash(bocBase64);
   }
   throw new Error("TON broadcast rate limited. Please try again.");
 }
