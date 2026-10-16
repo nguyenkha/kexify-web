@@ -5,6 +5,7 @@ import tailwindcss from "@tailwindcss/vite";
 import wasm from "vite-plugin-wasm";
 import inject from "@rollup/plugin-inject";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
+import type { Plugin } from "vite";
 import pkg from "./package.json";
 
 function git(cmd: string): string {
@@ -13,6 +14,25 @@ function git(cmd: string): string {
 
 const gitHash = (process.env.VITE_GIT_HASH || git("git rev-parse --short=7 HEAD")).slice(0, 7);
 const gitTag = process.env.VITE_GIT_TAG || git("git describe --tags --exact-match 2>/dev/null");
+
+// cb-mpc's native (bun:ffi / koffi) backend points at prebuilt .so/.dylib files through
+// `new URL(\`../../prebuilds/${platform}...\`, import.meta.url)`; Vite would copy every prebuild
+// (~100 MB, one file over Cloudflare Pages' 25 MiB limit) into the web build. The browser only
+// uses the WASM backend, so drop that URL from the bundle.
+const dropCbMpcNativePrebuilds: Plugin = {
+  name: "drop-cb-mpc-native-prebuilds",
+  enforce: "pre",
+  transform(code: string, id: string) {
+    if (!/cb-mpc[\\/]dist[\\/]backends[\\/]native\.js$/.test(id)) return null;
+    const out = code.replace(
+      /new URL\(`\.\.\/\.\.\/prebuilds\/[^`]*`,\s*import\.meta\.url\)/,
+      '(() => { throw new Error("cb-mpc native backend is not available in the browser"); })()',
+    );
+    if (out === code) throw new Error("cb-mpc native prebuild URL not found; update dropCbMpcNativePrebuilds");
+    return { code: out, map: null };
+  },
+};
+
 export default defineConfig({
   base: "/",
   define: {
@@ -22,6 +42,7 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
   plugins: [
+    dropCbMpcNativePrebuilds,
     react(),
     tailwindcss(),
     wasm(),
