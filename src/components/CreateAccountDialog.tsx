@@ -323,7 +323,9 @@ export function CreateAccountDialog({
     } catch (err) {
       console.error("[generate] Error:", err);
       const msg = err instanceof Error ? err.message : String(err);
-      if (msg === "passkey_auth_required") {
+      if ((err as { code?: unknown }).code === "KEYSHARE_LIMIT") {
+        setError(t("wallet.oneWalletPerAccount"));
+      } else if (msg === "passkey_auth_required") {
         setError(t("standalone.passkeyRequired"));
       } else if (msg.includes("in progress")) {
         setError(t("standalone.operationInProgress"));

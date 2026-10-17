@@ -102,6 +102,7 @@
     "welcomeDesc": "Create your first wallet to send, receive, and manage crypto across multiple chains.",
     "createWallet": "Create your wallet",
     "addAccount": "Add account",
+    "oneWalletPerAccount": "Each account has one wallet.",
     "disabled": "Disabled",
     "selfCustody": "Self-custody",
     "selfCustodyDesc": "You hold both key shares and can recover your wallet without our server.",

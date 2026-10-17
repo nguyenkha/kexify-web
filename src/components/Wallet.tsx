@@ -652,17 +652,9 @@ export function Wallet() {
         ) : null;
       })()}
 
-      {!isRecovery && !KEYGEN_CLOSED && (
-        <button
-          onClick={() => guardedAction(() => setShowCreateDialog(true), true)}
-          disabled={frozen}
-          className="w-full border border-dashed border-border-primary rounded-lg py-3 text-sm text-text-muted hover:text-text-secondary hover:border-border-secondary transition-colors flex items-center justify-center gap-1.5 disabled:text-text-muted disabled:cursor-not-allowed disabled:hover:border-border-primary"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          {t("wallet.addAccount")}
-        </button>
+      {/* One keyshare per account: no second wallet (premium gets sub-accounts on this one). */}
+      {!isRecovery && (
+        <p className="text-[11px] text-text-muted text-center px-4">{t("wallet.oneWalletPerAccount")}</p>
       )}
 
       {disabledKeys.length > 0 && (

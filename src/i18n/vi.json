@@ -102,6 +102,7 @@
     "welcomeDesc": "Tạo ví đầu tiên để gửi, nhận và quản lý crypto trên nhiều blockchain.",
     "createWallet": "Tạo ví",
     "addAccount": "Thêm tài khoản",
+    "oneWalletPerAccount": "Mỗi tài khoản chỉ có một ví.",
     "disabled": "Đã tắt",
     "selfCustody": "Tự quản lý",
     "selfCustodyDesc": "Bạn giữ cả hai key share và có thể khôi phục ví mà không cần server.",
