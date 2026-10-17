@@ -6,6 +6,8 @@
 import { useState } from "react";
 import { Pencil } from "lucide-react";
 import { allowanceOptions, allowanceText, formatUnits, parseAllowanceInput, UNLIMITED_THRESHOLD, type AllowanceChoice, type ReviewAllowance } from "../../lib/review";
+import { displayAmount, uiLocale } from "../../lib/display-amount";
+import { editableLocaleAmount } from "../../lib/locale-amount";
 import { useReviewText } from "./review-text";
 
 interface Props {
@@ -29,9 +31,9 @@ export function AllowanceEditor({ allowance, dappName, onChange, onInvalid }: Pr
     if (cur === requested) return "requested";
     return balance != null && cur === balance ? "balance" : "custom";
   });
-  const [text, setText] = useState(() => (allowance.edited ? allowanceText(BigInt(allowance.current), allowance.decimals) : ""));
-  const parsed = parseAllowanceInput(text, allowance.decimals);
-  const fmt = (v: bigint) => (v >= UNLIMITED_THRESHOLD ? t("review.unlimited", { symbol: allowance.symbol }) : `${formatUnits(v, allowance.decimals)} ${allowance.symbol}`);
+  const [text, setText] = useState(() => (allowance.edited ? editableLocaleAmount(allowanceText(BigInt(allowance.current), allowance.decimals), uiLocale()) : ""));
+  const parsed = parseAllowanceInput(text, allowance.decimals, uiLocale());
+  const fmt = (v: bigint) => (v >= UNLIMITED_THRESHOLD ? t("review.unlimited", { symbol: allowance.symbol }) : `${displayAmount(formatUnits(v, allowance.decimals))} ${allowance.symbol}`);
 
   const pick = (c: AllowanceChoice, amount?: bigint) => {
     setChoice(c);
@@ -43,7 +45,7 @@ export function AllowanceEditor({ allowance, dappName, onChange, onInvalid }: Pr
   const typeCustom = (v: string) => {
     setText(v);
     setChoice("custom");
-    const p = parseAllowanceInput(v, allowance.decimals);
+    const p = parseAllowanceInput(v, allowance.decimals, uiLocale());
     onInvalid(!("amount" in p));
     if ("amount" in p) onChange(p.amount);
   };
@@ -106,7 +108,7 @@ export function AllowanceEditor({ allowance, dappName, onChange, onInvalid }: Pr
           </div>
           {error && (
             <p className="text-xs text-red-500 mt-1" role="alert">
-              {t(`review.cap.err.${error}`, { symbol: allowance.symbol, decimals: allowance.decimals })}
+              {t(`review.cap.err.${error}`, { symbol: allowance.symbol, decimals: allowance.decimals, example: editableLocaleAmount("1234.5", uiLocale()) })}
             </p>
           )}
           {customAmount === 0n && <p className="text-xs text-text-muted mt-1">{t("review.cap.zero")}</p>}

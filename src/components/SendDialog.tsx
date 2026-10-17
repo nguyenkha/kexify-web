@@ -2,18 +2,20 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { ScheduleSendOffer } from "./send/schedule-send-offer";
 import { useTranslation } from "react-i18next";
+import { displayAmount, uiLocale } from "../lib/display-amount";
+import { editableLocaleAmount, parseLocaleAmount } from "../lib/locale-amount";
 import { notify } from "../lib/notify";
 import type { Chain, Asset } from "../lib/api";
 import { explorerLink, bytesToHex } from "../shared/utils";
 import { simulateEvmTransaction } from "../lib/txSimulation";
 import { useExpertMode } from "../context/ExpertModeContext";
-import { SigningError, SigningStepper } from "./tx";
+import { SigningError, SigningStepper, signRowLabel, txSigningSteps, TX_PHASE_STEP } from "./tx";
 import { fetchPrices, getUsdValue } from "../lib/prices";
 import { clearClientKey } from "../lib/mpc";
 import { Clock, CircleCheck, Radio, CircleX, Zap, Send } from "lucide-react";
 import { authHeaders, isStandaloneJwt } from "../lib/auth";
 import { apiUrl } from "../lib/apiBase";
-import { fetchPasskeys } from "../lib/passkey";
+import { usePasskeyPresence } from "./use-passkey-presence";
 import { PasskeyGate } from "./PasskeyGate";
 import {
   encodeErc20Transfer,
@@ -131,7 +133,10 @@ export function SendDialog({
   const [gasEstimateError, setGasEstimateError] = useState<string | null>(null);
   const [currentNonce, setCurrentNonce] = useState<number | null>(null);
   const [to, setTo] = useState(speedUpData?.to ?? "");
-  const [amount, setAmount] = useState(speedUpData ? (Number(speedUpData.amountSats) / 10 ** asset.decimals).toString() : "");
+  // What the user typed, in the UI language ("1.234,5" in Spanish); `amount` below is its canonical "1234.5".
+  const [amountText, setAmountText] = useState(speedUpData ? editableLocaleAmount((Number(speedUpData.amountSats) / 10 ** asset.decimals).toString(), uiLocale()) : "");
+  const parsedAmount = parseLocaleAmount(amountText, uiLocale());
+  const amount = parsedAmount.kind === "ok" ? parsedAmount.value : "";
   const [toTouched, setToTouched] = useState(false);
   const [amountTouched, setAmountTouched] = useState(false);
   const [showAddrScanner, setShowAddrScanner] = useState(false);
@@ -219,6 +224,7 @@ export function SendDialog({
   // Passkey guard (triggered on confirm, not on dialog open)
   const [passkeyGuard, setPasskeyGuard] = useState<"idle" | "gate">("idle");
   const pendingSignRef = useRef<(() => void) | null>(null);
+  const { hasPasskey, markRegistered } = usePasskeyPresence();
 
   async function guardedSign(action: () => void) {
     // The share that signs: the uploaded file, or this device's share for the account
@@ -240,21 +246,16 @@ export function SendDialog({
     }
     // The signing step itself asks for the passkey (one tap bound to this transaction's
     // digests, which also unlocks a PRF-encrypted share); only a missing passkey stops here.
-    try {
-      const list = await fetchPasskeys();
-      if (list.length === 0) {
-        pendingSignRef.current = action;
-        setPasskeyGuard("gate");
-      } else {
-        action();
-      }
-    } catch {
-      // If passkey check fails, proceed anyway (backend will enforce)
+    if (await hasPasskey()) {
       action();
+    } else {
+      pendingSignRef.current = action;
+      setPasskeyGuard("gate");
     }
   }
 
   function onPasskeyComplete(_result?: unknown) {
+    markRegistered();
     setPasskeyGuard("idle");
     pendingSignRef.current?.();
     pendingSignRef.current = null;
@@ -293,7 +294,7 @@ export function SendDialog({
     if (txResult?.status === "success") {
       notify({
         title: t("notify.txConfirmed"),
-        body: `${amount} ${asset.symbol}`,
+        body: `${displayAmount(amount)} ${asset.symbol}`,
         path: `/accounts/${keyId}/${chain.name.toLowerCase()}/${asset.symbol}`,
       });
     }
@@ -476,8 +477,12 @@ export function SendDialog({
   const isNameInput = isResolvableName(to);
   const toError = toTouched && to.length > 0 && !toValid && !resolving && !isNameInput ? t("send.invalidAddress") : null;
   const toSelf = toValid && (chain.type === "solana" ? toAddr === address : toAddr.toLowerCase() === address.toLowerCase());
-  const amountCheck = isValidAmount(amount, balance);
-  const amountError = amountTouched && amount.length > 0 && !amountCheck.valid && amountCheck.error ? t(amountCheck.error) : null;
+  const amountCheck = parsedAmount.kind === "ambiguous" ? { valid: false, error: "send.amountAmbiguous" }
+    : parsedAmount.kind === "invalid" ? { valid: false, error: "send.amountInvalid" }
+    : isValidAmount(amount, balance);
+  const amountError = amountTouched && amountText.trim().length > 0 && !amountCheck.valid && amountCheck.error
+    ? t(amountCheck.error, { example: editableLocaleAmount("1234.5", uiLocale()) })
+    : null;
   const amountUsd = amount ? getUsdValue(amount, asset.symbol, prices) : null;
 
   const destTagValid = chain.type !== "xrp" || destinationTag === "" || (/^\d+$/.test(destinationTag) && Number(destinationTag) <= 4294967295);
@@ -562,14 +567,8 @@ export function SendDialog({
     return { chain, address, setAvailableUtxos, setUtxoLoading };
   }
 
-  // Map internal phases to 4 display steps: Build (0) → Sign (1) → Broadcast (2) → Confirming (3)
-  const phaseIndex: Record<SigningPhase, number> = {
-    "loading-keyshare": 0,
-    "building-tx": 0,
-    "mpc-signing": 1,
-    "broadcasting": 2,
-    "polling": 3,
-  };
+  // Validating & signing (0) → MPC signing (1) → Broadcast (2) → Confirming (3), as on iOS
+  const phaseIndex = TX_PHASE_STEP;
 
   // Stepped progress: 90% for MPC signing, 10% split across other steps (1s each)
   const stepsAfterMain = (confirmBeforeBroadcast && signingPhase !== "broadcasting" && signingPhase !== "polling") ? 0 : 2;
@@ -582,14 +581,14 @@ export function SendDialog({
   );
 
   const recovery = isRecoveryMode();
-  const signLabel = recovery ? t("send.localSigning") : expert ? t("send.mpcSigning") : t("send.validatingAndSigning");
+  const signLabel = signRowLabel(t, recovery);
   // Show smooth percentage only during the main MPC signing step
   const signLabelActive = progress.phase === "main"
     ? `${signLabel} ${progress.pct}%`
     : signLabel;
   const phaseLabels: Record<SigningPhase, string> = {
-    "loading-keyshare": t("send.buildTx"),
-    "building-tx": t("send.buildTx"),
+    "loading-keyshare": t("send.validatingAndSigning"),
+    "building-tx": t("send.validatingAndSigning"),
     "mpc-signing": signLabelActive,
     "broadcasting": t("send.broadcasting"),
     "polling": t("send.confirming"),
@@ -636,7 +635,7 @@ export function SendDialog({
             <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5"><Clock className="w-4 h-4" />{t("send.signing")}</h3>
           ) : step === "result" ? (
             <h3 className="text-sm font-semibold text-text-primary">
-              {txResult?.status === "success" ? <><CircleCheck className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("send.success")}</> : txResult?.status === "pending" ? <><Radio className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("send.broadcast")}</> : <><CircleX className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("send.failed")}</>}
+              {txResult?.status === "success" ? <><CircleCheck className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("send.txSuccess")}</> : txResult?.status === "pending" ? <><Radio className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("send.txBroadcast")}</> : <><CircleX className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("send.txFailed")}</>}
             </h3>
           ) : (
             <h3 className="text-sm font-semibold text-text-primary">
@@ -691,8 +690,8 @@ export function SendDialog({
             setDestinationTag={setDestinationTag}
             xlmMemo={xlmMemo}
             setXlmMemo={setXlmMemo}
-            amount={amount}
-            setAmount={setAmount}
+            amount={amountText}
+            setAmount={setAmountText}
             amountTouched={amountTouched}
             setAmountTouched={setAmountTouched}
             amountCheck={amountCheck}
@@ -874,20 +873,15 @@ export function SendDialog({
                   {phaseLabels[signingPhase]}
                 </p>
                 <p className="text-[11px] text-text-muted text-center mb-4">
-                  {t("send.signingLine", { amount, symbol: asset.symbol, to: shortAddrPreview(to) })}
+                  {t("send.signingLine", { amount: displayAmount(amount), symbol: asset.symbol, to: shortAddrPreview(to) })}
                 </p>
                 <div className="mb-5">
                   <ProgressBar {...progress} minimal={!expert} />
                 </div>
-                {expert && (
-                  <SigningStepper
-                    steps={confirmBeforeBroadcast && signingPhase !== "broadcasting" && signingPhase !== "polling"
-                      ? [{ label: t("send.buildTx") }, { label: signLabelActive }]
-                      : [{ label: t("send.buildTx") }, { label: signLabelActive }, { label: t("send.broadcasting") }, { label: t("send.confirming") }]
-                    }
-                    currentIndex={phaseIndex[signingPhase]}
-                  />
-                )}
+                <SigningStepper
+                  steps={txSigningSteps(t, signLabelActive, confirmBeforeBroadcast && signingPhase !== "broadcasting" && signingPhase !== "polling")}
+                  currentIndex={phaseIndex[signingPhase]}
+                />
                 {pendingTxHash && signingPhase === "polling" && (
                   <a
                     href={explorerLink(chain.explorerUrl, `/tx/${pendingTxHash}`)}

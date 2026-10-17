@@ -1,4 +1,6 @@
+import { uiLocale } from "../../lib/display-amount";
 import { maskAmount } from "../../lib/hidden-amount";
+import { editableLocaleAmount } from "../../lib/locale-amount";
 import { formatUsd } from "../../lib/prices";
 import { shortAddress } from "../../lib/review";
 import { NetworkChip } from "../review/review-header";
@@ -183,13 +185,13 @@ export function InputStep({
               value={amount}
               onChange={(e) => { if (!speedUpData) setAmount(e.target.value); }}
               onBlur={() => setAmountTouched(true)}
-              placeholder="0.00"
+              placeholder={editableLocaleAmount("0.00", uiLocale())}
               readOnly={!!speedUpData}
               className="min-w-0 flex-1 bg-transparent text-lg font-semibold text-text-primary placeholder:text-text-muted focus:outline-none tabular-nums"
             />
             <span className="text-sm text-text-muted shrink-0">{asset.symbol}</span>
             <button
-              onClick={() => { if (maxSendable != null) { setAmount(maxSendable); setAmountTouched(true); } }}
+              onClick={() => { if (maxSendable != null) { setAmount(editableLocaleAmount(maxSendable, uiLocale())); setAmountTouched(true); } }}
               disabled={maxSendable == null}
               title={maxSendable == null ? t("common.estimating") : undefined}
               className="shrink-0 rounded-full border border-border-primary px-3 py-1 text-xs font-semibold text-blue-400 hover:bg-surface-tertiary disabled:text-text-muted disabled:cursor-not-allowed transition-colors"

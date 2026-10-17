@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { toHex, sha256, performMpcSign, clientKeys, restoreKeyHandles } from "../lib/mpc";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
-import { fetchPasskeys, sensitiveHeaders } from "../lib/passkey";
+import { sensitiveHeaders } from "../lib/passkey";
+import { usePasskeyPresence } from "./use-passkey-presence";
 import { parseDerSignature } from "../lib/chains/evmTx";
 import { hexToBytes } from "../shared/utils";
 import { PasskeyGate } from "./PasskeyGate";
@@ -76,6 +77,7 @@ export function Sign() {
 
   // Passkey guard state
   const [passkeyGuard, setPasskeyGuard] = useState<"idle" | "gate">("idle");
+  const { hasPasskey, markRegistered } = usePasskeyPresence();
 
   /** The share that signs, kept for a sign that waits on the passkey registration gate. */
   const pendingKeyRef = useRef<KeyFile | null>(null);
@@ -100,17 +102,12 @@ export function Sign() {
       sign(keyFile);
       return;
     }
-    try {
-      const list = await fetchPasskeys();
-      // The signing step asks for the passkey itself (bound to this message's digest).
-      if (list.length === 0) {
-        pendingKeyRef.current = keyFile;
-        setPasskeyGuard("gate");
-      } else {
-        sign(keyFile);
-      }
-    } catch {
+    // The signing step asks for the passkey itself (bound to this message's digest).
+    if (await hasPasskey()) {
       sign(keyFile);
+    } else {
+      pendingKeyRef.current = keyFile;
+      setPasskeyGuard("gate");
     }
   }
 
@@ -274,6 +271,7 @@ export function Sign() {
       {passkeyGuard === "gate" && (
         <PasskeyGate
           onRegistered={() => {
+            markRegistered();
             setPasskeyGuard("idle");
             const kf = pendingKeyRef.current;
             pendingKeyRef.current = null;

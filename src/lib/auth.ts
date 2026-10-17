@@ -53,7 +53,8 @@ export function signOut(opts?: { sessionEnded?: boolean }) {
 /** Sign-in failure kinds; the UI maps them to localised text (lib/auth-error-message.ts). */
 export type AuthErrorCode =
   | "network" | "captcha" | "rateLimited" | "invalidCode" | "codeLocked"
-  | "tokenInvalid" | "tokenUsed" | "tokenExpired" | "unknown";
+  | "tokenInvalid" | "tokenUsed" | "tokenExpired"
+  | "passkeyCancelled" | "passkeyFailed" | "passkeyExpired" | "accountFrozen" | "unknown";
 
 export class AuthError extends Error {
   readonly code: AuthErrorCode;

@@ -1,6 +1,7 @@
 // Detail rows, actions list, fee + total, message and raw data of a review model.
 
 import { ArrowUp, CircleHelp, FileText, KeyRound, Plus, Puzzle, Coins, UserCog, XCircle } from "lucide-react";
+import { displayAmountText } from "../../lib/display-amount";
 import type { ActionIcon, ReviewAction, ReviewModel, ReviewRow } from "../../lib/review";
 import { PartyInline, PartyValue } from "./review-address";
 import { useReviewText } from "./review-text";
@@ -85,7 +86,7 @@ export function ReviewDetails({ model, copyable, expert }: { model: ReviewModel;
             <span className="text-right">
               {model.noFee === "signature" ? <span className="text-sm text-text-primary">{t("review.noFeeSignature")}</span>
                 : fee?.loading ? <span className="text-sm text-text-muted animate-pulse">{t("review.estimating")}</span>
-                  : <span className="text-sm text-text-primary tabular-nums">{fee?.approx ? "≈ " : ""}{fee?.amount}</span>}
+                  : <span className="text-sm text-text-primary tabular-nums">{fee?.approx ? "≈ " : ""}{fee?.amount != null ? displayAmountText(fee.amount) : null}</span>}
               {fee && !fee.loading && (fee.usd != null || fee.inclPriority) && (
                 <span className="block text-xs text-text-muted tabular-nums">
                   {[fee.usd != null ? usd(fee.usd) : null, fee.inclPriority ? t("review.inclPriority") : null].filter(Boolean).join(" · ")}
@@ -107,8 +108,8 @@ export function ReviewDetails({ model, copyable, expert }: { model: ReviewModel;
             <div className="px-3 py-2.5 flex items-start justify-between gap-3">
               <span className="text-xs text-text-muted font-medium">{t("send.total")}</span>
               <span className="text-right">
-                <span className="text-sm font-semibold text-text-primary tabular-nums">{total.usd != null ? `≈ ${usd(total.usd)}` : total.parts.join(" + ")}</span>
-                {total.usd != null && <span className="block text-xs text-text-muted tabular-nums">{total.native ?? total.parts.join(" + ")}</span>}
+                <span className="text-sm font-semibold text-text-primary tabular-nums">{total.usd != null ? `≈ ${usd(total.usd)}` : total.parts.map(displayAmountText).join(" + ")}</span>
+                {total.usd != null && <span className="block text-xs text-text-muted tabular-nums">{total.native != null ? displayAmountText(total.native) : total.parts.map(displayAmountText).join(" + ")}</span>}
               </span>
             </div>
           )}

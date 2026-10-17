@@ -3,7 +3,7 @@
 
 import { formatLamports, type DecodedSolanaIx } from "../chains/solanaIx";
 import type { DecodedSolanaTx } from "../chains/solanaTx";
-import { amountText, amountUsd, buildTotal, fromRow, mergeAmounts, partyOf, policyWarnings, type AssetAmount } from "./review-common";
+import { amountLabel, amountText, amountUsd, buildTotal, fromRow, mergeAmounts, partyOf, policyWarnings, type AssetAmount } from "./review-common";
 import { shortAddress, sortWarnings, usdOf, warning } from "./review-format";
 import type { Label, NameLookup, PolicyCheckInput, Prices, ReviewAction, ReviewHero, ReviewModel, ReviewRow, ReviewWarning, TokenLookup } from "./review-types";
 
@@ -50,7 +50,7 @@ function viewOf(ix: DecodedSolanaIx, index: number, i: SolanaReviewInput): IxVie
       return {
         action: { icon: "send", title: { key: "review.action.send", params: { amount: amountText(amt, 9) } }, party: party(ix.to, "to") },
         outflow: ix.from === wallet ? amt : undefined,
-        heroAmount: { text: amountText(amt, 9) },
+        heroAmount: amountLabel(amt, 9),
       };
     }
     case "spl_transfer": {
@@ -61,7 +61,7 @@ function viewOf(ix: DecodedSolanaIx, index: number, i: SolanaReviewInput): IxVie
       return {
         action: { icon: "send", title, party: party(ix.destOwner ?? ix.to, "to") },
         outflow: amt && ix.from === wallet ? amt : undefined,
-        heroAmount: amt ? { text: amountText(amt, amt.decimals) } : title,
+        heroAmount: amt ? amountLabel(amt, amt.decimals) : title,
       };
     }
     case "spl_approve": {
@@ -78,7 +78,7 @@ function viewOf(ix: DecodedSolanaIx, index: number, i: SolanaReviewInput): IxVie
           party: party(ix.delegate, "for"),
         },
         warning: unlimited ? warning("unlimitedApproval", { spender, symbol }) : warning("approval", { spender, amount: text }),
-        heroAmount: unlimited ? { key: "review.unlimited", params: { symbol } } : { text },
+        heroAmount: unlimited ? { key: "review.unlimited", params: { symbol } } : amt ? { text, amount: true } : { text },
       };
     }
     case "spl_set_authority":
@@ -166,12 +166,13 @@ export function buildSolanaReview(i: SolanaReviewInput): ReviewModel {
   const priority = BigInt(fee.priorityLamports);
   const rent = BigInt(fee.rentLamports);
   const sol = (l: bigint) => `${formatLamports(l)} SOL`;
+  const solLabel = (l: bigint): Label => ({ text: sol(l), amount: true });
   const details: ReviewRow[] = [
-    { label: { key: "review.fee.base" }, value: { text: sol(BigInt(fee.baseLamports)) } },
-    ...(priority > 0n ? [{ label: { key: "review.fee.priority" }, value: { text: sol(priority) } }] : []),
+    { label: { key: "review.fee.base" }, value: solLabel(BigInt(fee.baseLamports)) },
+    ...(priority > 0n ? [{ label: { key: "review.fee.priority" }, value: solLabel(priority) }] : []),
     ...(fee.computeUnitLimit != null ? [{ label: { key: "review.fee.cuLimit" }, value: { text: fee.computeUnitLimit.toLocaleString("en-US") } }] : []),
     ...(BigInt(fee.computeUnitPrice) > 0n ? [{ label: { key: "review.fee.cuPrice" }, value: { key: "review.fee.microLamports", params: { price: fee.computeUnitPrice } } }] : []),
-    ...(rent > 0n ? [{ label: { key: "review.fee.rent" }, value: { text: sol(rent) } }] : []),
+    ...(rent > 0n ? [{ label: { key: "review.fee.rent" }, value: solLabel(rent) }] : []),
   ];
   const rows: ReviewRow[] = [fromRow(i.from)];
   // A single send / approve is the hero: its counterparty gets the full-address row (anti address-poisoning).

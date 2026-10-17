@@ -1,4 +1,5 @@
 import { explorerLink } from "../../shared/utils";
+import { displayAmount } from "../../lib/display-amount";
 import { shortAddrPreview } from "../sendTypes";
 import { mempoolApiUrl, broadcastBtcTx, waitForBtcConfirmation } from "../../lib/chains/btcTx";
 import { broadcastTransaction, waitForReceipt } from "../../lib/chains/evmTx";
@@ -222,7 +223,7 @@ export function ResultStep({
             </div>
             <p className="text-lg font-semibold text-text-primary mb-1">{t("send.txSuccess")}</p>
             <p className="text-sm text-text-muted tabular-nums">
-              {amount} {asset.symbol}
+              {displayAmount(amount)} {asset.symbol}
             </p>
           </>
         ) : txResult.status === "pending" ? (
@@ -234,7 +235,7 @@ export function ResultStep({
             </div>
             <p className="text-lg font-semibold text-text-primary mb-1">{t("send.txBroadcast")}</p>
             <p className="text-sm text-text-muted tabular-nums mb-1">
-              {amount} {asset.symbol}
+              {displayAmount(amount)} {asset.symbol}
             </p>
             <p className="text-[11px] text-text-muted">
               {gaveUp ? t("send.couldNotConfirm") : `${t("send.confirming")}...`}

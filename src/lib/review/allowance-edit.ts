@@ -6,21 +6,24 @@
 import { sha256 } from "@noble/hashes/sha256";
 import { bytesToHex, hexToBytes } from "../../shared/utils";
 import { decodeTronRawData } from "../chains/tron-raw-data-decoder";
+import { parseLocaleAmount } from "../locale-amount";
 import { formatUnits, UNLIMITED_THRESHOLD } from "./review-format";
 
 const APPROVE = "095ea7b3";
 const UINT256_MAX = 2n ** 256n - 1n;
 
-export type AllowanceInputError = "empty" | "invalid" | "tooManyDecimals" | "tooLarge";
+export type AllowanceInputError = "empty" | "invalid" | "ambiguous" | "tooManyDecimals" | "tooLarge";
 
-/** User text ("1,250.5" or "1250.5") → base units, or why it is not an amount. Zero is allowed (revoke). */
-export function parseAllowanceInput(text: string, decimals: number): { amount: bigint } | { error: AllowanceInputError } {
-  const t = text.trim().replace(/[,\s_]/g, "");
-  if (t === "") return { error: "empty" };
-  if (!/^\d*\.?\d*$/.test(t) || t === ".") return { error: "invalid" };
-  const [int, frac = ""] = t.split(".");
+/**
+ * User text in the UI language ("1,250.5" en, "1.250,5" es) → base units, or why it is not an amount.
+ * Zero is allowed (revoke). Read by parseLocaleAmount, so "1.250" in Spanish is rejected as ambiguous, never guessed.
+ */
+export function parseAllowanceInput(text: string, decimals: number, locale = "en"): { amount: bigint } | { error: AllowanceInputError } {
+  const parsed = parseLocaleAmount(text, locale);
+  if (parsed.kind !== "ok") return { error: parsed.kind };
+  const [int, frac = ""] = parsed.value.split(".");
   if (frac.length > decimals) return { error: "tooManyDecimals" };
-  const amount = BigInt((int || "0") + frac.padEnd(decimals, "0"));
+  const amount = BigInt(int + frac.padEnd(decimals, "0"));
   if (amount > UINT256_MAX) return { error: "tooLarge" };
   return { amount };
 }

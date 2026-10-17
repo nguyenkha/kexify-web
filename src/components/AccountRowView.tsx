@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { displayAmount } from "../lib/display-amount";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import type { AccountRow } from "../lib/accountRows";
@@ -179,7 +180,7 @@ export function AccountRowView({
             {nativeState === "loaded" && (
               <div>
                 <div className={`flex items-baseline justify-end gap-1 text-sm tabular-nums font-medium text-text-primary transition-colors duration-700 ${changeClass(nativeChanged)}`}>
-                  <span>{hidden ? MASK : (nativeBalance ? truncateBalance(nativeBalance.formatted) : "0")}</span>
+                  <span>{hidden ? MASK : (nativeBalance ? displayAmount(truncateBalance(nativeBalance.formatted)) : "0")}</span>
                   <span className="text-[11px] text-text-muted font-normal">{nativeSymbol}</span>
                 </div>
                 {nativeUsd != null && (
@@ -236,7 +237,7 @@ export function AccountRowView({
                 <div className="flex items-center gap-3 shrink-0">
                   <div className="text-right min-w-[4rem]">
                     <div className={`flex items-baseline justify-end gap-1 text-xs tabular-nums font-medium text-text-secondary transition-colors duration-700 ${changeClass(tokenDir)}`}>
-                      <span>{hidden ? MASK : truncateBalance(b.formatted)}</span>
+                      <span>{hidden ? MASK : displayAmount(truncateBalance(b.formatted))}</span>
                       <span className="text-text-muted font-normal">{b.asset.symbol}</span>
                     </div>
                     {tokenUsd != null && (

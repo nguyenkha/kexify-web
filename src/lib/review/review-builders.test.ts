@@ -35,6 +35,8 @@ describe("EVM transaction", () => {
     const m = buildEvmTxReview({ tx: { to: TO, value: "0x" + (25n * 10n ** 16n).toString(16) }, from: FROM, nativeSymbol: "ETH", feeWei: 420_000_000_000_000n, prices, firstTimeRecipient: true });
     expect(m.hero.icon).toBe("send");
     expect(text(m.hero.amount)).toBe("0.25 ETH");
+    // Builder-made amount: flagged so the UI may show it in the user's number format.
+    expect(m.hero.amount).toEqual({ text: "0.25 ETH", amount: true });
     expect(m.hero.usd).toBeCloseTo(750);
     expect(m.rows.find((r) => r.fullAddress)?.party?.address).toBe(TO);
     expect(m.fee).toMatchObject({ amount: "0.00042 ETH" });
@@ -171,6 +173,8 @@ describe("messages", () => {
   });
   test("plain message uses its first line", () => {
     expect(buildMessageReview({ kind: "tron", text: "\nHello TRON\nsecond", from: FROM }).hero.amount).toEqual({ text: "Hello TRON" });
+    // A message line that looks like an amount is the dApp's text: never flagged, never reformatted.
+    expect(buildMessageReview({ kind: "personal", text: "1,000.5 USDC", from: FROM }).hero.amount).toEqual({ text: "1,000.5 USDC" });
   });
   test("eth_sign is a danger", () => {
     const m = buildMessageReview({ kind: "hash", text: "0x" + "ab".repeat(32), from: FROM });
@@ -247,7 +251,7 @@ describe("TRON", () => {
     const m = buildTronReview({ decoded: { ...base, kind: "trc20_approve", to: "TSpender", amount: 2n ** 256n - 1n, contractAddress: "TUsdt", unlimited: true, feeLimit: 100_000_000n }, from: { address: owner }, token: { symbol: "USDT", decimals: 6 }, feeSun: 15_000_000n, prices });
     expect(m.hero.amount).toEqual({ key: "review.unlimited", params: { symbol: "USDT" } });
     expect(codes(m)).toEqual(["unlimitedApproval"]);
-    expect(m.rows.find((r) => (r.label as { key: string }).key === "review.fee.limit")?.value).toEqual({ text: "100 TRX" });
+    expect(m.rows.find((r) => (r.label as { key: string }).key === "review.fee.limit")?.value).toEqual({ text: "100 TRX", amount: true });
   });
   test("unreadable bytes block", () => {
     const m = buildTronReview({ decoded: null, from: { address: owner }, feeSun: 0n, prices });

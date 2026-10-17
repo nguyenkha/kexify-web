@@ -3,7 +3,7 @@
 import { formatSun } from "../chains/tronTx";
 import type { TronDecodedTx } from "../chains/tron-raw-data-decoder";
 import { allowanceOf, editedLabel } from "./build-evm-tx-review";
-import { amountText, amountUsd, buildFee, buildTotal, fromRow, partyOf, policyWarnings, type AssetAmount } from "./review-common";
+import { amountLabel, amountText, amountUsd, buildFee, buildTotal, fromRow, partyOf, policyWarnings, type AssetAmount } from "./review-common";
 import { shortAddress, sortWarnings, UNLIMITED_THRESHOLD, warning } from "./review-format";
 import type { NameLookup, PolicyCheckInput, Prices, ReviewHero, ReviewModel, ReviewRow, ReviewWarning, TokenInfo } from "./review-types";
 
@@ -49,7 +49,7 @@ export function buildTronReview(i: TronReviewInput): ReviewModel {
   if (d.kind === "trx_transfer") {
     const amt: AssetAmount = { raw: d.amount, decimals: 6, symbol: "TRX" };
     const party = partyOf(d.to, i.nameOf);
-    hero = { icon: "send", tone: "accent", verb: { key: "review.verb.send" }, amount: { text: amountText(amt) }, usd: amountUsd(amt, i.prices), counterparty: { prefix: "to", party } };
+    hero = { icon: "send", tone: "accent", verb: { key: "review.verb.send" }, amount: amountLabel(amt), usd: amountUsd(amt, i.prices), counterparty: { prefix: "to", party } };
     rows.push({ label: { key: "send.to" }, party, fullAddress: true });
     outflow.push(amt);
     if (i.firstTimeRecipient) warnings.push(warning("firstTimeRecipient"));
@@ -57,7 +57,7 @@ export function buildTronReview(i: TronReviewInput): ReviewModel {
     const party = partyOf(d.to, i.nameOf);
     hero = {
       icon: "send", tone: "accent", verb: { key: "review.verb.send" },
-      amount: tokenAmt ? { text: amountText(tokenAmt) } : { key: "review.baseUnits", params: { amount: d.amount.toString(), symbol } },
+      amount: tokenAmt ? amountLabel(tokenAmt) : { key: "review.baseUnits", params: { amount: d.amount.toString(), symbol } },
       usd: tokenAmt ? amountUsd(tokenAmt, i.prices) : undefined,
       counterparty: { prefix: "to", party },
     };
@@ -78,7 +78,7 @@ export function buildTronReview(i: TronReviewInput): ReviewModel {
     }
     hero = {
       icon: "approve", tone: "warning", verb: { key: cap === 0n && i.token ? "review.verb.revoke" : "review.verb.approve" },
-      amount: unlimited ? { key: "review.unlimited", params: { symbol } } : { text },
+      amount: unlimited ? { key: "review.unlimited", params: { symbol } } : capAmt ? { text, amount: true } : { text },
       usd: !unlimited && capAmt ? amountUsd(capAmt, i.prices) : undefined,
       sub: i.token && cap !== d.amount ? editedLabel(d.amount, i.token) : undefined,
       counterparty: { prefix: "for", party: spender },
@@ -87,7 +87,7 @@ export function buildTronReview(i: TronReviewInput): ReviewModel {
     if (contract) rows.push({ label: { key: "review.token" }, party: contract });
   }
   // The signed cap on TRX burned: always visible, not only in fee details.
-  if (d.feeLimit > 0n) rows.push({ label: { key: "review.fee.limit" }, value: { text: `${formatSun(d.feeLimit)} TRX` } });
+  if (d.feeLimit > 0n) rows.push({ label: { key: "review.fee.limit" }, value: { text: `${formatSun(d.feeLimit)} TRX`, amount: true } });
 
   return {
     hero,

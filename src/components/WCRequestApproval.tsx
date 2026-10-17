@@ -147,7 +147,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   const isTx = request.method === "eth_sendTransaction" || isSolanaTx || isTronTx;
 
   // Stepped progress: 90% for MPC signing, 10% for other steps (1s each)
-  const wcStepsAfterMain = isTx ? 2 : 1; // tx: broadcast+confirm; msg: verify
+  const wcStepsAfterMain = isTx ? 2 : 0; // tx: broadcast+confirm; msg: done after MPC signing
   const progress = useSteppedProgress(
     phase === "signing" ? signingStepIdx : -1,
     1, // main step = MPC signing (index 1)
@@ -855,13 +855,14 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
 
   // Signing progress steps
-  const signLabel = isRecoveryMode() ? t("wc.localSigning") : expert ? t("wc.mpcSigning") : t("send.validatingAndSigning");
+  // Prepare → MPC signing (→ broadcast → confirming for a transaction), as on iOS.
+  const signLabel = isRecoveryMode() ? t("send.localSigning") : t("wc.mpcSigning");
   const signLabelActive = progress.phase === "main"
     ? `${signLabel} ${progress.pct}%`
     : signLabel;
   const displaySteps = isTx
-    ? [{ label: t("wc.buildTx") }, { label: signLabelActive }, { label: t("wc.broadcasting") }, { label: t("wc.confirming") }]
-    : [{ label: t("wc.prepare") }, { label: signLabelActive }, { label: t("wc.verify") }];
+    ? [{ label: t("wc.prepare") }, { label: signLabelActive }, { label: t("wc.broadcasting") }, { label: t("wc.confirming") }]
+    : [{ label: t("wc.prepare") }, { label: signLabelActive }];
 
   const txPhaseIndex: Record<WcSignPhase, number> = {
     "building-tx": 0,
@@ -1240,8 +1241,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                 <ProgressBar {...progress} minimal={!expert} />
               </div>
 
-              {/* Progress steps — expert only */}
-              {expert && <SigningStepper steps={displaySteps} currentIndex={signingStepIdx} className="mt-4" />}
+              <SigningStepper steps={displaySteps} currentIndex={signingStepIdx} className="mt-4" />
 
               {/* Tx hash card (visible during Confirming step) */}
               {txResult?.txHash && chain && signingStepIdx >= 3 && (

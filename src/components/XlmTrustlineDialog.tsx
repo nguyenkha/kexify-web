@@ -7,14 +7,15 @@ import { Eye, Lock } from "lucide-react";
 import type { Chain, Asset } from "../lib/api";
 import { explorerLink } from "../shared/utils";
 import { useSteppedProgress, signingDurationMs, ProgressBar } from "./ProgressBar";
-import { SigningError, SigningStepper } from "./tx";
+import { SigningError, SigningStepper, signRowLabel, txSigningSteps, TX_PHASE_STEP } from "./tx";
 import { useExpertMode } from "../context/ExpertModeContext";
 import { formatUsd, getUsdValue } from "../lib/prices";
 import { toBase64, performMpcSign, clientKeys, restoreKeyHandles, clearClientKey } from "../lib/mpc";
 import { authHeaders } from "../lib/auth";
 import { useToast } from "../context/ToastContext";
 import { apiUrl } from "../lib/apiBase";
-import { fetchPasskeys, sensitiveHeaders } from "../lib/passkey";
+import { sensitiveHeaders } from "../lib/passkey";
+import { usePasskeyPresence } from "./use-passkey-presence";
 import { PasskeyGate } from "./PasskeyGate";
 import { isRecoveryMode } from "../lib/recovery";
 import { hasSigningShare, resolveSigningKeyFile } from "../lib/signing-key-file";
@@ -49,17 +50,15 @@ export function XlmTrustlineDialog({
   const [txResult, setTxResult] = useState<TxResult | null>(null);
   const [pendingTxHash, setPendingTxHash] = useState<string | null>(null);
   const [passkeyGuard, setPasskeyGuard] = useState<"idle" | "gate">("idle");
+  const { hasPasskey, markRegistered } = usePasskeyPresence();
   const pendingSignRef = useRef<(() => void) | null>(null);
   const [xlmFeeRate, setXlmFeeRate] = useState(100);
   const [enabledAssets, setEnabledAssets] = useState<Set<string>>(new Set());
   const recovery = isRecoveryMode();
   const expert = useExpertMode();
-  const signLabel = recovery ? t("xlm.localSigning") : expert ? t("xlm.mpcSigning") : t("send.validatingAndSigning");
+  const signLabel = signRowLabel(t, recovery);
 
-  const phaseIndex: Record<SigningPhase, number> = {
-    "loading-keyshare": 0, "building-tx": 0,
-    "mpc-signing": 1, "broadcasting": 2, "polling": 3,
-  };
+  const phaseIndex = TX_PHASE_STEP;
 
   // Stepped progress: 90% for MPC signing, 10% split across broadcast + confirm
   const progress = useSteppedProgress(
@@ -125,14 +124,13 @@ export function XlmTrustlineDialog({
     if (!kf) return;
     const run = () => action(kf);
     if (isRecoveryMode()) { run(); return; }
-    try {
-      const list = await fetchPasskeys();
-      if (list.length === 0) { pendingSignRef.current = run; setPasskeyGuard("gate"); }
-      else run(); // the signing step asks for the passkey, bound to this transaction
-    } catch { run(); }
+    // The signing step asks for the passkey, bound to this transaction; only a missing one stops here.
+    if (await hasPasskey()) run();
+    else { pendingSignRef.current = run; setPasskeyGuard("gate"); }
   }
 
   function onPasskeyComplete() {
+    markRegistered();
     setPasskeyGuard("idle");
     pendingSignRef.current?.();
     pendingSignRef.current = null;
@@ -429,19 +427,13 @@ export function XlmTrustlineDialog({
 
                 {/* Phase label */}
                 <p className="text-sm font-medium text-text-primary text-center mb-2">
-                  {signingPhase === "mpc-signing" ? signLabelActive : signingPhase === "broadcasting" ? t("xlm.broadcasting") : signingPhase === "polling" ? t("xlm.confirming") : t("xlm.buildTx")}
+                  {txSigningSteps(t, signLabelActive)[phaseIndex[signingPhase]].label}
                 </p>
                 <p className="text-[11px] text-text-muted text-center mb-6">
                   {t("xlm.enableTrustline", { symbol: selectedAsset?.symbol })}
                 </p>
 
-                {/* Progress steps — expert only */}
-                {expert && (
-                  <SigningStepper
-                    steps={[{ label: "Build transaction" }, { label: signLabelActive }, { label: "Broadcast" }, { label: "Confirming" }]}
-                    currentIndex={phaseIndex[signingPhase]}
-                  />
-                )}
+                <SigningStepper steps={txSigningSteps(t, signLabelActive)} currentIndex={phaseIndex[signingPhase]} />
 
                 {/* Tx hash card (visible during Confirming step) */}
                 {pendingTxHash && signingPhase === "polling" && (

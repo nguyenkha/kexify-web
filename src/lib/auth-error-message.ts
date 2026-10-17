@@ -15,6 +15,10 @@ export function authErrorMessage(err: unknown, t: TFunction): string {
     case "tokenInvalid": return t("verifyToken.invalid");
     case "tokenUsed": return t("verifyToken.used");
     case "tokenExpired": return t("verifyToken.expired");
+    case "passkeyCancelled": return t("auth.error.passkeyCancelled");
+    case "passkeyFailed": return t("auth.error.passkeyFailed");
+    case "passkeyExpired": return t("auth.error.passkeyExpired");
+    case "accountFrozen": return t("auth.error.accountFrozen");
     default: return t("alert.error");
   }
 }

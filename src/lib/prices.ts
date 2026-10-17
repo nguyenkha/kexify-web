@@ -1,4 +1,5 @@
 // Fetch USD prices from CoinGecko free API
+import { displayAmount } from "./display-amount";
 import { getCache, setCache, getCacheTtl, PRICES_CACHE_KEY } from "./dataCache";
 
 // Map asset symbols to CoinGecko IDs
@@ -65,13 +66,11 @@ export async function fetchPrices(): Promise<Record<string, number>> {
   }
 }
 
+/** "$1,234.56" with the UI language's separators ("$1.234,56" in Spanish); "< $0.01" for dust. */
 export function formatUsd(amount: number): string {
-  if (amount === 0) return "$0.00";
-  if (amount < 0.01) return "< $0.01";
-  return "$" + amount.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  if (amount === 0) return "$" + displayAmount("0.00");
+  if (amount < 0.01) return `< $${displayAmount("0.01")}`;
+  return "$" + displayAmount(amount.toFixed(2));
 }
 
 export function getUsdValue(

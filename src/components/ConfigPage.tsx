@@ -19,6 +19,7 @@ import { AddressBookPanel } from "./AddressBookPanel";
 import { useSetExpertMode } from "../context/ExpertModeContext";
 import { useTranslation } from "react-i18next";
 import { setLanguage, getStoredLanguage } from "../i18n/i18n";
+import { LOCALES } from "../i18n/locales";
 import { isNotifyEnabled, setNotifyEnabled } from "../lib/notify";
 import { friendlyError } from "../lib/error-message";
 import { isRecoveryMode } from "../lib/recovery";
@@ -968,11 +969,6 @@ export function ConfigPage() {
   );
 }
 
-const LANGUAGES = [
-  { code: "en", label: "English" },
-  { code: "vi", label: "Tiếng Việt" },
-];
-
 function LanguageSelector() {
   const { t } = useTranslation();
   const [lang, setLang] = useState(getStoredLanguage);
@@ -988,21 +984,15 @@ function LanguageSelector() {
         <div>
           <p className="text-sm font-medium text-text-primary">{t("config.language")}</p>
         </div>
-        <div className="flex bg-surface-primary border border-border-primary rounded-lg p-0.5 gap-0.5">
-          {LANGUAGES.map((l) => (
-            <button
-              key={l.code}
-              onClick={() => handleChange(l.code)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                lang === l.code
-                  ? "bg-surface-tertiary text-text-primary shadow-sm"
-                  : "text-text-muted hover:text-text-secondary"
-              }`}
-            >
-              {l.label}
-            </button>
-          ))}
-        </div>
+        {/* Each language in its own name, so anyone can find theirs whatever the current language is. */}
+        <select
+          value={lang}
+          onChange={(e) => handleChange(e.target.value)}
+          aria-label={t("config.language")}
+          className="max-w-[55%] bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs font-medium text-text-primary focus:outline-none focus:border-blue-500"
+        >
+          {LOCALES.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
+        </select>
       </div>
     </div>
   );

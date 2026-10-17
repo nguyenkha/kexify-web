@@ -3,7 +3,9 @@
 // Localizable.xcstrings, via the JSC bundle) render the same model.
 
 /** Localisable text: a catalog key with string params, or literal text (amounts, symbols, addresses). */
-export type Label = { key: string; params?: Record<string, string> } | { text: string };
+/** `amount: true`: text the builder made from an amount ("1234.5 ETH"), safe to show in the user's number format.
+ *  Plain text without it (a dApp's domain name, a message line) is shown exactly as received. */
+export type Label = { key: string; params?: Record<string, string> } | { text: string; amount?: true };
 
 export type Tone = "danger" | "warning";
 

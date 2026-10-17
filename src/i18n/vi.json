@@ -73,6 +73,9 @@
     "anonymousWallet": "Ví ẩn danh",
     "unlock": "Mở khóa",
     "importFile": "Nhập tệp",
+    "signInWithPasskey": "Đăng nhập bằng passkey",
+    "signingInWithPasskey": "Đang chờ passkey...",
+    "orEmail": "hoặc dùng email",
     "useWithoutEmail": "Dùng không cần email"
   },
   "nav": {
@@ -270,7 +273,6 @@
     "title": "Gửi {{symbol}}",
     "speedUp": "Tăng tốc {{symbol}}",
     "signing": "Đang ký",
-    "success": "Thành công",
     "broadcast": "Đã phát",
     "failed": "Thất bại",
     "review": "Xem lại",
@@ -327,7 +329,6 @@
     "backupRequiredDesc": "Hoàn tất sao lưu key trước trong Sao lưu & Khôi phục.",
     "policyBlocked": "Giao dịch bị chặn bởi chính sách",
     "simulatedVia": "Mô phỏng qua {{provider}}",
-    "buildTx": "Xây dựng giao dịch",
     "mpcSigning": "Ký MPC",
     "validatingAndSigning": "Kiểm tra chính sách & ký",
     "localSigning": "Ký cục bộ",
@@ -411,7 +412,9 @@
     "unsupportedChain": "Chưa hỗ trợ gửi trên {{chain}}.",
     "selectAsset": "Chọn tài sản để gửi",
     "nothingToSend": "Chưa có gì để gửi",
-    "insufficientWithFee": "Số dư không đủ cho số tiền và phí mạng. Chưa có gì được gửi."
+    "insufficientWithFee": "Số dư không đủ cho số tiền và phí mạng. Chưa có gì được gửi.",
+    "amountInvalid": "Nhập một số, ví dụ {{example}}",
+    "amountAmbiguous": "Số tiền không rõ ràng. Viết phần thập phân như {{example}}"
   },
   "sign": {
     "title": "Ký thủ công",
@@ -503,9 +506,7 @@
     "instructions": "Lệnh",
     "contract": "Hợp đồng",
     "transfer": "Chuyển",
-    "buildTx": "Xây dựng giao dịch",
     "mpcSigning": "Ký MPC",
-    "localSigning": "Ký cục bộ",
     "broadcasting": "Phát sóng",
     "confirming": "Đang xác nhận",
     "signing": "Đang ký",
@@ -527,7 +528,6 @@
     "insufficient": "Không đủ số dư",
     "estimating": "Đang tính...",
     "prepare": "Chuẩn bị",
-    "verify": "Xác minh",
     "keyShareNotAvailable": "Key share không có sẵn.",
     "txConfirmedLabel": "Giao dịch đã xác nhận",
     "signed": "Đã ký",
@@ -613,11 +613,6 @@
     "canReceive": "Bạn có thể nhận {{symbol}} trên Stellar",
     "txBroadcast": "Đã phát giao dịch",
     "waitingConfirmation": "Đang chờ xác nhận...",
-    "buildTx": "Xây dựng giao dịch",
-    "mpcSigning": "Ký MPC",
-    "localSigning": "Ký cục bộ",
-    "broadcasting": "Phát sóng",
-    "confirming": "Đang xác nhận",
     "enableTrustline": "Bật trustline {{symbol}}",
     "tokenEnabledToast": "Đã bật token thành công"
   },
@@ -640,11 +635,6 @@
     "totalCost": "Tổng chi phí",
     "change": "Thay đổi",
     "account": "Tài khoản",
-    "buildTx": "Tạo giao dịch",
-    "mpcSigning": "Ký MPC",
-    "localSigning": "Ký cục bộ",
-    "broadcasting": "Phát sóng",
-    "confirming": "Xác nhận",
     "optInProgress": "Đang opt-in {{symbol}}",
     "tokenEnabledToast": "Đã opt-in token thành công"
   },
@@ -1221,7 +1211,11 @@
       "network": "Không kết nối được server. Kiểm tra mạng và thử lại.",
       "invalidCode": "Mã không hợp lệ hoặc đã hết hạn",
       "tooManyAttempts": "Quá nhiều lần thử. Hãy thử lại sau vài phút.",
-      "codeLocked": "Quá nhiều lần thử. Hãy dùng đường dẫn trong email hoặc yêu cầu mã mới sau."
+      "codeLocked": "Quá nhiều lần thử. Hãy dùng đường dẫn trong email hoặc yêu cầu mã mới sau.",
+      "passkeyCancelled": "Đã huỷ đăng nhập bằng passkey.",
+      "passkeyFailed": "Passkey này không đăng nhập được ở đây. Hãy dùng email.",
+      "passkeyExpired": "Yêu cầu đăng nhập đã hết hạn. Hãy thử lại.",
+      "accountFrozen": "Tài khoản đang bị đóng băng. Hãy đăng nhập bằng email để xem bước tiếp theo."
     },
     "resendIn": "Gửi lại sau {{seconds}}s",
     "resend": "Gửi lại email",
@@ -1422,7 +1416,8 @@
         "empty": "Nhập số lượng",
         "invalid": "Nhập một số",
         "tooManyDecimals": "{{symbol}} có tối đa {{decimals}} chữ số thập phân",
-        "tooLarge": "Số quá lớn"
+        "tooLarge": "Số quá lớn",
+        "ambiguous": "Số tiền không rõ ràng. Viết phần thập phân như {{example}}"
       },
       "done": "Xong"
     },

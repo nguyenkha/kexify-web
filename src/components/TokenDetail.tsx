@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { displayAmount } from "../lib/display-amount";
 import { createPortal } from "react-dom";
 import { Spinner, CopyableText } from "./ui";
 import type { Chain, Asset } from "../lib/api";
@@ -316,7 +317,7 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
           onClick={() => setShowFullBalance(!showFullBalance)}
           className="text-2xl font-semibold tabular-nums text-text-primary mt-3 break-all cursor-pointer hover:text-text-secondary transition-colors"
         >
-          {balancesHidden ? MASK : (showFullBalance ? balance : truncateBalance(balance))} <span className="text-text-tertiary text-sm">{asset.symbol}</span>
+          {balancesHidden ? MASK : displayAmount(showFullBalance ? balance : truncateBalance(balance))} <span className="text-text-tertiary text-sm">{asset.symbol}</span>
         </button>
         {usdValue != null && (
           <p className="text-sm text-text-muted tabular-nums mt-0.5">{balancesHidden ? MASK : formatUsd(usdValue)}</p>

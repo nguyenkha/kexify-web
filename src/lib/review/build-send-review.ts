@@ -1,7 +1,7 @@
 // Send flow → review model (Send → Review step, every chain). Same layout as WalletConnect.
 
 import { parseUnits } from "../chains/evmTx";
-import { amountText, buildTotal, fromRow, partyOf, policyWarnings, type AssetAmount } from "./review-common";
+import { amountLabel, buildTotal, fromRow, partyOf, policyWarnings, type AssetAmount } from "./review-common";
 import { sortWarnings, usdOf, warning } from "./review-format";
 import type { NameLookup, PolicyCheckInput, Prices, ReviewModel, ReviewRow, ReviewWarning } from "./review-types";
 
@@ -56,7 +56,7 @@ export function buildSendReview(i: SendReviewInput): ReviewModel {
   if (amountUsd != null && (feeUsd != null || !feeAmt)) total.usd = amountUsd + (feeUsd ?? 0);
 
   return {
-    hero: { icon: "send", tone: "accent", verb: { key: "review.verb.send" }, amount: { text: amountText(amt, amt.decimals) }, usd: amountUsd ?? undefined, counterparty: { prefix: "to", party } },
+    hero: { icon: "send", tone: "accent", verb: { key: "review.verb.send" }, amount: amountLabel(amt, amt.decimals), usd: amountUsd ?? undefined, counterparty: { prefix: "to", party } },
     warnings: sortWarnings(warnings),
     rows,
     actions: [],

@@ -73,6 +73,9 @@
     "anonymousWallet": "Anonymous wallet",
     "unlock": "Unlock",
     "importFile": "Import file",
+    "signInWithPasskey": "Sign in with passkey",
+    "signingInWithPasskey": "Waiting for passkey...",
+    "orEmail": "or use email",
     "useWithoutEmail": "Use without email"
   },
   "nav": {
@@ -270,7 +273,6 @@
     "title": "Send {{symbol}}",
     "speedUp": "Speed up {{symbol}}",
     "signing": "Signing",
-    "success": "Success",
     "broadcast": "Broadcast",
     "failed": "Failed",
     "review": "Review",
@@ -327,7 +329,6 @@
     "backupRequiredDesc": "Complete your key backup first in Backup & Recovery.",
     "policyBlocked": "Transaction blocked by policy",
     "simulatedVia": "Simulated via {{provider}}",
-    "buildTx": "Build transaction",
     "mpcSigning": "MPC signing",
     "validatingAndSigning": "Validating policy & signing",
     "localSigning": "Local signing",
@@ -411,7 +412,9 @@
     "unsupportedChain": "Sending is not supported on {{chain}} yet.",
     "selectAsset": "Choose what to send",
     "nothingToSend": "Nothing to send yet",
-    "insufficientWithFee": "Not enough balance to cover the amount and the network fee. Nothing was sent."
+    "insufficientWithFee": "Not enough balance to cover the amount and the network fee. Nothing was sent.",
+    "amountInvalid": "Enter a number, e.g. {{example}}",
+    "amountAmbiguous": "Unclear amount. Write decimals like {{example}}"
   },
   "sign": {
     "title": "Raw signing",
@@ -503,9 +506,7 @@
     "instructions": "Instructions",
     "contract": "Contract",
     "transfer": "Transfer",
-    "buildTx": "Build transaction",
     "mpcSigning": "MPC signing",
-    "localSigning": "Local signing",
     "broadcasting": "Broadcast",
     "confirming": "Confirming",
     "signing": "Signing",
@@ -527,7 +528,6 @@
     "insufficient": "Insufficient",
     "estimating": "Estimating...",
     "prepare": "Prepare",
-    "verify": "Verify",
     "keyShareNotAvailable": "Key share not available.",
     "txConfirmedLabel": "Transaction confirmed",
     "signed": "Signed",
@@ -613,11 +613,6 @@
     "canReceive": "You can now receive {{symbol}} on Stellar",
     "txBroadcast": "Transaction broadcast",
     "waitingConfirmation": "Waiting for confirmation...",
-    "buildTx": "Build transaction",
-    "mpcSigning": "MPC signing",
-    "localSigning": "Local signing",
-    "broadcasting": "Broadcast",
-    "confirming": "Confirming",
     "enableTrustline": "Enable {{symbol}} trustline",
     "tokenEnabledToast": "Token enabled successfully"
   },
@@ -640,11 +635,6 @@
     "totalCost": "Total cost",
     "change": "Change",
     "account": "Account",
-    "buildTx": "Build transaction",
-    "mpcSigning": "MPC signing",
-    "localSigning": "Local signing",
-    "broadcasting": "Broadcast",
-    "confirming": "Confirming",
     "optInProgress": "Opting in to {{symbol}}",
     "tokenEnabledToast": "Token opted in successfully"
   },
@@ -1221,7 +1211,11 @@
       "network": "Could not reach the server. Check your connection and try again.",
       "invalidCode": "Invalid or expired code",
       "tooManyAttempts": "Too many attempts. Try again in a few minutes.",
-      "codeLocked": "Too many attempts. Use the link in the email, or request a new code later."
+      "codeLocked": "Too many attempts. Use the link in the email, or request a new code later.",
+      "passkeyCancelled": "Passkey sign-in was cancelled.",
+      "passkeyFailed": "This passkey can't sign in here. Use your email instead.",
+      "passkeyExpired": "The sign-in request expired. Try again.",
+      "accountFrozen": "This account is frozen. Sign in with your email to see what to do next."
     },
     "resendIn": "Resend in {{seconds}}s",
     "resend": "Resend email",
@@ -1422,7 +1416,8 @@
         "empty": "Enter an amount",
         "invalid": "Enter a number",
         "tooManyDecimals": "{{symbol}} has at most {{decimals}} decimals",
-        "tooLarge": "Amount is too large"
+        "tooLarge": "Amount is too large",
+        "ambiguous": "Unclear amount. Write decimals like {{example}}"
       },
       "done": "Done"
     },

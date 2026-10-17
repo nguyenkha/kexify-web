@@ -58,6 +58,7 @@ import { StandaloneKeygen } from "./components/StandaloneKeygen";
 import { DomainMovedNotice } from "./components/DomainMovedNotice";
 import { LangSwitcher } from "./components/LangSwitcher";
 import { setLanguage } from "./i18n/i18n";
+import { matchLocale } from "./i18n/locales";
 import { Broadcast as BroadcastPage } from "./components/Broadcast";
 import { RecoveryProvider } from "./context/RecoveryContext";
 import { isRecoveryMode, getRecoveryKeys, exitRecoveryMode } from "./lib/recovery";
@@ -485,7 +486,6 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-const SUPPORTED_LANGS = ["en", "vi"];
 
 function LangFromUrl() {
   const location = useLocation();
@@ -495,7 +495,7 @@ function LangFromUrl() {
     if (applied) return;
     const params = new URLSearchParams(location.search);
     const lang = params.get("lang");
-    if (lang && SUPPORTED_LANGS.includes(lang)) {
+    if (lang && matchLocale(lang)) {
       setLanguage(lang);
     }
     setApplied(true);

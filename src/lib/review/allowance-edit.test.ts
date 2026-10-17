@@ -29,6 +29,15 @@ describe("custom amount input", () => {
     expect(parseAllowanceInput("", 6)).toEqual({ error: "empty" });
     expect(parseAllowanceInput("1" + "0".repeat(80), 0)).toEqual({ error: "tooLarge" });
   });
+  test("custom cap text is read in the UI language", () => {
+    expect(parseAllowanceInput("1.250,5", 6, "es")).toEqual({ amount: 1_250_500_000n });
+    expect(parseAllowanceInput("0,5", 6, "es")).toEqual({ amount: 500_000n });
+    expect(parseAllowanceInput("0,5", 6, "en")).toEqual({ amount: 500_000n });
+    expect(parseAllowanceInput("1 250,5", 6, "ru")).toEqual({ amount: 1_250_500_000n });
+    expect(parseAllowanceInput("1.250", 6, "es")).toEqual({ error: "ambiguous" });
+    expect(parseAllowanceInput("1,250", 6, "en")).toEqual({ error: "ambiguous" });
+    expect(parseAllowanceInput("1,250", 6, "es")).toEqual({ amount: 1_250_000n });
+  });
   test("prefill text: unlimited starts empty", () => {
     expect(allowanceText(MAX, 6)).toBe("");
     expect(allowanceText(5_000_000n, 6)).toBe("5");
@@ -65,7 +74,7 @@ describe("EVM approve re-encoding", () => {
   });
   test("the review shows the edited cap, not the request", () => {
     const m = buildEvmTxReview({ tx: { to: TOKEN, data: approveData("f".repeat(64)) }, from: { address: SELF }, nativeSymbol: "ETH", token: { symbol: "USDC", decimals: 6 }, approveOverride: 500_000_000n, feeWei: 1n, prices: {} });
-    expect(m.hero.amount).toEqual({ text: "500 USDC" });
+    expect(m.hero.amount).toEqual({ text: "500 USDC", amount: true });
     expect(m.warnings.map((w) => w.code)).toEqual(["approval"]);
   });
 });
@@ -101,7 +110,7 @@ describe("TRC-20 approve re-encoding", () => {
   test("the review shows the edited cap", () => {
     const tx = withTronApproveAmount(tronTx(MAX), 25_000_000n);
     const m = buildTronReview({ decoded: decodeTronRawData(hexToBytes(tx.raw_data_hex)), from: { address: FROM }, token: { symbol: "USDT", decimals: 6 }, feeSun: 0n, prices: {} });
-    expect(m.hero.amount).toEqual({ text: "25 USDT" });
+    expect(m.hero.amount).toEqual({ text: "25 USDT", amount: true });
     expect(m.warnings.map((w) => w.code)).toEqual(["approval"]);
   });
 });

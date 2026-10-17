@@ -1,7 +1,7 @@
 // Pieces every review builder shares: policy warnings, fee and total, the "From" row.
 
 import { formatUnits, trimDecimals, usdOf, warning } from "./review-format";
-import type { PolicyCheckInput, Prices, ReviewFee, ReviewParty, ReviewRow, ReviewTotal, ReviewWarning } from "./review-types";
+import type { Label, PolicyCheckInput, Prices, ReviewFee, ReviewParty, ReviewRow, ReviewTotal, ReviewWarning } from "./review-types";
 
 /** Policy pre-check → danger banners (blocked first, then risky address). */
 export function policyWarnings(policy: PolicyCheckInput | null | undefined): ReviewWarning[] {
@@ -21,6 +21,11 @@ export interface AssetAmount {
 
 export function amountText(a: AssetAmount, maxDecimals = 8): string {
   return `${trimDecimals(formatUnits(a.raw, a.decimals), maxDecimals)} ${a.symbol}`;
+}
+
+/** An amount label: `amountText` marked as a number the UI may show in the user's format. */
+export function amountLabel(a: AssetAmount, maxDecimals = 8): Label {
+  return { text: amountText(a, maxDecimals), amount: true };
 }
 
 export function amountUsd(a: AssetAmount, prices: Prices): number | undefined {

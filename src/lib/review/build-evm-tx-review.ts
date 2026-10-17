@@ -1,6 +1,6 @@
 // eth_sendTransaction → review model: native send, ERC-20 transfer / approve, or contract call.
 
-import { amountText, amountUsd, buildFee, buildTotal, fromRow, partyOf, policyWarnings, type AssetAmount } from "./review-common";
+import { amountLabel, amountText, amountUsd, buildFee, buildTotal, fromRow, partyOf, policyWarnings, type AssetAmount } from "./review-common";
 import { evmLegs } from "./evm-calldata-legs";
 import { checksumEvmAddress, shortAddress, sortWarnings, UNLIMITED_THRESHOLD, warning } from "./review-format";
 import { withEvmApproveAmount } from "./allowance-edit";
@@ -78,7 +78,7 @@ export function buildEvmTxReview(i: EvmTxReviewInput): ReviewModel {
   if (call.kind === "native") {
     const party = partyOf(to, i.nameOf);
     model = {
-      hero: { icon: "send", tone: "accent", verb: { key: "review.verb.send" }, amount: { text: amountText(native) }, usd: amountUsd(native, i.prices), counterparty: { prefix: "to", party } },
+      hero: { icon: "send", tone: "accent", verb: { key: "review.verb.send" }, amount: amountLabel(native), usd: amountUsd(native, i.prices), counterparty: { prefix: "to", party } },
     };
     rows.push({ label: { key: "send.to" }, party, fullAddress: true });
     if (i.firstTimeRecipient) warnings.push(warning("firstTimeRecipient"));
@@ -92,7 +92,7 @@ export function buildEvmTxReview(i: EvmTxReviewInput): ReviewModel {
       hero: {
         icon: "send", tone: "accent", verb: { key: "review.verb.send" },
         // Unknown token: base units (decimals unknown); NFT / multi-token: the collection.
-        amount: amt ? { text: amountText(amt) } : call.amount === "ALL" ? { text: label } : { key: "review.baseUnits", params: { amount: call.amount.toString(), symbol: label } },
+        amount: amt ? amountLabel(amt) : call.amount === "ALL" ? { text: label } : { key: "review.baseUnits", params: { amount: call.amount.toString(), symbol: label } },
         usd: amt ? amountUsd(amt, i.prices) : undefined,
         counterparty: { prefix: "to", party },
       },
@@ -135,7 +135,7 @@ export function buildEvmTxReview(i: EvmTxReviewInput): ReviewModel {
       const text = amt ? amountText(amt) : `${amount} ${symbol}`;
       warnings.push(warning("approval", { spender: spenderName, amount: text }));
       model = {
-        hero: { icon: "approve", tone: "warning", verb: { key: "review.verb.approve" }, amount: { text }, usd: amt ? amountUsd(amt, i.prices) : undefined, sub: editedSub, counterparty: { prefix: "for", party: spender } },
+        hero: { icon: "approve", tone: "warning", verb: { key: "review.verb.approve" }, amount: amt ? { text, amount: true } : { text }, usd: amt ? amountUsd(amt, i.prices) : undefined, sub: editedSub, counterparty: { prefix: "for", party: spender } },
       };
     }
     rows.push({ label: { key: "review.spender" }, party: spender, fullAddress: true });
@@ -147,7 +147,7 @@ export function buildEvmTxReview(i: EvmTxReviewInput): ReviewModel {
     model = {
       hero: {
         icon: "contract", tone: "accent", verb: { key: "review.verb.contract" },
-        amount: value > 0n ? { text: amountText(native) } : { key: "review.noValue", params: { symbol: i.nativeSymbol } },
+        amount: value > 0n ? amountLabel(native) : { key: "review.noValue", params: { symbol: i.nativeSymbol } },
         usd: value > 0n ? amountUsd(native, i.prices) : undefined,
         counterparty: { prefix: "to", party: contractParty },
       },
@@ -156,7 +156,7 @@ export function buildEvmTxReview(i: EvmTxReviewInput): ReviewModel {
   }
 
   if (call.kind !== "native" && value > 0n && model.hero.icon !== "contract") {
-    rows.push({ label: { key: "review.alsoSends" }, value: { text: amountText(native) } });
+    rows.push({ label: { key: "review.alsoSends" }, value: amountLabel(native) });
   }
   if (i.mayFail) warnings.push(warning("mayFail"));
 

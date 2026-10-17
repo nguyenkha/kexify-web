@@ -1,7 +1,7 @@
 // Signature requests → review model: EIP-712 typed data (Permit, Permit2, others) and message
 // signatures (personal_sign, eth_sign, solana_signMessage, tron_signMessage).
 
-import { amountText, amountUsd, fromRow, partyOf, policyWarnings } from "./review-common";
+import { amountLabel, amountText, amountUsd, fromRow, partyOf, policyWarnings } from "./review-common";
 import { shortAddress, sortWarnings, UNLIMITED_THRESHOLD, warning } from "./review-format";
 import { canonicalFormat, type TypeDefs } from "./typed-data-known-formats";
 import type { NameLookup, PolicyCheckInput, Prices, ReviewAction, ReviewModel, ReviewRow, ReviewWarning, TokenLookup } from "./review-types";
@@ -135,7 +135,7 @@ export function buildTypedDataReview(i: TypedDataReviewInput): ReviewModel {
     return {
       hero: {
         icon: "send", tone: "accent", verb: { key: "review.verb.send" },
-        amount: amt ? { text: amountText(amt) } : { key: "review.baseUnits", params: { amount: sent.amount.toString(), symbol: shortAddress(sent.token) } },
+        amount: amt ? amountLabel(amt) : { key: "review.baseUnits", params: { amount: sent.amount.toString(), symbol: shortAddress(sent.token) } },
         usd: amt ? amountUsd(amt, i.prices) : undefined,
         counterparty: { prefix: "to", party },
       },
@@ -153,7 +153,7 @@ export function buildTypedDataReview(i: TypedDataReviewInput): ReviewModel {
       const unlimited = !a.nftId && a.amount >= UNLIMITED_THRESHOLD;
       const amt = info && !a.nftId ? { raw: a.amount, decimals: info.decimals, symbol } : null;
       const text = a.nftId != null ? `${symbol} #${a.nftId}` : unlimited ? null : amt ? amountText(amt) : `${a.amount} ${symbol}`;
-      return { ...a, symbol, unlimited, text, usd: amt && !unlimited ? amountUsd(amt, i.prices) : undefined };
+      return { ...a, symbol, unlimited, text, isAmount: !!amt && !unlimited, usd: amt && !unlimited ? amountUsd(amt, i.prices) : undefined };
     });
     for (const l of legs) {
       if (permit.revoke) continue;
@@ -179,7 +179,7 @@ export function buildTypedDataReview(i: TypedDataReviewInput): ReviewModel {
     return {
       hero: {
         icon: "approve", tone: permit.revoke ? "accent" : permit.nftAll ? "danger" : "warning", verb: { key: permit.revoke ? "review.verb.revoke" : "review.verb.approve" },
-        amount: permit.revoke ? { text: one?.symbol ?? "" } : permit.nftAll && one ? { key: "review.nftAll", params: { collection: one.symbol } } : one ? (one.unlimited ? { key: "review.unlimited", params: { symbol: one.symbol } } : { text: one.text ?? "" }) : { key: "review.tokenCount", params: { count: String(legs.length) } },
+        amount: permit.revoke ? { text: one?.symbol ?? "" } : permit.nftAll && one ? { key: "review.nftAll", params: { collection: one.symbol } } : one ? (one.unlimited ? { key: "review.unlimited", params: { symbol: one.symbol } } : one.isAmount ? { text: one.text ?? "", amount: true } : { text: one.text ?? "" }) : { key: "review.tokenCount", params: { count: String(legs.length) } },
         usd: one?.usd,
         counterparty: { prefix: "for", party: spender },
       },

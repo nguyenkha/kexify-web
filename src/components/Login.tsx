@@ -2,14 +2,16 @@ import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { DomainMovedNotice } from "./DomainMovedNotice";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { requestMagicLink } from "../lib/auth";
+import { AuthError, requestMagicLink } from "../lib/auth";
+import { passkeySignInSupported, signInWithPasskey } from "../lib/passkey-sign-in";
+import { usePasskeyAutofill } from "../lib/use-passkey-autofill";
 import { authErrorMessage } from "../lib/auth-error-message";
 import { ErrorBox } from "./ui";
 import { LoginCodeForm } from "./login-code-form";
 import { ThemeToggleButton } from "./theme-toggle-button";
 import { LangSwitcher } from "./LangSwitcher";
 import { cleanupStaleShares } from "../lib/keystore";
-import { Mail } from "lucide-react";
+import { KeyRound, Mail } from "lucide-react";
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
 const RESEND_SECONDS = 30;
@@ -44,6 +46,11 @@ export function Login() {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const turnstileRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
+  const passkeyAvailable = useMemo(passkeySignInSupported, []);
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
+  const signedIn = useCallback(() => navigate("/", { replace: true }), [navigate]);
+  // Passkeys in the email field's autofill list; paused while the modal prompt runs.
+  usePasskeyAutofill(passkeyAvailable && !sent && !passkeyBusy, signedIn, (err) => setError(authErrorMessage(err, t)));
   // Cleanup corrupted shares on login page mount
   useEffect(() => { cleanupStaleShares(); }, []);
 
@@ -113,6 +120,20 @@ export function Login() {
       resetCaptcha();
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function passkeySignIn() {
+    setPasskeyBusy(true);
+    setError("");
+    try {
+      await signInWithPasskey();
+      signedIn();
+    } catch (err) {
+      // A dismissed prompt is the user's choice, not an error.
+      if (!(err instanceof AuthError && err.code === "passkeyCancelled")) setError(authErrorMessage(err, t));
+    } finally {
+      setPasskeyBusy(false);
     }
   }
 
@@ -202,6 +223,23 @@ export function Login() {
         ) : (
           <>
           <DomainMovedNotice className="mb-4" />
+          {passkeyAvailable && (
+            <>
+              <button
+                type="button"
+                onClick={passkeySignIn}
+                disabled={passkeyBusy}
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted disabled:cursor-not-allowed px-4 py-2.5 rounded-lg text-sm font-medium transition-colors text-white"
+              >
+                {passkeyBusy ? t("login.signingInWithPasskey") : <><KeyRound className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("login.signInWithPasskey")}</>}
+              </button>
+              <div className="my-4 flex items-center gap-3 text-[11px] text-text-muted">
+                <span className="flex-1 border-t border-border-primary" />
+                {t("login.orEmail")}
+                <span className="flex-1 border-t border-border-primary" />
+              </div>
+            </>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="email" className="block text-xs text-text-muted mb-1.5">
@@ -212,6 +250,7 @@ export function Login() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                autoComplete="username webauthn"
                 required
                 className="w-full bg-surface-secondary border border-border-primary rounded-lg px-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
                 placeholder={t("login.emailPlaceholder")}
@@ -225,7 +264,7 @@ export function Login() {
             <button
               type="submit"
               disabled={loading || (!!TURNSTILE_SITE_KEY && !captchaToken)}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted disabled:cursor-not-allowed px-4 py-2.5 rounded-lg text-sm font-medium transition-colors text-white"
+              className={`w-full ${passkeyAvailable ? "bg-surface-secondary hover:bg-surface-tertiary border border-border-primary text-text-primary" : "bg-blue-600 hover:bg-blue-700 text-white"} disabled:bg-surface-tertiary disabled:text-text-muted disabled:cursor-not-allowed px-4 py-2.5 rounded-lg text-sm font-medium transition-colors`}
             >
               {loading ? t("login.sending") : <><Mail className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("login.sendMagicLink")}</>}
             </button>
