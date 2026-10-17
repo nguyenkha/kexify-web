@@ -4,6 +4,7 @@
 import { sha256 } from "@noble/hashes/sha256";
 import { base58check } from "@scure/base";
 import { decodeSegwitAddress, segwitScriptPubKey } from "./segwit-address";
+import { BlockbookNodeVerdict, LTC_ESPLORA_MAINNET, blockbookBroadcast, blockbookTxHeight, blockbookUtxos, ltcBlockbookFor, rawTxid } from "./ltc-blockbook";
 
 const b58check = base58check(sha256);
 
@@ -60,7 +61,7 @@ function concat(...arrays: Uint8Array[]): Uint8Array {
 
 // ── LTC mempool-compatible API ──────────────────────────────────
 
-const LTC_API_DEFAULT = "https://litecoinspace.org/api";
+const LTC_API_DEFAULT = LTC_ESPLORA_MAINNET;
 
 export function ltcApiUrl(explorerUrl?: string): string {
   if (!explorerUrl) return LTC_API_DEFAULT;
@@ -68,8 +69,13 @@ export function ltcApiUrl(explorerUrl?: string): string {
   return `${base}/api`;
 }
 
+/** UTXOs: Blockbook first on mainnet, Esplora as fallback. */
 export async function fetchUtxos(address: string, apiBase?: string): Promise<UTXO[]> {
   const api = apiBase ?? LTC_API_DEFAULT;
+  const bb = ltcBlockbookFor(api);
+  if (bb) {
+    try { return await blockbookUtxos(bb, address); } catch { /* fall back to Esplora */ }
+  }
   const res = await fetch(`${api}/address/${address}/utxo`);
   if (!res.ok) throw new Error(`Failed to fetch LTC UTXOs: ${res.status}`);
   return res.json();
@@ -149,8 +155,26 @@ export function buildLtcTransaction(
 
 // ── Broadcast ───────────────────────────────────────────────────
 
+/** A node saying it already has this tx (mempool or chain). */
+const DUPLICATE = /already (known|in (the )?(mempool|block ?chain))|txn-already|-27:/i;
+
+/**
+ * Broadcast: Blockbook first on mainnet. Its node verdict (4xx "-NN: ...") is final; on no verdict (timeout,
+ * 5xx, bad answer) the same bytes go to Esplora, where "already known" means Blockbook relayed it after all.
+ */
 export async function broadcastLtcTx(rawHex: string, apiBase?: string): Promise<string> {
   const api = apiBase ?? LTC_API_DEFAULT;
+  const bb = ltcBlockbookFor(api);
+  let bbError = "";
+  if (bb) {
+    try { return await blockbookBroadcast(bb, rawHex); } catch (e) {
+      if (e instanceof BlockbookNodeVerdict) {
+        if (DUPLICATE.test(e.message)) return rawTxid(rawHex); // re-broadcast of a tx the node already has
+        throw new Error(`LTC broadcast failed: ${e.message}`);
+      }
+      bbError = `${e instanceof Error ? e.message : e}; `;
+    }
+  }
   const res = await fetch(`${api}/tx`, {
     method: "POST",
     headers: { "Content-Type": "text/plain" },
@@ -158,7 +182,8 @@ export async function broadcastLtcTx(rawHex: string, apiBase?: string): Promise<
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`LTC broadcast failed: ${text}`);
+    if (bbError && DUPLICATE.test(text)) return rawTxid(rawHex);
+    throw new Error(`LTC broadcast failed: ${bbError}${text}`);
   }
   return res.text();
 }
@@ -173,18 +198,24 @@ export async function waitForLtcConfirmation(
   apiBase?: string
 ): Promise<{ confirmed: boolean; blockHeight?: number }> {
   const api = apiBase ?? LTC_API_DEFAULT;
+  const bb = ltcBlockbookFor(api);
   for (let i = 0; i < maxAttempts; i++) {
     onPoll?.(i + 1);
-    try {
-      const res = await fetch(`${api}/tx/${txid}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.status?.confirmed) {
-          return { confirmed: true, blockHeight: data.status.block_height };
+    // Blockbook first on mainnet (null = still in its mempool); Esplora only when Blockbook fails.
+    const height = bb ? await blockbookTxHeight(bb, txid).catch(() => undefined) : undefined;
+    if (typeof height === "number") return { confirmed: true, blockHeight: height };
+    if (height === undefined) {
+      try {
+        const res = await fetch(`${api}/tx/${txid}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.status?.confirmed) {
+            return { confirmed: true, blockHeight: data.status.block_height };
+          }
         }
+      } catch {
+        // ignore fetch errors, keep polling
       }
-    } catch {
-      // ignore fetch errors, keep polling
     }
     await new Promise((r) => setTimeout(r, intervalMs));
   }

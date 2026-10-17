@@ -5,6 +5,7 @@ import { ripemd160 } from "@noble/hashes/ripemd160";
 import { base58check, bech32 } from "@scure/base";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import { isValidLtcAddress } from "./ltcTx";
+import { blockbookBalance, ltcBlockbookFor } from "./ltc-blockbook";
 
 const PAGE_SIZE = 10;
 const b58check = base58check(sha256);
@@ -103,12 +104,8 @@ export const ltcAdapter: ChainAdapter = {
   async fetchNativeBalance(address, chain, nativeAsset): Promise<BalanceResult | null> {
     try {
       const apiBase = chain.explorerUrl.replace(/\/+$/, "") + "/api";
-      const res = await fetch(`${apiBase}/address/${address}`);
-      if (!res.ok) return null;
-      const data = await res.json();
-      const funded = BigInt(data.chain_stats?.funded_txo_sum ?? 0);
-      const spent = BigInt(data.chain_stats?.spent_txo_sum ?? 0);
-      const balance = funded - spent;
+      const balance = await ltcConfirmedBalance(apiBase, address);
+      if (balance === null) return null;
       return {
         asset: nativeAsset,
         chain,
@@ -182,3 +179,15 @@ export const ltcAdapter: ChainAdapter = {
     return { transactions: txs, hasMore: start + PAGE_SIZE < allTxs.length };
   },
 };
+
+/** Confirmed balance: Blockbook first on mainnet (litecoinspace.org's address API hangs), Esplora after. */
+async function ltcConfirmedBalance(apiBase: string, address: string): Promise<bigint | null> {
+  const bb = ltcBlockbookFor(apiBase);
+  if (bb) {
+    try { return await blockbookBalance(bb, address); } catch { /* fall back to Esplora */ }
+  }
+  const res = await fetch(`${apiBase}/address/${address}`);
+  if (!res.ok) return null;
+  const data = await res.json();
+  return BigInt(data.chain_stats?.funded_txo_sum ?? 0) - BigInt(data.chain_stats?.spent_txo_sum ?? 0);
+}
