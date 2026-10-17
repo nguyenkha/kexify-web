@@ -50,6 +50,7 @@ import { useSwipeSidebar } from "./lib/use-swipe-sidebar";
 import { notifyBalanceRefresh, clearAllTokenBalanceCaches, clearAllTxCaches } from "./lib/dataCache";
 import { ToastProvider } from "./context/ToastContext";
 import { PasskeyTapHost } from "./components/PasskeyTapHost";
+import { KeyPassphraseHost } from "./components/KeyPassphraseHost";
 import { WCRequestQueue } from "./components/WCRequestQueue";
 import { FreezeAccount } from "./components/FreezeAccount";
 import { RecoveryImport } from "./components/RecoveryImport";
@@ -527,6 +528,7 @@ function App() {
                 <DashboardLayout />
                 <LockScreen />
                 <PasskeyTapHost />
+                <KeyPassphraseHost />
               </IdleLockProvider>
               </WalletConnectProvider>
               </ToastProvider>

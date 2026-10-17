@@ -5,8 +5,6 @@ import type { SendError } from "./send-error";
 
 export { type UTXO };
 
-export const MAX_UTXO_INPUTS = 10;
-
 export function friendlyError(err: unknown, t?: (key: string) => string): string {
   const msg = (err as { message?: string })?.message || String(err);
   if (msg === "passkey_auth_required") return t ? t("send.passkeySessionExpired") : "Passkey confirmation expired or was already used. Please try again.";
@@ -49,8 +47,6 @@ export interface SigningContext {
   setTxResult: (r: TxResult | null) => void;
   setPendingTxHash: (h: string | null) => void;
   setKeyFile: (k: KeyFile | null) => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  setPendingEncrypted: (d: any) => void;
 
   // i18n
   t: (key: string, opts?: Record<string, unknown>) => string;

@@ -27,10 +27,9 @@ import {
   broadcastLtcTx,
   waitForLtcConfirmation,
 } from "../../lib/chains/ltcTx";
-import { isRecoveryMode } from "../../lib/recovery";
 import type { SigningContext } from "./signing-flows";
-import { MAX_UTXO_INPUTS } from "./signing-flows";
-import { mapSendError, LocalizedSendError } from "./send-error";
+import { buildWithUtxoInputCap } from "./build-with-utxo-input-cap";
+import { mapSendError } from "./send-error";
 
 export async function executeLtcSigningFlow(ctx: SigningContext): Promise<void> {
   const {
@@ -38,7 +37,7 @@ export async function executeLtcSigningFlow(ctx: SigningContext): Promise<void> 
     ltcFeeRate, rbfEnabled, manualUtxos, confirmBeforeBroadcast,
     onTxSubmitted, onTxConfirmed,
     setStep, setSigningPhase, setSignatureCount, setSigningError,
-    setSignedRawTx, setTxResult, setPendingTxHash, setKeyFile, setPendingEncrypted,
+    setSignedRawTx, setTxResult, setPendingTxHash, setKeyFile,
     t,
   } = ctx;
 
@@ -59,10 +58,7 @@ export async function executeLtcSigningFlow(ctx: SigningContext): Promise<void> 
     const utxos = manualUtxos ?? await fetchLtcUtxos(address, ltcApi);
     const amountSats = parseUnits(amount, asset.decimals);
     const addrType = detectLtcAddressType(address);
-    const ltcTx = buildLtcTransaction(to, amountSats, utxos, ltcFeeRate, address, addrType, rbfEnabled, manualUtxos != null);
-    if (!isRecoveryMode() && ltcTx.inputs.length > MAX_UTXO_INPUTS) {
-      throw new LocalizedSendError(t("send.tooManyInputs", { count: ltcTx.inputs.length, max: MAX_UTXO_INPUTS }));
-    }
+    const ltcTx = buildWithUtxoInputCap((max) => buildLtcTransaction(to, amountSats, utxos, ltcFeeRate, address, addrType, rbfEnabled, manualUtxos != null, max), t, asset);
 
     // 2. Get compressed public key and hash
     setSigningPhase("mpc-signing");
@@ -127,7 +123,7 @@ export async function executeLtcSigningFlow(ctx: SigningContext): Promise<void> 
     if (confirmBeforeBroadcast) {
       setSignedRawTx(rawHex);
       setTxResult({ status: "success", txHash: "sign-only" });
-      setKeyFile(null); setPendingEncrypted(null);
+      setKeyFile(null);
       setStep("result");
       return;
     }
@@ -155,7 +151,7 @@ export async function executeLtcSigningFlow(ctx: SigningContext): Promise<void> 
       blockNumber: result.blockHeight,
     });
     if (result.confirmed) onTxConfirmed?.(broadcastTxid || txid);
-    setKeyFile(null); setPendingEncrypted(null);
+    setKeyFile(null);
     setStep("result");
 
   } catch (err: unknown) {

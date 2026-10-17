@@ -6,6 +6,7 @@ import { apiUrl } from "./apiBase";
 import cbmpcWasmUrl from "cb-mpc/cbmpc.wasm?url";
 import { clientKeys, freeClientKeyHandles, type ClientKeyHandles } from "./client-key-cache";
 import { sharePartsFromString, wipe } from "./secret-bytes";
+import { signSessionStarted, signSessionFinished, cancelOpenSignSession, cancelStaleSignSession, openSignSessionId } from "./sign-session-cancel";
 
 /** Policy-blocked tx parts that have their own user-facing message (send.policyBlockedLeg.*). */
 const POLICY_BLOCKED_LEGS = ["approval", "account_control", "value_message", "unknown", "fee"];
@@ -164,6 +165,10 @@ export function createHttpTransport(opts: {
   initExtra?: Record<string, unknown>;
   headers: Record<string, string>;
   onStep?: (step: number) => void;
+  /** The init answered with this session id. */
+  onSession?: (sessionId: string) => void;
+  /** Init answered 409 SESSION_ACTIVE (another operation in progress): true = the cause was cleared, send the init once more. */
+  retryOn409?: () => Promise<boolean>;
 }): { transport: DataTransport; getSessionId: () => string; getServerResult: () => Record<string, unknown> | null; getError: () => Error | null; transportFailed: Promise<never> } {
   let sessionId = "";
   let inbox: Uint8Array | null = null;
@@ -194,12 +199,18 @@ export function createHttpTransport(opts: {
         ? { ...opts.initExtra, message: toBase64(msgCopy) }
         : { sessionId, message: toBase64(msgCopy) };
 
-      const res = await fetch(url, {
+      const post = () => fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...opts.headers },
         body: JSON.stringify(body),
       });
-      const data = await res.json();
+      let res = await post();
+      let data = await res.json();
+      // SESSION_ACTIVE is refused before the passkey ticket is used, so the same init can be sent again.
+      if (isFirst && res.status === 409 && data?.code === "SESSION_ACTIVE" && opts.retryOn409 && await opts.retryOn409()) {
+        res = await post();
+        data = await res.json();
+      }
       if (data.error) {
         // A policy block names the part of the tx it refused; show that instead of the generic text.
         const leg = typeof data.blockedLeg === "string" && POLICY_BLOCKED_LEGS.includes(data.blockedLeg) ? data.blockedLeg : null;
@@ -220,6 +231,7 @@ export function createHttpTransport(opts: {
       if (isFirst) {
         sessionId = data.sessionId;
         isFirst = false;
+        if (sessionId && !data.done) opts.onSession?.(sessionId);
       }
       stepCount++;
       opts.onStep?.(stepCount);
@@ -283,8 +295,16 @@ export interface BatchMpcSignResult {
  */
 export async function performMpcSign(opts: Parameters<typeof runMpcSign>[0]): Promise<MpcSignResult> {
   clientKeys.pin(opts.keyId);
+  const before = openSignSessionId();
   try {
-    return await runMpcSign(opts);
+    const result = await runMpcSign(opts);
+    signSessionFinished(result.sessionId);
+    return result;
+  } catch (err) {
+    // Only the session this run started (another sign running here keeps its own): the server frees the
+    // account now, not after 30 s idle.
+    if (openSignSessionId() !== before) void cancelOpenSignSession();
+    throw err;
   } finally {
     clientKeys.unpin(opts.keyId);
   }
@@ -333,6 +353,8 @@ async function runMpcSign(opts: {
     },
     headers: { ...headers, ...ticketHeaders },
     onStep,
+    onSession: (id) => signSessionStarted(id, headers),
+    retryOn409: cancelStaleSignSession,
   });
 
   const startedAt = Date.now();
@@ -397,8 +419,16 @@ async function runMpcSign(opts: {
  */
 export async function performBatchMpcSign(opts: Parameters<typeof runBatchMpcSign>[0]): Promise<BatchMpcSignResult> {
   clientKeys.pin(opts.keyId);
+  const before = openSignSessionId();
   try {
-    return await runBatchMpcSign(opts);
+    const result = await runBatchMpcSign(opts);
+    signSessionFinished(result.sessionId);
+    return result;
+  } catch (err) {
+    // Only the session this run started (another sign running here keeps its own): the server frees the
+    // account now, not after 30 s idle.
+    if (openSignSessionId() !== before) void cancelOpenSignSession();
+    throw err;
   } finally {
     clientKeys.unpin(opts.keyId);
   }
@@ -470,6 +500,8 @@ async function runBatchMpcSign(opts: {
     },
     headers: { ...headers, ...ticketHeaders },
     onStep,
+    onSession: (id) => signSessionStarted(id, headers),
+    retryOn409: cancelStaleSignSession,
   });
 
   const startedAt = Date.now();

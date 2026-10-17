@@ -22,7 +22,7 @@ export async function executeTonSigningFlow(ctx: SigningContext): Promise<void> 
     confirmBeforeBroadcast,
     onTxSubmitted, onTxConfirmed,
     setStep, setSigningPhase, setSignatureCount, setSigningError,
-    setSignedRawTx, setTxResult, setPendingTxHash, setKeyFile, setPendingEncrypted,
+    setSignedRawTx, setTxResult, setPendingTxHash, setKeyFile,
     t,
   } = ctx;
 
@@ -120,7 +120,7 @@ export async function executeTonSigningFlow(ctx: SigningContext): Promise<void> 
     if (confirmBeforeBroadcast) {
       setSignedRawTx(signedBoc);
       setTxResult({ status: "success", txHash: "sign-only" });
-      setKeyFile(null); setPendingEncrypted(null);
+      setKeyFile(null);
       setStep("result");
       return;
     }
@@ -147,7 +147,7 @@ export async function executeTonSigningFlow(ctx: SigningContext): Promise<void> 
       txHash,
     });
     if (result.confirmed) onTxConfirmed?.(txHash);
-    setKeyFile(null); setPendingEncrypted(null);
+    setKeyFile(null);
     setStep("result");
 
   } catch (err: unknown) {

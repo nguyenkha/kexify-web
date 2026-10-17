@@ -11,12 +11,12 @@ import { apiUrl } from "../lib/apiBase";
 import { fetchChains, fetchAssets } from "../lib/api";
 import { applyChainOverrides } from "../lib/userOverrides";
 import { getChainAdapter } from "../lib/chains/adapter";
-import { PassphraseInput } from "./PassphraseInput";
-import type { PasskeyAuthResult } from "../lib/passkey";
-import { authenticatePasskey } from "../lib/passkey";
-import { hasKeyShare, getKeyShareMode, getKeyShareWithPrf, getKeyShareWithPassphrase, deferredPrfKeyFile } from "../lib/keystore";
-import { decryptKeyFile, isEncryptedKeyFile, type KeyFileData } from "../lib/crypto";
-import { isRecoveryMode, getRecoveryKeys, getRecoveryKeyFile } from "../lib/recovery";
+import { hasKeyShare } from "../lib/keystore";
+import type { KeyFileData } from "../lib/crypto";
+import { resolveSigningKeyFile } from "../lib/signing-key-file";
+import { KeyPassphraseCancelled, cancelKeyPassphrase } from "../lib/key-passphrase-prompt";
+import { KeyShareUpload } from "./KeyShareUpload";
+import { isRecoveryMode, getRecoveryKeys } from "../lib/recovery";
 import { wcPersonalSign, wcEthSign, wcSignTypedData, wcSendTransaction, wcSolanaSignTransaction, wcSolanaSignAndSendTransaction, wcSolanaSignMessage, isSignableSolanaMessage, wcTronSignTransaction, wcTronSignMessage, type WcSignPhase } from "../lib/wcSigning";
 import { decodeSolanaMessageParam } from "../lib/solana-wc-message";
 import { evmReceiptRpcUrls } from "../lib/chains/evm-read-rpc-fallbacks";
@@ -63,8 +63,8 @@ interface ResolvedAccount {
   keyId: string;
   address: string;
   keyName: string;
+  /** This device holds the account's share (or recovery mode); else a key file is uploaded. */
   hasStored: boolean;
-  storedMode: "prf" | "passphrase" | null;
 }
 
 // ── Fee constants ────────────────────────────────────────────────
@@ -115,13 +115,12 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
   const [account, setAccount] = useState<ResolvedAccount | null>(null);
   const [chains, setChains] = useState<Chain[]>([]);
+  // An uploaded key file, asked for only when this device holds no share for the account.
   const [keyFile, setKeyFile] = useState<KeyFileData | null>(null);
-  const [pendingEncrypted, setPendingEncrypted] = useState<KeyFileData | null>(null);
-  const [browserShareLoading, setBrowserShareLoading] = useState(false);
-  const [browserShareError, setBrowserShareError] = useState("");
-  const [showBrowserPassphrase, setShowBrowserPassphrase] = useState(false);
   const [signingStepIdx, setSigningStepIdx] = useState(0);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Owner of this flow's passphrase prompt: unmounting cancels it (and only it).
+  const [passphraseOwner] = useState(() => ({}));
+  useEffect(() => () => cancelKeyPassphrase(passphraseOwner), [passphraseOwner]);
 
   // Fee state (for eth_sendTransaction)
   const [baseGasPrice, setBaseGasPrice] = useState<bigint | null>(null);
@@ -343,18 +342,13 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
               address: derived,
               keyName: key.name || `Key ${key.id.slice(0, 8)}`,
               hasStored: true,
-              storedMode: null,
             });
-            setKeyFile(getRecoveryKeyFile());
           } else {
-            const stored = await hasKeyShare(key.id);
-            const mode = stored ? await getKeyShareMode(key.id) : null;
             setAccount({
               keyId: key.id,
               address: derived,
               keyName: key.name || `Key ${key.id.slice(0, 8)}`,
-              hasStored: stored,
-              storedMode: mode,
+              hasStored: hasKeyShare(key.id),
             });
           }
           return;
@@ -467,63 +461,6 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
     }
   }
 
-  // ── Key share loading (passkey #1 for decrypt) ─────────────────
-
-  /** Load browser-stored key share — triggers passkey #1 for PRF decrypt */
-  async function loadBrowserShare() {
-    if (!account) return;
-    setBrowserShareLoading(true);
-    setBrowserShareError("");
-    try {
-      // PRF share: keep it locked; the signing tap unlocks it (one tap per request).
-      const deferred = account.storedMode === "prf" ? deferredPrfKeyFile(account.keyId, { needsEddsa: isSolana }) : null;
-      if (deferred) {
-        setKeyFile(deferred);
-      } else if (account.storedMode === "prf") {
-        const result = await authenticatePasskey({ withPrf: true });
-        if (result.prfKey) {
-          const data = await getKeyShareWithPrf(account.keyId, result.prfKey);
-          if (data) {
-            setKeyFile(data);
-            setBrowserShareLoading(false);
-            return;
-          }
-          setBrowserShareError(t("wc.couldNotDecrypt"));
-        } else {
-          setBrowserShareError(t("wc.passkeyNoEncrypt"));
-        }
-      } else if (account.storedMode === "passphrase") {
-        setShowBrowserPassphrase(true);
-      }
-    } catch (err) {
-      setBrowserShareError(String(err));
-    }
-    setBrowserShareLoading(false);
-  }
-
-
-  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const data = JSON.parse(reader.result as string) as KeyFileData;
-        if (!data.id || !data.share || !data.publicKey) return;
-        if (isEncryptedKeyFile(data)) {
-          setPendingEncrypted(data);
-          setKeyFile(null);
-        } else {
-          setKeyFile(data);
-          setPendingEncrypted(null);
-        }
-      } catch {
-        // ignore invalid files
-      }
-    };
-    reader.readAsText(file);
-  }
-
   // Policy pre-check
   const [policyCheck, setPolicyCheck] = useState<{
     allowed: boolean;
@@ -625,7 +562,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
   /** Approve button: key must already be loaded → pre-check policy → go to preview */
   async function handleApproveClick() {
-    if (!account || !keyFile) return;
+    if (!account || (!keyFile && !account.hasStored)) return;
     await runPolicyCheck();
 
     // EVM transaction simulation (non-blocking)
@@ -643,37 +580,33 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
     setPhase("preview");
   }
 
-  /** Passkey #2 completed → start signing */
-  async function onPasskeyAuth(_result: PasskeyAuthResult) {
+  /**
+   * Confirm tap: the account's share signs (a passphrase share asks for its passphrase
+   * here; a PRF share is unlocked by the signing passkey), else the uploaded file.
+   */
+  async function onConfirmSign() {
+    if (!account) return;
+    let kf: KeyFileData | null;
+    try {
+      kf = await resolveSigningKeyFile(account.keyId, { needsEddsa: isSolana, uploaded: account.hasStored ? null : keyFile, owner: passphraseOwner });
+    } catch (err: unknown) {
+      if (err instanceof KeyPassphraseCancelled) return;
+      setError(friendlyError(err, t));
+      setPhase("error");
+      return;
+    }
+    if (!kf) {
+      setError(t("wc.keyShareNotAvailable"));
+      setPhase("error");
+      return;
+    }
     setPhase("signing");
     setSigningStepIdx(0);
-
     try {
-      if (!keyFile) {
-        setError(t("wc.keyShareNotAvailable"));
-        setPhase("error");
-        return;
-      }
-      await executeSign(keyFile);
+      await executeSign(kf);
     } catch (err: unknown) {
       setError(friendlyError(err, t));
       setPhase("error");
-    }
-  }
-
-  /** Browser passphrase submitted → decrypt key share */
-  async function handleBrowserPassphraseSubmit(pw: string) {
-    if (!account) return;
-    try {
-      const kf = await getKeyShareWithPassphrase(account.keyId, pw);
-      if (!kf) {
-        setBrowserShareError(t("wc.failedDecrypt"));
-        return;
-      }
-      setKeyFile(kf);
-      setShowBrowserPassphrase(false);
-    } catch (err: any) {
-      setBrowserShareError(err.message || String(err));
     }
   }
 
@@ -990,125 +923,9 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
           {/* ── Review phase ────────────────────────────────────── */}
           {phase === "review" && (
             <>
-              {/* Key share section — top, consistent with transfer form */}
-              {account && (
-                <div>
-                  <label className="block text-xs text-text-muted mb-1.5">{t("wc.keyShare")}</label>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".json"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                  {keyFile ? (
-                    <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-green-500/10 flex items-center justify-center flex-shrink-0">
-                        <svg className="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                        </svg>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-text-secondary truncate">
-                          {keyFile.id.slice(0, 8)}...{keyFile.id.slice(-4)}
-                        </p>
-                        <p className="text-[10px] text-text-muted font-mono truncate">{keyFile.publicKey.slice(0, 24)}...</p>
-                      </div>
-                      <button
-                        onClick={() => !isRecoveryMode() && setKeyFile(null)}
-                        disabled={isRecoveryMode()}
-                        className={`p-1 rounded-md transition-colors ${isRecoveryMode() ? "opacity-40 cursor-not-allowed" : "hover:bg-surface-tertiary"}`}
-                        title={isRecoveryMode() ? t("wc.keyLoaded") : t("wc.changeKey")}
-                      >
-                        <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 119 0v3.75M3.75 21.75h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H3.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                        </svg>
-                      </button>
-                    </div>
-                  ) : account.hasStored && !showBrowserPassphrase ? (
-                    <div className="space-y-2">
-                      <button
-                        onClick={loadBrowserShare}
-                        disabled={browserShareLoading}
-                        className="w-full bg-surface-primary border border-blue-500/30 rounded-lg px-3 py-2.5 flex items-center gap-2.5 hover:border-blue-500/50 transition-colors text-left disabled:opacity-50 animate-pulse"
-                      >
-                        <svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a9 9 0 11-18 0V5.25" />
-                        </svg>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs text-text-secondary truncate">{account.keyId.slice(0, 8)}...</p>
-                          <p className="text-[10px] text-text-muted">{account.storedMode === "prf" ? t("wc.passkeyEncrypted") : t("wc.passphraseEncrypted")} · ECDSA + EdDSA</p>
-                        </div>
-                        {browserShareLoading ? (
-                          <div className="w-3 h-3 border border-blue-400 border-t-transparent rounded-full animate-spin shrink-0" />
-                        ) : (
-                          <svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                          </svg>
-                        )}
-                      </button>
-                      {browserShareError && (
-                        <p className="text-[11px] text-red-400 text-center">{browserShareError}</p>
-                      )}
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="w-full text-[11px] text-text-muted hover:text-text-tertiary transition-colors"
-                      >
-                        {t("wc.orUploadFile")}
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="w-full bg-surface-primary border border-border-primary border-dashed rounded-lg px-3 py-3 flex items-center justify-center gap-2 hover:border-blue-500/50 transition-colors text-left"
-                      >
-                        <svg className="w-4 h-4 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                        </svg>
-                        <span className="text-xs text-text-muted">{t("wc.uploadKeyShare")}</span>
-                      </button>
-                      <p className="text-[10px] text-text-muted text-center">
-                        {t("wc.restoreFromBackup")}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Passphrase prompt for encrypted file upload */}
-              {pendingEncrypted && !keyFile && (
-                <div className="bg-surface-primary border border-border-primary rounded-lg p-3">
-                  <p className="text-xs text-text-muted mb-2">
-                    <span className="font-mono text-text-tertiary">{pendingEncrypted.id.slice(0, 8)}...</span> — {t("wc.enterPassphrase")}
-                  </p>
-                  <PassphraseInput
-                    mode="enter"
-                    submitLabel={t("wc.decrypt")}
-                    onSubmit={async (pw) => {
-                      const decrypted = await decryptKeyFile(pendingEncrypted, pw);
-                      setKeyFile(decrypted);
-                      setPendingEncrypted(null);
-                    }}
-                  />
-                </div>
-              )}
-
-              {/* Browser-stored share passphrase prompt */}
-              {showBrowserPassphrase && !keyFile && (
-                <div className="bg-surface-primary border border-border-primary rounded-lg p-3">
-                  <p className="text-xs text-text-muted mb-2">
-                    {t("wc.enterPassphraseKey")}
-                  </p>
-                  <PassphraseInput
-                    mode="enter"
-                    submitLabel={t("wc.decrypt")}
-                    onSubmit={handleBrowserPassphraseSubmit}
-                  />
-                  {browserShareError && (
-                    <p className="text-[11px] text-red-400 mt-2">{browserShareError}</p>
-                  )}
-                </div>
+              {/* Key share file — only when this device holds no share for the account */}
+              {account && !account.hasStored && (
+                <KeyShareUpload keyFile={keyFile} onChange={setKeyFile} expectedKeyId={account.keyId} showRestoreHint />
               )}
 
               {reviewModel ? (
@@ -1578,7 +1395,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
           <div className="px-5 py-4 border-t border-border-secondary shrink-0 sticky bottom-0 bg-surface-secondary pb-[calc(1rem+env(safe-area-inset-bottom))] md:pb-4">
             <button
               onClick={handleApproveClick}
-              disabled={!account || !keyFile || policyChecking || !!tronParsed.error || capInvalid || solanaUnreadable}
+              disabled={!account || (!keyFile && !account.hasStored) || policyChecking || !!tronParsed.error || capInvalid || solanaUnreadable}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
             >
               {policyChecking ? t("wc.checking") : <><Eye className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("wc.reviewTx")}</>}
@@ -1599,7 +1416,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
             </button>
             <button
               disabled={previewBlocked || policyChecking || !reviewedAll || capInvalid || (!!previewModel?.extraConfirm && !extraAck)}
-              onClick={() => onPasskeyAuth({} as PasskeyAuthResult)}
+              onClick={onConfirmSign}
               className="flex-[2] bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
             >
               {previewBlocked ? t("wc.blockedByPolicy") : !reviewedAll ? t("review.scrollToReview") : t("wc.confirmSign")}

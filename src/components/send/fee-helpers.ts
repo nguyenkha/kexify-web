@@ -1,4 +1,5 @@
 // Pure fee computation functions extracted from SendDialog.tsx
+import { formatUnits } from "../../lib/review/review-format";
 import { getUsdValue } from "../../lib/prices";
 import {
   SOLANA_BASE_FEE,
@@ -183,6 +184,8 @@ interface ComputeMaxSendableParams {
   ltcEstimatedFee: bigint | null;
   bchEstimatedFee: bigint | null;
   xlmFeeRates: { low: number; medium: number; high: number } | null;
+  /** BTC / LTC / BCH: what the largest coins (input cap) can send, fee included; wins over balance - fee. */
+  utxoMaxSats?: bigint | null;
 }
 
 // Native coins whose fee comes from a live quote: Max must wait for it rather than fill the full balance.
@@ -192,6 +195,7 @@ const QUOTED_FEE_CHAINS = ["evm", "btc", "ltc", "bch", "xlm"];
 export function computeMaxSendable(p: ComputeMaxSendableParams): string | null {
   const { chain, asset, balance, feeLevel } = p;
   if (!asset.isNative) return balance;
+  if (p.utxoMaxSats != null) return formatUnits(p.utxoMaxSats, asset.decimals);
 
   let feeBaseUnits: bigint | null = null;
   if (chain.type === "evm" && p.estimatedFeeWei != null) {

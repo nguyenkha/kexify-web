@@ -24,12 +24,17 @@ export function subscribePasskeyTap(fn: (req: PasskeyTapRequest) => void): () =>
   return () => { if (listener === fn) listener = null; };
 }
 
-/** True when WebAuthn refused because the page had no user activation left. */
+/**
+ * True when WebAuthn may have refused because the page had no user activation left.
+ * Without navigator.userActivation (Safari < 16.4) a missing gesture and a cancel are the
+ * same NotAllowedError, so both get the Confirm button: a user who cancelled cancels it too.
+ */
 export function lackedUserActivation(err: unknown): boolean {
   const e = err as { name?: string; cause?: { name?: string } } | null;
   const notAllowed = e?.name === "NotAllowedError" || e?.cause?.name === "NotAllowedError";
+  if (!notAllowed) return false;
   const activation = (navigator as Navigator & { userActivation?: { isActive: boolean } }).userActivation;
-  return notAllowed && activation?.isActive === false;
+  return activation ? !activation.isActive : true;
 }
 
 export function requestPasskeyTap(withPrf: boolean, action: PasskeyAction): Promise<PasskeyAuthResult> {

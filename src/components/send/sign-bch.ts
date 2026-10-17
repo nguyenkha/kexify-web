@@ -17,10 +17,9 @@ import {
   broadcastBchTx,
   waitForBchConfirmation,
 } from "../../lib/chains/bchTx";
-import { isRecoveryMode } from "../../lib/recovery";
 import type { SigningContext } from "./signing-flows";
-import { MAX_UTXO_INPUTS } from "./signing-flows";
-import { mapSendError, LocalizedSendError } from "./send-error";
+import { buildWithUtxoInputCap } from "./build-with-utxo-input-cap";
+import { mapSendError } from "./send-error";
 
 export async function executeBchSigningFlow(ctx: SigningContext): Promise<void> {
   const {
@@ -28,7 +27,7 @@ export async function executeBchSigningFlow(ctx: SigningContext): Promise<void> 
     bchFeeRate, manualUtxos, confirmBeforeBroadcast,
     onTxSubmitted, onTxConfirmed,
     setStep, setSigningPhase, setSignatureCount, setSigningError,
-    setSignedRawTx, setTxResult, setPendingTxHash, setKeyFile, setPendingEncrypted,
+    setSignedRawTx, setTxResult, setPendingTxHash, setKeyFile,
     t,
   } = ctx;
 
@@ -48,10 +47,7 @@ export async function executeBchSigningFlow(ctx: SigningContext): Promise<void> 
     // 1. Fetch UTXOs and build transaction
     const utxos = manualUtxos ?? await fetchBchUtxos(address, api);
     const amountSats = parseUnits(amount, asset.decimals);
-    const bchTx = buildBchTransaction(to, amountSats, utxos, bchFeeRate, address, manualUtxos != null);
-    if (!isRecoveryMode() && bchTx.inputs.length > MAX_UTXO_INPUTS) {
-      throw new LocalizedSendError(t("send.tooManyInputs", { count: bchTx.inputs.length, max: MAX_UTXO_INPUTS }));
-    }
+    const bchTx = buildWithUtxoInputCap((max) => buildBchTransaction(to, amountSats, utxos, bchFeeRate, address, manualUtxos != null, max), t, asset);
 
     // 2. Get compressed public key and hash
     setSigningPhase("mpc-signing");
@@ -101,7 +97,7 @@ export async function executeBchSigningFlow(ctx: SigningContext): Promise<void> 
     if (confirmBeforeBroadcast) {
       setSignedRawTx(rawHex);
       setTxResult({ status: "success", txHash: "sign-only" });
-      setKeyFile(null); setPendingEncrypted(null);
+      setKeyFile(null);
       setStep("result");
       return;
     }
@@ -129,7 +125,7 @@ export async function executeBchSigningFlow(ctx: SigningContext): Promise<void> 
       blockNumber: result.blockHeight,
     });
     if (result.confirmed) onTxConfirmed?.(broadcastTxid || txid);
-    setKeyFile(null); setPendingEncrypted(null);
+    setKeyFile(null);
     setStep("result");
 
   } catch (err: unknown) {

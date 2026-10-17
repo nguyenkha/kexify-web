@@ -39,17 +39,11 @@ import {
   detectAddressType as detectLtcAddressType,
   estimateFee as estimateLtcFee,
 } from "../lib/chains/ltcTx";
-import { isEncryptedKeyFile, type KeyFileData } from "../lib/crypto";
-import {
-  hasKeyShare as hasStoredKeyShare,
-  getKeyShareMode,
-  deferredPrfKeyFile,
-  getKeyShareWithPrf,
-} from "../lib/keystore";
+import { hasSigningShare, resolveSigningKeyFile } from "../lib/signing-key-file";
+import { KeyPassphraseCancelled, cancelKeyPassphrase } from "../lib/key-passphrase-prompt";
 import { useHideBalances } from "../context/HideBalancesContext";
-import { authenticatePasskey } from "../lib/passkey";
 import { chainUsesEddsa } from "../lib/sign-passkey-authorization";
-import { isRecoveryMode, getRecoveryKeyFile } from "../lib/recovery";
+import { isRecoveryMode } from "../lib/recovery";
 import { getPreference } from "../lib/userOverrides";
 import { getIdentityId } from "../lib/auth";
 import { addRecentRecipient } from "../lib/addressBook";
@@ -85,8 +79,9 @@ import { PreviewStep } from "./send/PreviewStep";
 import { NetworkChip } from "./review";
 import { ResultStep } from "./send/ResultStep";
 import { computeFeeDisplay, computeMaxSendable } from "./send/fee-helpers";
-import type { SendError } from "./send/send-error";
+import { mapSendError, type SendError } from "./send/send-error";
 import { useFirstTimeRecipient } from "./send/use-first-time-recipient";
+import { useUtxoMaxSendable } from "./send/use-utxo-max-sendable";
 
 export function SendDialog({
   keyId,
@@ -164,16 +159,11 @@ export function SendDialog({
   const [feeError, setFeeError] = useState(false);
   const [feeRetry, setFeeRetry] = useState(0);
 
-  // Keyshare file
+  // The account's key share is resolved at the sign tap; keyFile is an uploaded file, asked
+  // for only when this device holds no share.
   const [keyFile, setKeyFile] = useState<KeyFile | null>(null);
-  const [pendingEncrypted, setPendingEncrypted] = useState<KeyFileData | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Browser-stored key share
-  const [browserShareMode, setBrowserShareMode] = useState<"prf" | "passphrase" | null>(null);
-  const [browserShareLoading, setBrowserShareLoading] = useState(false);
-  const [browserShareError, setBrowserShareError] = useState("");
-  const [showBrowserPassphrase, setShowBrowserPassphrase] = useState(false);
+  const [hasStoredShare] = useState(() => hasSigningShare(keyId));
+  const signingKeyRef = useRef<KeyFile | null>(null);
 
   // Backup status — gate large sends (>$100) on backup completion
   // Standalone mode: skip gate (escrow backup is impossible — can't re-auth without key share)
@@ -231,6 +221,18 @@ export function SendDialog({
   const pendingSignRef = useRef<(() => void) | null>(null);
 
   async function guardedSign(action: () => void) {
+    // The share that signs: the uploaded file, or this device's share for the account
+    // (a passphrase share asks for its passphrase here; a PRF share stays locked).
+    try {
+      const kf = await resolveSigningKeyFile(keyId, { needsEddsa: chainUsesEddsa(chain.type), uploaded: hasStoredShare ? null : keyFile, owner: passphraseOwner });
+      if (!kf) return;
+      signingKeyRef.current = kf as KeyFile;
+    } catch (err) {
+      if (err instanceof KeyPassphraseCancelled) return;
+      setStep("signing");
+      setSigningError(mapSendError(err, t));
+      return;
+    }
     // In recovery mode, skip passkey entirely — no server to verify
     if (isRecoveryMode()) {
       action();
@@ -313,54 +315,15 @@ export function SendDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Check for browser-stored key share on mount (or load recovery key)
-  useEffect(() => {
-    if (isRecoveryMode()) {
-      const rkf = getRecoveryKeyFile();
-      if (rkf) setKeyFile(rkf as KeyFile);
-      return;
-    }
-    if (hasStoredKeyShare(keyId)) {
-      setBrowserShareMode(getKeyShareMode(keyId));
-    }
-  }, [keyId]);
+  // Owner of this flow's passphrase prompt: unmounting cancels it (and only it).
+  const [passphraseOwner] = useState(() => ({}));
+  useEffect(() => () => cancelKeyPassphrase(passphraseOwner), [passphraseOwner]);
 
   // Clear deserialized key handles from memory when dialog closes or keyFile changes
   useEffect(() => {
     return () => { if (keyFile) clearClientKey(keyFile.id); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keyFile?.id]);
-
-  async function loadBrowserShare() {
-    setBrowserShareLoading(true);
-    setBrowserShareError("");
-    try {
-      const mode = getKeyShareMode(keyId);
-      // PRF share: keep it locked; the signing tap unlocks it (one tap per send).
-      const deferred = mode === "prf" ? deferredPrfKeyFile(keyId, { needsEddsa: chainUsesEddsa(chain.type) }) : null;
-      if (deferred) {
-        setKeyFile(deferred as KeyFile);
-      } else if (mode === "prf") {
-        const result = await authenticatePasskey({ withPrf: true });
-        if (result.prfKey) {
-          const data = await getKeyShareWithPrf(keyId, result.prfKey);
-          if (data) {
-            setKeyFile(data as KeyFile);
-            setBrowserShareLoading(false);
-            return;
-          }
-          setBrowserShareError(t("send.couldNotDecryptWrongPasskey"));
-        } else {
-          setBrowserShareError(t("send.passkeyNoEncryption"));
-        }
-      } else if (mode === "passphrase") {
-        setShowBrowserPassphrase(true);
-      }
-    } catch (err) {
-      setBrowserShareError(String(err));
-    }
-    setBrowserShareLoading(false);
-  }
 
 
   // Fetch gas price (EVM) or fee rates (BTC) and USD prices, poll every 10s
@@ -518,9 +481,10 @@ export function SendDialog({
   const amountUsd = amount ? getUsdValue(amount, asset.symbol, prices) : null;
 
   const destTagValid = chain.type !== "xrp" || destinationTag === "" || (/^\d+$/.test(destinationTag) && Number(destinationTag) <= 4294967295);
-  const canReview = toValid && !toSelf && amountCheck.valid && keyFile != null && destTagValid;
+  const canReview = toValid && !toSelf && amountCheck.valid && (keyFile != null || hasStoredShare) && destTagValid;
 
   // Max sendable: for native tokens, subtract estimated fee from balance
+  const utxoMax = useUtxoMaxSendable(chain, asset, address, chain.type === "btc" ? btcFeeRate : chain.type === "ltc" ? ltcFeeRate : bchFeeRate, effectiveTo, manualUtxos);
   const maxSendable = computeMaxSendable({
     chain, asset, balance, feeLevel,
     estimatedFeeWei,
@@ -528,7 +492,10 @@ export function SendDialog({
     ltcEstimatedFee,
     bchEstimatedFee,
     xlmFeeRates,
+    utxoMaxSats: utxoMax?.sats,
   });
+  // Max over more coins than one tx can sign: say that the smallest ones stay behind.
+  const maxInputsCapped = utxoMax?.capped && amount === maxSendable ? utxoMax.maxInputs : null;
 
   const firstTimeRecipient = useFirstTimeRecipient(step === "preview", effectiveTo, address, chain, asset);
 
@@ -549,32 +516,17 @@ export function SendDialog({
     return sendUsd + (feeDisplay.usd ?? 0);
   })();
 
-  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const data = JSON.parse(reader.result as string);
-        if (!data.id || !data.share || !data.publicKey) return;
-        if (isEncryptedKeyFile(data)) {
-          setPendingEncrypted(data);
-          setKeyFile(null);
-        } else {
-          setKeyFile(data as KeyFile);
-          setPendingEncrypted(null);
-        }
-      } catch {
-        // ignore invalid files
-      }
-    };
-    reader.readAsText(file);
+  /** The share guardedSign resolved, handed to one flow and dropped here (not kept after it). */
+  function takeSigningKey(): KeyFile {
+    const kf = signingKeyRef.current!;
+    signingKeyRef.current = null;
+    return kf;
   }
 
   // Build signing context for delegating to signing-flows module
   function buildSigningCtx(): SigningContext {
     return {
-      keyFile: keyFile!,
+      keyFile: takeSigningKey(),
       chain,
       asset,
       address,
@@ -602,7 +554,6 @@ export function SendDialog({
       setTxResult,
       setPendingTxHash,
       setKeyFile,
-      setPendingEncrypted,
       t,
     };
   }
@@ -716,15 +667,7 @@ export function SendDialog({
             speedUpData={speedUpData}
             keyFile={keyFile}
             setKeyFile={setKeyFile}
-            pendingEncrypted={pendingEncrypted}
-            setPendingEncrypted={setPendingEncrypted}
-            fileInputRef={fileInputRef}
-            browserShareMode={browserShareMode}
-            setBrowserShareMode={setBrowserShareMode}
-            browserShareLoading={browserShareLoading}
-            browserShareError={browserShareError}
-            showBrowserPassphrase={showBrowserPassphrase}
-            setShowBrowserPassphrase={setShowBrowserPassphrase}
+            hasStoredShare={hasStoredShare}
             keyId={keyId}
             to={to}
             setTo={setTo}
@@ -756,6 +699,7 @@ export function SendDialog({
             amountError={amountError}
             amountUsd={amountUsd}
             maxSendable={maxSendable}
+            maxInputsCapped={maxInputsCapped}
             balancesHidden={balancesHidden}
             feeLevel={feeLevel}
             setFeeLevel={setFeeLevel}
@@ -794,8 +738,6 @@ export function SendDialog({
             totalUsd={totalUsd}
             canReview={canReview}
             policyChecking={policyChecking}
-            handleFileSelect={handleFileSelect}
-            loadBrowserShare={loadBrowserShare}
             guardedSign={guardedSign}
             onClose={onClose}
             onPreview={async () => {
@@ -994,7 +936,7 @@ export function SendDialog({
       {passkeyGuard === "gate" && (
         <PasskeyGate
           onRegistered={onPasskeyComplete}
-          onCancel={() => { setPasskeyGuard("idle"); pendingSignRef.current = null; }}
+          onCancel={() => { setPasskeyGuard("idle"); pendingSignRef.current = null; signingKeyRef.current = null; }}
         />
       )}
     </div>

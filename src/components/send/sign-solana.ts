@@ -23,7 +23,7 @@ export async function executeSolanaSigningFlow(ctx: SigningContext): Promise<voi
     confirmBeforeBroadcast,
     onTxSubmitted, onTxConfirmed,
     setStep, setSigningPhase, setSignatureCount, setSigningError,
-    setSignedRawTx, setTxResult, setPendingTxHash, setKeyFile, setPendingEncrypted,
+    setSignedRawTx, setTxResult, setPendingTxHash, setKeyFile,
     t,
   } = ctx;
 
@@ -76,7 +76,7 @@ export async function executeSolanaSigningFlow(ctx: SigningContext): Promise<voi
     if (confirmBeforeBroadcast) {
       setSignedRawTx(signedTxBase58);
       setTxResult({ status: "success", txHash: "sign-only" });
-      setKeyFile(null); setPendingEncrypted(null);
+      setKeyFile(null);
       setStep("result");
       return;
     }
@@ -104,7 +104,7 @@ export async function executeSolanaSigningFlow(ctx: SigningContext): Promise<voi
       blockNumber: result.slot,
     });
     if (result.confirmed) onTxConfirmed?.(txSig);
-    setKeyFile(null); setPendingEncrypted(null);
+    setKeyFile(null);
     setStep("result");
 
   } catch (err: unknown) {

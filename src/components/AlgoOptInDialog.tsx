@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { friendlyError } from "./send/signing-flows";
 import { notify } from "../lib/notify";
-import { Spinner, Button } from "./ui";
+import { Button } from "./ui";
 import type { Chain, Asset } from "../lib/api";
 import { explorerLink } from "../shared/utils";
 import { useSteppedProgress, signingDurationMs, ProgressBar } from "./ProgressBar";
@@ -15,17 +15,10 @@ import { useToast } from "../context/ToastContext";
 import { apiUrl } from "../lib/apiBase";
 import { fetchPasskeys, sensitiveHeaders } from "../lib/passkey";
 import { PasskeyGate } from "./PasskeyGate";
-import { isEncryptedKeyFile, decryptKeyFile, type KeyFileData } from "../lib/crypto";
-import { PassphraseInput } from "./PassphraseInput";
-import {
-  hasKeyShare as hasStoredKeyShare,
-  getKeyShareMode,
-  getKeyShareWithPrf,
-  deferredPrfKeyFile,
-  getKeyShareWithPassphrase,
-} from "../lib/keystore";
-import { authenticatePasskey } from "../lib/passkey";
-import { isRecoveryMode, getRecoveryKeyFile } from "../lib/recovery";
+import { isRecoveryMode } from "../lib/recovery";
+import { hasSigningShare, resolveSigningKeyFile } from "../lib/signing-key-file";
+import { KeyPassphraseCancelled, cancelKeyPassphrase } from "../lib/key-passphrase-prompt";
+import { KeyShareUpload } from "./KeyShareUpload";
 import {
   eddsaPubKeyToAlgoAddress,
   algoAddressToPublicKey,
@@ -46,13 +39,9 @@ export function AlgoOptInDialog({
   const { addToast } = useToast();
   const [step, setStep] = useState<"select" | "input" | "preview" | "signing" | "result">("select");
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  // An uploaded key file, asked for only when this device holds no share for the account.
   const [keyFile, setKeyFile] = useState<KeyFile | null>(null);
-  const [pendingEncrypted, setPendingEncrypted] = useState<KeyFileData | null>(null);
-  const [browserShareMode, setBrowserShareMode] = useState<"prf" | "passphrase" | null>(null);
-  const [browserShareLoading, setBrowserShareLoading] = useState(false);
-  const [browserShareError, setBrowserShareError] = useState("");
-  const [showBrowserPassphrase, setShowBrowserPassphrase] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [hasStoredShare] = useState(() => hasSigningShare(keyId));
   const [signingPhase, setSigningPhase] = useState<SigningPhase>("building-tx");
   const [signingError, setSigningError] = useState<string | null>(null);
   const [txResult, setTxResult] = useState<TxResult | null>(null);
@@ -79,13 +68,12 @@ export function AlgoOptInDialog({
     : signLabel;
 
   useEffect(() => {
-    if (isRecoveryMode()) {
-      const rkf = getRecoveryKeyFile();
-      if (rkf) setKeyFile(rkf as KeyFile);
-      return;
-    }
-    if (hasStoredKeyShare(keyId)) setBrowserShareMode(getKeyShareMode(keyId));
+    if (isRecoveryMode()) return;
   }, [keyId]);
+
+  // Owner of this flow's passphrase prompt: unmounting cancels it (and only it).
+  const [passphraseOwner] = useState(() => ({}));
+  useEffect(() => () => cancelKeyPassphrase(passphraseOwner), [passphraseOwner]);
 
   useEffect(() => {
     return () => { if (keyFile) clearClientKey(keyFile.id); };
@@ -107,38 +95,26 @@ export function AlgoOptInDialog({
       .catch(() => {});
   }, [chain.rpcUrl, address]);
 
-  async function loadBrowserShare() {
-    setBrowserShareLoading(true);
-    setBrowserShareError("");
+  async function guardedSign(action: (kf: KeyFile) => void) {
+    // The account's share signs (a passphrase share asks for its passphrase here; a PRF
+    // share is unlocked by the signing passkey), else the uploaded file.
+    let kf: KeyFile | null;
     try {
-      const mode = getKeyShareMode(keyId);
-      // PRF share: keep it locked; the signing tap unlocks it (one tap).
-      const deferred = mode === "prf" ? deferredPrfKeyFile(keyId, { needsEddsa: true }) : null;
-      if (deferred) {
-        setKeyFile(deferred as KeyFile);
-      } else if (mode === "prf") {
-        const result = await authenticatePasskey({ withPrf: true });
-        if (result.prfKey) {
-          const data = await getKeyShareWithPrf(keyId, result.prfKey);
-          if (data) { setKeyFile(data as KeyFile); setBrowserShareLoading(false); return; }
-          setBrowserShareError("Could not decrypt. Wrong passkey?");
-        } else {
-          setBrowserShareError("Passkey does not support encryption. Use file upload.");
-        }
-      } else if (mode === "passphrase") {
-        setShowBrowserPassphrase(true);
-      }
-    } catch (err) { setBrowserShareError(String(err)); }
-    setBrowserShareLoading(false);
-  }
-
-  async function guardedSign(action: () => void) {
-    if (isRecoveryMode()) { action(); return; }
+      kf = await resolveSigningKeyFile(keyId, { needsEddsa: true, uploaded: hasStoredShare ? null : keyFile, owner: passphraseOwner });
+    } catch (err: unknown) {
+      if (err instanceof KeyPassphraseCancelled) return;
+      setStep("signing");
+      setSigningError(friendlyError(err, t));
+      return;
+    }
+    if (!kf) return;
+    const run = () => action(kf);
+    if (isRecoveryMode()) { run(); return; }
     try {
       const list = await fetchPasskeys();
-      if (list.length === 0) { pendingSignRef.current = action; setPasskeyGuard("gate"); }
-      else action(); // the signing step asks for the passkey, bound to this transaction
-    } catch { action(); }
+      if (list.length === 0) { pendingSignRef.current = run; setPasskeyGuard("gate"); }
+      else run(); // the signing step asks for the passkey, bound to this transaction
+    } catch { run(); }
   }
 
   function onPasskeyComplete() {
@@ -147,7 +123,7 @@ export function AlgoOptInDialog({
     pendingSignRef.current = null;
   }
 
-  async function executeOptInFlow() {
+  async function executeOptInFlow(keyFile: KeyFile) {
     if (!keyFile || !chain.rpcUrl || !selectedAsset?.contractAddress) return;
     setStep("signing");
     setSigningPhase("building-tx");
@@ -200,7 +176,7 @@ export function AlgoOptInDialog({
         addToast(t("algo.tokenEnabledToast"), "success");
         notify({ title: t("notify.txConfirmed"), body: "Algo Opt-In" });
       }
-      setKeyFile(null); setPendingEncrypted(null);
+      setKeyFile(null);
       setStep("result");
     } catch (err: unknown) {
       setSigningError(friendlyError(err, t));
@@ -286,100 +262,7 @@ export function AlgoOptInDialog({
         {step === "input" && selectedAsset && (
           <>
             <div className="p-5 space-y-4 overflow-y-auto flex-1 min-h-0">
-              <input
-                ref={fileInputRef} type="file" accept=".json" className="hidden"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  const parsed = JSON.parse(await file.text()) as KeyFileData;
-                  if (isEncryptedKeyFile(parsed)) setPendingEncrypted(parsed);
-                  else setKeyFile(parsed as KeyFile);
-                  e.target.value = "";
-                }}
-              />
-
-              {/* Key Share */}
-              <div>
-                <label className="block text-xs text-text-muted mb-1.5">{t("algo.keyShare")}</label>
-                {keyFile ? (
-                  <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-full bg-green-500/10 flex items-center justify-center flex-shrink-0">
-                      <svg className="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                      </svg>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-text-secondary truncate">{keyFile.id.slice(0, 8)}...{keyFile.id.slice(-4)}</p>
-                      <p className="text-[10px] text-text-muted font-mono truncate">{keyFile.eddsaPublicKey.slice(0, 24)}...</p>
-                    </div>
-                    <button
-                      onClick={() => !recovery && setKeyFile(null)} disabled={recovery}
-                      className={`p-1 rounded-md transition-colors ${recovery ? "opacity-40 cursor-not-allowed" : "hover:bg-surface-tertiary"}`}
-                    >
-                      <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 119 0v3.75M3.75 21.75h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H3.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                      </svg>
-                    </button>
-                  </div>
-                ) : browserShareMode && !showBrowserPassphrase ? (
-                  <div className="space-y-2">
-                    <button
-                      onClick={loadBrowserShare} disabled={browserShareLoading}
-                      className="w-full bg-surface-primary border border-blue-500/30 rounded-lg px-3 py-2.5 flex items-center gap-2.5 hover:border-blue-500/50 transition-colors text-left disabled:opacity-50 animate-pulse"
-                    >
-                      <svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a9 9 0 11-18 0V5.25" />
-                      </svg>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-text-secondary truncate">{keyId.slice(0, 8)}...</p>
-                        <p className="text-[10px] text-text-muted">{browserShareMode === "prf" ? t("algo.passkeyEncrypted") : t("algo.passphraseEncrypted")} · ECDSA + EdDSA</p>
-                      </div>
-                      {browserShareLoading
-                        ? <Spinner size="xs" />
-                        : <svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>
-                      }
-                    </button>
-                    {browserShareError && <p className="text-[11px] text-red-400 text-center">{browserShareError}</p>}
-                    <button onClick={() => setBrowserShareMode(null)} className="w-full text-[11px] text-text-muted hover:text-text-tertiary transition-colors">
-                      {t("algo.orUploadFile")}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-full bg-surface-primary border border-border-primary border-dashed rounded-lg px-3 py-3 flex items-center justify-center gap-2 hover:border-blue-500/50 transition-colors text-left"
-                    >
-                      <svg className="w-4 h-4 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                      </svg>
-                      <span className="text-xs text-text-muted">{t("algo.uploadKeyShare")}</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {pendingEncrypted && !keyFile && (
-                <div className="bg-surface-primary border border-border-primary rounded-lg p-3">
-                  <p className="text-xs text-text-muted mb-2">
-                    <span className="font-mono text-text-tertiary">{pendingEncrypted.id.slice(0, 8)}...</span> — {t("algo.enterPassphrase")}
-                  </p>
-                  <PassphraseInput mode="enter" submitLabel={t("algo.decrypt")} onSubmit={async (passphrase) => {
-                    const decrypted = await decryptKeyFile(pendingEncrypted, passphrase);
-                    setKeyFile(decrypted as KeyFile);
-                    setPendingEncrypted(null);
-                  }} />
-                </div>
-              )}
-              {showBrowserPassphrase && !keyFile && (
-                <div className="bg-surface-primary border border-border-primary rounded-lg p-3">
-                  <p className="text-xs text-text-muted mb-2">{t("algo.enterPassphrase")}</p>
-                  <PassphraseInput mode="enter" submitLabel={t("algo.decrypt")} onSubmit={async (passphrase) => {
-                    const data = await getKeyShareWithPassphrase(keyId, passphrase);
-                    if (data) { setKeyFile(data as KeyFile); setShowBrowserPassphrase(false); }
-                  }} />
-                </div>
-              )}
+              {!hasStoredShare && <KeyShareUpload keyFile={keyFile} onChange={setKeyFile} expectedKeyId={keyId} />}
 
               {/* From */}
               <div>
@@ -417,7 +300,7 @@ export function AlgoOptInDialog({
 
             {/* Footer */}
             <div className="px-5 py-4 border-t border-border-secondary shrink-0">
-              <Button variant="primary" fullWidth disabled={!keyFile} onClick={() => setStep("preview")}>
+              <Button variant="primary" fullWidth disabled={!keyFile && !hasStoredShare} onClick={() => setStep("preview")}>
                 {t("algo.reviewButton")}
               </Button>
             </div>

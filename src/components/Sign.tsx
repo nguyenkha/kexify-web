@@ -1,19 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { toHex, sha256, performMpcSign, clientKeys, restoreKeyHandles } from "../lib/mpc";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
-import { fetchPasskeys, sensitiveHeaders, authenticatePasskey } from "../lib/passkey";
+import { fetchPasskeys, sensitiveHeaders } from "../lib/passkey";
 import { parseDerSignature } from "../lib/chains/evmTx";
 import { hexToBytes } from "../shared/utils";
 import { PasskeyGate } from "./PasskeyGate";
-import { isEncryptedKeyFile, decryptKeyFile, type KeyFileData } from "../lib/crypto";
-import { PassphraseInput } from "./PassphraseInput";
-import { listKeyShares, getKeyShareWithPrf, getKeyShareWithPassphrase, deferredPrfKeyFile, type KeyShareInfo } from "../lib/keystore";
+import { listKeyShares, type KeyShareInfo } from "../lib/keystore";
+import { resolveSigningKeyFile } from "../lib/signing-key-file";
+import { KeyPassphraseCancelled, cancelKeyPassphrase } from "../lib/key-passphrase-prompt";
+import { KeyShareUpload } from "./KeyShareUpload";
 import { useFrozen } from "../context/FrozenContext";
 import { isRecoveryMode, getRecoveryKeyFile } from "../lib/recovery";
 import { useSteppedProgress, signingDurationMs, ProgressBar } from "./ProgressBar";
 import { PenLine, CircleX, CircleCheck, Clock } from "lucide-react";
-import { Spinner } from "./ui";
 
 interface KeyFile {
   id: string;
@@ -37,21 +37,26 @@ const phases: SigningPhase[] = ["loading", "signing", "verifying"];
 export function Sign() {
   const { t } = useTranslation();
   const frozen = useFrozen();
-  const [keyFile, setKeyFile] = useState<KeyFile | null>(() => {
+  // An uploaded key file, or recovery mode's share; else the device share of signKeyId signs.
+  const [uploadedKeyFile, setUploadedKeyFile] = useState<KeyFile | null>(() => {
     if (isRecoveryMode()) {
       const kf = getRecoveryKeyFile();
       if (kf) return kf as KeyFile;
     }
     return null;
   });
-  const [pendingEncrypted, setPendingEncrypted] = useState<KeyFileData | null>(null);
   const [message, setMessage] = useState("");
   const [algorithm, setAlgorithm] = useState<"ecdsa" | "eddsa">("ecdsa");
 
-  // Browser-stored key shares
-  const [browserShares, setBrowserShares] = useState<KeyShareInfo[]>([]);
-  const [browserLoading, setBrowserLoading] = useState("");
-  const [browserPassphrase, setBrowserPassphrase] = useState<KeyShareInfo | null>(null);
+  // Browser-stored key shares: one is implicit; a grandfathered second key is chosen here
+  // (this page has no account row to name it). Nothing unlocks until the sign tap.
+  const [browserShares] = useState<KeyShareInfo[]>(() => (isRecoveryMode() ? [] : listKeyShares()));
+  const [signKeyId, setSignKeyId] = useState<string | null>(() => browserShares[0]?.keyId ?? null);
+  // A key kept as a file only can still sign here, next to the stored ones.
+  const [showUpload, setShowUpload] = useState(false);
+  // Owner of this flow's passphrase prompt: unmounting cancels it (and only it).
+  const [passphraseOwner] = useState(() => ({}));
+  useEffect(() => () => cancelKeyPassphrase(passphraseOwner), [passphraseOwner]);
 
   // Dialog state
   const [showDialog, setShowDialog] = useState(false);
@@ -69,86 +74,47 @@ export function Sign() {
     false,
   );
 
-  // Load browser-stored shares on mount (skip in recovery — key already set)
-  useEffect(() => {
-    if (!isRecoveryMode()) {
-      setBrowserShares(listKeyShares()); // eslint-disable-line react-hooks/set-state-in-effect -- one-time init from localStorage
-    }
-  }, []);
-
-  async function loadBrowserShare(info: KeyShareInfo) {
-    setBrowserLoading(info.keyId);
-    try {
-      // PRF share: keep it locked; the signing tap unlocks it (one tap per signature).
-      const deferred = info.mode === "prf" ? deferredPrfKeyFile(info.keyId, { needsEddsa: true }) : null;
-      if (deferred) {
-        setKeyFile(deferred as KeyFile);
-        setBrowserLoading("");
-      } else if (info.mode === "prf") {
-        const result = await authenticatePasskey({ withPrf: true });
-        if (result.prfKey) {
-          const data = await getKeyShareWithPrf(info.keyId, result.prfKey);
-          if (data) {
-            setKeyFile(data as KeyFile);
-            setBrowserLoading("");
-            return;
-          }
-        }
-        setBrowserLoading("");
-      } else {
-        setBrowserPassphrase(info);
-        setBrowserLoading("");
-      }
-    } catch {
-      setBrowserLoading("");
-    }
-  }
-
   // Passkey guard state
   const [passkeyGuard, setPasskeyGuard] = useState<"idle" | "gate">("idle");
 
+  /** The share that signs, kept for a sign that waits on the passkey registration gate. */
+  const pendingKeyRef = useRef<KeyFile | null>(null);
+
   async function guardedSign() {
+    if (!message) return;
+    // The share that signs: an uploaded/recovery file, else this device's share of signKeyId
+    // (a passphrase share asks for its passphrase here; a PRF share stays locked until the tap).
+    // Resolved first, while the click's user activation is still fresh.
+    let keyFile: KeyFile | null;
+    try {
+      keyFile = await resolveSigningKeyFile(signKeyId ?? "", { needsEddsa: algorithm === "eddsa", uploaded: uploadedKeyFile, owner: passphraseOwner });
+    } catch (err: unknown) {
+      if (err instanceof KeyPassphraseCancelled) return;
+      setShowDialog(true);
+      setSignature("");
+      setSigningError(signErrorText(err));
+      return;
+    }
+    if (!keyFile) return;
     if (isRecoveryMode()) {
-      sign();
+      sign(keyFile);
       return;
     }
     try {
       const list = await fetchPasskeys();
       // The signing step asks for the passkey itself (bound to this message's digest).
       if (list.length === 0) {
+        pendingKeyRef.current = keyFile;
         setPasskeyGuard("gate");
       } else {
-        sign();
+        sign(keyFile);
       }
     } catch {
-      sign();
+      sign(keyFile);
     }
   }
 
-  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const data = JSON.parse(reader.result as string);
-        if (!data.id || !data.share || !data.publicKey) return;
-        if (isEncryptedKeyFile(data)) {
-          setPendingEncrypted(data);
-          setKeyFile(null);
-        } else {
-          setKeyFile(data as KeyFile);
-          setPendingEncrypted(null);
-        }
-      } catch { /* ignore */ }
-    };
-    reader.readAsText(file);
-  }
-
-  async function sign() {
-    if (!keyFile || !message) return;
-
+  async function sign(keyFile: KeyFile) {
     setShowDialog(true);
     setSignature("");
     setVerified(null);
@@ -197,9 +163,13 @@ export function Sign() {
       }
     } catch (err: unknown) {
       console.error("[sign] Error:", err);
-      const msg = (err as { message?: string })?.message || String(err);
-      setSigningError(msg === "passkey_auth_required" ? t("sign.passkeyExpired") : msg === "prf_unavailable" ? t("send.passkeyNoEncryption") : msg);
+      setSigningError(signErrorText(err));
     }
+  }
+
+  function signErrorText(err: unknown): string {
+    const msg = (err as { message?: string })?.message || String(err);
+    return msg === "passkey_auth_required" ? t("sign.passkeyExpired") : msg === "prf_unavailable" ? t("send.passkeyNoEncryption") : msg;
   }
 
   function closeDialog() {
@@ -217,7 +187,7 @@ export function Sign() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [showDialog, signDialogCanClose]);
 
-  const canSign = keyFile && message;
+  const canSign = (uploadedKeyFile || signKeyId) && message;
 
   return (
     <div className="space-y-5">
@@ -231,131 +201,32 @@ export function Sign() {
 
       {/* Form */}
       <div className="space-y-4">
-        {/* Key Share File */}
-        <div>
-          <label className="block text-xs text-text-muted mb-1.5">{t("sign.keyShare")}</label>
-          {!keyFile && !pendingEncrypted ? (
-            <div className="space-y-2">
-              {/* Browser-stored shares */}
-              {browserShares.length > 0 && !browserPassphrase && (
-                <div className="space-y-1.5">
-                  {browserShares.map((s) => (
-                    <button
-                      key={s.keyId}
-                      onClick={() => loadBrowserShare(s)}
-                      disabled={browserLoading === s.keyId}
-                      className="w-full bg-surface-secondary border border-border-primary rounded-lg px-3 py-2.5 flex items-center gap-2.5 hover:border-blue-500/30 transition-colors text-left disabled:opacity-50"
-                    >
-                      <svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a9 9 0 11-18 0V5.25" />
-                      </svg>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-text-secondary truncate">{s.keyId.slice(0, 8)}...</p>
-                        <p className="text-[10px] text-text-muted">{s.mode === "prf" ? t("sign.passkeyEncrypted") : t("sign.passphraseEncrypted")} · ECDSA + EdDSA</p>
-                      </div>
-                      {browserLoading === s.keyId ? (
-                        <Spinner size="xs" />
-                      ) : (
-                        <svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                        </svg>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {/* Browser passphrase prompt */}
-              {browserPassphrase && (
-                <div className="bg-surface-secondary border border-border-primary rounded-lg p-3">
-                  <p className="text-xs text-text-muted mb-2">
-                    <span className="font-mono text-text-tertiary">{browserPassphrase.keyId.slice(0, 8)}...</span> — {t("sign.enterPassphrase")}
-                  </p>
-                  <PassphraseInput
-                    mode="enter"
-                    submitLabel={t("sign.decrypt")}
-                    onSubmit={async (passphrase) => {
-                      const data = await getKeyShareWithPassphrase(browserPassphrase.keyId, passphrase);
-                      if (data) {
-                        setKeyFile(data as KeyFile);
-                        setBrowserPassphrase(null);
-                      }
-                    }}
-                  />
-                </div>
-              )}
-
-              {/* File upload */}
-              {browserShares.length > 0 ? (
-                <label className="block w-full text-center text-[11px] text-text-muted hover:text-text-tertiary transition-colors cursor-pointer">
-                  {t("sign.orUploadFile")}
-                  <input
-                    type="file"
-                    accept=".json"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                </label>
-              ) : (
-                <label className="flex items-center justify-center gap-2 w-full bg-surface-secondary border border-border-primary border-dashed rounded-lg px-3 py-4 text-xs text-text-muted hover:border-blue-500/50 hover:text-text-secondary transition-colors cursor-pointer">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
-                  </svg>
-                  {t("sign.chooseKeyFile")}
-                  <input
-                    type="file"
-                    accept=".json"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                </label>
-              )}
+        {/* Key share: implicit with one device share; a file upload when there is none */}
+        {browserShares.length > 1 && !uploadedKeyFile && (
+          <div>
+            <label className="block text-xs text-text-muted mb-1.5">{t("signKey.label")}</label>
+            <div className="flex flex-wrap bg-surface-secondary border border-border-primary rounded-lg p-0.5 gap-0.5 w-fit">
+              {browserShares.map((s) => (
+                <button
+                  key={s.keyId}
+                  onClick={() => setSignKeyId(s.keyId)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                    signKeyId === s.keyId ? "bg-surface-tertiary text-text-primary shadow-sm" : "text-text-muted hover:text-text-secondary"
+                  }`}
+                >
+                  {s.name || `${s.keyId.slice(0, 8)}...`}
+                </button>
+              ))}
             </div>
-          ) : keyFile ? (
-            <div className="bg-surface-secondary border border-border-primary rounded-lg px-3 py-2.5 flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-full bg-green-500/10 flex items-center justify-center flex-shrink-0">
-                <svg className="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                </svg>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-text-secondary truncate">
-                  {keyFile.id.slice(0, 8)}...{keyFile.id.slice(-4)}
-                </p>
-                <p className="text-[10px] text-text-muted font-mono truncate">{keyFile.publicKey.slice(0, 24)}...</p>
-              </div>
-              <button
-                onClick={() => !isRecoveryMode() && setKeyFile(null)}
-                disabled={isRecoveryMode()}
-                className={`p-1 rounded-md transition-colors ${isRecoveryMode() ? "opacity-40 cursor-not-allowed" : "hover:bg-surface-tertiary"}`}
-                title={isRecoveryMode() ? t("sign.keyLoadedRecovery") : t("sign.changeKey")}
-              >
-                <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 119 0v3.75M3.75 21.75h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H3.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                </svg>
-              </button>
-            </div>
-          ) : null}
-
-          {/* Passphrase prompt for encrypted files */}
-          {pendingEncrypted && !keyFile && (
-            <div className="bg-surface-secondary border border-border-primary rounded-lg p-3 mt-2">
-              <p className="text-xs text-text-muted mb-2">
-                <span className="font-mono text-text-tertiary">{pendingEncrypted.id.slice(0, 8)}...</span> — {t("sign.enterPassphraseToUnlock")}
-              </p>
-              <PassphraseInput
-                mode="enter"
-                submitLabel={t("sign.decrypt")}
-                onSubmit={async (passphrase) => {
-                  const decrypted = await decryptKeyFile(pendingEncrypted, passphrase);
-                  setKeyFile(decrypted as KeyFile);
-                  setPendingEncrypted(null);
-                }}
-              />
-            </div>
-          )}
-
-        </div>
+          </div>
+        )}
+        {!isRecoveryMode() && (browserShares.length === 0 || showUpload || uploadedKeyFile ? (
+          <KeyShareUpload keyFile={uploadedKeyFile} onChange={setUploadedKeyFile} />
+        ) : (
+          <button onClick={() => setShowUpload(true)} className="text-[11px] text-text-muted hover:text-text-tertiary transition-colors">
+            {t("signKey.orUploadFile")}
+          </button>
+        ))}
 
         {/* Algorithm */}
         <div>
@@ -404,9 +275,11 @@ export function Sign() {
         <PasskeyGate
           onRegistered={() => {
             setPasskeyGuard("idle");
-            sign();
+            const kf = pendingKeyRef.current;
+            pendingKeyRef.current = null;
+            if (kf) sign(kf);
           }}
-          onCancel={() => setPasskeyGuard("idle")}
+          onCancel={() => { setPasskeyGuard("idle"); pendingKeyRef.current = null; }}
         />
       )}
 

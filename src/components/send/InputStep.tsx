@@ -4,7 +4,7 @@ import { shortAddress } from "../../lib/review";
 import { NetworkChip } from "../review/review-header";
 import { truncateBalance } from "../sendTypes";
 import type { InputStepProps } from "./types";
-import { KeyShareSection } from "./KeyShareSection";
+import { KeyShareUpload } from "../KeyShareUpload";
 import { AddressSection } from "./AddressSection";
 import { ExpertOverrides, ExpertFeeLevelSelector } from "./ExpertOverrides";
 
@@ -30,14 +30,7 @@ export function InputStep({
   speedUpData,
   keyFile,
   setKeyFile,
-  pendingEncrypted,
-  setPendingEncrypted,
-  fileInputRef,
-  browserShareMode,
-  setBrowserShareMode,
-  browserShareLoading,
-  browserShareError,
-  showBrowserPassphrase,
+  hasStoredShare,
   keyId,
   to,
   setTo,
@@ -69,6 +62,7 @@ export function InputStep({
   amountError,
   amountUsd,
   maxSendable,
+  maxInputsCapped,
   balancesHidden,
   feeLevel,
   setFeeLevel,
@@ -107,8 +101,6 @@ export function InputStep({
   totalUsd: _totalUsd,
   canReview,
   policyChecking,
-  handleFileSelect,
-  loadBrowserShare,
   onPreview,
   t,
   handleFetchUtxosCallback,
@@ -117,23 +109,9 @@ export function InputStep({
     <>
       {/* Body — Input step */}
       <div className="px-5 pt-3 pb-5 space-y-4">
-        <KeyShareSection
-          recovery={recovery}
-          keyFile={keyFile}
-          setKeyFile={setKeyFile}
-          pendingEncrypted={pendingEncrypted}
-          setPendingEncrypted={setPendingEncrypted}
-          fileInputRef={fileInputRef}
-          browserShareMode={browserShareMode}
-          setBrowserShareMode={setBrowserShareMode}
-          browserShareLoading={browserShareLoading}
-          browserShareError={browserShareError}
-          showBrowserPassphrase={showBrowserPassphrase}
-          keyId={keyId}
-          loadBrowserShare={loadBrowserShare}
-          handleFileSelect={handleFileSelect}
-          t={t}
-        />
+        {!recovery && !hasStoredShare && (
+          <KeyShareUpload keyFile={keyFile} onChange={setKeyFile} expectedKeyId={keyId} showRestoreHint />
+        )}
 
         {/* From: asset + chain + balance (same order as the iOS form), address short */}
         <div>
@@ -225,6 +203,9 @@ export function InputStep({
             ) : amountUsd != null ? (
               <p className="text-sm text-text-muted tabular-nums">&asymp; {formatUsd(amountUsd)}</p>
             ) : null}
+            {maxInputsCapped != null && !amountError && (
+              <p className="mt-1 text-xs text-amber-400">{t("send.maxInputsCapped", { max: maxInputsCapped })}</p>
+            )}
           </div>
         </div>
 

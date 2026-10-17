@@ -30,10 +30,9 @@ import {
   ltcApiUrl,
 } from "../../lib/chains/ltcTx";
 import { parseDerSignature, parseUnits } from "../../lib/chains/evmTx";
-import { isRecoveryMode } from "../../lib/recovery";
 import type { SigningContext, UtxoFetchContext } from "./signing-flows";
-import { MAX_UTXO_INPUTS } from "./signing-flows";
-import { mapSendError, LocalizedSendError } from "./send-error";
+import { buildWithUtxoInputCap } from "./build-with-utxo-input-cap";
+import { mapSendError } from "./send-error";
 
 export async function executeBtcSigningFlow(ctx: SigningContext): Promise<void> {
   const {
@@ -41,7 +40,7 @@ export async function executeBtcSigningFlow(ctx: SigningContext): Promise<void> 
     btcFeeRate, rbfEnabled, manualUtxos, confirmBeforeBroadcast,
     onTxSubmitted, onTxConfirmed,
     setStep, setSigningPhase, setSignatureCount, setSigningError,
-    setSignedRawTx, setTxResult, setPendingTxHash, setKeyFile, setPendingEncrypted,
+    setSignedRawTx, setTxResult, setPendingTxHash, setKeyFile,
     t,
   } = ctx;
 
@@ -63,10 +62,7 @@ export async function executeBtcSigningFlow(ctx: SigningContext): Promise<void> 
     const utxos = manualUtxos ?? await fetchUtxos(address, btcApi);
     const amountSats = parseUnits(amount, asset.decimals);
     const addrType = detectAddressType(address);
-    const btcTx = buildBtcTransaction(to, amountSats, utxos, btcFeeRate, address, addrType, rbfEnabled, manualUtxos != null);
-    if (!isRecoveryMode() && btcTx.inputs.length > MAX_UTXO_INPUTS) {
-      throw new LocalizedSendError(t("send.tooManyInputs", { count: btcTx.inputs.length, max: MAX_UTXO_INPUTS }));
-    }
+    const btcTx = buildWithUtxoInputCap((max) => buildBtcTransaction(to, amountSats, utxos, btcFeeRate, address, addrType, rbfEnabled, manualUtxos != null, max), t, asset);
 
     // 2. Get compressed public key and hash
     setSigningPhase("mpc-signing");
@@ -131,7 +127,7 @@ export async function executeBtcSigningFlow(ctx: SigningContext): Promise<void> 
     if (confirmBeforeBroadcast) {
       setSignedRawTx(rawHex);
       setTxResult({ status: "success", txHash: "sign-only" });
-      setKeyFile(null); setPendingEncrypted(null);
+      setKeyFile(null);
       setStep("result");
       return;
     }
@@ -159,7 +155,7 @@ export async function executeBtcSigningFlow(ctx: SigningContext): Promise<void> 
       blockNumber: result.blockHeight,
     });
     if (result.confirmed) onTxConfirmed?.(broadcastTxid || txid);
-    setKeyFile(null); setPendingEncrypted(null);
+    setKeyFile(null);
     setStep("result");
 
   } catch (err: unknown) {

@@ -27,7 +27,7 @@ export async function executeSigningFlow(ctx: SigningContext): Promise<void> {
     gasPrice, gasLimit, confirmBeforeBroadcast,
     onTxSubmitted, onTxConfirmed,
     setStep, setSigningPhase, setSignatureCount, setSigningError,
-    setSignedRawTx, setTxResult, setPendingTxHash, setKeyFile, setPendingEncrypted,
+    setSignedRawTx, setTxResult, setPendingTxHash, setKeyFile,
     t,
   } = ctx;
 
@@ -85,7 +85,7 @@ export async function executeSigningFlow(ctx: SigningContext): Promise<void> {
     if (confirmBeforeBroadcast) {
       setSignedRawTx(signedTx.rawTransaction);
       setTxResult({ status: "success", txHash: "sign-only" });
-      setKeyFile(null); setPendingEncrypted(null);
+      setKeyFile(null);
       setStep("result");
       return;
     }
@@ -115,7 +115,7 @@ export async function executeSigningFlow(ctx: SigningContext): Promise<void> {
       console.warn("[send] receipt polling failed, tx left pending:", pollErr);
       setTxResult({ status: "pending", txHash });
     }
-    setKeyFile(null); setPendingEncrypted(null);
+    setKeyFile(null);
     setStep("result");
 
   } catch (err: unknown) {

@@ -21,7 +21,7 @@ export async function executeAdaSigningFlow(ctx: SigningContext): Promise<void> 
     confirmBeforeBroadcast,
     onTxSubmitted, onTxConfirmed,
     setStep, setSigningPhase, setSignatureCount, setSigningError,
-    setSignedRawTx, setTxResult, setPendingTxHash, setKeyFile, setPendingEncrypted,
+    setSignedRawTx, setTxResult, setPendingTxHash, setKeyFile,
     t,
   } = ctx;
 
@@ -72,7 +72,7 @@ export async function executeAdaSigningFlow(ctx: SigningContext): Promise<void> 
     if (confirmBeforeBroadcast) {
       setSignedRawTx(toBase64(signedTx));
       setTxResult({ status: "success", txHash: "sign-only" });
-      setKeyFile(null); setPendingEncrypted(null);
+      setKeyFile(null);
       setStep("result");
       return;
     }
@@ -100,7 +100,7 @@ export async function executeAdaSigningFlow(ctx: SigningContext): Promise<void> 
       blockNumber: result.blockHeight,
     });
     if (result.confirmed) onTxConfirmed?.(txId);
-    setKeyFile(null); setPendingEncrypted(null);
+    setKeyFile(null);
     setStep("result");
 
   } catch (err: unknown) {

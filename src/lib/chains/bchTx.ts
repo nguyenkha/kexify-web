@@ -2,6 +2,7 @@
 // BCH uses P2PKH (legacy format) with SIGHASH_FORKID (BIP143-style sighash).
 // No SegWit on BCH — all transactions are legacy format.
 
+import { TooManyInputsError, maxSendableFrom } from "./utxo-input-cap";
 import { sha256 } from "@noble/hashes/sha256";
 import { ripemd160 } from "@noble/hashes/ripemd160";
 import { base58check } from "@scure/base";
@@ -210,15 +211,25 @@ export function estimateFee(numInputs: number, feeRateSatPerByte: number, hasCha
 
 const DUST_LIMIT = 546n;
 
+/** The coins selection draws from: confirmed ones, or all when none is confirmed (BCH 0-conf). */
+const spendablePool = (utxos: UTXO[]) => {
+  const confirmed = utxos.filter((u) => u.status.confirmed);
+  return confirmed.length > 0 ? confirmed : utxos;
+};
+const feeFor = (feeRate: number) => (nIn: number, nOut: number) => BigInt(Math.ceil(estimateLegacyBytes(nIn, nOut) * feeRate));
+
+/** Coins for `targetSats`, largest first, at most `maxInputs` (see btcTx selectUtxos); more throws TooManyInputsError. */
 export function selectUtxos(
   utxos: UTXO[],
   targetSats: bigint,
   feeRateSatPerByte: number,
   useAll: boolean = false,
+  maxInputs: number = Infinity,
 ): { selected: UTXO[]; fee: bigint; change: bigint } {
+  const tooMany = (pool: UTXO[]) => new TooManyInputsError(maxInputs, maxSendableFrom(pool, maxInputs, feeFor(feeRateSatPerByte)).sats);
   if (useAll) {
-    const confirmedAll = utxos.filter((u) => u.status.confirmed);
-    const selected = confirmedAll.length > 0 ? confirmedAll : utxos;
+    const selected = spendablePool(utxos);
+    if (selected.length > maxInputs) throw tooMany(selected);
     const totalIn = selected.reduce((sum, u) => sum + BigInt(u.value), 0n);
     const size2 = estimateLegacyBytes(selected.length, 2);
     const fee2 = BigInt(Math.ceil(size2 * feeRateSatPerByte));
@@ -245,18 +256,22 @@ export function selectUtxos(
 
   // BCH supports 0-conf: prefer confirmed UTXOs, fall back to unconfirmed
   const confirmed = utxos.filter((u) => u.status.confirmed);
-  const sorted = [...(confirmed.length > 0 ? confirmed : utxos)]
-    .sort((a, b) => b.value - a.value);
+  const sorted = [...spendablePool(utxos)].sort((a, b) => b.value - a.value);
 
   const selected: UTXO[] = [];
   let totalIn = 0n;
 
-  for (const utxo of sorted) {
+  for (const utxo of sorted.slice(0, maxInputs)) {
     selected.push(utxo);
     totalIn += BigInt(utxo.value);
 
     const size = estimateLegacyBytes(selected.length, 2);
     const fee = BigInt(Math.ceil(size * feeRateSatPerByte));
+
+    // Covers the amount but not a change output: no change, the rest goes to the fee (Max lands here).
+    if (totalIn < targetSats + fee && totalIn >= targetSats + feeFor(feeRateSatPerByte)(selected.length, 1)) {
+      return { selected, fee: totalIn - targetSats, change: 0n };
+    }
 
     if (totalIn >= targetSats + fee) {
       const change = totalIn - targetSats - fee;
@@ -271,6 +286,7 @@ export function selectUtxos(
     }
   }
 
+  if (sorted.length > maxInputs) throw tooMany(sorted);
   throw new Error(utxos.length === 0
     ? "No UTXOs found — balance may be stale. Try refreshing."
     : `Insufficient funds (${utxos.length} UTXOs, ${confirmed.length} confirmed)`);
@@ -285,8 +301,9 @@ export function buildBchTransaction(
   feeRateSatPerByte: number,
   changeAddress: string,
   useAllUtxos: boolean = false,
+  maxInputs: number = Infinity,
 ): BchUnsignedTx {
-  const { selected, change } = selectUtxos(utxos, amountSats, feeRateSatPerByte, useAllUtxos);
+  const { selected, change } = selectUtxos(utxos, amountSats, feeRateSatPerByte, useAllUtxos, maxInputs);
 
   const inputs: BchInput[] = selected.map((u) => ({
     txid: u.txid,
@@ -304,6 +321,11 @@ export function buildBchTransaction(
   }
 
   return { version: 2, inputs, outputs, locktime: 0 };
+}
+
+/** What Max can send: the `maxInputs` largest coins of the selection pool, one output, fee included. */
+export function maxSendableSats(utxos: UTXO[], feeRateSatPerByte: number, maxInputs: number = Infinity) {
+  return maxSendableFrom(spendablePool(utxos), maxInputs, feeFor(feeRateSatPerByte));
 }
 
 // ── BCH Sighash (BIP143-style with SIGHASH_FORKID) ──────────────

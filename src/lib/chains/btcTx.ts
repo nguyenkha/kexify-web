@@ -1,3 +1,4 @@
+import { TooManyInputsError, maxSendableFrom } from "./utxo-input-cap";
 import { sha256 } from "@noble/hashes/sha256";
 import { ripemd160 } from "@noble/hashes/ripemd160";
 import { base58check } from "@scure/base";
@@ -253,6 +254,10 @@ export function estimateFee(
 
 const DUST_LIMIT = 546n;
 
+/**
+ * Coins for `targetSats`, largest first, at most `maxInputs` of them (MAX_TX_INPUTS when the server co-signs;
+ * recovery mode signs locally with no cap). Needing more throws TooManyInputsError.
+ */
 export function selectUtxos(
   utxos: UTXO[],
   targetSats: bigint,
@@ -261,15 +266,19 @@ export function selectUtxos(
   useAll: boolean = false,
   destAddress?: string,
   changeAddress?: string,
+  maxInputs: number = Infinity,
 ): { selected: UTXO[]; fee: bigint; change: bigint } {
   const estSize = (nIn: number, nOut: number) =>
     addrType === "p2pkh"
       ? estimateLegacyBytes(nIn, nOut, destAddress, changeAddress)
       : estimateVBytes(nIn, nOut, destAddress, changeAddress);
+  const feeFor = (nIn: number, nOut: number) => BigInt(Math.ceil(estSize(nIn, nOut) * feeRateSatPerVB));
+  const tooMany = (pool: UTXO[]) => new TooManyInputsError(maxInputs, maxSendableFrom(pool, maxInputs, feeFor).sats);
 
   if (useAll) {
     // Manual UTXO selection: use all provided UTXOs as-is
     const selected = utxos.filter((u) => u.status.confirmed);
+    if (selected.length > maxInputs) throw tooMany(selected);
     const totalIn = selected.reduce((sum, u) => sum + BigInt(u.value), 0n);
     const size2 = estSize(selected.length, 2);
     const fee2 = BigInt(Math.ceil(size2 * feeRateSatPerVB));
@@ -303,13 +312,18 @@ export function selectUtxos(
   const selected: UTXO[] = [];
   let totalIn = 0n;
 
-  for (const utxo of sorted) {
+  for (const utxo of sorted.slice(0, maxInputs)) {
     selected.push(utxo);
     totalIn += BigInt(utxo.value);
 
     // Estimate fee with 2 outputs (recipient + change)
     const size = estSize(selected.length, 2);
     const fee = BigInt(Math.ceil(size * feeRateSatPerVB));
+
+    // Covers the amount but not a change output: no change, the rest goes to the fee (Max lands here).
+    if (totalIn < targetSats + fee && totalIn >= targetSats + feeFor(selected.length, 1)) {
+      return { selected, fee: totalIn - targetSats, change: 0n };
+    }
 
     if (totalIn >= targetSats + fee) {
       const change = totalIn - targetSats - fee;
@@ -331,7 +345,21 @@ export function selectUtxos(
     }
   }
 
+  if (sorted.length > maxInputs) throw tooMany(sorted);
   throw new Error("Insufficient funds (not enough confirmed UTXOs)");
+}
+
+/** What Max can send: the `maxInputs` largest confirmed coins, one output, fee included (selectUtxos' pool). */
+export function maxSendableSats(
+  utxos: UTXO[],
+  feeRateSatPerVB: number,
+  addrType: BtcAddressType = "p2wpkh",
+  maxInputs: number = Infinity,
+  destAddress?: string,
+): { sats: bigint; inputs: number; capped: boolean } {
+  const est = addrType === "p2pkh" ? estimateLegacyBytes : estimateVBytes;
+  return maxSendableFrom(utxos.filter((u) => u.status.confirmed), maxInputs,
+    (nIn, nOut) => BigInt(Math.ceil(est(nIn, nOut, destAddress) * feeRateSatPerVB)));
 }
 
 // ── Build transaction ───────────────────────────────────────────
@@ -345,8 +373,9 @@ export function buildBtcTransaction(
   addrType: BtcAddressType = "p2wpkh",
   rbf: boolean = true,
   useAllUtxos: boolean = false,
+  maxInputs: number = Infinity,
 ): BtcUnsignedTx {
-  const { selected, change } = selectUtxos(utxos, amountSats, feeRateSatPerVB, addrType, useAllUtxos, toAddress, changeAddress);
+  const { selected, change } = selectUtxos(utxos, amountSats, feeRateSatPerVB, addrType, useAllUtxos, toAddress, changeAddress, maxInputs);
 
   const inputs: BtcInput[] = selected.map((u) => ({
     txid: u.txid,

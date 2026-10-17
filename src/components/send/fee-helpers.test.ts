@@ -16,6 +16,10 @@ describe("computeMaxSendable", () => {
     }
   });
 
+  test("UTXO chains: what the largest coins cover (input cap) wins over balance - fee", () => {
+    expect(computeMaxSendable({ ...base, chain: { type: "btc" } as Chain, asset: native, btcEstimatedFee: 1000n, utxoMaxSats: 61_234_500n })).toBe("0.612345");
+  });
+
   test("tokens use the full balance", () => {
     expect(computeMaxSendable({ ...base, chain: { type: "evm" } as Chain, asset: { ...native, isNative: false } })).toBe("1");
   });

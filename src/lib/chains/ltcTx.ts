@@ -20,6 +20,7 @@ export {
   estimateLegacyBytes,
   estimateFee,
   selectUtxos,
+  maxSendableSats,
   bip143Sighash,
   legacySighash,
   getCompressedPublicKey,
@@ -133,8 +134,9 @@ export function buildLtcTransaction(
   addrType: BtcAddressType = "p2wpkh",
   rbf: boolean = true,
   useAllUtxos: boolean = false,
+  maxInputs: number = Infinity,
 ): BtcUnsignedTx {
-  const { selected, change } = selectUtxos(utxos, amountSats, feeRateSatPerVB, addrType, useAllUtxos, toAddress, changeAddress);
+  const { selected, change } = selectUtxos(utxos, amountSats, feeRateSatPerVB, addrType, useAllUtxos, toAddress, changeAddress, maxInputs);
 
   const inputs: BtcInput[] = selected.map((u) => ({
     txid: u.txid,

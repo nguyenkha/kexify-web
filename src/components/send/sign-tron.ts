@@ -21,7 +21,7 @@ export async function executeTronSigningFlow(ctx: SigningContext): Promise<void>
     confirmBeforeBroadcast,
     onTxSubmitted, onTxConfirmed,
     setStep, setSigningPhase, setSignatureCount, setSigningError,
-    setSignedRawTx, setTxResult, setPendingTxHash, setKeyFile, setPendingEncrypted,
+    setSignedRawTx, setTxResult, setPendingTxHash, setKeyFile,
     t,
   } = ctx;
 
@@ -80,7 +80,7 @@ export async function executeTronSigningFlow(ctx: SigningContext): Promise<void>
     if (confirmBeforeBroadcast) {
       setSignedRawTx(signedTxJson);
       setTxResult({ status: "success", txHash: "sign-only" });
-      setKeyFile(null); setPendingEncrypted(null);
+      setKeyFile(null);
       setStep("result");
       return;
     }
@@ -108,7 +108,7 @@ export async function executeTronSigningFlow(ctx: SigningContext): Promise<void>
       blockNumber: result.blockNumber,
     });
     if (result.confirmed) onTxConfirmed?.(txHash || txId);
-    setKeyFile(null); setPendingEncrypted(null);
+    setKeyFile(null);
     setStep("result");
 
   } catch (err: unknown) {

@@ -25,7 +25,7 @@ export async function executeXrpSigningFlow(ctx: SigningContext): Promise<void> 
     destinationTag, confirmBeforeBroadcast,
     onTxSubmitted, onTxConfirmed,
     setStep, setSigningPhase, setSignatureCount, setSigningError,
-    setSignedRawTx, setTxResult, setPendingTxHash, setKeyFile, setPendingEncrypted,
+    setSignedRawTx, setTxResult, setPendingTxHash, setKeyFile,
     t,
   } = ctx;
 
@@ -98,7 +98,7 @@ export async function executeXrpSigningFlow(ctx: SigningContext): Promise<void> 
     if (confirmBeforeBroadcast) {
       setSignedRawTx(signedTxHex);
       setTxResult({ status: "success", txHash: "sign-only" });
-      setKeyFile(null); setPendingEncrypted(null);
+      setKeyFile(null);
       setStep("result");
       return;
     }
@@ -126,7 +126,7 @@ export async function executeXrpSigningFlow(ctx: SigningContext): Promise<void> 
       blockNumber: result.ledgerIndex,
     });
     if (result.confirmed) onTxConfirmed?.(txHash);
-    setKeyFile(null); setPendingEncrypted(null);
+    setKeyFile(null);
     setStep("result");
 
   } catch (err: unknown) {

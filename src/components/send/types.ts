@@ -2,7 +2,6 @@
 import type { Chain, Asset } from "../../lib/api";
 import type { UTXO } from "../../lib/chains/btcTx";
 import type { KeyFile, FeeLevel, TxResult, SigningPhase } from "../sendTypes";
-import type { KeyFileData } from "../../lib/crypto";
 import type { AddressEntry } from "../../lib/addressBook";
 import type { SimulationResult } from "../../lib/txSimulation";
 import type { SendError } from "./send-error";
@@ -34,18 +33,10 @@ export interface InputStepProps {
     minFeeRate: number;
   };
 
-  // Key share state
+  // Key share: the account's share signs; a file upload only when this device holds none
   keyFile: KeyFile | null;
   setKeyFile: (kf: KeyFile | null) => void;
-  pendingEncrypted: KeyFileData | null;
-  setPendingEncrypted: (d: KeyFileData | null) => void;
-  fileInputRef: React.RefObject<HTMLInputElement | null>;
-  browserShareMode: "prf" | "passphrase" | null;
-  setBrowserShareMode: (m: "prf" | "passphrase" | null) => void;
-  browserShareLoading: boolean;
-  browserShareError: string;
-  showBrowserPassphrase: boolean;
-  setShowBrowserPassphrase: (v: boolean) => void;
+  hasStoredShare: boolean;
   keyId: string;
 
   // Address / to state
@@ -84,6 +75,8 @@ export interface InputStepProps {
   amountUsd: number | null;
   /** null while the fee it must subtract is still unknown (Max disabled). */
   maxSendable: string | null;
+  /** Set (the input cap) when the amount is a Max that leaves coins behind (more than one tx can sign). */
+  maxInputsCapped?: number | null;
   balancesHidden: boolean;
 
   // Fee state
@@ -135,8 +128,6 @@ export interface InputStepProps {
   policyChecking: boolean;
 
   // Callbacks
-  handleFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  loadBrowserShare: () => void;
   guardedSign: (action: () => void) => void;
   onClose: () => void;
   onPreview: () => Promise<void>;
