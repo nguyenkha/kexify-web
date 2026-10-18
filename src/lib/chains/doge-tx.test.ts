@@ -124,6 +124,29 @@ describe("DOGE public reads", () => {
     await expect(doge.fetchUtxos(TO)).rejects.toThrow("cut"); // no count: cannot tell the list is whole
   });
 
+  test("UTXOs: BlockCypher when Blockchair fails or cuts; its cut list and bad rows throw", async () => {
+    const h = "cd".repeat(32);
+    const cypher = (body: Record<string, unknown>) => {
+      globalThis.fetch = (async (u: string) => new URL(u).host === "api.blockchair.com"
+        ? new Response("busy", { status: 430 })
+        : Response.json({ address: TO, ...body })) as unknown as typeof fetch;
+    };
+    cypher({ txrefs: [{ tx_hash: h, tx_output_n: 0, value: 2000000, block_height: 6420001 }],
+      unconfirmed_txrefs: [{ tx_hash: h, tx_output_n: 3, value: 5000000, block_height: -1 }] });
+    expect(await doge.fetchUtxos(TO)).toEqual([
+      { txid: h, vout: 0, value: 2000000, status: { confirmed: true, block_height: 6420001 } },
+      { txid: h, vout: 3, value: 5000000, status: { confirmed: false } },
+    ]);
+    cypher({});
+    expect(await doge.fetchUtxos(TO)).toEqual([]); // no txrefs: an empty wallet
+    cypher({ txrefs: [], hasMore: true });
+    await expect(doge.fetchUtxos(TO)).rejects.toThrow("HTTP 430"); // both failed: the first error
+    cypher({ txrefs: [], unconfirmed_txrefs: [{ tx_hash: h, tx_input_n: 0, tx_output_n: -1, value: 1, block_height: -1 }] });
+    expect(await doge.fetchUtxos(TO)).toEqual([]); // a pending spend's input ref is not a coin
+    cypher({ txrefs: [{ tx_hash: h, tx_output_n: 0, value: -5, block_height: 1 }] });
+    await expect(doge.fetchUtxos(TO)).rejects.toThrow("HTTP 430");
+  });
+
   test("broadcast: Blockchair's node verdict is final; no answer goes on to BlockCypher; duplicates are success", async () => {
     const raw = "0100000000" + "00" + "00000000"; // 0 inputs, 0 outputs: only its txid matters here
     const txid = (await import("./ltc-blockbook")).rawTxid(raw);

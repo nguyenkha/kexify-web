@@ -133,7 +133,8 @@ export async function verifyCode(email: string, code: string): Promise<string> {
 /** Decode JWT payload (works on expired tokens too — no signature check) */
 function decodeJwtPayload(token: string): { sub: string; type?: string; email?: string; exp?: number } | null {
   try {
-    return JSON.parse(atob(token.split(".")[1]));
+    // base64url (JWT): map to the standard alphabet before atob, as userOverrides.currentUserId does
+    return JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
   } catch { return null; }
 }
 

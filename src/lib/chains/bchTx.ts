@@ -121,17 +121,23 @@ export function bchApiUrl(_explorerUrl?: string): string {
   return BCH_API_DEFAULT;
 }
 
+const BLOCKCHAIR_UTXO_LIMIT = 1000;
+
 /** UTXOs: Haskoin first (Blockchair rate-limits shared IPs with 430), Blockchair after. */
 export async function fetchUtxos(address: string, apiBase?: string): Promise<UTXO[]> {
   try { return await haskoinUtxos(address); } catch { /* Blockchair below */ }
   const api = apiBase ?? BCH_API_DEFAULT;
-  const res = await fetch(`${api}/dashboards/address/${address}?limit=1`);
+  // `limit=tx,utxo`: a single value caps the UTXO list too, so `?limit=1` built sends from one coin.
+  const res = await fetch(`${api}/dashboards/address/${address}?limit=1,${BLOCKCHAIR_UTXO_LIMIT}`);
   if (!res.ok) throw new Error(`Failed to fetch UTXOs: ${res.status}`);
   const data = await res.json();
   const addrKey = Object.keys(data.data || {})[0];
   if (!addrKey) return [];
 
   const utxos = data.data[addrKey]?.utxo || [];
+  // A cut list could miss the largest coins: fail rather than build from part of it.
+  const count = data.data[addrKey]?.address?.unspent_output_count;
+  if (typeof count !== "number" || count > utxos.length) throw new Error("Blockchair: UTXO list cut");
   return utxos.map((u: { transaction_hash: string; index: number; value: number; block_id: number }) => ({
     txid: u.transaction_hash,
     vout: u.index,

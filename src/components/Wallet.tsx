@@ -80,17 +80,22 @@ export function Wallet() {
   function loadData() {
     if (isRecovery) {
       // Recovery mode: use static config only, never call server APIs
-      const overrides = getUserOverrides();
-      const showTestnet = getPreference("show_testnet");
-      const c = (staticConfig.chains as Chain[]).filter(
-        (ch) => showTestnet || !isTestnetChain(ch.name),
+      // Recovery mode: bundled config (fetchChains/fetchAssets skip the server) plus this device's custom tokens and RPCs
+      const uid = getIdentityId() ?? undefined;
+      const overrides = getUserOverrides(uid);
+      const showTestnet = getPreference("show_testnet", uid);
+      const c = applyChainOverrides(
+        (staticConfig.chains as Chain[]).filter((ch) => showTestnet || !isTestnetChain(ch.name)),
+        uid,
       );
       setKeys(recoveryKeys);
       setChainsData(c);
-      setAssetsData(staticConfig.assets as Asset[]);
       setDefaultChains(overrides.preferences?.default_chains ?? (staticConfig.preferences as Settings).default_chains ?? null);
-      setLastUpdated(new Date());
-      setLoading(false);
+      fetchAssets().then((a) => {
+        setAssetsData(a);
+        setLastUpdated(new Date());
+        setLoading(false);
+      });
       return;
     }
 

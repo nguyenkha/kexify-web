@@ -24,6 +24,7 @@ import { LOCALES } from "../i18n/locales";
 import { isNotifyEnabled, setNotifyEnabled } from "../lib/notify";
 import { friendlyError } from "../lib/error-message";
 import { isRecoveryMode } from "../lib/recovery";
+import { isRecoveryActive } from "../lib/recovery-flag";
 import { ThemeSelector } from "./theme-selector";
 import { ConfirmDialog } from "./ui/confirm-dialog";
 import { trackExpertTool, trackExpertToolOnce } from "../lib/expert-usage";
@@ -172,7 +173,8 @@ export function ConfigPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const healthCheckTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   useEffect(() => {
-    Promise.all([fetchChains(), fetchAssets(), fetchSettings(), getMe()]).then(([c, a, s, me]) => {
+    // Recovery mode: no /me call, the server may hang instead of refusing
+    Promise.all([fetchChains(), fetchAssets(), fetchSettings(), isRecoveryActive() ? null : getMe()]).then(([c, a, s, me]) => {
       setChains(c);
       setAssets(a);
       setServerSettings(s);

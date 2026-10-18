@@ -1,5 +1,7 @@
 // Per-user config overrides stored in localStorage
 
+import { isRecoveryActive } from "./recovery-flag";
+
 export interface ChainOverride {
   rpc_url?: string;
   explorer_url?: string;
@@ -132,24 +134,27 @@ export function clearUserOverrides(userId?: string): void {
   localStorage.removeItem(storageKey(userId));
 }
 
-/** Extract userId from JWT in localStorage (synchronous, no network call) */
+/** The signed-in identity, as auth.ts getIdentityId() reads it: the session JWT (sessionStorage), else the identity
+ *  cached for the lock screen (localStorage). Synchronous, no network call. */
 function currentUserId(): string | undefined {
   try {
-    const token = localStorage.getItem("secretkey_token");
-    if (!token) return undefined;
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return payload.sub;
+    const token = globalThis.sessionStorage?.getItem("secretkey_token");
+    if (token) return JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))).sub;
+    const cached = localStorage.getItem("kxi:identity");
+    return cached ? JSON.parse(cached).sub : undefined;
   } catch { return undefined; }
 }
 
-/** Find the current user's overrides — by userId, JWT, or scanning localStorage */
+/** Find the current user's overrides — by userId, identity, or scanning localStorage */
 function findOverrides(userId?: string): UserOverrides {
   // 1. Explicit userId
   if (userId) return getUserOverrides(userId);
-  // 2. Derive from JWT token
+  // 2. The signed-in (or cached) identity
   const jwtId = currentUserId();
   if (jwtId) return getUserOverrides(jwtId);
-  // 3. Fallback: scan localStorage
+  // 3. Recovery mode with no identity: ConfigPage / ManageDisplayPanel save under the bare key
+  if (isRecoveryActive()) return getUserOverrides();
+  // 4. Fallback: scan localStorage
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
     if (k?.startsWith("kexify:config:")) {

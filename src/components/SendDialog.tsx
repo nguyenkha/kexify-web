@@ -185,10 +185,12 @@ export function SendDialog({
 
   // Backup status — gate large sends (>$100) on backup completion
   // Standalone mode: skip gate (escrow backup is impossible — can't re-auth without key share)
-  const [hasBackup, setHasBackup] = useState<boolean | null>(isStandaloneJwt() ? true : null);
+  // Recovery mode: skip gate (the user holds both key files, and the server may be gone or answer without a session)
+  const skipBackupGate = isStandaloneJwt() || isRecoveryMode();
+  const [hasBackup, setHasBackup] = useState<boolean | null>(skipBackupGate ? true : null);
   const [backupGateError, setBackupGateError] = useState<string | null>(null);
   useEffect(() => {
-    if (isStandaloneJwt()) return; // standalone: always treat as backed up
+    if (skipBackupGate) return; // always treat as backed up
     fetch(apiUrl("/api/keys"), { headers: authHeaders() })
       .then((r) => r.json())
       .then(({ keys }) => {
@@ -196,7 +198,7 @@ export function SendDialog({
         setHasBackup(key?.hasClientBackup ?? false);
       })
       .catch(() => setHasBackup(null)); // fail-open
-  }, [keyId]);
+  }, [keyId, skipBackupGate]);
 
   // Signing state
   // XRP destination tag

@@ -6,7 +6,8 @@ import { ToggleSwitch } from "./ToggleSwitch";
 import { Button } from "./ui";
 import { fetchTokenMetadata } from "../lib/tokenMetadata";
 import { getUserOverrides, setUserOverrides, type CustomToken } from "../lib/userOverrides";
-import { getMe } from "../lib/auth";
+import { getMe, getIdentityId } from "../lib/auth";
+import { isRecoveryActive } from "../lib/recovery-flag";
 import staticConfig from "../config.json";
 
 export function ManageDisplayPanel({
@@ -262,8 +263,9 @@ export function ManageDisplayPanel({
                   onClick={async () => {
                     const chain = uniqueChains.find(c => c.chain.id === addChainId)?.chain;
                     if (!chain || !addPreview) return;
-                    const me = await getMe();
-                    const overrides = getUserOverrides(me?.id);
+                    // Same key ConfigPage and the readers use, also when /me is unreachable (recovery mode)
+                    const uid = (isRecoveryActive() ? null : (await getMe())?.id) ?? getIdentityId() ?? undefined;
+                    const overrides = getUserOverrides(uid);
                     const existing = overrides.custom_tokens ?? [];
                     const tokenId = `custom:${chain.id}:${addContract.trim().toLowerCase()}`;
                     // Skip if already added
@@ -281,7 +283,7 @@ export function ManageDisplayPanel({
                       chain_id: chain.id,
                       added_at: Date.now(),
                     };
-                    setUserOverrides({ ...overrides, custom_tokens: [...existing, newToken] }, me?.id);
+                    setUserOverrides({ ...overrides, custom_tokens: [...existing, newToken] }, uid);
                     // Auto-enable display
                     onToggle(tokenId, true);
                     setShowAddToken(false);

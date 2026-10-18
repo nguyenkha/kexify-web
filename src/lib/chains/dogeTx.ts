@@ -164,8 +164,37 @@ export async function fetchDogeHistoryPage(address: string, page: number): Promi
 
 const BLOCKCHAIR_UTXO_LIMIT = 1000;
 
-/** UTXOs (Blockchair dashboard: one call, up to 1000 coins; unconfirmed ones flagged). */
+/** UTXOs: Blockchair first, BlockCypher when Blockchair fails or cuts the list (recovery mode has no server proxy behind them). */
 export async function fetchUtxos(address: string): Promise<UTXO[]> {
+  try {
+    return await blockchairUtxos(address);
+  } catch (first) {
+    try { return await blockcypherUtxos(address); } catch { throw first; }
+  }
+}
+
+const BLOCKCYPHER_UTXO_LIMIT = 2000;
+
+/** BlockCypher unspent outputs (confirmed `txrefs` + `unconfirmed_txrefs`); `hasMore` means a cut list. */
+async function blockcypherUtxos(address: string): Promise<UTXO[]> {
+  const j = (await getJson(`${DOGE_BLOCKCYPHER}/addrs/${encodeURIComponent(address)}?unspentOnly=true&includeScript=false&limit=${BLOCKCYPHER_UTXO_LIMIT}`)) as
+    { address?: unknown; txrefs?: unknown; unconfirmed_txrefs?: unknown; hasMore?: unknown };
+  if (j?.address !== address) throw new Error("BlockCypher: bad UTXO list");
+  if (j.hasMore === true) throw new Error("BlockCypher: UTXO list cut");
+  const refs = [...(Array.isArray(j.txrefs) ? j.txrefs : []), ...(Array.isArray(j.unconfirmed_txrefs) ? j.unconfirmed_txrefs : [])];
+  // A pending spend shows up in `unconfirmed_txrefs` as an input ref (tx_output_n -1): not a coin, skip it.
+  const outputs = (refs as Record<string, unknown>[]).filter((u) => !(typeof u?.tx_output_n === "number" && u.tx_output_n < 0));
+  return outputs.map((u) => {
+    if (typeof u?.tx_hash !== "string" || !/^[0-9a-f]{64}$/.test(u.tx_hash) || !Number.isSafeInteger(u.tx_output_n)
+      || !Number.isSafeInteger(u.value) || (u.value as number) <= 0 || typeof u.block_height !== "number") throw new Error("BlockCypher: bad UTXO");
+    const h = u.block_height as number;
+    return { txid: u.tx_hash, vout: u.tx_output_n as number, value: u.value as number,
+      status: h > 0 ? { confirmed: true, block_height: h } : { confirmed: false } };
+  });
+}
+
+/** Blockchair dashboard: one call, up to 1000 coins; unconfirmed ones flagged. */
+async function blockchairUtxos(address: string): Promise<UTXO[]> {
   const j = (await getJson(`${DOGE_BLOCKCHAIR}/dashboards/address/${encodeURIComponent(address)}?limit=1,${BLOCKCHAIR_UTXO_LIMIT}`)) as
     { data?: Record<string, { utxo?: unknown; address?: { unspent_output_count?: unknown } }> };
   const entry = j?.data?.[address];

@@ -71,10 +71,23 @@ describe("malformed or cut answers fall back instead of reading as zero", () => 
     await ltcAdapter.fetchTransactions(LTC_ADDR, LITECOIN, coin("LTC"), 1);
     expect(hosts).toEqual(["litecoinblockexplorer.net", "litecoinspace.org"]);
     hosts = [];
-    respond = (u) => (u.host === "api.blockchair.com" ? Response.json({ data: { [BCH_UTXO_ADDR]: { utxo: [] } } })
+    respond = (u) => (u.host === "api.blockchair.com" ? Response.json({ data: { [BCH_UTXO_ADDR]: { address: { unspent_output_count: 0 }, utxo: [] } } })
       : Response.json(Array.from({ length: 1000 }, (_, i) => ({ ...hkUnspent[0], index: i }))));
     expect(await fetchBchUtxos(BCH_UTXO_ADDR)).toEqual([]);
     expect(hosts).toEqual(["api.haskoin.com", "api.blockchair.com"]);
+  });
+
+  test("BCH Blockchair UTXOs: asks for the whole list, and a cut list throws", async () => {
+    const urls: string[] = [];
+    const u = { transaction_hash: "ab".repeat(32), index: 0, value: 5000, block_id: 900000 };
+    respond = (url) => {
+      urls.push(url.search);
+      return url.host === "api.blockchair.com"
+        ? Response.json({ data: { [BCH_UTXO_ADDR]: { address: { unspent_output_count: 3 }, utxo: [u, { ...u, index: 1 }] } } })
+        : new Response("down", { status: 503 });
+    };
+    await expect(fetchBchUtxos(BCH_UTXO_ADDR)).rejects.toThrow("cut");
+    expect(urls).toContain("?limit=1,1000");
   });
 });
 
@@ -104,7 +117,7 @@ describe("BCH: Haskoin first", () => {
     expect(await fetchBchUtxos(BCH_UTXO_ADDR)).toEqual([{ txid: "14e50d568f4ad93892d2e829a658c1f1dcb045c19beb68814162ff0f642a0d07",
       vout: 0, value: 184409, status: { confirmed: true, block_height: 973382 } }]);
     hosts = [];
-    respond = (u) => (u.host === "api.blockchair.com" ? Response.json({ data: { [BCH_UTXO_ADDR]: { utxo: [] } } }) : Response.json([{ ...hkUnspent[0], value: -1 }]));
+    respond = (u) => (u.host === "api.blockchair.com" ? Response.json({ data: { [BCH_UTXO_ADDR]: { address: { unspent_output_count: 0 }, utxo: [] } } }) : Response.json([{ ...hkUnspent[0], value: -1 }]));
     expect(await fetchBchUtxos(BCH_UTXO_ADDR)).toEqual([]);
     expect(hosts).toEqual(["api.haskoin.com", "api.blockchair.com"]);
   });
