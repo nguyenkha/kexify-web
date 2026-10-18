@@ -26,6 +26,7 @@ export function RevokeRequest({ chain, owner, approval, info, onSent, onClose }:
   }), [id, chain.evmChainId, owner, approval]);
   const origin = useMemo(() => ({
     name: "Kexify",
+    icon: `${import.meta.env.BASE_URL}icon.svg`,
     tokens: revokeOriginTokens(approval.contract, info),
   }), [info, approval.contract]);
 

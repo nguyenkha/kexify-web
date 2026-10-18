@@ -86,7 +86,10 @@ export function DecodeTxPage() {
           {decodeWarnings(decoded).map((k) => (
             <div key={k} className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2 text-xs text-yellow-500">{t(k)}</div>
           ))}
-          <ReviewBody model={review} copyable expert />
+          <ReviewBody model={review} copyable expert tokenIcon={(addr) => {
+            const a = assets.find((x) => x.chainId === chain?.id && x.contractAddress?.toLowerCase() === addr.toLowerCase());
+            return a ? { iconUrl: a.iconUrl, symbol: a.symbol } : undefined;
+          }} />
           <dl className="bg-surface-secondary border border-border-primary rounded-lg divide-y divide-border-secondary text-xs" data-testid="decode-facts">
             {decodedFacts(decoded).map((f) => (
               <div key={f.key} className="flex justify-between gap-3 px-3 py-2">

@@ -3,16 +3,21 @@
 import { ArrowUp, CircleHelp, FileText, KeyRound, Plus, Puzzle, Coins, UserCog, XCircle } from "lucide-react";
 import { displayAmountText } from "../../lib/display-amount";
 import type { ActionIcon, ReviewAction, ReviewModel, ReviewRow } from "../../lib/review";
+import { TokenIcon } from "../ui/token-icon";
 import { PartyInline, PartyValue } from "./review-address";
 import { useReviewText } from "./review-text";
+
+/** Logo for a token row: the review model only carries addresses, so the caller supplies the lookup. */
+export type TokenIconOf = (address: string) => { iconUrl?: string | null; fallbackUrl?: string | null; symbol: string } | undefined;
 
 const card = "bg-surface-primary border border-border-primary rounded-xl overflow-hidden divide-y divide-border-secondary";
 const ACTION_ICONS: Record<ActionIcon, typeof ArrowUp> = {
   send: ArrowUp, approve: KeyRound, authority: UserCog, close: XCircle, create: Plus, memo: FileText, program: Puzzle, token: Coins, unknown: CircleHelp,
 };
 
-function Row({ row, copyable }: { row: ReviewRow; copyable: boolean }) {
+function Row({ row, copyable, tokenIcon }: { row: ReviewRow; copyable: boolean; tokenIcon?: TokenIconOf }) {
   const { text, date } = useReviewText();
+  const icon = "key" in row.label && row.label.key === "review.token" && row.party ? tokenIcon?.(row.party.address) : undefined;
   const label = <span className="text-xs text-text-muted shrink-0">{text(row.label)}</span>;
   if (row.party && row.fullAddress) {
     return (
@@ -26,7 +31,12 @@ function Row({ row, copyable }: { row: ReviewRow; copyable: boolean }) {
     <div className="px-3 py-2.5 flex items-start justify-between gap-3">
       {label}
       <span className="text-right min-w-0">
-        {row.party ? <PartyValue party={row.party} copyable={copyable} /> : (
+        {row.party ? (
+          <span className="flex items-start justify-end gap-2">
+            {icon && <TokenIcon iconUrl={icon.iconUrl} fallbackUrl={icon.fallbackUrl} symbol={icon.symbol} className="w-6 h-6 mt-0.5" />}
+            <PartyValue party={row.party} copyable={copyable} />
+          </span>
+        ) : (
           <span className="text-sm text-text-primary tabular-nums break-words">{row.date ? date(row.date) : text(row.value)}</span>
         )}
         {row.sub && <span className="block text-xs text-text-muted tabular-nums">{text(row.sub)}</span>}
@@ -54,7 +64,7 @@ function Action({ action, index }: { action: ReviewAction; index: number }) {
   );
 }
 
-export function ReviewDetails({ model, copyable, expert }: { model: ReviewModel; copyable: boolean; expert?: boolean }) {
+export function ReviewDetails({ model, copyable, expert, tokenIcon }: { model: ReviewModel; copyable: boolean; expert?: boolean; tokenIcon?: TokenIconOf }) {
   const { t, text, usd } = useReviewText();
   const { fee, total } = model;
   return (
@@ -69,7 +79,7 @@ export function ReviewDetails({ model, copyable, expert }: { model: ReviewModel;
       )}
 
       <div className={card} data-testid="review-rows">
-        {model.rows.map((r, i) => <Row key={i} row={r} copyable={copyable} />)}
+        {model.rows.map((r, i) => <Row key={i} row={r} copyable={copyable} tokenIcon={tokenIcon} />)}
       </div>
 
       {model.message != null && (

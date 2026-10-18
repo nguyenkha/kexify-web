@@ -29,7 +29,9 @@ export function DappTitle({ name, url, iconUrl, verified }: DappProps) {
       {iconUrl ? (
         <img src={iconUrl} alt="" className="w-9 h-9 rounded-lg bg-surface-tertiary object-cover shrink-0" />
       ) : (
-        <span className="w-9 h-9 rounded-lg bg-surface-tertiary shrink-0" aria-hidden />
+        <span className="w-9 h-9 rounded-lg bg-surface-tertiary text-text-secondary shrink-0 inline-flex items-center justify-center text-sm font-semibold" aria-hidden>
+          {(name.trim()[0] ?? "?").toUpperCase()}
+        </span>
       )}
       <div className="min-w-0">
         <p className="text-sm font-semibold text-text-primary flex items-center gap-1 truncate">

@@ -8,7 +8,7 @@ import { shortAddress } from "../review/review-format";
 import type { Chain } from "../../shared/types";
 import type { Approval } from "./types";
 
-export interface ContractInfo { symbol: string; name: string; decimals: number | null }
+export interface ContractInfo { symbol: string; name: string; decimals: number | null; iconUrl?: string | null }
 
 /** Name of the spender when we know it; null = show the short address. */
 export function spenderLabel(address: string): string | null {
@@ -20,7 +20,7 @@ export async function contractInfos(chain: Chain, approvals: Approval[]): Promis
   const out = new Map<string, ContractInfo>();
   const assets = await fetchAssets(chain.id).catch(() => []);
   for (const a of assets) {
-    if (a.contractAddress) out.set(a.contractAddress.toLowerCase(), { symbol: a.symbol, name: a.name, decimals: a.decimals });
+    if (a.contractAddress) out.set(a.contractAddress.toLowerCase(), { symbol: a.symbol, name: a.name, decimals: a.decimals, iconUrl: a.iconUrl });
   }
   const missing = [...new Set(approvals.map((a) => a.contract.toLowerCase()))].filter((c) => !out.has(c));
   await Promise.all(missing.map(async (c) => {

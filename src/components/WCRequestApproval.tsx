@@ -65,7 +65,7 @@ interface Props {
   onDismiss?: () => void;
   /** An in-app request (no WalletConnect session), e.g. the approvals screen's revoke: names the source and
    *  the tokens it knows beyond the asset list; hides the allowance cap editor so a revoke stays a revoke. */
-  origin?: { name: string; tokens?: { address: string; symbol: string; decimals: number }[] };
+  origin?: { name: string; icon?: string; tokens?: { address: string; symbol: string; decimals: number }[] };
 }
 
 interface ResolvedAccount {
@@ -816,6 +816,10 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss, ori
   // Review models (UX spec: docs/ux/review-and-sign.md), from the same decoded bytes as signing.
   const dappMeta = origin ? undefined : wcService.getSessions().find((s) => s.topic === request.topic)?.peer.metadata;
   const sourceName = origin?.name ?? (dappMeta?.name || "dApp");
+  const tokenIconOf = (addr: string) => {
+    const a = chainAssets.find((x) => x.contractAddress?.toLowerCase() === addr.toLowerCase());
+    return a ? { iconUrl: a.iconUrl, symbol: a.symbol } : undefined;
+  };
   const reviewCtx: WcReviewContext = {
     from: { address: account?.address ?? "", name: account?.keyName },
     dappName: sourceName,
@@ -909,7 +913,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss, ori
                   </svg>
                 </button>
               )}
-              <DappTitle name={sourceName} url={dappMeta?.url} iconUrl={dappMeta?.icons?.[0]} />
+              <DappTitle name={sourceName} url={dappMeta?.url} iconUrl={origin?.icon ?? dappMeta?.icons?.[0]} />
               {chain && <span className="ml-auto"><NetworkChip name={chain.displayName} iconUrl={chain.iconUrl} /></span>}
             </div>
           ) : (
@@ -949,7 +953,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss, ori
                 </div>
               )}
               {reviewModel ? (
-                <ReviewBody model={reviewModel} copyable expert={expert} heroAccessory={capEditor(reviewModel)}>
+                <ReviewBody model={reviewModel} copyable expert={expert} tokenIcon={tokenIconOf} heroAccessory={capEditor(reviewModel)}>
                   {isTx && !isSolana && !isTron && (
                     <>
                   {/* Fee level selector — expert only, non-expert uses default "medium" */}
@@ -1102,7 +1106,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss, ori
           {/* ── Preview phase (review before signing) ─────────────── */}
           {phase === "preview" && (
             previewModel ? (
-              <ReviewBody model={previewModel} copyable expert={expert} onReviewPolicy={reviewPolicy} onSeenEnd={gate.onSeenEnd} heroAccessory={capEditor(previewModel)}>
+              <ReviewBody model={previewModel} copyable expert={expert} tokenIcon={tokenIconOf} onReviewPolicy={reviewPolicy} onSeenEnd={gate.onSeenEnd} heroAccessory={capEditor(previewModel)}>
                 {isTronTx ? (
                   <>
                   {/* Balance preview */}

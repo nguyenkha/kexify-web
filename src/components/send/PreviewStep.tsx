@@ -89,7 +89,7 @@ export function PreviewStep({
     <>
       {/* Body — Preview step */}
       <div className="p-5 space-y-5">
-        <ReviewBody model={model} copyable={false} expert={expert} onReviewPolicy={onReviewPolicy} onSeenEnd={gate.onSeenEnd}>
+        <ReviewBody model={model} copyable={false} expert={expert} tokenIcon={(addr) => asset.contractAddress?.toLowerCase() === addr.toLowerCase() ? { iconUrl: asset.iconUrl, symbol: asset.symbol } : undefined} onReviewPolicy={onReviewPolicy} onSeenEnd={gate.onSeenEnd}>
         {chain.type === "xlm" && xlmDestination === "createAccount" && (
           <p className="text-xs text-blue-400">{t("send.xlmCreatesAccount")}</p>
         )}

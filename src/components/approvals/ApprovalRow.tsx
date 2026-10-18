@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { CopyableText } from "../ui";
+import { CopyableText, TokenIcon } from "../ui";
 import { formatUnits, shortAddress, trimDecimals } from "../../lib/review/review-format";
 import { spenderLabel, type ContractInfo } from "../../lib/approvals/approval-labels";
 import { isUnlimited, type Approval } from "../../lib/approvals/types";
@@ -28,9 +28,12 @@ export function ApprovalRow({ approval: a, info, revoking, disabled, onRevoke }:
   return (
     <li className="bg-surface-secondary border border-border-primary rounded-xl p-3.5 space-y-2.5">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-text-primary truncate">{name}</p>
-          <p className="text-[11px] text-text-muted">{a.kind === "nft_all" ? t("approvals.collection") : info?.symbol ?? ""}</p>
+        <div className="flex items-center gap-2.5 min-w-0">
+          <TokenIcon iconUrl={info?.iconUrl} symbol={info?.symbol || name} className="w-9 h-9" />
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-text-primary truncate">{name}</p>
+            <p className="text-[11px] text-text-muted">{a.kind === "nft_all" ? t("approvals.collection") : info?.symbol ?? ""}</p>
+          </div>
         </div>
         <span className={`text-sm font-semibold shrink-0 ${unlimited || a.kind === "nft_all" ? "text-red-400" : "text-text-primary"}`}>{amount}</span>
       </div>

@@ -4,7 +4,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { ReviewModel } from "../../lib/review";
-import { ReviewDetails } from "./review-details";
+import { ReviewDetails, type TokenIconOf } from "./review-details";
 import { ReviewHero } from "./review-hero";
 import { ReviewWarnings } from "./review-warnings";
 import { useReviewText } from "./review-text";
@@ -21,9 +21,11 @@ interface Props {
   onSeenEnd?: () => void;
   /** Right under the hero (the spending-cap editor). */
   heroAccessory?: ReactNode;
+  /** Logo for the Token row. */
+  tokenIcon?: TokenIconOf;
 }
 
-export function ReviewBody({ model, copyable, expert, onReviewPolicy, children, onSeenEnd, heroAccessory }: Props) {
+export function ReviewBody({ model, copyable, expert, onReviewPolicy, children, onSeenEnd, heroAccessory, tokenIcon }: Props) {
   const { t } = useReviewText();
   const end = useRef<HTMLDivElement>(null);
   useSeenEnd(end, onSeenEnd);
@@ -33,7 +35,7 @@ export function ReviewBody({ model, copyable, expert, onReviewPolicy, children, 
       <ReviewHero hero={model.hero} />
       {heroAccessory}
       {model.permitFixed && <p className="text-xs text-text-muted text-center -mt-2 px-4">{t("review.permitFixed")}</p>}
-      <ReviewDetails model={model} copyable={copyable} expert={expert} />
+      <ReviewDetails model={model} copyable={copyable} expert={expert} tokenIcon={tokenIcon} />
       {children}
       <div ref={end} aria-hidden className="h-px" />
     </div>
