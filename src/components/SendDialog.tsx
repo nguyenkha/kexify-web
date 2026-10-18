@@ -89,6 +89,7 @@ import { computeFeeDisplay, computeMaxSendable } from "./send/fee-helpers";
 import { mapSendError, type SendError } from "./send/send-error";
 import { useFirstTimeRecipient } from "./send/use-first-time-recipient";
 import { useUtxoMaxSendable } from "./send/use-utxo-max-sendable";
+import { feesWithProxyFallback } from "../lib/chains/chain-proxy-utxo";
 
 export function SendDialog({
   keyId,
@@ -351,7 +352,7 @@ export function SendDialog({
     function refreshFees() {
       if (chain.type === "btc") {
         const btcApi = mempoolApiUrl(chain.explorerUrl);
-        fetchFeeRates(btcApi)
+        feesWithProxyFallback({ name: chain.name }, () => fetchFeeRates(btcApi))
           .then((rates) => {
             setFeeError(false);
             setBtcFeeRates({
@@ -363,7 +364,7 @@ export function SendDialog({
           .catch(onFeeFail);
       } else if (chain.type === "ltc") {
         const ltcApi = ltcApiUrl(chain.explorerUrl);
-        fetchLtcFeeRates(ltcApi)
+        feesWithProxyFallback({ name: chain.name }, () => fetchLtcFeeRates(ltcApi))
           .then((rates) => {
             setFeeError(false);
             setLtcFeeRates({

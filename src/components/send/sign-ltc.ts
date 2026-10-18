@@ -1,4 +1,4 @@
-import { utxosWithProxyFallback } from "../../lib/chains/chain-proxy-utxo";
+import { broadcastWithProxyFallback, utxosWithProxyFallback } from "../../lib/chains/chain-proxy-utxo";
 import { hexToBytes, bytesToHex } from "../../shared/utils";
 import { toBase64, performBatchMpcSign, clientKeys, restoreKeyHandles, clearClientKey } from "../../lib/mpc";
 import { authHeaders } from "../../lib/auth";
@@ -131,7 +131,7 @@ export async function executeLtcSigningFlow(ctx: SigningContext): Promise<void> 
 
     // 5. Broadcast
     setSigningPhase("broadcasting");
-    const broadcastTxid = await broadcastLtcTx(rawHex, ltcApi);
+    const broadcastTxid = await broadcastWithProxyFallback(chain, address, rawHex, () => broadcastLtcTx(rawHex, ltcApi));
 
     fetch(apiUrl("/api/sign/broadcast"), {
       method: "POST",

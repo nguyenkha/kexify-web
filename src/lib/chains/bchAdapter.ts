@@ -1,6 +1,8 @@
 import type { Asset, Chain, ChainAdapter, BalanceResult, Transaction } from "../../shared/types";
 import { historyWithProxyFallback, PublicReadError, PUBLIC_TIMEOUT_MS, type PublicHistoryPage } from "./chain-proxy-client";
 import { proxyUtxoBalance, proxyUtxoHistory } from "./chain-proxy-utxo";
+import { haskoinBalance, haskoinHistory } from "./bch-haskoin";
+import { legTxToTransaction } from "./utxo-history-legs";
 import { hexToBytes, bytesToHex } from "../../shared/utils";
 import { sha256 } from "@noble/hashes/sha256";
 import { ripemd160 } from "@noble/hashes/ripemd160";
@@ -270,6 +272,8 @@ export const bchAdapter: ChainAdapter = {
       balance: balance.toString(),
       formatted: formatBalance(balance, nativeAsset.decimals),
     });
+    // Haskoin first (Blockchair rate-limits shared IPs with 430), then Blockchair, then the chain proxy.
+    try { return result(await haskoinBalance(address)); } catch { /* Blockchair below */ }
     try {
       const api = bchApiUrl(chain);
       // Convert CashAddr to plain format (strip prefix) for API compatibility
@@ -305,6 +309,21 @@ export const bchAdapter: ChainAdapter = {
 /** Blockchair history page (server-side offset). Throws PublicReadError on HTTP errors; network errors and timeouts
  *  throw. */
 async function publicTransactions(address: string, chain: Chain, asset: Asset, page: number): Promise<PublicHistoryPage> {
+  try {
+    const txs = await haskoinHistory(address, page, PAGE_SIZE);
+    const bare = (a: string) => (a.includes(":") ? a.split(":")[1] : a).toLowerCase();
+    const mine = (a: string | null) => a !== null && bare(a) === bare(address);
+    return {
+      transactions: txs.map((tx) => legTxToTransaction(tx, address, mine, (v) => formatTxValue(v, asset.decimals), asset.symbol)),
+      hasMore: txs.length === PAGE_SIZE,
+      rawRows: txs.length,
+    };
+  } catch { /* Blockchair below */ }
+  return blockchairTransactions(address, chain, asset, page);
+}
+
+/** Blockchair history page (server-side offset). Throws PublicReadError on HTTP errors. */
+async function blockchairTransactions(address: string, chain: Chain, asset: Asset, page: number): Promise<PublicHistoryPage> {
   const api = bchApiUrl(chain);
   const queryAddr = address.includes(":") ? address : address;
   const offset = (page - 1) * PAGE_SIZE;

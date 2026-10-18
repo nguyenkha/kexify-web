@@ -1,0 +1,61 @@
+{
+    "page": 1,
+    "totalPages": 1,
+    "itemsOnPage": 25,
+    "address": "ltc1qmntmcqz3qg26n4harn8vhhz4srgnpuftqmq7a0",
+    "balance": "61847900",
+    "totalReceived": "61847900",
+    "totalSent": "0",
+    "unconfirmedBalance": "0",
+    "unconfirmedTxs": 0,
+    "txs": 1,
+    "transactions": [
+        {
+            "txid": "a6bb0e121e65f1f5f0f4b0cc69d5688a99e9dc5010e21a7170c72b761207a2b5",
+            "version": 2,
+            "vin": [
+                {
+                    "txid": "536af3e4e957951b8d99255752510bb2df46ecb3199b8718740c736ffe34a0be",
+                    "vout": 1,
+                    "sequence": 2147483649,
+                    "n": 0,
+                    "addresses": [
+                        "MPHfqjvdTjcz6xobjPoqKDjSkA2vsoHMBT"
+                    ],
+                    "isAddress": true,
+                    "value": "83762620",
+                    "hex": "160014dbcfc24ba77d611f5e374915ee605414bd933b5d"
+                }
+            ],
+            "vout": [
+                {
+                    "value": "61847900",
+                    "n": 0,
+                    "hex": "0014dcd7bc00510215a9d6fd1ccecbdc5580d130f12b",
+                    "addresses": [
+                        "ltc1qmntmcqz3qg26n4harn8vhhz4srgnpuftqmq7a0"
+                    ],
+                    "isAddress": true,
+                    "isOwn": true
+                },
+                {
+                    "value": "21584720",
+                    "n": 1,
+                    "hex": "a914a8cbc10cd4505b9f3a06a2449c06382668192dd687",
+                    "addresses": [
+                        "MPHfqjvdTjcz6xobjPoqKDjSkA2vsoHMBT"
+                    ],
+                    "isAddress": true
+                }
+            ],
+            "blockHash": "907ac74d710cccc729eeea1acdd6e956efcd4de33e371ea418b3b7a80bc2dae5",
+            "blockHeight": 3197066,
+            "confirmations": 8,
+            "blockTime": 1792309314,
+            "value": "83432620",
+            "valueIn": "83762620",
+            "fees": "330000",
+            "hex": "02000000000101bea034fe6f730c7418879b19b3ec46dfb20b51525725998d1b9557e9e4f36a530100000017160014dbcfc24ba77d611f5e374915ee605414bd933b5d01000080025cb9af0300000000160014dcd7bc00510215a9d6fd1ccecbdc5580d130f12b505b49010000000017a914a8cbc10cd4505b9f3a06a2449c06382668192dd687024830450221009dd7945ad4f8fd2f8bb51715b7c5ac7fc30eb21c30e317e5fad01e1c4906e1140220620fc288c7c98af5963a0bd33a15311946c3d8db47cf98969699a5027c07860b0121036376267de27d97bf346421c5de123d826a41c0dfe4756f725cec088db678233900000000"
+        }
+    ]
+}

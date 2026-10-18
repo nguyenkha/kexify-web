@@ -22,7 +22,7 @@ const { btcAdapter } = await import("./btcAdapter");
 const { ltcAdapter } = await import("./ltcAdapter");
 const { bchAdapter } = await import("./bchAdapter");
 const { proxyNetwork, resetChainProxyState } = await import("./chain-proxy-client");
-const { parseUtxoList, parseUtxoHistory, utxosWithProxyFallback } = await import("./chain-proxy-utxo");
+const { parseUtxoList, parseUtxoHistory, utxosWithProxyFallback, feesWithProxyFallback, broadcastWithProxyFallback } = await import("./chain-proxy-utxo");
 const { exitRecoveryMode } = await import("../recovery");
 const token = { set: () => (globalThis.sessionStorage as Storage).setItem("secretkey_token", "test-jwt") };
 
@@ -179,5 +179,46 @@ describe("UTXOs for sends", () => {
     expect(parseUtxoList({ utxos: "x" })).toBeNull();
     expect(parseUtxoList({ ...bitcoinUtxos, truncated: true })).toBeNull();
     expect(parseUtxoList({ utxos: bitcoinUtxos.utxos })).toBeNull(); // no `truncated`: not known to be whole
+  });
+});
+
+describe("fees and broadcast (Alchemy first on the server)", () => {
+  const rates = { fastestFee: 3, halfHourFee: 2, hourFee: 1, economyFee: 1, minimumFee: 1 };
+  const RAW = "0200000001";
+  const TXID = "07094d3bfb3f6d60fb60668366a0bc090d0b86059bf1210efb8a66c55b8a73b9";
+
+  test("fees: public ok, no proxy; public down, the proxy's rates; BCH never asks", async () => {
+    mockFetch(networkDown, () => json({ network: "bitcoin", source: "alchemy-btc", ...rates }));
+    expect(await feesWithProxyFallback(BITCOIN, async () => ({ ...rates, fastestFee: 9 }))).toMatchObject({ fastestFee: 9 });
+    expect(proxyCalls).toEqual([]);
+    expect(await feesWithProxyFallback(LITECOIN, async () => { throw new Error("down"); })).toEqual(rates);
+    expect(proxyCalls).toEqual(["litecoin/fees"]);
+    await expect(feesWithProxyFallback(BITCOIN_CASH, async () => { throw new Error("bch down"); })).rejects.toThrow("bch down");
+    expect(proxyCalls).toEqual(["litecoin/fees"]);
+  });
+
+  test("fees: a malformed proxy answer rethrows the public error", async () => {
+    mockFetch(networkDown, () => json({ ...rates, hourFee: "x" }));
+    await expect(feesWithProxyFallback(BITCOIN, async () => { throw new Error("public down"); })).rejects.toThrow("public down");
+  });
+
+  test("broadcast: public failed, the proxy relays the same bytes for the sending address", async () => {
+    let sent: unknown = null;
+    globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      proxyCalls.push(String(input).replace(/^.*\/api\/chain\//, ""));
+      sent = JSON.parse(String(init?.body));
+      return json({ network: "bitcoin", address: BTC_ADDR, source: "alchemy-btc", txid: TXID });
+    }) as typeof fetch;
+    expect(await broadcastWithProxyFallback(BITCOIN, BTC_ADDR, RAW, async () => { throw new Error("Broadcast failed: 503"); })).toBe(TXID);
+    expect(proxyCalls).toEqual(["bitcoin/broadcast"]);
+    expect(sent).toEqual({ address: BTC_ADDR, rawTx: RAW });
+  });
+
+  test("broadcast: a node rejection through the proxy is reported; other proxy failures rethrow the public error", async () => {
+    mockFetch(networkDown, () => json({ error: "Rejected", reason: "min relay fee not met" }, 422));
+    await expect(broadcastWithProxyFallback(LITECOIN, LTC_ADDR, RAW, async () => { throw new Error("public"); })).rejects.toThrow("min relay fee not met");
+    mockFetch(networkDown, () => json({ error: "x", fallback: "public" }, 502));
+    await expect(broadcastWithProxyFallback(BITCOIN, BTC_ADDR, RAW, async () => { throw new Error("public"); })).rejects.toThrow("public");
+    expect(proxyNetwork(BITCOIN)).toBeNull(); // paused after the 502
   });
 });

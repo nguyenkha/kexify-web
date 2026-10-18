@@ -3,7 +3,8 @@
 // client's own public read failed.
 
 import type { Chain } from "../../shared/types";
-import { proxyBalance, proxyNetwork, proxyRead, type ProxyBody } from "./chain-proxy-client";
+import { proxyBalance, proxyNetwork, proxyPost, proxyRead, type ProxyBody } from "./chain-proxy-client";
+import type { FeeRates } from "./btcTx";
 import type { ProxyTxRow } from "./chain-proxy-evm";
 import type { UTXO } from "./btcTx";
 
@@ -86,6 +87,58 @@ export async function utxosWithProxyFallback(chain: Pick<Chain, "name">, address
     const body = network ? await proxyRead(network, "utxos", address) : null;
     const list = body ? parseUtxoList(body) : null;
     if (list) return list;
+    throw err;
+  }
+}
+
+/** Networks whose proxy serves fees and broadcast (api/src/chain-proxy/utxo-sources.ts; not BCH). */
+const SENDS_THROUGH_PROXY = new Set(["bitcoin", "litecoin"]);
+
+function sendNetwork(chain: Pick<Chain, "name">): string | null {
+  const network = proxyNetwork(chain);
+  return network && SENDS_THROUGH_PROXY.has(network) ? network : null;
+}
+
+const FEE_KEYS = ["fastestFee", "halfHourFee", "hourFee", "economyFee", "minimumFee"] as const;
+
+/** `POST /chain/<network>/fees` -> sat/vB rates; null when any is not a positive number. */
+export function parseUtxoFees(body: ProxyBody): FeeRates | null {
+  const out = {} as FeeRates;
+  for (const k of FEE_KEYS) {
+    const v = body[k];
+    if (typeof v !== "number" || !Number.isFinite(v) || v <= 0 || v > 10_000) return null;
+    out[k] = v;
+  }
+  return out;
+}
+
+/** Fee rates: the public read first, the proxy (Alchemy first on the server) only when it threw. */
+export async function feesWithProxyFallback(chain: Pick<Chain, "name">, publicRead: () => Promise<FeeRates>): Promise<FeeRates> {
+  try {
+    return await publicRead();
+  } catch (err) {
+    const network = sendNetwork(chain);
+    const r = network ? await proxyPost(network, "fees", {}) : null;
+    const rates = r?.status === 200 ? parseUtxoFees(r.body) : null;
+    if (rates) return rates;
+    throw err;
+  }
+}
+
+/**
+ * Broadcast: the public node first; when it failed, the proxy relays the same bytes (the server checks every input
+ * is this address's). A node rejection through the proxy is final and reported; any other proxy failure rethrows
+ * the public error.
+ */
+export async function broadcastWithProxyFallback(chain: Pick<Chain, "name">, address: string, rawHex: string,
+  publicBroadcast: () => Promise<string>): Promise<string> {
+  try {
+    return await publicBroadcast();
+  } catch (err) {
+    const network = sendNetwork(chain);
+    const r = network ? await proxyPost(network, "broadcast", { address, rawTx: rawHex }) : null;
+    if (r?.status === 200 && typeof r.body.txid === "string" && TXID.test(r.body.txid)) return r.body.txid;
+    if (r?.status === 422 && typeof r.body.reason === "string") throw new Error(`Broadcast failed: ${r.body.reason}`);
     throw err;
   }
 }

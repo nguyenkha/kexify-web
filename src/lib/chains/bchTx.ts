@@ -9,6 +9,7 @@ import { base58check } from "@scure/base";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import { hexToBytes, bytesToHex } from "../../shared/utils";
 import { decodeCashAddr } from "./bchAdapter";
+import { haskoinUtxos } from "./bch-haskoin";
 
 const b58check = base58check(sha256);
 
@@ -120,7 +121,9 @@ export function bchApiUrl(_explorerUrl?: string): string {
   return BCH_API_DEFAULT;
 }
 
+/** UTXOs: Haskoin first (Blockchair rate-limits shared IPs with 430), Blockchair after. */
 export async function fetchUtxos(address: string, apiBase?: string): Promise<UTXO[]> {
+  try { return await haskoinUtxos(address); } catch { /* Blockchair below */ }
   const api = apiBase ?? BCH_API_DEFAULT;
   const res = await fetch(`${api}/dashboards/address/${address}?limit=1`);
   if (!res.ok) throw new Error(`Failed to fetch UTXOs: ${res.status}`);

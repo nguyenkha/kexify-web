@@ -129,19 +129,59 @@ export function writableStaticKeys(tx: Uint8Array): string[] {
   return parseWireAccounts(tx).keys;
 }
 
-/** Resolve lookup-table writable indexes to addresses (jsonParsed exposes the table's address list). */
-async function resolveLookups(rpcUrl: string, lookups: WireAccounts["lookups"]): Promise<string[]> {
-  if (lookups.length === 0) return [];
-  const res = await simRpc(rpcUrl, "getMultipleAccounts", [lookups.map((l) => l.table), { encoding: "jsonParsed", commitment: "confirmed" }]);
-  const tables = (res as { value?: ({ data?: { parsed?: { info?: { addresses?: string[] } } } } | null)[] })?.value ?? [];
+/** jsonParsed address lookup table accounts (getMultipleAccounts value) -> the writable loaded addresses. Throws. */
+export function lookupWritableAddresses(lookups: WireAccounts["lookups"], tables: unknown[]): string[] {
   return lookups.flatMap((l, i) => {
-    const list = tables[i]?.data?.parsed?.info?.addresses;
+    const list = (tables[i] as { data?: { parsed?: { info?: { addresses?: string[] } } } } | null)?.data?.parsed?.info?.addresses;
     if (!list) throw new Error("lookup table not readable");
     return l.writable.map((idx) => {
       if (!list[idx]) throw new Error("lookup index out of range");
       return list[idx];
     });
   });
+}
+
+/** The accounts to compare: writable static + loaded keys, owner first when missing. */
+export function solanaSimAddresses(keys: string[], loaded: string[], owner: string): string[] {
+  const addresses = [...new Set([...keys, ...loaded])];
+  if (!addresses.includes(owner)) addresses.unshift(owner);
+  return addresses;
+}
+
+/**
+ * getMultipleAccounts value (pre) + simulateTransaction value -> the owner's estimated changes (pure; the web and the
+ * iOS chain bundle both use it). null when the responses are unusable.
+ */
+export function solanaSimResult(
+  addresses: string[],
+  pre: (SolParsedAccount | null)[] | undefined,
+  sim: { err?: unknown; accounts?: (SolParsedAccount | null)[] } | undefined,
+  owner: string,
+  knownTokens: KnownToken[] = [],
+): SimulationResult | null {
+  if (!sim) return null;
+  if (sim.err) return { changes: [], provider: "rpc", reverted: true };
+  if (!pre || !sim.accounts) return null;
+  const changes = parseSolanaSimulation(addresses, pre, sim.accounts, owner).map((d): SimulatedChange => {
+    const k = d.mint ? knownTokens.find((t) => t.contractAddress === d.mint) : null;
+    const symbol = d.mint === null ? "SOL" : k?.symbol ?? `${d.mint.slice(0, 4)}…${d.mint.slice(-4)}`;
+    const abs = d.delta < 0n ? -d.delta : d.delta;
+    return {
+      asset: { symbol, contractAddress: d.mint, decimals: d.decimals, known: d.mint === null || !!k },
+      amount: formatBaseUnits(abs, d.decimals),
+      rawAmount: abs.toString(),
+      direction: d.delta < 0n ? "out" : "in",
+    };
+  });
+  return { changes, provider: "rpc", feeIncluded: true };
+}
+
+/** simulateTransaction params for a wire tx (sigVerify off, fresh blockhash, jsonParsed post-state of `addresses`). */
+export function solanaSimParams(txBase64: string, addresses: string[]): unknown[] {
+  return [txBase64, {
+    encoding: "base64", sigVerify: false, replaceRecentBlockhash: true, commitment: "confirmed",
+    accounts: { addresses, encoding: "jsonParsed" },
+  }];
 }
 
 /** Wire tx with zeroed signature slots around an unsigned message (simulated with sigVerify: false). */
@@ -166,34 +206,18 @@ export async function simulateSolanaTransaction(
   try {
     const { keys, lookups } = parseWireAccounts(tx);
     // Unresolvable lookup tables throw: "could not simulate" beats a partial result that looks complete
-    const addresses = [...new Set([...keys, ...(await resolveLookups(rpcUrl, lookups))])];
-    if (!addresses.includes(owner)) addresses.unshift(owner);
-    const b64 = btoa(String.fromCharCode(...tx));
+    let loaded: string[] = [];
+    if (lookups.length > 0) {
+      const t = await simRpc(rpcUrl, "getMultipleAccounts", [lookups.map((l) => l.table), { encoding: "jsonParsed", commitment: "confirmed" }]);
+      loaded = lookupWritableAddresses(lookups, (t as { value?: unknown[] })?.value ?? []);
+    }
+    const addresses = solanaSimAddresses(keys, loaded, owner);
     const [preRes, simRes] = await Promise.all([
       simRpc(rpcUrl, "getMultipleAccounts", [addresses, { encoding: "jsonParsed", commitment: "confirmed" }]),
-      simRpc(rpcUrl, "simulateTransaction", [b64, {
-        encoding: "base64", sigVerify: false, replaceRecentBlockhash: true, commitment: "confirmed",
-        accounts: { addresses, encoding: "jsonParsed" },
-      }]),
+      simRpc(rpcUrl, "simulateTransaction", solanaSimParams(btoa(String.fromCharCode(...tx)), addresses)),
     ]);
-    const sim = (simRes as { value?: { err?: unknown; accounts?: (SolParsedAccount | null)[] } })?.value;
-    if (!sim) return null;
-    if (sim.err) return { changes: [], provider: "rpc", reverted: true };
-    const pre = (preRes as { value?: (SolParsedAccount | null)[] })?.value;
-    if (!pre || !sim.accounts) return null;
-
-    const changes = parseSolanaSimulation(addresses, pre, sim.accounts, owner).map((d): SimulatedChange => {
-      const k = d.mint ? knownTokens.find((t) => t.contractAddress === d.mint) : null;
-      const symbol = d.mint === null ? "SOL" : k?.symbol ?? `${d.mint.slice(0, 4)}…${d.mint.slice(-4)}`;
-      const abs = d.delta < 0n ? -d.delta : d.delta;
-      return {
-        asset: { symbol, contractAddress: d.mint, decimals: d.decimals, known: d.mint === null || !!k },
-        amount: formatBaseUnits(abs, d.decimals),
-        rawAmount: abs.toString(),
-        direction: d.delta < 0n ? "out" : "in",
-      };
-    });
-    return { changes, provider: "rpc", feeIncluded: true };
+    return solanaSimResult(addresses, (preRes as { value?: (SolParsedAccount | null)[] })?.value,
+      (simRes as { value?: { err?: unknown; accounts?: (SolParsedAccount | null)[] } })?.value, owner, knownTokens);
   } catch {
     return null;
   }

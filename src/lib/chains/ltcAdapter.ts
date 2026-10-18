@@ -7,7 +7,8 @@ import { ripemd160 } from "@noble/hashes/ripemd160";
 import { base58check, bech32 } from "@scure/base";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import { isValidLtcAddress } from "./ltcTx";
-import { blockbookBalance, ltcBlockbookFor } from "./ltc-blockbook";
+import { blockbookBalance, blockbookHistory, ltcBlockbookFor } from "./ltc-blockbook";
+import { legTxToTransaction } from "./utxo-history-legs";
 
 const PAGE_SIZE = 10;
 const b58check = base58check(sha256);
@@ -137,6 +138,19 @@ export const ltcAdapter: ChainAdapter = {
 /** Esplora history page (paged client-side). Throws PublicReadError on HTTP errors; network errors and timeouts throw. */
 async function publicTransactions(address: string, chain: Chain, asset: Asset, page: number): Promise<PublicHistoryPage> {
   const apiBase = chain.explorerUrl.replace(/\/+$/, "") + "/api";
+  // Mainnet: Blockbook first (litecoinspace's address API hangs), the same order as iOS; Esplora on any error.
+  const bb = ltcBlockbookFor(apiBase);
+  if (bb) {
+    try {
+      const { txs, totalPages } = await blockbookHistory(bb, address, page, PAGE_SIZE);
+      const mine = (a: string | null) => a !== null && a.toLowerCase() === address.toLowerCase();
+      return {
+        transactions: txs.map((tx) => legTxToTransaction(tx, address, mine, (v) => formatTxValue(v, asset.decimals), asset.symbol)),
+        hasMore: page < totalPages,
+        rawRows: txs.length,
+      };
+    } catch { /* fall back to Esplora */ }
+  }
   const res = await fetch(`${apiBase}/address/${address}/txs`, { signal: AbortSignal.timeout(PUBLIC_TIMEOUT_MS) });
   if (!res.ok) throw new PublicReadError(`HTTP ${res.status}`);
   const allTxs: Record<string, unknown>[] = await res.json();

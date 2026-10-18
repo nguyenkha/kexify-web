@@ -31,7 +31,7 @@ import {
 } from "../../lib/chains/ltcTx";
 import { parseDerSignature, parseUnits } from "../../lib/chains/evmTx";
 import type { SigningContext, UtxoFetchContext } from "./signing-flows";
-import { utxosWithProxyFallback } from "../../lib/chains/chain-proxy-utxo";
+import { broadcastWithProxyFallback, utxosWithProxyFallback } from "../../lib/chains/chain-proxy-utxo";
 import { buildWithUtxoInputCap } from "./build-with-utxo-input-cap";
 import { mapSendError } from "./send-error";
 
@@ -135,7 +135,7 @@ export async function executeBtcSigningFlow(ctx: SigningContext): Promise<void> 
 
     // 5. Broadcast
     setSigningPhase("broadcasting");
-    const broadcastTxid = await broadcastBtcTx(rawHex, btcApi);
+    const broadcastTxid = await broadcastWithProxyFallback(chain, address, rawHex, () => broadcastBtcTx(rawHex, btcApi));
 
     fetch(apiUrl("/api/sign/broadcast"), {
       method: "POST",

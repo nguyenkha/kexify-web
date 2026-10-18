@@ -6,6 +6,7 @@
 import { sha256 } from "@noble/hashes/sha256";
 import type { UTXO } from "./btcTx";
 import { bytesToHex, hexToBytes } from "../../shared/utils";
+import { satsOf, type Leg, type LegTx } from "./utxo-history-legs";
 
 /** Esplora base this Blockbook stands in for (ltcApiUrl of the mainnet explorer). */
 export const LTC_ESPLORA_MAINNET = "https://litecoinspace.org/api";
@@ -55,6 +56,28 @@ export async function blockbookBalance(bb: string, address: string): Promise<big
   const j = await bbJson(`${bb}/address/${encodeURIComponent(address)}?details=basic`) as { balance?: unknown };
   if (typeof j.balance !== "string" || !SATS.test(j.balance)) throw new Error("Blockbook: bad balance");
   return BigInt(j.balance);
+}
+
+/** One page of the address's transactions (server-side paging), newest first. */
+export async function blockbookHistory(bb: string, address: string, page: number, pageSize: number): Promise<{ txs: LegTx[]; totalPages: number }> {
+  const j = await bbJson(`${bb}/address/${encodeURIComponent(address)}?details=txs&page=${page}&pageSize=${pageSize}`) as
+    { transactions?: unknown; totalPages?: unknown; txs?: unknown };
+  if (j.transactions === undefined && j.txs === 0) return { txs: [], totalPages: 0 }; // an address with no txs
+  if (!Array.isArray(j.transactions)) throw new Error("Blockbook: bad history");
+  const legs = (v: unknown): Leg[] => {
+    if (!Array.isArray(v)) throw new Error("Blockbook: tx without vin / vout");
+    return v.map((l: { addresses?: unknown; value?: unknown; isAddress?: unknown }) => ({
+    address: l.isAddress !== false && Array.isArray(l.addresses) && l.addresses.length === 1 && typeof l.addresses[0] === "string" ? l.addresses[0] : null,
+      value: l.value === undefined ? 0n : satsOf(l.value),
+    }));
+  };
+  const txs = j.transactions.map((t: { txid?: unknown; confirmations?: unknown; blockTime?: unknown; vin?: unknown; vout?: unknown }) => {
+    if (typeof t.txid !== "string" || !/^[0-9a-f]{64}$/.test(t.txid)) throw new Error("Blockbook: malformed tx");
+    return { txid: t.txid, confirmed: typeof t.confirmations === "number" && t.confirmations > 0,
+      time: typeof t.blockTime === "number" && t.blockTime > 0 ? t.blockTime : null, inputs: legs(t.vin), outputs: legs(t.vout) };
+  });
+  // Without page metadata a full page may have more after it.
+  return { txs, totalPages: typeof j.totalPages === "number" ? j.totalPages : txs.length === pageSize ? page + 1 : page };
 }
 
 /** Relays a raw tx; returns its txid. */

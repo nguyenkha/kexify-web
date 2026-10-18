@@ -3,7 +3,8 @@
 // Any failure (method missing, error, timeout) returns null so the caller keeps its static estimate.
 
 import { detectEvmSimProvider } from "./providerDetect";
-import { parseEthSimulateV1, formatBaseUnits, decodeAbiString } from "./tx-simulation-evm-parse";
+import { formatBaseUnits } from "./tx-simulation-evm-parse";
+import { evmSimResult, unknownEvmContracts, ERC20_SYMBOL, ERC20_DECIMALS, type ContractMetaHex } from "./tx-simulation-evm-result";
 
 export interface SimulatedChange {
   asset: {
@@ -229,38 +230,17 @@ async function simulateEthV1(rpcUrl: string, tx: EvmTxParams, opts: EvmSimOption
     { blockStateCalls: [{ calls: [call] }], traceTransfers: true },
     "latest",
   ]);
-  const parsed = parseEthSimulateV1(result, tx.from);
   const provider = detectEvmSimProvider(rpcUrl) === "infura" ? "infura" : "rpc";
-  if (parsed.reverted) return { changes: [], provider, reverted: true };
-
-  const changes = await Promise.all(parsed.deltas.map(async (d): Promise<SimulatedChange> => {
-    const meta = d.contractAddress === null
-      ? { symbol: opts.nativeSymbol || "ETH", decimals: 18, known: !!opts.nativeSymbol }
-      : await resolveErc20(rpcUrl, d.contractAddress, opts.knownTokens);
-    const abs = d.delta < 0n ? -d.delta : d.delta;
-    return {
-      asset: { symbol: meta.symbol, contractAddress: d.contractAddress, decimals: meta.decimals, known: meta.known },
-      amount: formatBaseUnits(abs, meta.decimals),
-      rawAmount: abs.toString(),
-      direction: d.delta < 0n ? "out" : "in",
-    };
+  // Unlisted tokens: symbol() / decimals() raw hex from the contract (shown with the address, never priced)
+  const meta: Record<string, ContractMetaHex> = {};
+  await Promise.all(unknownEvmContracts(result, tx.from, opts.knownTokens).map(async (c) => {
+    const [symbolHex, decimalsHex] = await Promise.all([
+      simRpc(rpcUrl, "eth_call", [{ to: c, data: ERC20_SYMBOL }, "latest"]).catch(() => null),
+      simRpc(rpcUrl, "eth_call", [{ to: c, data: ERC20_DECIMALS }, "latest"]).catch(() => null),
+    ]);
+    meta[c] = { symbolHex: typeof symbolHex === "string" ? symbolHex : undefined, decimalsHex: typeof decimalsHex === "string" ? decimalsHex : undefined };
   }));
-  return { changes, provider, feeIncluded: false };
-}
-
-async function resolveErc20(rpcUrl: string, contract: string, known: KnownToken[] = []): Promise<{ symbol: string; decimals: number; known: boolean }> {
-  const k = known.find((t) => t.contractAddress?.toLowerCase() === contract);
-  if (k) return { symbol: k.symbol, decimals: k.decimals, known: true };
-  const short = `${contract.slice(0, 6)}…${contract.slice(-4)}`;
-  const [sym, dec] = await Promise.all([
-    simRpc(rpcUrl, "eth_call", [{ to: contract, data: "0x95d89b41" }, "latest"]).catch(() => null),
-    simRpc(rpcUrl, "eth_call", [{ to: contract, data: "0x313ce567" }, "latest"]).catch(() => null),
-  ]);
-  let decimals = 0;
-  try {
-    if (typeof dec === "string" && dec !== "0x") decimals = Math.min(Number(BigInt(dec)), 36);
-  } catch { /* raw units */ }
-  return { symbol: decodeAbiString(typeof sym === "string" ? sym : undefined) ?? short, decimals, known: false };
+  return { ...evmSimResult(result, tx.from, opts, meta), provider };
 }
 
 // ── Helpers ─────────────────────────────────────────────────

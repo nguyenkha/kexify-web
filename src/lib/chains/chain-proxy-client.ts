@@ -60,6 +60,29 @@ function sameAddress(a: unknown, b: string): boolean {
   return typeof a === "string" && canonical(a) === canonical(b);
 }
 
+/** One proxy call, with its status; null on a network error or a non-JSON answer. Refusals pause the network. */
+export async function proxyPost(network: string, method: string, body: Record<string, unknown>): Promise<{ status: number; body: ProxyBody } | null> {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const res = await fetch(apiUrl(`/api/chain/${network}/${method}`), {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    const json = (await res.json().catch(() => null)) as ProxyBody | null;
+    if (!json || typeof json !== "object") return null;
+    if (!res.ok) {
+      const ms = pauseMs(res.status, json.fallback === "public");
+      if (ms) pausedUntil.set(network, Math.max(pausedUntil.get(network) ?? 0, Date.now() + ms));
+    }
+    return { status: res.status, body: json };
+  } catch {
+    return null;
+  }
+}
+
 /** One proxy read; null on any failure (the caller keeps its public result). */
 export async function proxyRead(network: string, method: "balance" | "history" | "utxos", address: string): Promise<ProxyBody | null> {
   const token = getToken();
