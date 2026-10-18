@@ -11,6 +11,7 @@ const CHAIN_OPTIONS: { value: ChainType; label: string }[] = [
   { value: "btc", label: "Bitcoin" },
   { value: "bch", label: "Bitcoin Cash" },
   { value: "ltc", label: "Litecoin" },
+  { value: "doge", label: "Dogecoin" },
   { value: "solana", label: "Solana" },
   { value: "xrp", label: "XRP" },
   { value: "xlm", label: "Stellar" },

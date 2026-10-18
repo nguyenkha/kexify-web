@@ -267,6 +267,8 @@ export function selectUtxos(
   destAddress?: string,
   changeAddress?: string,
   maxInputs: number = Infinity,
+  /** Change below this goes to the fee instead (DOGE: 0.01 DOGE, see dogeTx.ts). */
+  dustLimit: bigint = DUST_LIMIT,
 ): { selected: UTXO[]; fee: bigint; change: bigint } {
   const estSize = (nIn: number, nOut: number) =>
     addrType === "p2pkh"
@@ -294,7 +296,7 @@ export function selectUtxos(
     }
 
     const change = totalIn - targetSats - fee2;
-    if (change > 0n && change < DUST_LIMIT) {
+    if (change > 0n && change < dustLimit) {
       return { selected, fee: fee2 + change, change: 0n };
     }
     if (change === 0n) {
@@ -329,7 +331,7 @@ export function selectUtxos(
       const change = totalIn - targetSats - fee;
 
       // If change is dust, add to fee instead
-      if (change > 0n && change < DUST_LIMIT) {
+      if (change > 0n && change < dustLimit) {
         return { selected, fee: fee + change, change: 0n };
       }
 

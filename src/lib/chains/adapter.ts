@@ -5,6 +5,7 @@ import { solanaAdapter } from "./solanaAdapter";
 import { xrpAdapter } from "./xrpAdapter";
 import { bchAdapter } from "./bchAdapter";
 import { ltcAdapter } from "./ltcAdapter";
+import { dogeAdapter } from "./dogeAdapter";
 import { xlmAdapter } from "./xlmAdapter";
 import { tronAdapter } from "./tronAdapter";
 import { tonAdapter } from "./tonAdapter";
@@ -16,6 +17,7 @@ const adapters: Record<ChainType, ChainAdapter> = {
   btc: btcAdapter,
   bch: bchAdapter,
   ltc: ltcAdapter,
+  doge: dogeAdapter,
   solana: solanaAdapter,
   xrp: xrpAdapter,
   xlm: xlmAdapter,

@@ -423,6 +423,7 @@
     "selectAsset": "送信するものを選択",
     "nothingToSend": "送信できるものはまだありません",
     "insufficientWithFee": "金額とネットワーク手数料をまかなう残高が足りません。何も送信されていません。",
+    "dogeBelowDust": "Dogecoin は 1 回の送金につき 0.01 DOGE 以上が必要です。",
     "amountInvalid": "数値を入力してください（例: {{example}}）",
     "amountAmbiguous": "金額があいまいです。小数は {{example}} のように入力してください"
   },
@@ -680,6 +681,7 @@
     "loadMore": "さらに読み込む",
     "enable": "有効化",
     "legacyAddress": "レガシー:",
+    "dogeNoSpeedUp": "Dogecoin には手数料の引き上げ(RBF)がありません。止まったトランザクションは、しばらくすると承認されるか、メモリプールから消えます。",
     "fundItDesc": "取引所や別のウォレットから暗号資産を送って、始めましょう。",
     "tapToGetStarted": "「送信」をタップして資金を送るか、「受信」をタップしてアドレスを確認します。",
     "walletAddressTooltip": "あなたのウォレットアドレスです。共有すると入金を受け取れます"

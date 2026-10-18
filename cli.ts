@@ -329,6 +329,18 @@ function deriveLtcLegacyAddress(pubKeyHex: string): string {
   return b58c.encode(payload);
 }
 
+function deriveDogeAddress(pubKeyHex: string): string {
+  const rawKey = extractPublicKeyFromDER(pubKeyHex);
+  const point = secp256k1.Point.fromHex(rawKey);
+  const compressed = point.toBytes(true);
+  const h = ripemd160(sha256(compressed));
+  const b58c = base58check(sha256);
+  const payload = new Uint8Array(21);
+  payload[0] = 0x1e; // DOGE mainnet P2PKH
+  payload.set(h, 1);
+  return b58c.encode(payload);
+}
+
 function xrpBase58Encode(data: Uint8Array): string {
   let num = 0n;
   for (const b of data) num = (num << 8n) | BigInt(b);
@@ -588,11 +600,11 @@ async function broadcastSolanaTransaction(rpcUrl: string, signedTxBase58: string
 
 // ── WIF Encoding ─────────────────────────────────────────────────
 
-function privateKeyToWIF(privateKeyHex: string): string {
+function privateKeyToWIF(privateKeyHex: string, version = 0x80): string {
   const keyBytes = hexToBytes(privateKeyHex);
-  // Mainnet compressed: 0x80 + key(32) + 0x01
+  // Mainnet compressed: version (BTC 0x80, DOGE 0x9e) + key(32) + 0x01
   const payload = new Uint8Array(34);
-  payload[0] = 0x80;
+  payload[0] = version;
   payload.set(keyBytes, 1);
   payload[33] = 0x01;
   const checksum = sha256(sha256(payload)).slice(0, 4);
@@ -878,6 +890,7 @@ async function cmdRecover(share1Path: string, share2Path: string): Promise<void>
   const btcSegwit = deriveBtcAddress(share1.publicKey);
   const btcLegacy = deriveBtcLegacyAddress(share1.publicKey);
   const bchAddr = deriveBchAddress(share1.publicKey);
+  const dogeAddr = deriveDogeAddress(share1.publicKey);
   const ltcSegwit = deriveLtcAddress(share1.publicKey);
   const ltcLegacy = deriveLtcLegacyAddress(share1.publicKey);
   const xrpAddr = deriveXrpAddress(share1.publicKey);
@@ -894,6 +907,7 @@ async function cmdRecover(share1Path: string, share2Path: string): Promise<void>
   console.log(`  Bitcoin (segwit):  ${btcSegwit}`);
   console.log(`  Bitcoin (legacy):  ${btcLegacy}`);
   console.log(`  Bitcoin Cash:      ${bchAddr}`);
+  console.log(`  Dogecoin:          ${dogeAddr}`);
   console.log(`  Litecoin (segwit): ${ltcSegwit}`);
   console.log(`  Litecoin (legacy): ${ltcLegacy}`);
   console.log(`  XRP:               ${xrpAddr}`);
@@ -908,10 +922,11 @@ async function cmdRecover(share1Path: string, share2Path: string): Promise<void>
   initReadline();
   while (true) {
     console.log("\nOptions:");
-    console.log("  1. Export ECDSA private key (hex) — EVM/BTC/BCH/LTC/XRP/TRON");
+    console.log("  1. Export ECDSA private key (hex) — EVM/BTC/BCH/LTC/DOGE/XRP/TRON");
     console.log("  2. Export EdDSA private key (hex) — Solana/XLM/TON/ALGO/ADA");
     console.log("  3. Export private key (WIF — Bitcoin)");
-    console.log("  4. Exit");
+    console.log("  4. Export private key (WIF — Dogecoin)");
+    console.log("  5. Exit");
 
     const choice = await ask("\n> ");
 
@@ -929,6 +944,10 @@ async function cmdRecover(share1Path: string, share2Path: string): Promise<void>
         console.log("⚠ Store this securely. Anyone with this key controls your Bitcoin funds.");
         break;
       case "4":
+        console.log(`WIF: ${privateKeyToWIF(ecdsaPrivKeyHex, 0x9e)}`);
+        console.log("⚠ Store this securely. Anyone with this key controls your Dogecoin funds.");
+        break;
+      case "5":
         rl.close();
         return;
       default:
@@ -976,6 +995,7 @@ async function cmdConnect(share1Path: string, share2Path: string): Promise<void>
   console.log(`BTC (segwit):     ${deriveBtcAddress(share1.publicKey)}`);
   console.log(`BTC (legacy):     ${deriveBtcLegacyAddress(share1.publicKey)}`);
   console.log(`BCH:              ${deriveBchAddress(share1.publicKey)}`);
+  console.log(`DOGE:             ${deriveDogeAddress(share1.publicKey)}`);
   console.log(`LTC (segwit):     ${deriveLtcAddress(share1.publicKey)}`);
   console.log(`LTC (legacy):     ${deriveLtcLegacyAddress(share1.publicKey)}`);
   console.log(`XRP:              ${deriveXrpAddress(share1.publicKey)}`);

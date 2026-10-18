@@ -18,6 +18,7 @@ const NETWORKS: Readonly<Record<string, string>> = {
   BITCOIN: "bitcoin",
   LITECOIN: "litecoin",
   BITCOIN_CASH: "bitcoincash",
+  DOGECOIN: "dogecoin",
 };
 
 const TIMEOUT_MS = 12_000;

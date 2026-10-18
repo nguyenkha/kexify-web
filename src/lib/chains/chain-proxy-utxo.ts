@@ -92,7 +92,7 @@ export async function utxosWithProxyFallback(chain: Pick<Chain, "name">, address
 }
 
 /** Networks whose proxy serves fees and broadcast (api/src/chain-proxy/utxo-sources.ts; not BCH). */
-const SENDS_THROUGH_PROXY = new Set(["bitcoin", "litecoin"]);
+const SENDS_THROUGH_PROXY = new Set(["bitcoin", "litecoin", "dogecoin"]); // dogecoin: broadcast only (no proxy fees)
 
 function sendNetwork(chain: Pick<Chain, "name">): string | null {
   const network = proxyNetwork(chain);

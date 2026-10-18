@@ -26,6 +26,7 @@ interface ExpertOverridesProps {
   btcFeeRates: { low: number; medium: number; high: number } | null;
   ltcFeeRates: { low: number; medium: number; high: number } | null;
   bchFeeRates: { low: number; medium: number; high: number } | null;
+  dogeFeeRate: number | null;
   // UTXO overrides
   btcFeeRateOverride: string;
   setBtcFeeRateOverride: (v: string) => void;
@@ -60,6 +61,7 @@ export function ExpertOverrides({
   btcFeeRates,
   ltcFeeRates,
   bchFeeRates,
+  dogeFeeRate,
   btcFeeRateOverride,
   setBtcFeeRateOverride,
   rbfEnabled,
@@ -121,7 +123,7 @@ export function ExpertOverrides({
       )}
 
       {/* Expert mode: advanced UTXO chain overrides */}
-      {(chain.type === "btc" || chain.type === "ltc" || chain.type === "bch") && (
+      {(chain.type === "btc" || chain.type === "ltc" || chain.type === "bch" || chain.type === "doge") && (
         <div className="space-y-2">
           <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">{t("common.advanced")}</p>
           <div>
@@ -129,7 +131,7 @@ export function ExpertOverrides({
             <input
               value={btcFeeRateOverride}
               onChange={(e) => setBtcFeeRateOverride(e.target.value)}
-              placeholder={chain.type === "btc" ? (btcFeeRates?.[feeLevel]?.toString() ?? "Auto") : chain.type === "ltc" ? (ltcFeeRates?.[feeLevel]?.toString() ?? "Auto") : (bchFeeRates?.[feeLevel]?.toString() ?? "Auto")}
+              placeholder={chain.type === "btc" ? (btcFeeRates?.[feeLevel]?.toString() ?? "Auto") : chain.type === "ltc" ? (ltcFeeRates?.[feeLevel]?.toString() ?? "Auto") : chain.type === "doge" ? (dogeFeeRate?.toString() ?? "Auto") : (bchFeeRates?.[feeLevel]?.toString() ?? "Auto")}
               className="w-full bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
             />
           </div>

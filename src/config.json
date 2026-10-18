@@ -100,6 +100,17 @@
             "iconUrl": "https://assets.coingecko.com/coins/images/780/large/bitcoin-cash-circle.png"
         },
         {
+            "id": "9bf4175d-7877-4656-b7d4-51e005d69543",
+            "name": "DOGECOIN",
+            "displayName": "Dogecoin",
+            "type": "doge",
+            "coinType": 3,
+            "evmChainId": null,
+            "rpcUrl": "https://sochain.com/api/v3",
+            "explorerUrl": "https://dogechain.info",
+            "iconUrl": "https://assets.coingecko.com/coins/images/5/large/dogecoin.png"
+        },
+        {
             "id": "a1b2c3d4-5e6f-7a8b-9c0d-1e2f3a4b5c6d",
             "name": "LITECOIN",
             "displayName": "Litecoin",
@@ -458,6 +469,16 @@
             "isNative": true,
             "iconUrl": "https://assets.coingecko.com/coins/images/780/large/bitcoin-cash-circle.png",
             "chainId": "48e05741-5c55-4a9a-9be5-4c1d280444ce"
+        },
+        {
+            "id": "f03bc45c-4fb6-4a6e-8c4a-da4fde633059",
+            "symbol": "DOGE",
+            "name": "Dogecoin",
+            "decimals": 8,
+            "contractAddress": null,
+            "isNative": true,
+            "iconUrl": "https://assets.coingecko.com/coins/images/5/large/dogecoin.png",
+            "chainId": "9bf4175d-7877-4656-b7d4-51e005d69543"
         },
         {
             "id": "62677336-e117-4fc9-8dad-c4c9f4a0a614",

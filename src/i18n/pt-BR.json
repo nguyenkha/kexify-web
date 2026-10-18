@@ -423,6 +423,7 @@
     "selectAsset": "Escolha o que enviar",
     "nothingToSend": "Ainda não há nada para enviar",
     "insufficientWithFee": "Saldo insuficiente para cobrir o valor e a taxa de rede. Nada foi enviado.",
+    "dogeBelowDust": "O Dogecoin exige pelo menos 0,01 DOGE por envio.",
     "amountInvalid": "Digite um número, ex.: {{example}}",
     "amountAmbiguous": "Valor ambíguo. Escreva os decimais assim: {{example}}"
   },
@@ -680,6 +681,7 @@
     "loadMore": "Carregar mais",
     "enable": "Ativar",
     "legacyAddress": "Legado:",
+    "dogeNoSpeedUp": "O Dogecoin não permite aumentar a taxa (sem RBF). Uma transação travada é confirmada ou sai da mempool depois de um tempo.",
     "fundItDesc": "Adicione fundos para começar: envie criptomoedas de uma corretora ou de outra carteira.",
     "tapToGetStarted": "Toque em Enviar para transferir fundos ou em Receber para ver seu endereço.",
     "walletAddressTooltip": "O endereço da sua carteira. Compartilhe para receber fundos"

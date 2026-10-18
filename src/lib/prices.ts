@@ -19,6 +19,7 @@ const COINGECKO_IDS: Record<string, string> = {
   TON: "the-open-network",
   TRX: "tron",
   LTC: "litecoin",
+  DOGE: "dogecoin",
   ALGO: "algorand",
   ADA: "cardano",
 };

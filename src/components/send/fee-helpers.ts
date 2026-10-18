@@ -18,6 +18,7 @@ import {
 import {
   formatBchFee,
 } from "../../lib/chains/bchTx";
+import { formatDogeFee } from "../../lib/chains/dogeTx";
 import { formatSun } from "../../lib/chains/tronTx";
 import {
   formatGwei,
@@ -46,6 +47,9 @@ interface ComputeFeeDisplayParams {
   // BCH
   bchEstimatedFee: bigint | null;
   bchFeeRate: number | null;
+  // DOGE
+  dogeEstimatedFee: bigint | null;
+  dogeFeeRate: number | null;
   // XLM
   xlmFeeRates: { low: number; medium: number; high: number } | null;
 }
@@ -152,6 +156,17 @@ export function computeFeeDisplay(p: ComputeFeeDisplayParams): FeeDisplay {
       isFixed: true,
     };
   }
+  if (chain.type === "doge") {
+    return {
+      formatted: p.dogeEstimatedFee != null ? formatDogeFee(p.dogeEstimatedFee) : null,
+      symbol: "DOGE",
+      usd: p.dogeEstimatedFee != null ? getUsdValue(String(Number(p.dogeEstimatedFee) / 1e8), "DOGE", prices) : null,
+      // sat/byte shown as DOGE per kB
+      rateLabel: p.dogeFeeRate != null ? `${parseFloat(((p.dogeFeeRate * 1000) / 1e8).toFixed(8))} DOGE/kB` : null,
+      hasLevelSelector: false,
+      isFixed: false,
+    };
+  }
   if (chain.type === "btc") {
     return {
       formatted: p.btcEstimatedFee != null ? formatBtcFee(p.btcEstimatedFee) : null,
@@ -183,13 +198,14 @@ interface ComputeMaxSendableParams {
   btcEstimatedFee: bigint | null;
   ltcEstimatedFee: bigint | null;
   bchEstimatedFee: bigint | null;
+  dogeEstimatedFee: bigint | null;
   xlmFeeRates: { low: number; medium: number; high: number } | null;
-  /** BTC / LTC / BCH: what the largest coins (input cap) can send, fee included; wins over balance - fee. */
+  /** BTC / LTC / BCH / DOGE: what the largest coins (input cap) can send, fee included; wins over balance - fee. */
   utxoMaxSats?: bigint | null;
 }
 
 // Native coins whose fee comes from a live quote: Max must wait for it rather than fill the full balance.
-const QUOTED_FEE_CHAINS = ["evm", "btc", "ltc", "bch", "xlm"];
+const QUOTED_FEE_CHAINS = ["evm", "btc", "ltc", "bch", "doge", "xlm"];
 
 /** Max amount: native coin = balance minus the estimated fee; null while that fee is unknown. */
 export function computeMaxSendable(p: ComputeMaxSendableParams): string | null {
@@ -212,6 +228,8 @@ export function computeMaxSendable(p: ComputeMaxSendableParams): string | null {
     feeBaseUnits = BigInt(p.ltcEstimatedFee);
   } else if (chain.type === "bch" && p.bchEstimatedFee != null) {
     feeBaseUnits = BigInt(p.bchEstimatedFee);
+  } else if (chain.type === "doge" && p.dogeEstimatedFee != null) {
+    feeBaseUnits = BigInt(p.dogeEstimatedFee);
   } else if (chain.type === "xlm" && p.xlmFeeRates != null) {
     feeBaseUnits = BigInt(p.xlmFeeRates[feeLevel]);
   } else if (chain.type === "algo") {

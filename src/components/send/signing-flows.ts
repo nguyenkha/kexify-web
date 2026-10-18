@@ -32,6 +32,7 @@ export interface SigningContext {
   btcFeeRate: number | null;
   bchFeeRate: number | null;
   ltcFeeRate: number | null;
+  dogeFeeRate: number | null; // sat/byte
   manualUtxos: UTXO[] | null;
   destinationTag: string; // XRP
   xlmMemo: string; // XLM
@@ -63,6 +64,7 @@ export { executeSigningFlow } from "./sign-evm";
 export { executeBtcSigningFlow, handleFetchUtxos } from "./sign-btc";
 export { executeBchSigningFlow } from "./sign-bch";
 export { executeLtcSigningFlow } from "./sign-ltc";
+export { executeDogeSigningFlow } from "./sign-doge";
 export { executeSolanaSigningFlow } from "./sign-solana";
 export { executeXrpSigningFlow } from "./sign-xrp";
 export { executeXlmSigningFlow } from "./sign-xlm";

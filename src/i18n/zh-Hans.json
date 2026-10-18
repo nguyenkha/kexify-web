@@ -423,6 +423,7 @@
     "selectAsset": "选择要发送的资产",
     "nothingToSend": "暂无可发送的资产",
     "insufficientWithFee": "余额不足以支付金额和网络费用。未发送任何内容。",
+    "dogeBelowDust": "Dogecoin 每次发送至少需要 0.01 DOGE。",
     "amountInvalid": "请输入数字，例如 {{example}}",
     "amountAmbiguous": "金额不明确。小数请写成 {{example}} 这样"
   },
@@ -680,6 +681,7 @@
     "loadMore": "加载更多",
     "enable": "启用",
     "legacyAddress": "旧版：",
+    "dogeNoSpeedUp": "Dogecoin 无法加速提高手续费(不支持 RBF)。卡住的交易过一段时间后会被确认,或从内存池中被移除。",
     "fundItDesc": "充入资金即可开始，可从交易所或其他钱包转入加密资产。",
     "tapToGetStarted": "点按“发送”转出资金，或点按“接收”获取你的地址。",
     "walletAddressTooltip": "你的钱包地址，分享给对方即可收款"

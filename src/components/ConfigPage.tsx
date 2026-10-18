@@ -15,6 +15,7 @@ function highlightCode(code: string): string {
 }
 
 import { checkBtcHealth, checkBchHealth, checkXlmHealth } from "../lib/providerDetect";
+import { DOGE_BLOCKCHAIR } from "../lib/chains/dogeTx";
 import { AddressBookPanel } from "./AddressBookPanel";
 import { useSetExpertMode } from "../context/ExpertModeContext";
 import { useTranslation } from "react-i18next";
@@ -74,6 +75,11 @@ async function checkRpcHealth(rpcUrl: string, chainType: string): Promise<boolea
         return checkBtcHealth(rpcUrl, controller.signal);
       case "bch":
         return checkBchHealth(rpcUrl, controller.signal);
+      case "doge": {
+        // DOGE reads go through Blockchair, not the configured rpcUrl.
+        const res = await fetch(`${DOGE_BLOCKCHAIR}/stats`, { signal: controller.signal });
+        return res.ok;
+      }
       case "xlm":
         return checkXlmHealth(rpcUrl, controller.signal);
       default: {

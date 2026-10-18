@@ -56,6 +56,9 @@ async function broadcastAndConfirm(
     } else if (chain.type === "bch") {
       const bchTx = await import("../../lib/chains/bchTx");
       txHash = await bchTx.broadcastBchTx(rawTx, bchTx.bchApiUrl());
+    } else if (chain.type === "doge") {
+      const dogeTx = await import("../../lib/chains/dogeTx");
+      txHash = await dogeTx.broadcastDogeTx(rawTx);
     } else if (chain.type === "evm") {
       txHash = await broadcastTransaction(chain.rpcUrl, rawTx);
     } else if (chain.type === "solana") {
@@ -94,6 +97,10 @@ async function broadcastAndConfirm(
     } else if (chain.type === "bch") {
       const bchTx = await import("../../lib/chains/bchTx");
       const r = await bchTx.waitForBchConfirmation(txHash, () => {}, 60, 5000, bchTx.bchApiUrl());
+      confirmed = r.confirmed; blockHeight = r.blockHeight;
+    } else if (chain.type === "doge") {
+      const dogeTx = await import("../../lib/chains/dogeTx");
+      const r = await dogeTx.waitForDogeConfirmation(txHash, () => {}, 60, 5000);
       confirmed = r.confirmed; blockHeight = r.blockHeight;
     } else if (chain.type === "evm") {
       // Already broadcast: an RPC/poll failure leaves it pending (background poll), never an error.

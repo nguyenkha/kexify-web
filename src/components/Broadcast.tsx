@@ -6,6 +6,7 @@ import { trackExpertTool } from "../lib/expert-usage";
 import { broadcastBtcTx, mempoolApiUrl } from "../lib/chains/btcTx";
 import { broadcastTransaction } from "../lib/chains/evmTx";
 import { broadcastBchTx, bchApiUrl } from "../lib/chains/bchTx";
+import { broadcastDogeTx } from "../lib/chains/dogeTx";
 import { broadcastLtcTx, ltcApiUrl } from "../lib/chains/ltcTx";
 import { broadcastSolanaTransaction } from "../lib/chains/solanaTx";
 import { broadcastTronTransaction } from "../lib/chains/tronTx";
@@ -55,6 +56,10 @@ export function Broadcast() {
         case "bch": {
           const api = bchApiUrl(selectedChain.explorerUrl);
           txHash = await broadcastBchTx(hex, api);
+          break;
+        }
+        case "doge": {
+          txHash = await broadcastDogeTx(hex);
           break;
         }
         case "evm": {

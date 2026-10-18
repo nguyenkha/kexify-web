@@ -39,6 +39,7 @@ import {
   fetchFeeRates as fetchBchFeeRates,
   estimateFee as estimateBchFee,
 } from "../lib/chains/bchTx";
+import { fetchDogeFeeRate, estimateDogeFee, DOGE_MIN_FEE_RATE, DOGE_MAX_FEE_RATE } from "../lib/chains/dogeTx";
 import {
   fetchFeeRates as fetchLtcFeeRates,
   ltcApiUrl,
@@ -70,6 +71,7 @@ import {
   executeBtcSigningFlow,
   executeBchSigningFlow,
   executeLtcSigningFlow,
+  executeDogeSigningFlow,
   executeSolanaSigningFlow,
   executeXrpSigningFlow,
   executeXlmSigningFlow,
@@ -162,6 +164,8 @@ export function SendDialog({
   const [btcFeeRates, setBtcFeeRates] = useState<{ low: number; medium: number; high: number } | null>(null);
   // BCH-specific state
   const [bchFeeRates, setBchFeeRates] = useState<{ low: number; medium: number; high: number } | null>(null);
+  // DOGE-specific state: one network rate (sat/byte)
+  const [dogeBaseFeeRate, setDogeBaseFeeRate] = useState<number | null>(null);
   // LTC-specific state
   const [ltcFeeRates, setLtcFeeRates] = useState<{ low: number; medium: number; high: number } | null>(null);
   // XLM-specific state (stroops per operation)
@@ -385,6 +389,13 @@ export function SendDialog({
             });
           })
           .catch(onFeeFail);
+      } else if (chain.type === "doge") {
+        fetchDogeFeeRate()
+          .then((rate) => {
+            setFeeError(false);
+            setDogeBaseFeeRate(rate);
+          })
+          .catch(onFeeFail);
       } else if (chain.type === "evm") {
         if (!chain.rpcUrl) return;
         fetchEvmGasQuote(chain.rpcUrl)
@@ -461,6 +472,12 @@ export function SendDialog({
     : bchFeeRates?.[feeLevel] ?? null;
   const bchFeeRate = effectiveBchFeeRate;
   const bchEstimatedFee = bchFeeRate != null ? estimateBchFee(utxoInputCount, bchFeeRate, true) : null;
+  // An override outside what buildDogeTransaction accepts is ignored rather than shown and then refused.
+  const dogeOverride = btcFeeRateOverride && /^\d+/.test(btcFeeRateOverride) ? parseInt(btcFeeRateOverride) : null;
+  const dogeFeeRate = dogeOverride != null && dogeOverride >= DOGE_MIN_FEE_RATE && dogeOverride <= DOGE_MAX_FEE_RATE
+    ? dogeOverride
+    : dogeBaseFeeRate;
+  const dogeEstimatedFee = dogeFeeRate != null ? estimateDogeFee(utxoInputCount, dogeFeeRate, true) : null;
 
   const defaultGasLimit = estimatedGas ?? (asset.isNative ? GAS_LIMIT_NATIVE : GAS_LIMIT_ERC20);
   const gasLimit = gasLimitOverride && /^\d+$/.test(gasLimitOverride)
@@ -475,6 +492,7 @@ export function SendDialog({
     btcEstimatedFee, btcFeeRate,
     ltcEstimatedFee, ltcFeeRate,
     bchEstimatedFee, bchFeeRate,
+    dogeEstimatedFee, dogeFeeRate,
     xlmFeeRates,
   });
 
@@ -497,13 +515,14 @@ export function SendDialog({
   const canReview = toValid && !toSelf && amountCheck.valid && (keyFile != null || hasStoredShare) && destTagValid;
 
   // Max sendable: for native tokens, subtract estimated fee from balance
-  const utxoMax = useUtxoMaxSendable(chain, asset, address, chain.type === "btc" ? btcFeeRate : chain.type === "ltc" ? ltcFeeRate : bchFeeRate, effectiveTo, manualUtxos);
+  const utxoMax = useUtxoMaxSendable(chain, asset, address, chain.type === "btc" ? btcFeeRate : chain.type === "ltc" ? ltcFeeRate : chain.type === "doge" ? dogeFeeRate : bchFeeRate, effectiveTo, manualUtxos);
   const maxSendable = computeMaxSendable({
     chain, asset, balance, feeLevel,
     estimatedFeeWei,
     btcEstimatedFee,
     ltcEstimatedFee,
     bchEstimatedFee,
+    dogeEstimatedFee,
     xlmFeeRates,
     utxoMaxSats: utxoMax?.sats,
   });
@@ -521,7 +540,7 @@ export function SendDialog({
   // Failed before anything left this device (build / passkey / MPC signing): "Nothing was sent."
   const nothingSent = signingPhase === "loading-keyshare" || signingPhase === "building-tx" || signingPhase === "mpc-signing";
 
-  const ADDR_PLACEHOLDER: Record<string, string> = { btc: "bc1q...", ltc: "ltc1q...", bch: "bitcoincash:q...", solana: "So1ana...", evm: "0x" + "0".repeat(40), xrp: "r...", tron: "T..." };
+  const ADDR_PLACEHOLDER: Record<string, string> = { btc: "bc1q...", ltc: "ltc1q...", bch: "bitcoincash:q...", doge: "D...", solana: "So1ana...", evm: "0x" + "0".repeat(40), xrp: "r...", tron: "T..." };
   const placeholder = ADDR_PLACEHOLDER[chain.type] ?? "Address";
 
   const totalUsd = (() => {
@@ -553,6 +572,7 @@ export function SendDialog({
       rbfEnabled,
       btcFeeRate,
       bchFeeRate,
+      dogeFeeRate,
       ltcFeeRate,
       manualUtxos,
       destinationTag,
@@ -717,6 +737,7 @@ export function SendDialog({
             btcFeeRates={btcFeeRates}
             ltcFeeRates={ltcFeeRates}
             bchFeeRates={bchFeeRates}
+            dogeFeeRate={dogeBaseFeeRate}
             baseGasPrice={baseGasPrice}
             evmGasPrices={evmGasPrices}
             gasPrice={gasPrice}
@@ -851,6 +872,7 @@ export function SendDialog({
             btcEstimatedFee={btcEstimatedFee}
             ltcEstimatedFee={ltcEstimatedFee}
             bchEstimatedFee={bchEstimatedFee}
+            dogeEstimatedFee={dogeEstimatedFee}
             prices={prices}
             balance={balance}
             setStep={setStep}
@@ -860,6 +882,7 @@ export function SendDialog({
               executeBtc: () => executeBtcSigningFlow(buildSigningCtx()),
               executeLtc: () => executeLtcSigningFlow(buildSigningCtx()),
               executeBch: () => executeBchSigningFlow(buildSigningCtx()),
+              executeDoge: () => executeDogeSigningFlow(buildSigningCtx()),
               executeSolana: () => executeSolanaSigningFlow(buildSigningCtx()),
               executeXrp: () => executeXrpSigningFlow(buildSigningCtx()),
               executeXlm: () => executeXlmSigningFlow(buildSigningCtx()),

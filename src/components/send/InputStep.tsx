@@ -75,6 +75,7 @@ export function InputStep({
   btcFeeRates,
   ltcFeeRates,
   bchFeeRates,
+  dogeFeeRate,
   baseGasPrice,
   evmGasPrices,
   gasPrice,
@@ -259,6 +260,7 @@ export function InputStep({
             btcFeeRates={btcFeeRates}
             ltcFeeRates={ltcFeeRates}
             bchFeeRates={bchFeeRates}
+            dogeFeeRate={dogeFeeRate}
             btcFeeRateOverride={btcFeeRateOverride}
             setBtcFeeRateOverride={setBtcFeeRateOverride}
             rbfEnabled={rbfEnabled}

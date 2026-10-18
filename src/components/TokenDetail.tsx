@@ -457,13 +457,17 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
           {transactions.filter((t) => !t.confirmed).length > 0 && (
             <div className="divide-y divide-border-secondary">
               {transactions.filter((t) => !t.confirmed).map((tx, i) => (
-                <TxRow
-                  key={`pending-${tx.hash}-${i}`}
-                  tx={tx}
-                  explorerUrl={chain.explorerUrl}
-                  networkName={chain.displayName}
-                  onSpeedUp={(chain.type === "btc" || chain.type === "ltc") && !frozen && expert ? () => handleSpeedUp(tx.hash) : undefined}
-                />
+                <div key={`pending-${tx.hash}-${i}`}>
+                  <TxRow
+                    tx={tx}
+                    explorerUrl={chain.explorerUrl}
+                    networkName={chain.displayName}
+                    onSpeedUp={(chain.type === "btc" || chain.type === "ltc") && !frozen && expert ? () => handleSpeedUp(tx.hash) : undefined}
+                  />
+                  {chain.type === "doge" && tx.direction === "out" && expert && (
+                    <p className="px-4 pb-3 text-[10px] text-text-muted/70">{t("tokenDetail.dogeNoSpeedUp")}</p>
+                  )}
+                </div>
               ))}
             </div>
           )}

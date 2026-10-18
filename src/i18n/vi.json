@@ -423,6 +423,7 @@
     "selectAsset": "Chọn tài sản để gửi",
     "nothingToSend": "Chưa có gì để gửi",
     "insufficientWithFee": "Số dư không đủ cho số tiền và phí mạng. Chưa có gì được gửi.",
+    "dogeBelowDust": "Dogecoin cần tối thiểu 0,01 DOGE mỗi lần gửi.",
     "amountInvalid": "Nhập một số, ví dụ {{example}}",
     "amountAmbiguous": "Số tiền không rõ ràng. Viết phần thập phân như {{example}}"
   },
@@ -680,6 +681,7 @@
     "loadMore": "Tải thêm",
     "enable": "Bật",
     "legacyAddress": "Legacy:",
+    "dogeNoSpeedUp": "Dogecoin không thể tăng phí (không có RBF). Giao dịch bị kẹt sẽ được xác nhận hoặc bị loại khỏi mempool sau một thời gian.",
     "fundItDesc": "Nạp tiền để bắt đầu — gửi crypto từ sàn giao dịch hoặc ví khác.",
     "tapToGetStarted": "Nhấn Gửi để chuyển tiền, hoặc Nhận để lấy địa chỉ.",
     "walletAddressTooltip": "Địa chỉ ví của bạn — chia sẻ để nhận tiền"

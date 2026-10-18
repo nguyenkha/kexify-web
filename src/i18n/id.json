@@ -423,6 +423,7 @@
     "selectAsset": "Pilih yang akan dikirim",
     "nothingToSend": "Belum ada yang bisa dikirim",
     "insufficientWithFee": "Saldo tidak cukup untuk jumlah dan biaya jaringan. Tidak ada yang terkirim.",
+    "dogeBelowDust": "Dogecoin membutuhkan minimal 0,01 DOGE per pengiriman.",
     "amountInvalid": "Masukkan angka, mis. {{example}}",
     "amountAmbiguous": "Jumlah tidak jelas. Tulis desimal seperti {{example}}"
   },
@@ -680,6 +681,7 @@
     "loadMore": "Muat lebih banyak",
     "enable": "Aktifkan",
     "legacyAddress": "Legacy:",
+    "dogeNoSpeedUp": "Dogecoin tidak punya penaikan biaya (tanpa RBF). Transaksi yang tersangkut akan terkonfirmasi atau dihapus dari mempool setelah beberapa waktu.",
     "fundItDesc": "Isi dompet untuk memulai — kirim kripto dari bursa atau dompet lain.",
     "tapToGetStarted": "Ketuk Kirim untuk mentransfer dana, atau Terima untuk mendapatkan alamat Anda.",
     "walletAddressTooltip": "Alamat dompet Anda — bagikan untuk menerima dana"

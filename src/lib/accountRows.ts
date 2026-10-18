@@ -107,6 +107,22 @@ export function buildAccountRows(
       }
     }
 
+    const dogeChains = chains.filter((c) => c.type === "doge");
+    if (dogeChains.length > 0) {
+      const dogeAdapt = getChainAdapter("doge");
+      for (const chain of dogeChains) {
+        const chainAssets = assets.filter((a) => a.chainId === chain.id);
+        rows.push({
+          keyId: key.id,
+          address: dogeAdapt.deriveAddress(pubKeyHex),
+          addressType: "doge",
+          label: chain.displayName,
+          chain,
+          assets: chainAssets,
+        });
+      }
+    }
+
     const ltcChains = chains.filter((c) => c.type === "ltc");
     if (ltcChains.length > 0) {
       const ltcAdapter = getChainAdapter("ltc");

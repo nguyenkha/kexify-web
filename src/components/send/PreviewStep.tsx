@@ -14,7 +14,7 @@ import { Lock } from "lucide-react";
 import { useState } from "react";
 
 /** Decimals of each chain's native asset (the fee asset). */
-const NATIVE_DECIMALS: Record<string, number> = { evm: 18, solana: 9, btc: 8, ltc: 8, bch: 8, xrp: 6, xlm: 7, tron: 6, ton: 9, algo: 6, ada: 6 };
+const NATIVE_DECIMALS: Record<string, number> = { evm: 18, solana: 9, btc: 8, ltc: 8, bch: 8, doge: 8, xrp: 6, xlm: 7, tron: 6, ton: 9, algo: 6, ada: 6 };
 
 export function PreviewStep({
   chain,
@@ -45,6 +45,7 @@ export function PreviewStep({
   btcEstimatedFee,
   ltcEstimatedFee,
   bchEstimatedFee,
+  dogeEstimatedFee,
   prices,
   balance,
   setStep: _setStep,
@@ -116,7 +117,7 @@ export function PreviewStep({
           {expert && feeDisplay.rateLabel != null && (
             <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
               <span className="text-xs text-text-muted">
-                {chain.type === "btc" || chain.type === "ltc" || chain.type === "bch"
+                {chain.type === "btc" || chain.type === "ltc" || chain.type === "bch" || chain.type === "doge"
                   ? t("send.feeRate")
                   : chain.type === "xlm"
                     ? t("send.baseFee")
@@ -131,7 +132,7 @@ export function PreviewStep({
               <span className="text-xs tabular-nums text-text-muted">{gasLimit.toLocaleString()}</span>
             </div>
           )}
-          {expert && manualUtxos && (chain.type === "btc" || chain.type === "ltc" || chain.type === "bch") && (
+          {expert && manualUtxos && (chain.type === "btc" || chain.type === "ltc" || chain.type === "bch" || chain.type === "doge") && (
             <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
               <span className="text-xs text-text-muted">{t("send.utxos")}</span>
               <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-blue-500/10 text-blue-400">
@@ -177,6 +178,7 @@ export function PreviewStep({
             else if (chain.type === "btc" && btcEstimatedFee != null) feeCost = btcEstimatedFee;
             else if (chain.type === "ltc" && ltcEstimatedFee != null) feeCost = ltcEstimatedFee;
             else if (chain.type === "bch" && bchEstimatedFee != null) feeCost = bchEstimatedFee;
+            else if (chain.type === "doge" && dogeEstimatedFee != null) feeCost = dogeEstimatedFee;
             changes.push({
               symbol: asset.symbol,
               decimals: asset.decimals,
@@ -213,12 +215,13 @@ export function PreviewStep({
         <button
           disabled={blocked || !!xlmBlockKey || !gate.seen || (lookalike && !lookalikeAcked)}
           onClick={() => {
-            const { executeEvm, executeBtc, executeLtc, executeBch, executeSolana, executeXrp, executeXlm, executeTron, executeTon, executeAlgo, executeAda } = signingFlows;
+            const { executeEvm, executeBtc, executeLtc, executeBch, executeDoge, executeSolana, executeXrp, executeXlm, executeTron, executeTon, executeAlgo, executeAda } = signingFlows;
             const flows: Record<string, () => void> = {
               solana: executeSolana,
               btc: executeBtc,
               ltc: executeLtc,
               bch: executeBch,
+              doge: executeDoge,
               evm: executeEvm,
               xrp: executeXrp,
               xlm: executeXlm,

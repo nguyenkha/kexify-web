@@ -108,6 +108,7 @@ async function resolveUnstoppable(
       xlm: ["crypto.XLM.address"],
       ltc: ["crypto.LTC.address"],
       bch: ["crypto.BCH.address"],
+      doge: ["crypto.DOGE.address"],
     };
 
     const keys = keyMap[chainType] ?? [];

@@ -25,6 +25,7 @@ import {
   fetchUtxos as fetchBchUtxos,
   bchApiUrl,
 } from "../../lib/chains/bchTx";
+import { fetchUtxos as fetchDogeUtxos } from "../../lib/chains/dogeTx";
 import {
   fetchUtxos as fetchLtcUtxos,
   ltcApiUrl,
@@ -173,6 +174,7 @@ export async function handleFetchUtxos(ctx: UtxoFetchContext): Promise<void> {
   try {
     const utxos = await utxosWithProxyFallback(chain, address, () => (chain.type === "btc" ? fetchUtxos(address, mempoolApiUrl(chain.explorerUrl))
       : chain.type === "bch" ? fetchBchUtxos(address, bchApiUrl())
+        : chain.type === "doge" ? fetchDogeUtxos(address)
         : fetchLtcUtxos(address, ltcApiUrl(chain.explorerUrl))));
     setAvailableUtxos(utxos);
   } catch {

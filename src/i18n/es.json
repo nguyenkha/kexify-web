@@ -423,6 +423,7 @@
     "selectAsset": "Elige qué enviar",
     "nothingToSend": "Aún no hay nada que enviar",
     "insufficientWithFee": "Saldo insuficiente para cubrir el monto y la comisión de red. No se envió nada.",
+    "dogeBelowDust": "Dogecoin necesita al menos 0,01 DOGE por envío.",
     "amountInvalid": "Introduce un número, p. ej. {{example}}",
     "amountAmbiguous": "Importe poco claro. Escribe los decimales así: {{example}}"
   },
@@ -680,6 +681,7 @@
     "loadMore": "Cargar más",
     "enable": "Activar",
     "legacyAddress": "Heredada:",
+    "dogeNoSpeedUp": "Dogecoin no permite subir la comisión (sin RBF). Una transacción atascada se confirma o se descarta del mempool pasado un tiempo.",
     "fundItDesc": "Agrega fondos para empezar: envía criptomonedas desde un exchange u otra billetera.",
     "tapToGetStarted": "Toca Enviar para transferir fondos, o Recibir para obtener tu dirección.",
     "walletAddressTooltip": "La dirección de tu billetera: compártela para recibir fondos"

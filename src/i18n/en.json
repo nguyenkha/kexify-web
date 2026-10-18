@@ -423,6 +423,7 @@
     "selectAsset": "Choose what to send",
     "nothingToSend": "Nothing to send yet",
     "insufficientWithFee": "Not enough balance to cover the amount and the network fee. Nothing was sent.",
+    "dogeBelowDust": "Dogecoin needs at least 0.01 DOGE per send.",
     "amountInvalid": "Enter a number, e.g. {{example}}",
     "amountAmbiguous": "Unclear amount. Write decimals like {{example}}"
   },
@@ -680,6 +681,7 @@
     "loadMore": "Load more",
     "enable": "Enable",
     "legacyAddress": "Legacy:",
+    "dogeNoSpeedUp": "Dogecoin has no fee bump (no RBF). A stuck transaction confirms, or drops from the mempool after a while.",
     "fundItDesc": "Fund it to get started — send crypto from an exchange or another wallet.",
     "tapToGetStarted": "Tap Send to transfer funds, or Receive to get your address.",
     "walletAddressTooltip": "Your wallet address — share it to receive funds"

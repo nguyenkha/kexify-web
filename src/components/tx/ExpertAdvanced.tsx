@@ -20,7 +20,7 @@ interface EvmAdvancedProps {
 }
 
 interface BtcAdvancedProps {
-  type: "btc" | "ltc" | "bch";
+  type: "btc" | "ltc" | "bch" | "doge";
   feeRateOverride: string;
   onFeeRateChange: (v: string) => void;
   feeRatePlaceholder: string;

@@ -92,6 +92,7 @@ export interface InputStepProps {
   btcFeeRates: { low: number; medium: number; high: number } | null;
   ltcFeeRates: { low: number; medium: number; high: number } | null;
   bchFeeRates: { low: number; medium: number; high: number } | null;
+  dogeFeeRate: number | null;
   baseGasPrice: bigint | null;
   /** EVM gas price per fee level (lib/chains/evm-gas-price.ts). */
   evmGasPrices: Record<FeeLevel, bigint> | null;
@@ -185,6 +186,7 @@ export interface PreviewStepProps {
   btcEstimatedFee: bigint | null;
   ltcEstimatedFee: bigint | null;
   bchEstimatedFee: bigint | null;
+  dogeEstimatedFee: bigint | null;
   prices: Record<string, number>;
   balance: string;
 
@@ -195,6 +197,7 @@ export interface PreviewStepProps {
     executeBtc: () => void;
     executeLtc: () => void;
     executeBch: () => void;
+    executeDoge: () => void;
     executeSolana: () => void;
     executeXrp: () => void;
     executeXlm: () => void;

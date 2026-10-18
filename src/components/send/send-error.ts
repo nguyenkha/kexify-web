@@ -89,6 +89,7 @@ export function mapSendError(err: unknown, t: T): SendError {
   if (common) return { kind: "error", message: common };
 
   if (/session not found|session (expired|timed out)/i.test(raw)) return { kind: "error", message: t("send.sessionTimedOut") };
+  if (/DOGE_BELOW_DUST/.test(raw)) return { kind: "error", message: t("send.dogeBelowDust") };
   if (/insufficient (funds|balance|lamports)/i.test(raw)) return { kind: "error", message: t("send.insufficientWithFee") };
   // Only the server's refusal of the signed bytes (transport errors carry a status) is an intent mismatch.
   if (e.status !== undefined && INTENT_MISMATCH.test(raw)) return { kind: "error", message: t("send.intentMismatch"), detail: raw };
