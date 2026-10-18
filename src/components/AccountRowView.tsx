@@ -15,6 +15,7 @@ import { fetchTransactions } from "../lib/transactions";
 import { getStaleCache, setCache, txCacheKey } from "../lib/dataCache";
 import { CompactTxPreview } from "./CompactTxPreview";
 import { truncateBalance } from "./sendTypes";
+import { TestnetBadge } from "./testnet-badge";
 
 const DEFAULT_POLL_INTERVAL = 60_000;
 
@@ -134,11 +135,7 @@ export function AccountRowView({
           <div className="min-w-0">
             <div className="text-sm font-medium text-text-primary leading-tight flex items-center gap-1.5">
               {row.label.replace(/\s*\(?\s*(testnet|devnet)\s*\)?\s*/gi, " ").trim()}
-              {/devnet/i.test(row.chain.name) ? (
-                <span className="text-[10px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">devnet</span>
-              ) : /testnet|sepolia/i.test(row.chain.name) ? (
-                <span className="text-[10px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">testnet</span>
-              ) : null}
+              <TestnetBadge chainName={row.chain.name} />
             </div>
             <div className="flex items-center gap-1.5 mt-0.5">
               <CopyableText value={row.address} className="text-[11px] text-text-muted" textClassName="font-mono">
@@ -225,11 +222,7 @@ export function AccountRowView({
                   <div className="min-w-0">
                     <div className="text-xs font-medium text-text-secondary leading-tight flex items-center gap-1.5">
                       {b.asset.name.replace(/\s*\(?\s*(testnet|devnet)\s*\)?\s*/gi, " ").trim()}
-                      {/devnet/i.test(row.chain.name) ? (
-                        <span className="text-[8px] px-0.5 py-px rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold leading-none">devnet</span>
-                      ) : /testnet|sepolia/i.test(row.chain.name) ? (
-                        <span className="text-[8px] px-0.5 py-px rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold leading-none">testnet</span>
-                      ) : null}
+                      <TestnetBadge chainName={row.chain.name} small />
                     </div>
                   </div>
                 </div>

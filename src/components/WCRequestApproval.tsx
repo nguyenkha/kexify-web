@@ -35,10 +35,11 @@ import type { BalanceResult } from "../lib/balance";
 import { explorerLink } from "../shared/utils";
 import { useSteppedProgress, signingDurationMs, ProgressBar } from "./ProgressBar";
 import { BalancePreview, type BalanceChange } from "./BalancePreview";
-import { simulateEvmTransaction, type SimulationResult } from "../lib/txSimulation";
+import { simulateEvmTransaction, SIMULATION_UNAVAILABLE, type KnownToken, type SimulationResult } from "../lib/txSimulation";
+import { simulateSolanaTransaction } from "../lib/tx-simulation-solana";
 import { useExpertMode } from "../context/ExpertModeContext";
 import { trackExpertTool } from "../lib/expert-usage";
-import { PolicyWarning, ExpertWarnings, SimulationPreview, SigningError, SigningStepper } from "./tx";
+import { PolicyWarning, ExpertWarnings, SimulationPreview, SimulationStatusNote, SigningError, SigningStepper } from "./tx";
 import { ReviewBody, useScrollGate, DappTitle, NetworkChip, AllowanceEditor, ReviewExtraConfirm } from "./review";
 import { buildWcRequestReview, decodeEvmCall, knownEvmContract, withEvmApproveAmount, withTronApproveAmount, type ReviewModel, type TronTxJson, type WcReviewContext } from "../lib/review";
 import { addressLabel } from "../lib/address-label";
@@ -468,6 +469,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
   // Transaction simulation
   const [simResult, setSimResult] = useState<SimulationResult | null>(null);
+  const simSeq = useRef(0);
 
   // ── Approve flow (passkey #2 for MPC signing) ──────────────────
 
@@ -561,16 +563,24 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
     if (expert && (maxFeeOverride || priorityFeeOverride || gasLimitInput)) trackExpertTool("send_custom_fee");
     await runPolicyCheck();
 
-    // EVM transaction simulation (non-blocking)
+    // Estimated balance changes (non-blocking, free on any RPC); a failure keeps the static estimate
+    setSimResult(null);
+    const simId = ++simSeq.current;
+    const keepSim = (r: SimulationResult | null) => { if (simId === simSeq.current) setSimResult(r ?? SIMULATION_UNAVAILABLE); };
+    const knownTokens: KnownToken[] = chainAssets.map((a) => ({ contractAddress: a.contractAddress, symbol: a.symbol, decimals: a.decimals }));
     if (!isSolana && !isTron && isTx && txParams && chain?.rpcUrl) {
-      setSimResult(null);
       simulateEvmTransaction(chain.rpcUrl, {
         from: account.address,
         to: txParams.to || "",
         value: txParams.value || "0x0",
         data: txParams.data || "0x",
-        gas: txParams.gas || txParams.gasLimit,
-      }).then((r) => { if (r) setSimResult(r); });
+        // No dApp gas: signing uses our own estimate, and a low dApp value would predict a false out-of-gas revert
+      }, { nativeSymbol: chainAssets.find((a) => a.isNative)?.symbol, knownTokens }).then(keepSim);
+    } else if (isSolanaTx && chain?.rpcUrl && typeof request.params?.transaction === "string") {
+      try {
+        const wire = Uint8Array.from(atob(request.params.transaction), (c) => c.charCodeAt(0));
+        simulateSolanaTransaction(chain.rpcUrl, wire, account.address, knownTokens).then(keepSim);
+      } catch { keepSim(null); }
     }
 
     setPhase("preview");
@@ -1116,6 +1126,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                   </>
                 ) : isTx && !isSolana ? (
                   <>
+                  <SimulationStatusNote simResult={simResult} />
                   {/* Balance preview — simulation or static fallback */}
                   {simResult && simResult.changes.length > 0 ? (
                     <SimulationPreview simResult={simResult} prices={prices} />
@@ -1152,8 +1163,11 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                   </>
                 ) : isSolanaTx && decodedSolTx ? (
                   <>
-                  {/* Balance preview */}
-                  {nativeBalance != null && (
+                  <SimulationStatusNote simResult={simResult} />
+                  {/* Balance preview — simulation or static fallback */}
+                  {simResult && simResult.changes.length > 0 ? (
+                    <SimulationPreview simResult={simResult} prices={prices} />
+                  ) : nativeBalance != null && (
                     (() => {
                       const fee = BigInt(decodedSolTx.fee.costLamports);
                       const changes: BalanceChange[] = [];

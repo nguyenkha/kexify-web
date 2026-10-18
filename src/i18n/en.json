@@ -126,7 +126,9 @@
     "updatedJustNow": "Updated just now",
     "updatedSecondsAgo": "Updated {{count}}s ago",
     "updatedMinutesAgo": "Updated {{count}}m ago",
-    "updated": "Updated {{time}}"
+    "updated": "Updated {{time}}",
+    "testNetworks": "Test networks",
+    "testNetworksHint": "Test coins are free and have no value. They are not counted in your total."
   },
   "config": {
     "title": "Settings",
@@ -329,6 +331,11 @@
     "backupRequiredDesc": "Complete your key backup first in Backup & Recovery.",
     "policyBlocked": "Transaction blocked by policy",
     "simulatedVia": "Simulated via {{provider}}",
+    "simEstimatedTitle": "Estimated balance changes",
+    "simNoteNoFee": "Estimate from a simulation, network fee not included. The real result can differ.",
+    "simNoteFeeIncluded": "Estimate from a simulation, network fee included. The real result can differ.",
+    "simMayFail": "The simulation suggests this transaction may fail. Check it before you sign.",
+    "simUnavailable": "Could not simulate this transaction. You can still review and sign it.",
     "mpcSigning": "MPC signing",
     "validatingAndSigning": "Validating policy & signing",
     "localSigning": "Local signing",
@@ -576,7 +583,14 @@
       "priorityFee": "incl. priority fee {{amount}} SOL",
       "rent": "+ account rent up to {{amount}} SOL (refundable)"
     },
-    "signNotice": "This signs a message, not a transaction, but sites can use signatures to sign you in or to approve transfers. Read the message below and sign only if you trust {{site}}."
+    "signNotice": "This signs a message, not a transaction, but sites can use signatures to sign you in or to approve transfers. Read the message below and sign only if you trust {{site}}.",
+    "phishing": {
+      "title": "Known phishing site",
+      "body": "This site is on a public phishing list. Connecting or signing can cost you your funds.",
+      "showDetails": "Details",
+      "details": "The list is checked on this device; kexify never learns which sites you connect to. If you are sure this is a mistake, you can still continue.",
+      "continue": "I understand the risk, continue"
+    }
   },
   "broadcast": {
     "title": "Broadcast transaction",
@@ -1402,6 +1416,10 @@
       "nftApprovalForAll": {
         "title": "Access to all your NFTs",
         "body": "{{spender}} can transfer every {{collection}} NFT you own, now and later. Only continue on a marketplace you trust. You can revoke it later."
+      },
+      "lookalikeAddress": {
+        "title": "Looks like an address you know",
+        "body": "This address starts and ends like {{known}}, but the middle is different. Scammers copy the ends of addresses you use. Check every character before you send."
       }
     },
     "program": "program",
@@ -1431,7 +1449,8 @@
     "nftAll": "All {{collection}} NFTs",
     "extraConfirm": {
       "nftApprovalForAll": "I understand this app can move ALL my {{collection}} NFTs, now and later, without asking again."
-    }
+    },
+    "lookalikeConfirm": "I checked every character of the address and still want to send"
   },
   "explore": {
     "title": "Explore",

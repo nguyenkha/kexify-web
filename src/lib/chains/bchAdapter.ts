@@ -1,4 +1,6 @@
-import type { ChainAdapter, BalanceResult, Transaction } from "../../shared/types";
+import type { Asset, Chain, ChainAdapter, BalanceResult, Transaction } from "../../shared/types";
+import { historyWithProxyFallback, PublicReadError, PUBLIC_TIMEOUT_MS, type PublicHistoryPage } from "./chain-proxy-client";
+import { proxyUtxoBalance, proxyUtxoHistory } from "./chain-proxy-utxo";
 import { hexToBytes, bytesToHex } from "../../shared/utils";
 import { sha256 } from "@noble/hashes/sha256";
 import { ripemd160 } from "@noble/hashes/ripemd160";
@@ -262,24 +264,25 @@ export const bchAdapter: ChainAdapter = {
   },
 
   async fetchNativeBalance(address, chain, nativeAsset): Promise<BalanceResult | null> {
+    const result = (balance: bigint): BalanceResult => ({
+      asset: nativeAsset,
+      chain,
+      balance: balance.toString(),
+      formatted: formatBalance(balance, nativeAsset.decimals),
+    });
     try {
       const api = bchApiUrl(chain);
       // Convert CashAddr to plain format (strip prefix) for API compatibility
       const queryAddr = address.includes(":") ? address : address;
-      const res = await fetch(`${api}/dashboards/address/${queryAddr}`);
-      if (!res.ok) return null;
+      const res = await fetch(`${api}/dashboards/address/${queryAddr}`, { signal: AbortSignal.timeout(PUBLIC_TIMEOUT_MS) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`); // Blockchair answers 430 when it rate-limits an IP
       const data = await res.json();
       const addrKey = Object.keys(data.data || {})[0];
-      if (!addrKey) return null;
-      const balance = BigInt(data.data[addrKey]?.address?.balance ?? 0);
-      return {
-        asset: nativeAsset,
-        chain,
-        balance: balance.toString(),
-        formatted: formatBalance(balance, nativeAsset.decimals),
-      };
+      if (!addrKey) throw new Error("no address data");
+      return result(BigInt(data.data[addrKey]?.address?.balance ?? 0));
     } catch {
-      return null;
+      const proxied = await proxyUtxoBalance(chain, address);
+      return proxied === null ? null : result(proxied);
     }
   },
 
@@ -289,108 +292,118 @@ export const bchAdapter: ChainAdapter = {
   },
 
   async fetchTransactions(address, chain, asset, page) {
-    try {
-      const api = bchApiUrl(chain);
-      const queryAddr = address.includes(":") ? address : address;
-      const offset = (page - 1) * PAGE_SIZE;
-      const res = await fetch(`${api}/dashboards/address/${queryAddr}?limit=${PAGE_SIZE}&offset=${offset}`);
-      if (!res.ok) return { transactions: [], hasMore: false };
-      const data = await res.json();
-      const addrKey = Object.keys(data.data || {})[0];
-      if (!addrKey) return { transactions: [], hasMore: false };
-
-      const addrData = data.data[addrKey];
-      const txHashes: string[] = addrData?.transactions || [];
-
-      if (txHashes.length === 0) return { transactions: [], hasMore: false };
-
-      // Fetch transaction details with inputs/outputs
-      const txRes = await fetch(`${api}/dashboards/transactions/${txHashes.join(",")}`);
-      if (!txRes.ok) return { transactions: [], hasMore: false };
-      const txData = await txRes.json();
-
-      // Normalize query address: strip prefix for comparison
-      const bareAddr = address.includes(":") ? address.split(":")[1] : address;
-
-      const txs: Transaction[] = txHashes.map((txid) => {
-        const txEntry = txData.data?.[txid];
-        const tx = txEntry?.transaction;
-        if (!tx) {
-          return {
-            hash: txid,
-            from: address,
-            to: "...",
-            value: "0",
-            formatted: "0",
-            symbol: asset.symbol,
-            timestamp: Math.floor(Date.now() / 1000),
-            direction: "out" as const,
-            confirmed: false,
-          };
-        }
-
-        const inputs: { recipient: string; value: number }[] = txEntry.inputs ?? [];
-        const outputs: { recipient: string; value: number }[] = txEntry.outputs ?? [];
-
-        // Check if our address appears in inputs/outputs (compare bare addresses)
-        const matchAddr = (r: string) => {
-          const bare = r.includes(":") ? r.split(":")[1] : r;
-          return bare === bareAddr;
-        };
-        const inputSum = inputs.filter((i) => matchAddr(i.recipient)).reduce((s, i) => s + BigInt(i.value), 0n);
-        const outputSum = outputs.filter((o) => matchAddr(o.recipient)).reduce((s, o) => s + BigInt(o.value), 0n);
-
-        const isInInput = inputSum > 0n;
-        const isInOutput = outputSum > 0n;
-        const direction: "in" | "out" | "self" =
-          isInInput && isInOutput && inputSum > outputSum ? "out"
-            : isInInput && !isInOutput ? "out"
-              : !isInInput && isInOutput ? "in"
-                : isInInput && isInOutput ? "self"
-                  : "in";
-
-        let displayValue: bigint;
-        if (direction === "in") {
-          displayValue = outputSum;
-        } else if (direction === "out") {
-          // Net sent = what we put in minus change back to us
-          displayValue = inputSum - outputSum;
-        } else {
-          displayValue = BigInt(tx.fee ?? 0);
-        }
-
-        // UTXO counterparty: if all inputs share one address, show as sender
-        let from = address;
-        let to = address;
-        if (direction === "in") {
-          const inputAddrs = new Set(inputs.map((i) => i.recipient).filter(Boolean));
-          if (inputAddrs.size === 1) {
-            from = [...inputAddrs][0]!;
-          } else {
-            from = "";
-          }
-        } else if (direction === "out") {
-          const outputAddr = outputs.find((o) => !matchAddr(o.recipient));
-          to = outputAddr?.recipient ?? "";
-        }
-
-        return {
-          hash: txid,
-          from,
-          to,
-          value: displayValue.toString(),
-          formatted: formatTxValue(displayValue.toString(), asset.decimals),
-          symbol: asset.symbol,
-          timestamp: tx.time ? Math.floor(new Date(tx.time).getTime() / 1000) : Math.floor(Date.now() / 1000),
-          direction,
-          confirmed: tx.block_id > 0,
-        };
-      });
-
-      const totalTxCount = addrData?.address?.transaction_count ?? 0;
-      return { transactions: txs, hasMore: offset + PAGE_SIZE < totalTxCount };
-    } catch {
-      return { transactions: [], hasMore: false };
-    }
+    return historyWithProxyFallback(
+      `${chain.id}:${address}:${asset.id}`,
+      page,
+      () => publicTransactions(address, chain, asset, page),
+      async () => (await proxyUtxoHistory(chain, address))
+        ?.map((r) => ({ ...r, formatted: formatTxValue(r.value, asset.decimals), symbol: asset.symbol })) ?? null,
+    );
   },
 };
+
+/** Blockchair history page (server-side offset). Throws PublicReadError on HTTP errors; network errors and timeouts
+ *  throw. */
+async function publicTransactions(address: string, chain: Chain, asset: Asset, page: number): Promise<PublicHistoryPage> {
+  const api = bchApiUrl(chain);
+  const queryAddr = address.includes(":") ? address : address;
+  const offset = (page - 1) * PAGE_SIZE;
+  const res = await fetch(`${api}/dashboards/address/${queryAddr}?limit=${PAGE_SIZE}&offset=${offset}`, { signal: AbortSignal.timeout(PUBLIC_TIMEOUT_MS) });
+  if (!res.ok) throw new PublicReadError(`HTTP ${res.status}`);
+  const data = await res.json();
+  const addrKey = Object.keys(data.data || {})[0];
+  if (!addrKey) throw new PublicReadError("no address data");
+
+  const addrData = data.data[addrKey];
+  const txHashes: string[] = addrData?.transactions || [];
+
+  if (txHashes.length === 0) return { transactions: [], hasMore: false, rawRows: 0 };
+
+  // Fetch transaction details with inputs/outputs
+  const txRes = await fetch(`${api}/dashboards/transactions/${txHashes.join(",")}`, { signal: AbortSignal.timeout(PUBLIC_TIMEOUT_MS) });
+  if (!txRes.ok) throw new PublicReadError(`HTTP ${txRes.status}`);
+  const txData = await txRes.json();
+
+  // Normalize query address: strip prefix for comparison
+  const bareAddr = address.includes(":") ? address.split(":")[1] : address;
+
+  const txs: Transaction[] = txHashes.map((txid) => {
+    const txEntry = txData.data?.[txid];
+    const tx = txEntry?.transaction;
+    if (!tx) {
+      return {
+        hash: txid,
+        from: address,
+        to: "...",
+        value: "0",
+        formatted: "0",
+        symbol: asset.symbol,
+        timestamp: Math.floor(Date.now() / 1000),
+        direction: "out" as const,
+        confirmed: false,
+      };
+    }
+
+    const inputs: { recipient: string; value: number }[] = txEntry.inputs ?? [];
+    const outputs: { recipient: string; value: number }[] = txEntry.outputs ?? [];
+
+    // Check if our address appears in inputs/outputs (compare bare addresses)
+    const matchAddr = (r: string) => {
+      const bare = r.includes(":") ? r.split(":")[1] : r;
+      return bare === bareAddr;
+    };
+    const inputSum = inputs.filter((i) => matchAddr(i.recipient)).reduce((s, i) => s + BigInt(i.value), 0n);
+    const outputSum = outputs.filter((o) => matchAddr(o.recipient)).reduce((s, o) => s + BigInt(o.value), 0n);
+
+    const isInInput = inputSum > 0n;
+    const isInOutput = outputSum > 0n;
+    const direction: "in" | "out" | "self" =
+      isInInput && isInOutput && inputSum > outputSum ? "out"
+        : isInInput && !isInOutput ? "out"
+          : !isInInput && isInOutput ? "in"
+            : isInInput && isInOutput ? "self"
+              : "in";
+
+    let displayValue: bigint;
+    if (direction === "in") {
+      displayValue = outputSum;
+    } else if (direction === "out") {
+      // Net sent = what we put in minus change back to us
+      displayValue = inputSum - outputSum;
+    } else {
+      displayValue = BigInt(tx.fee ?? 0);
+    }
+
+    // UTXO counterparty: if all inputs share one address, show as sender
+    let from = address;
+    let to = address;
+    if (direction === "in") {
+      const inputAddrs = new Set(inputs.map((i) => i.recipient).filter(Boolean));
+      if (inputAddrs.size === 1) {
+        from = [...inputAddrs][0]!;
+      } else {
+        from = "";
+      }
+    } else if (direction === "out") {
+      const outputAddr = outputs.find((o) => !matchAddr(o.recipient));
+      to = outputAddr?.recipient ?? "";
+    }
+
+    return {
+      hash: txid,
+      from,
+      to,
+      value: displayValue.toString(),
+      formatted: formatTxValue(displayValue.toString(), asset.decimals),
+      symbol: asset.symbol,
+      timestamp: tx.time ? Math.floor(new Date(tx.time).getTime() / 1000) : Math.floor(Date.now() / 1000),
+      direction,
+      confirmed: tx.block_id > 0,
+    };
+  });
+
+  const totalTxCount = addrData?.address?.transaction_count ?? 0;
+  // A hash without details is listed as a placeholder: the page is incomplete.
+  const incomplete = txHashes.some((h) => !txData.data?.[h]?.transaction);
+  return { transactions: txs, hasMore: offset + PAGE_SIZE < totalTxCount, rawRows: txHashes.length, incomplete };
+}

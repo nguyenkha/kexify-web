@@ -31,6 +31,7 @@ import {
 } from "../../lib/chains/ltcTx";
 import { parseDerSignature, parseUnits } from "../../lib/chains/evmTx";
 import type { SigningContext, UtxoFetchContext } from "./signing-flows";
+import { utxosWithProxyFallback } from "../../lib/chains/chain-proxy-utxo";
 import { buildWithUtxoInputCap } from "./build-with-utxo-input-cap";
 import { mapSendError } from "./send-error";
 
@@ -59,7 +60,7 @@ export async function executeBtcSigningFlow(ctx: SigningContext): Promise<void> 
     }
 
     // 1. Fetch UTXOs and build transaction
-    const utxos = manualUtxos ?? await fetchUtxos(address, btcApi);
+    const utxos = manualUtxos ?? await utxosWithProxyFallback(chain, address, () => fetchUtxos(address, btcApi));
     const amountSats = parseUnits(amount, asset.decimals);
     const addrType = detectAddressType(address);
     const btcTx = buildWithUtxoInputCap((max) => buildBtcTransaction(to, amountSats, utxos, btcFeeRate, address, addrType, rbfEnabled, manualUtxos != null, max), t, asset);
@@ -170,10 +171,9 @@ export async function handleFetchUtxos(ctx: UtxoFetchContext): Promise<void> {
   const { chain, address, setAvailableUtxos, setUtxoLoading } = ctx;
   setUtxoLoading(true);
   try {
-    let utxos;
-    if (chain.type === "btc") utxos = await fetchUtxos(address, mempoolApiUrl(chain.explorerUrl));
-    else if (chain.type === "bch") utxos = await fetchBchUtxos(address, bchApiUrl());
-    else utxos = await fetchLtcUtxos(address, ltcApiUrl(chain.explorerUrl));
+    const utxos = await utxosWithProxyFallback(chain, address, () => (chain.type === "btc" ? fetchUtxos(address, mempoolApiUrl(chain.explorerUrl))
+      : chain.type === "bch" ? fetchBchUtxos(address, bchApiUrl())
+        : fetchLtcUtxos(address, ltcApiUrl(chain.explorerUrl))));
     setAvailableUtxos(utxos);
   } catch {
     setAvailableUtxos([]);

@@ -1,11 +1,13 @@
-// First-time recipient check for the Review warning (UX spec: send.md step 3, mismatch #19).
-// Known = saved in the address book or recent recipients for this chain, or an earlier outgoing
-// transaction to it. Advisory only: it never blocks the send.
+// Recipient checks for the Review warnings (UX spec: send.md step 3, mismatch #19).
+// Known = saved in the address book or recent recipients for this chain, an earlier outgoing transaction to it, or
+// the wallet's own address. A destination that only looks like a known one (same ends, other middle) is address
+// poisoning: lib/review/lookalike-address. Advisory only: neither check blocks the send.
 
 import { useEffect, useState } from "react";
 import { getAddressSuggestions } from "../../lib/addressBook";
 import { fetchTransactions } from "../../lib/transactions";
 import type { Chain, Asset } from "../../lib/api";
+import type { ReviewParty } from "../../lib/review";
 
 const HISTORY_TIMEOUT_MS = 4000;
 
@@ -19,15 +21,21 @@ export function isKnownRecipient(to: string, chainType: string): boolean {
   return getAddressSuggestions(chainType).some((e) => norm(e.address) === target);
 }
 
-/** true = first time, false = known, null = still checking (or no recipient yet). */
+export interface RecipientCheck {
+  /** true = first time, false = known, null = still checking (or no recipient yet). */
+  firstTime: boolean | null;
+  /** Addresses to compare the destination with for the lookalike warning. */
+  known: ReviewParty[];
+}
+
 export function useFirstTimeRecipient(
   active: boolean,
   to: string,
   from: string,
   chain: Chain,
   asset: Asset,
-): boolean | null {
-  const [result, setResult] = useState<{ key: string; firstTime: boolean } | null>(null);
+): RecipientCheck {
+  const [result, setResult] = useState<{ key: string; firstTime: boolean; sentTo: string[] } | null>(null);
   const key = `${chain.id}:${asset.symbol}:${to}`;
   // Saved / recent recipients are local: no need to wait for history.
   const known = active && !!to && isKnownRecipient(to, chain.type);
@@ -40,14 +48,19 @@ export function useFirstTimeRecipient(
     Promise.race([history, timeout]).then((page) => {
       if (cancelled) return;
       const target = norm(to);
-      const sentBefore = !!page?.transactions.some((tx) => tx.direction === "out" && norm(tx.to) === target);
+      // Outgoing only: a poisoning address reaches the history by sending dust, so incoming senders are not "known".
+      const sentTo = (page?.transactions ?? []).filter((tx) => tx.direction === "out" && tx.to).map((tx) => tx.to);
+      const sentBefore = sentTo.some((a) => norm(a) === target);
       // History unavailable: show the warning (it is advisory, erring on the careful side).
-      setResult({ key, firstTime: !sentBefore });
+      setResult({ key, firstTime: !sentBefore, sentTo });
     });
     return () => { cancelled = true; };
   }, [active, known, key, to, from, chain, asset]);
 
-  if (!active || !to) return null;
-  if (known) return false;
-  return result?.key === key ? result.firstTime : null;
+  if (!active || !to) return { firstTime: null, known: [] };
+  if (known) return { firstTime: false, known: [] };
+  const book: ReviewParty[] = getAddressSuggestions(chain.type).map((e) => ({ address: e.address, ...("label" in e && e.label ? { name: e.label } : {}) }));
+  const own: ReviewParty = { address: from };
+  if (result?.key !== key) return { firstTime: null, known: [...book, own] };
+  return { firstTime: result.firstTime, known: [...book, own, ...result.sentTo.map((address) => ({ address }))] };
 }

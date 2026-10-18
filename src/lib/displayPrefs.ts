@@ -1,4 +1,5 @@
 import { getUserOverrides, setUserOverrides } from "./userOverrides";
+import { isTestnetChain } from "./testnet";
 
 /** Get stored display map for a key. Returns null if never set. */
 export function getStoredDisplay(keyId: string, userId?: string): Record<string, boolean> | null {
@@ -14,7 +15,8 @@ export function setStoredDisplay(keyId: string, vis: Record<string, boolean>, us
   setUserOverrides(overrides, userId);
 }
 
-/** Determine if a chain row should be visible */
+/** Determine if a chain row should be visible. Test networks exist only while "Show test networks" is on, and then
+ *  show unless hidden in Manage display (default chains list mainnets only). */
 export function isChainVisible(
   chainName: string,
   stored: Record<string, boolean> | null,
@@ -22,7 +24,7 @@ export function isChainVisible(
 ): boolean {
   const key = `chain:${chainName}`;
   if (stored && key in stored) return stored[key];
-  if (defaults) return defaults.includes(chainName);
+  if (defaults) return defaults.includes(chainName) || isTestnetChain(chainName);
   return true;
 }
 

@@ -126,7 +126,9 @@
     "updatedJustNow": "刚刚更新",
     "updatedSecondsAgo": "{{count}} 秒前更新",
     "updatedMinutesAgo": "{{count}} 分钟前更新",
-    "updated": "更新于 {{time}}"
+    "updated": "更新于 {{time}}",
+    "testNetworks": "测试网络",
+    "testNetworksHint": "测试币免费且没有价值，不计入你的总资产。"
   },
   "config": {
     "title": "设置",
@@ -329,6 +331,11 @@
     "backupRequiredDesc": "请先在“备份与恢复”中完成密钥备份。",
     "policyBlocked": "交易被策略拦截",
     "simulatedVia": "通过 {{provider}} 模拟",
+    "simEstimatedTitle": "预估余额变化",
+    "simNoteNoFee": "基于模拟的预估，不含网络费用。实际结果可能不同。",
+    "simNoteFeeIncluded": "基于模拟的预估，已含网络费用。实际结果可能不同。",
+    "simMayFail": "模拟显示此交易可能失败。签名前请检查。",
+    "simUnavailable": "无法模拟此交易。你仍可检查并签名。",
     "mpcSigning": "MPC 签名",
     "validatingAndSigning": "正在验证策略并签名",
     "localSigning": "本地签名",
@@ -576,7 +583,14 @@
       "priorityFee": "含优先费用 {{amount}} SOL",
       "rent": "+ 账户租金最高 {{amount}} SOL（可退还）"
     },
-    "signNotice": "这是签署消息，不是交易，但网站可以用签名来登录或批准转账。请阅读下方消息，仅在信任 {{site}} 时才签名。"
+    "signNotice": "这是签署消息，不是交易，但网站可以用签名来登录或批准转账。请阅读下方消息，仅在信任 {{site}} 时才签名。",
+    "phishing": {
+      "title": "已知钓鱼网站",
+      "body": "此网站在公开的钓鱼网站名单上。连接或签名可能让你损失资金。",
+      "showDetails": "详情",
+      "details": "该列表在本设备上检查；kexify 不会知道你连接了哪些网站。如果你确定这是误判，仍可继续。",
+      "continue": "我了解风险，继续"
+    }
   },
   "broadcast": {
     "title": "广播交易",
@@ -1402,6 +1416,10 @@
       "nftApprovalForAll": {
         "title": "可访问你的所有 NFT",
         "body": "{{spender}} 可以转移你拥有的每一个 {{collection}} NFT，包括现在和以后的。仅在你信任的市场上继续。你之后可以撤销。"
+      },
+      "lookalikeAddress": {
+        "title": "与你认识的地址相似",
+        "body": "此地址的开头和结尾与 {{known}} 相同，但中间不同。骗子会仿造你用过的地址的首尾。发送前请逐个字符核对。"
       }
     },
     "program": "程序",
@@ -1431,7 +1449,8 @@
     "nftAll": "所有 {{collection}} NFT",
     "extraConfirm": {
       "nftApprovalForAll": "我明白此应用可以转移我所有的 {{collection}} NFT，包括现在和以后的，且无需再次询问。"
-    }
+    },
+    "lookalikeConfirm": "我已逐个字符核对地址，仍要发送"
   },
   "explore": {
     "title": "探索",

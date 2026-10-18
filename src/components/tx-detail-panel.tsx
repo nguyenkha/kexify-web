@@ -1,6 +1,6 @@
 // In-app transaction detail (UX spec: history.md "Transaction detail").
 // Side panel on desktop, full-height sheet on mobile. Shows only what the chain adapter gives us
-// (no fee / memo fields exist on Transaction today), and keeps the explorer link inside.
+// (no fee field exists on Transaction today; Stellar memo / XRP destination tag when set), and keeps the explorer link inside.
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -115,6 +115,11 @@ export function TxDetailPanel({ tx, explorerUrl, networkName, onClose }: TxDetai
             {tx.to && <Field label={t("tx.to")}><AddressValue address={tx.to} /></Field>}
             {tx.isDeployment && tx.createdContract && (
               <Field label={t("tx.contractAddr")}><AddressValue address={tx.createdContract} /></Field>
+            )}
+            {tx.memo && (
+              <Field label={t(tx.memo.kind === "destinationTag" ? "send.destinationTag" : "send.memo")}>
+                <CopyableText value={tx.memo.value} textClassName="font-mono break-all text-[11px]" />
+              </Field>
             )}
             {networkName && <Field label={t("tx.network")}>{networkName}</Field>}
             <Field label={t("tx.date")}>

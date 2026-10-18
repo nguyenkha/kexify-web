@@ -1,6 +1,8 @@
-import type { Asset, ChainAdapter, BalanceResult, Transaction } from "../../shared/types";
+import type { Asset, Chain, ChainAdapter, BalanceResult, Transaction } from "../../shared/types";
 import { ethers } from "ethers";
 import { hexToBytes, bytesToHex } from "../../shared/utils";
+import { historyWithProxyFallback, PublicReadError, PUBLIC_TIMEOUT_MS, type PublicHistoryPage } from "./chain-proxy-client";
+import { proxyEvmBalances, proxyEvmHistory } from "./chain-proxy-evm";
 
 /**
  * Extract raw SEC1 public key hex from a DER SubjectPublicKeyInfo hex string.
@@ -42,13 +44,17 @@ function formatTxValue(raw: string, decimals: number): string {
   return fracPart ? `${fmt}.${fracPart}` : fmt;
 }
 
+/** Throws on HTTP, RPC or timeout errors (they used to read as a zero balance), so the caller can fall back. */
 async function ethJsonRpc(rpcUrl: string, method: string, params: unknown[]): Promise<string> {
   const res = await fetch(rpcUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+    signal: AbortSignal.timeout(PUBLIC_TIMEOUT_MS),
   });
+  if (!res.ok) throw new Error(`${method}: HTTP ${res.status}`);
   const data = await res.json();
+  if (data?.error || data?.result === undefined) throw new Error(`${method}: RPC error`);
   return data.result;
 }
 
@@ -93,23 +99,24 @@ export const evmAdapter: ChainAdapter = {
   },
 
   async fetchNativeBalance(address, chain, nativeAsset): Promise<BalanceResult | null> {
+    const result = (balance: bigint): BalanceResult => ({
+      asset: nativeAsset,
+      chain,
+      balance: balance.toString(),
+      formatted: formatBalance(balance, nativeAsset.decimals),
+    });
     try {
       const hex = await ethJsonRpc(chain.rpcUrl, "eth_getBalance", [address, "latest"]);
-      const balance = hex ? BigInt(hex) : 0n;
-      return {
-        asset: nativeAsset,
-        chain,
-        balance: balance.toString(),
-        formatted: formatBalance(balance, nativeAsset.decimals),
-      };
+      return result(hex ? BigInt(hex) : 0n);
     } catch {
-      return null;
+      const proxied = await proxyEvmBalances(chain, address);
+      return proxied ? result(proxied.native) : null;
     }
   },
 
   async fetchTokenBalances(address, chain, tokenAssets): Promise<BalanceResult[]> {
     if (!chain.rpcUrl) return [];
-    const promises = tokenAssets.map(async (asset) => {
+    const promises = tokenAssets.map(async (asset): Promise<{ asset: Asset; balance: bigint | null }> => {
       try {
         const paddedAddr = address.slice(2).padStart(64, "0");
         const data = BALANCE_OF_SELECTOR + paddedAddr;
@@ -117,79 +124,98 @@ export const evmAdapter: ChainAdapter = {
           { to: asset.contractAddress, data },
           "latest",
         ]);
-        const balance = hex && hex !== "0x" ? BigInt(hex) : 0n;
-        if (balance === 0n) return null;
-        return {
-          asset,
-          chain,
-          balance: balance.toString(),
-          formatted: formatBalance(balance, asset.decimals),
-        };
+        return { asset, balance: hex && hex !== "0x" ? BigInt(hex) : 0n };
       } catch {
-        return null;
+        return { asset, balance: null }; // failed read: filled from the chain proxy below when it can
       }
     });
     const settled = await Promise.all(promises);
-    return settled.filter((r): r is BalanceResult => r !== null);
+    if (settled.some((r) => r.balance === null)) {
+      const proxied = await proxyEvmBalances(chain, address);
+      if (proxied) {
+        for (const r of settled) {
+          if (r.balance === null) r.balance = proxied.tokens.get(r.asset.contractAddress!.toLowerCase()) ?? 0n;
+        }
+      }
+    }
+    return settled
+      .filter((r): r is { asset: Asset; balance: bigint } => r.balance !== null && r.balance > 0n)
+      .map(({ asset, balance }) => ({ asset, chain, balance: balance.toString(), formatted: formatBalance(balance, asset.decimals) }));
   },
 
   async fetchTransactions(address, chain, asset, page) {
-    const apiBase = blockscoutApiUrl(chain.explorerUrl);
-    if (!apiBase) return { transactions: [], hasMore: false };
-
-    const key = cacheKey(address, chain.id, asset.id);
-
-    let url: string;
-    if (asset.isNative) {
-      url = `${apiBase}/api/v2/addresses/${address}/transactions`;
-    } else {
-      url = `${apiBase}/api/v2/addresses/${address}/token-transfers?type=ERC-20&token=${asset.contractAddress}`;
-    }
-
-    if (page > 1) {
-      const cursors = cursorCache.get(key);
-      const cursor = cursors?.get(page);
-      if (!cursor) return { transactions: [], hasMore: false };
-      const params = new URLSearchParams();
-      for (const [k, v] of Object.entries(cursor)) {
-        params.set(k, String(v));
-      }
-      url += (url.includes("?") ? "&" : "?") + params.toString();
-    }
-
-    const res = await fetch(url);
-    if (!res.ok) return { transactions: [], hasMore: false };
-    const data = await res.json();
-
-    const items: Record<string, unknown>[] = data.items || [];
-    const addrLower = address.toLowerCase();
-
-    let txs: Transaction[];
-    if (asset.isNative) {
-      // Filter out ERC-20 transfer calls — they belong in the token transfers list
-      const ERC20_TRANSFER_SELECTORS = ["0xa9059cbb", "0x23b872dd"]; // transfer, transferFrom
-      txs = items
-        .filter((tx) => {
-          const rawInput = tx.raw_input as string | undefined;
-          if (!rawInput) return true;
-          const sel = rawInput.slice(0, 10).toLowerCase();
-          return !ERC20_TRANSFER_SELECTORS.includes(sel);
-        })
-        .slice(0, PAGE_SIZE)
-        .map((tx) => parseNativeTx(tx, addrLower, asset));
-    } else {
-      txs = items.slice(0, PAGE_SIZE).map((tx) => parseTokenTransfer(tx, addrLower, asset));
-    }
-
-    const hasMore = !!data.next_page_params && items.length > 0;
-    if (hasMore) {
-      if (!cursorCache.has(key)) cursorCache.set(key, new Map());
-      cursorCache.get(key)!.set(page + 1, data.next_page_params);
-    }
-
-    return { transactions: txs, hasMore };
+    return historyWithProxyFallback(
+      cacheKey(address, chain.id, asset.id),
+      page,
+      () => publicTransactions(address, chain, asset, page),
+      async () => (await proxyEvmHistory(chain, address, asset))
+        ?.map((r) => ({ ...r, formatted: formatTxValue(r.value, asset.decimals), symbol: asset.symbol })) ?? null,
+    );
   },
 };
+
+/** Blockscout history page. Throws on network, HTTP and timeout errors. */
+async function publicTransactions(
+  address: string,
+  chain: Chain,
+  asset: Asset,
+  page: number,
+): Promise<PublicHistoryPage> {
+  const apiBase = blockscoutApiUrl(chain.explorerUrl);
+  if (!apiBase) return { transactions: [], hasMore: false, rawRows: 0 };
+
+  const key = cacheKey(address, chain.id, asset.id);
+
+  let url: string;
+  if (asset.isNative) {
+    url = `${apiBase}/api/v2/addresses/${address}/transactions`;
+  } else {
+    url = `${apiBase}/api/v2/addresses/${address}/token-transfers?type=ERC-20&token=${asset.contractAddress}`;
+  }
+
+  if (page > 1) {
+    const cursors = cursorCache.get(key);
+    const cursor = cursors?.get(page);
+    if (!cursor) return { transactions: [], hasMore: false, rawRows: 0 };
+    const params = new URLSearchParams();
+    for (const [k, v] of Object.entries(cursor)) {
+      params.set(k, String(v));
+    }
+    url += (url.includes("?") ? "&" : "?") + params.toString();
+  }
+
+  const res = await fetch(url, { signal: AbortSignal.timeout(PUBLIC_TIMEOUT_MS) });
+  if (!res.ok) throw new PublicReadError(`blockscout: HTTP ${res.status}`);
+  const data = await res.json();
+
+  const items: Record<string, unknown>[] = data.items || [];
+  const addrLower = address.toLowerCase();
+
+  let txs: Transaction[];
+  if (asset.isNative) {
+    // Filter out ERC-20 transfer calls — they belong in the token transfers list
+    const ERC20_TRANSFER_SELECTORS = ["0xa9059cbb", "0x23b872dd"]; // transfer, transferFrom
+    txs = items
+      .filter((tx) => {
+        const rawInput = tx.raw_input as string | undefined;
+        if (!rawInput) return true;
+        const sel = rawInput.slice(0, 10).toLowerCase();
+        return !ERC20_TRANSFER_SELECTORS.includes(sel);
+      })
+      .slice(0, PAGE_SIZE)
+      .map((tx) => parseNativeTx(tx, addrLower, asset));
+  } else {
+    txs = items.slice(0, PAGE_SIZE).map((tx) => parseTokenTransfer(tx, addrLower, asset));
+  }
+
+  const hasMore = !!data.next_page_params && items.length > 0;
+  if (hasMore) {
+    if (!cursorCache.has(key)) cursorCache.set(key, new Map());
+    cursorCache.get(key)!.set(page + 1, data.next_page_params);
+  }
+
+  return { transactions: txs, hasMore, rawRows: items.length };
+}
 
 function parseNativeTx(
   tx: Record<string, unknown>,

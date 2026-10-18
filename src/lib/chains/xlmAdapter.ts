@@ -1,4 +1,5 @@
 import type { ChainAdapter, Chain, Asset, BalanceResult, Transaction } from "../../shared/types";
+import { xlmTxMemo } from "./tx-memo";
 
 // ── Strkey encoding (Stellar address format) ─────────────────────
 
@@ -199,7 +200,7 @@ export const xlmAdapter: ChainAdapter = {
       const limit = 20;
       const cursor = page > 1 ? `&cursor=${(page - 1) * limit}` : "";
       const res = await fetch(
-        `${horizonUrl(chain)}/accounts/${address}/operations?limit=${limit + 1}&order=desc${cursor}`,
+        `${horizonUrl(chain)}/accounts/${address}/operations?limit=${limit + 1}&order=desc&join=transactions${cursor}`,
       );
       if (!res.ok) return { transactions: [], hasMore: false };
       const data = await res.json();
@@ -216,6 +217,7 @@ export const xlmAdapter: ChainAdapter = {
         trustee?: string;
         created_at: string;
         transaction_successful: boolean;
+        transaction?: { memo_type?: string; memo?: string };
       }[] = data._embedded?.records ?? [];
 
       const hasMore = records.length > limit;
@@ -266,6 +268,7 @@ export const xlmAdapter: ChainAdapter = {
             direction,
             confirmed: op.transaction_successful,
             failed: !op.transaction_successful,
+            memo: xlmTxMemo(op),
           };
         });
 

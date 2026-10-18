@@ -1,7 +1,9 @@
-// Transaction simulation — predicts token balance changes before signing.
-// Detects provider from RPC URL and uses the appropriate API method.
+// Transaction simulation — predicts balance changes before signing (an estimate, never a guarantee).
+// Alchemy / Tenderly RPCs use their richer methods; every other EVM RPC gets the standard eth_simulateV1.
+// Any failure (method missing, error, timeout) returns null so the caller keeps its static estimate.
 
 import { detectEvmSimProvider } from "./providerDetect";
+import { parseEthSimulateV1, formatBaseUnits, decodeAbiString } from "./tx-simulation-evm-parse";
 
 export interface SimulatedChange {
   asset: {
@@ -10,6 +12,8 @@ export interface SimulatedChange {
     contractAddress: string | null; // null for native
     decimals: number;
     iconUrl?: string;
+    /** false = symbol read from the token contract itself (not in the app's token list); show the address too */
+    known?: boolean;
   };
   amount: string;       // human-readable (e.g. "1.5")
   rawAmount: string;    // base units (e.g. "1500000")
@@ -19,6 +23,10 @@ export interface SimulatedChange {
 export interface SimulationResult {
   changes: SimulatedChange[];
   provider: string;
+  /** Solana post-balances include the network fee; EVM transfer traces do not. */
+  feeIncluded?: boolean;
+  /** The node predicts the transaction would fail (revert). Informational only, never blocks signing. */
+  reverted?: boolean;
   error?: string;
 }
 
@@ -30,32 +38,65 @@ interface EvmTxParams {
   gas?: string;      // hex
 }
 
+/** Token metadata the app already knows (chain asset list / balances); avoids trusting a contract's own symbol. */
+export interface KnownToken {
+  contractAddress: string | null;
+  symbol: string;
+  decimals: number;
+}
+
+export interface EvmSimOptions {
+  nativeSymbol?: string;
+  knownTokens?: KnownToken[];
+}
+
+export const SIMULATION_TIMEOUT_MS = 5000;
+
+/** Marker the review shows as "could not simulate" (unsupported method, RPC error, timeout). Never blocks signing. */
+export const SIMULATION_UNAVAILABLE: SimulationResult = { changes: [], provider: "rpc", error: "unavailable" };
+
+/** JSON-RPC call with a hard timeout. Throws on HTTP / RPC errors. */
+export async function simRpc(rpcUrl: string, method: string, params: unknown[], timeoutMs = SIMULATION_TIMEOUT_MS): Promise<unknown> {
+  const res = await fetch(rpcUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message || "RPC error");
+  return data.result;
+}
+
 /**
- * Simulate an EVM transaction and return predicted balance changes.
- * Detects the provider from rpcUrl and uses the appropriate API.
- * Returns null if the provider doesn't support simulation.
+ * Simulate an EVM transaction and return predicted balance changes for `tx.from`.
+ * Returns null when simulation is unavailable or fails — callers fall back to the static estimate.
  */
 export async function simulateEvmTransaction(
   rpcUrl: string,
   tx: EvmTxParams,
+  opts: EvmSimOptions = {},
 ): Promise<SimulationResult | null> {
   const provider = detectEvmSimProvider(rpcUrl);
-  if (provider === "none") return null;
-
   try {
-    switch (provider) {
-      case "alchemy":
-        return await simulateAlchemy(rpcUrl, tx);
-      case "tenderly":
-        return await simulateTenderly(rpcUrl, tx);
-      case "infura":
-        return await simulateInfura(rpcUrl, tx);
-      default:
-        return null;
-    }
-  } catch (err) {
-    return { changes: [], provider, error: String(err) };
+    let r: SimulationResult;
+    if (provider === "alchemy") r = markKnown(await simulateAlchemy(rpcUrl, tx), opts.knownTokens);
+    else if (provider === "tenderly") r = markKnown(await simulateTenderly(rpcUrl, tx), opts.knownTokens);
+    else r = await simulateEthV1(rpcUrl, tx, opts);
+    return r.error ? null : r;
+  } catch {
+    return null;
   }
+}
+
+/** Vendor results carry the contract's own symbol: only native and app-listed tokens count as known (priced). */
+function markKnown(r: SimulationResult, known: KnownToken[] = []): SimulationResult {
+  for (const c of r.changes) {
+    const addr = c.asset.contractAddress?.toLowerCase();
+    c.asset.known = !addr || known.some((t) => t.contractAddress?.toLowerCase() === addr);
+  }
+  return r;
 }
 
 // ── Alchemy ─────────────────────────────────────────────────
@@ -64,6 +105,7 @@ async function simulateAlchemy(rpcUrl: string, tx: EvmTxParams): Promise<Simulat
   const res = await fetch(rpcUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    signal: AbortSignal.timeout(SIMULATION_TIMEOUT_MS),
     body: JSON.stringify({
       jsonrpc: "2.0",
       id: 1,
@@ -125,6 +167,7 @@ async function simulateTenderly(rpcUrl: string, tx: EvmTxParams): Promise<Simula
   const res = await fetch(rpcUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    signal: AbortSignal.timeout(SIMULATION_TIMEOUT_MS),
     body: JSON.stringify({
       jsonrpc: "2.0",
       id: 1,
@@ -177,79 +220,55 @@ async function simulateTenderly(rpcUrl: string, tx: EvmTxParams): Promise<Simula
   return { changes, provider: "tenderly" };
 }
 
-// ── Infura ──────────────────────────────────────────────────
+// ── Standard eth_simulateV1 (any node that implements it) ───
 
-// ERC-20 Transfer event signature
-const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+async function simulateEthV1(rpcUrl: string, tx: EvmTxParams, opts: EvmSimOptions): Promise<SimulationResult> {
+  const call: Record<string, string> = { from: tx.from, to: tx.to, value: tx.value || "0x0", data: tx.data || "0x" };
+  if (tx.gas) call.gas = tx.gas;
+  const result = await simRpc(rpcUrl, "eth_simulateV1", [
+    { blockStateCalls: [{ calls: [call] }], traceTransfers: true },
+    "latest",
+  ]);
+  const parsed = parseEthSimulateV1(result, tx.from);
+  const provider = detectEvmSimProvider(rpcUrl) === "infura" ? "infura" : "rpc";
+  if (parsed.reverted) return { changes: [], provider, reverted: true };
 
-async function simulateInfura(rpcUrl: string, tx: EvmTxParams): Promise<SimulationResult> {
-  const res = await fetch(rpcUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      jsonrpc: "2.0",
-      id: 1,
-      method: "eth_simulateV1",
-      params: [{
-        blockStateCalls: [{
-          calls: [tx],
-          traceTransfers: true,
-        }],
-      }, "latest"],
-    }),
-  });
+  const changes = await Promise.all(parsed.deltas.map(async (d): Promise<SimulatedChange> => {
+    const meta = d.contractAddress === null
+      ? { symbol: opts.nativeSymbol || "ETH", decimals: 18, known: !!opts.nativeSymbol }
+      : await resolveErc20(rpcUrl, d.contractAddress, opts.knownTokens);
+    const abs = d.delta < 0n ? -d.delta : d.delta;
+    return {
+      asset: { symbol: meta.symbol, contractAddress: d.contractAddress, decimals: meta.decimals, known: meta.known },
+      amount: formatBaseUnits(abs, meta.decimals),
+      rawAmount: abs.toString(),
+      direction: d.delta < 0n ? "out" : "in",
+    };
+  }));
+  return { changes, provider, feeIncluded: false };
+}
 
-  if (!res.ok) {
-    return { changes: [], provider: "infura", error: `HTTP ${res.status}` };
-  }
-
-  const data = await res.json();
-  if (data.error) {
-    return { changes: [], provider: "infura", error: data.error.message };
-  }
-
-  // Parse Transfer logs from simulation result
-  const blocks = data.result || [];
-  const changes: SimulatedChange[] = [];
-
-  for (const block of blocks) {
-    for (const call of block.calls || []) {
-      if (call.status !== "0x1") continue;
-      for (const log of call.logs || []) {
-        if (log.topics?.[0] !== TRANSFER_TOPIC || log.topics.length < 3) continue;
-
-        const contractAddress = log.address;
-        const from = "0x" + (log.topics[1] as string).slice(26);
-        const to = "0x" + (log.topics[2] as string).slice(26);
-        const rawAmount = log.data ? BigInt(log.data).toString() : "0";
-
-        const isOut = from.toLowerCase() === tx.from.toLowerCase();
-        const isIn = to.toLowerCase() === tx.from.toLowerCase();
-        if (!isOut && !isIn) continue;
-
-        changes.push({
-          asset: {
-            symbol: "ERC20",  // Infura doesn't return token metadata
-            contractAddress,
-            decimals: 18,     // Unknown — caller can enrich later
-          },
-          amount: rawAmount,
-          rawAmount,
-          direction: isOut ? "out" : "in",
-        });
-      }
-    }
-  }
-
-  return { changes, provider: "infura" };
+async function resolveErc20(rpcUrl: string, contract: string, known: KnownToken[] = []): Promise<{ symbol: string; decimals: number; known: boolean }> {
+  const k = known.find((t) => t.contractAddress?.toLowerCase() === contract);
+  if (k) return { symbol: k.symbol, decimals: k.decimals, known: true };
+  const short = `${contract.slice(0, 6)}…${contract.slice(-4)}`;
+  const [sym, dec] = await Promise.all([
+    simRpc(rpcUrl, "eth_call", [{ to: contract, data: "0x95d89b41" }, "latest"]).catch(() => null),
+    simRpc(rpcUrl, "eth_call", [{ to: contract, data: "0x313ce567" }, "latest"]).catch(() => null),
+  ]);
+  let decimals = 0;
+  try {
+    if (typeof dec === "string" && dec !== "0x") decimals = Math.min(Number(BigInt(dec)), 36);
+  } catch { /* raw units */ }
+  return { symbol: decodeAbiString(typeof sym === "string" ? sym : undefined) ?? short, decimals, known: false };
 }
 
 // ── Helpers ─────────────────────────────────────────────────
 
 function formatRawAmount(raw: string, decimals: number): string {
-  if (!raw || raw === "0") return "0";
-  const str = raw.padStart(decimals + 1, "0");
-  const int = str.slice(0, str.length - decimals) || "0";
-  const frac = str.slice(str.length - decimals).replace(/0+$/, "");
-  return frac ? `${int}.${frac}` : int;
+  try {
+    return formatBaseUnits(BigInt(raw || "0"), decimals);
+  } catch {
+    return "0";
+  }
 }

@@ -5,7 +5,8 @@
  * In production, set VITE_API_URL to the backend origin (e.g. "https://api.kexify.co").
  * If unset, requests use relative paths (same-origin).
  */
-export const API_BASE = import.meta.env.VITE_API_URL ?? "";
+// import.meta.env is undefined outside Vite (the iOS chain bundle is an IIFE built by Bun), so read it defensively.
+export const API_BASE = (import.meta.env as ImportMetaEnv | undefined)?.VITE_API_URL ?? "";
 
 /** Build a full API URL from a path like "/api/auth/me" */
 export function apiUrl(path: string): string {

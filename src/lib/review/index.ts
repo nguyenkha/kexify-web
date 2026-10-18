@@ -8,4 +8,5 @@ export { buildTronReview } from "./build-tron-review";
 export { buildSendReview } from "./build-send-review";
 export { buildWcRequestReview, type WcReviewContext } from "./build-wc-request-review";
 export { knownEvmContract } from "./known-contracts";
+export { findLookalike, LOOKALIKE_EDGE } from "./lookalike-address";
 export { allowanceOptions, allowanceText, parseAllowanceInput, withEvmApproveAmount, withTronApproveAmount, type AllowanceChoice, type AllowanceOption, type TronTxJson } from "./allowance-edit";

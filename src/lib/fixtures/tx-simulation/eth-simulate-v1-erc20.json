@@ -1,0 +1,31 @@
+[
+ {
+  "number": "0x1900e8f",
+  "calls": [
+   {
+    "returnData": "0x0000000000000000000000000000000000000000000000000000000000000001",
+    "logs": [
+     {
+      "address": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+      "topics": [
+       "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+       "0x00000000000000000000000028c6c06298d514db089934071355e5743bf21d60",
+       "0x0000000000000000000000001111111111111111111111111111111111111111"
+      ],
+      "data": "0x00000000000000000000000000000000000000000000000000000000000f4240",
+      "blockHash": "0x70523e4dd51f9fdf43a274581fa73f2567d9ec3012f0818efabe1f135c81d5d0",
+      "blockNumber": "0x1900e8f",
+      "blockTimestamp": "0x6ad47d4b",
+      "transactionHash": "0x48a869504af0a0daddccd5dfafdf60fb2a9e449a9610d76803339526a2067f7d",
+      "transactionIndex": "0x0",
+      "logIndex": "0x0",
+      "removed": false
+     }
+    ],
+    "gasUsed": "0xb05c",
+    "maxUsedGas": "0xb05c",
+    "status": "0x1"
+   }
+  ]
+ }
+]

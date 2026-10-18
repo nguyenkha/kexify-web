@@ -2,8 +2,9 @@
 
 import { parseUnits } from "../chains/evmTx";
 import { amountLabel, buildTotal, fromRow, partyOf, policyWarnings, type AssetAmount } from "./review-common";
-import { sortWarnings, usdOf, warning } from "./review-format";
-import type { NameLookup, PolicyCheckInput, Prices, ReviewModel, ReviewRow, ReviewWarning } from "./review-types";
+import { shortAddress, sortWarnings, usdOf, warning } from "./review-format";
+import { findLookalike } from "./lookalike-address";
+import type { NameLookup, PolicyCheckInput, Prices, ReviewModel, ReviewParty, ReviewRow, ReviewWarning } from "./review-types";
 
 export interface SendReviewInput {
   asset: { symbol: string; decimals: number; isNative: boolean; contractAddress?: string | null };
@@ -19,6 +20,8 @@ export interface SendReviewInput {
   nameOf?: NameLookup;
   policy?: PolicyCheckInput | null;
   firstTimeRecipient?: boolean;
+  /** Addresses the user knows on this chain (address book, recent, history, own): the lookalike check. */
+  knownAddresses?: ReviewParty[];
   gasEstimateFailed?: boolean;
   /** XRP destination tag / XLM / TON memo. */
   memo?: { labelKey: string; value: string } | null;
@@ -36,7 +39,13 @@ export function buildSendReview(i: SendReviewInput): ReviewModel {
   const amt: AssetAmount = { raw: toBase(i.amount, i.asset.decimals), decimals: i.asset.decimals, symbol: i.asset.symbol };
   const party = partyOf(i.to, i.nameOf);
   const warnings: ReviewWarning[] = [...policyWarnings(i.policy)];
-  if (i.firstTimeRecipient) warnings.push(warning("firstTimeRecipient"));
+  const lookalike = findLookalike(i.to, i.knownAddresses ?? []);
+  if (lookalike) {
+    const short = shortAddress(lookalike.address);
+    warnings.push(warning("lookalikeAddress", { known: lookalike.name ? `${lookalike.name} (${short})` : short }));
+  } else if (i.firstTimeRecipient) {
+    warnings.push(warning("firstTimeRecipient"));
+  }
   if (i.gasEstimateFailed) warnings.push(warning("mayFail"));
 
   const rows: ReviewRow[] = [fromRow(i.from), { label: { key: "send.to" }, party, fullAddress: true }];

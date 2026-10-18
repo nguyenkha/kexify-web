@@ -6,6 +6,7 @@ import type { Chain, Asset } from "../../lib/api";
 import * as btc from "../../lib/chains/btcTx";
 import * as ltc from "../../lib/chains/ltcTx";
 import * as bch from "../../lib/chains/bchTx";
+import { utxosWithProxyFallback } from "../../lib/chains/chain-proxy-utxo";
 import { utxoInputCap } from "./build-with-utxo-input-cap";
 
 export interface UtxoMaxSendable {
@@ -26,12 +27,12 @@ export function useUtxoMaxSendable(
   useEffect(() => {
     if (!active) return;
     let live = true;
-    const load = chain.type === "btc" ? btc.fetchUtxos(address, btc.mempoolApiUrl(chain.explorerUrl))
+    const load = utxosWithProxyFallback({ name: chain.name }, address, () => (chain.type === "btc" ? btc.fetchUtxos(address, btc.mempoolApiUrl(chain.explorerUrl))
       : chain.type === "ltc" ? ltc.fetchUtxos(address, ltc.ltcApiUrl(chain.explorerUrl))
-        : bch.fetchUtxos(address, bch.bchApiUrl());
+        : bch.fetchUtxos(address, bch.bchApiUrl())));
     load.then((u) => { if (live) setUtxos(u); }).catch(() => {});
     return () => { live = false; };
-  }, [active, chain.type, chain.explorerUrl, address]);
+  }, [active, chain.name, chain.type, chain.explorerUrl, address]);
 
   const pool = manualUtxos ?? utxos;
   if (!active || !pool || feeRate == null) return null;

@@ -1,4 +1,4 @@
-import { ExpertWarnings, SimulationPreview } from "../tx";
+import { ExpertWarnings, SimulationPreview, SimulationStatusNote } from "../tx";
 import { BalancePreview, type BalanceChange } from "../BalancePreview";
 import { ReviewBody, useScrollGate } from "../review";
 import { buildSendReview } from "../../lib/review";
@@ -11,6 +11,7 @@ import { xlmDestinationBlockKey } from "../../lib/chains/xlm-destination";
 import { EVM_FEE_MULTIPLIER } from "../sendTypes";
 import type { PreviewStepProps } from "./types";
 import { Lock } from "lucide-react";
+import { useState } from "react";
 
 /** Decimals of each chain's native asset (the fee asset). */
 const NATIVE_DECIMALS: Record<string, number> = { evm: 18, solana: 9, btc: 8, ltc: 8, bch: 8, xrp: 6, xlm: 7, tron: 6, ton: 9, algo: 6, ada: 6 };
@@ -52,6 +53,7 @@ export function PreviewStep({
   setSigningError,
   confirmBeforeBroadcast,
   firstTimeRecipient,
+  knownAddresses,
   onReviewPolicy,
   t,
 }: PreviewStepProps) {
@@ -68,11 +70,17 @@ export function PreviewStep({
     nameOf: (a) => addressLabel(a) ?? undefined,
     policy: policyCheck,
     firstTimeRecipient: firstTimeRecipient === true,
+    knownAddresses,
     gasEstimateFailed: chain.type === "evm" && !!gasEstimateError,
     memo: destinationTag ? { labelKey: "send.destinationTag", value: destinationTag } : chain.type === "xlm" && xlmMemo ? { labelKey: "send.memo", value: xlmMemo } : null,
   });
   const gate = useScrollGate(`${chain.id}:${to}:${amount}`);
   const blocked = policyCheck?.allowed === false;
+  // Lookalike destination (address poisoning): Confirm waits for an explicit "I checked the full address".
+  const lookalike = model.warnings.some((w) => w.code === "lookalikeAddress");
+  const [ackKey, setAckKey] = useState<string | null>(null);
+  const ackFor = `${chain.id}:${to}`;
+  const lookalikeAcked = ackKey === ackFor;
   // Stellar would reject it on-chain (new account under 1 XLM, asset to an account that cannot hold it): never signed.
   const xlmBlockKey = chain.type === "xlm" && xlmDestination ? xlmDestinationBlockKey(xlmDestination) : null;
   return (
@@ -152,6 +160,7 @@ export function PreviewStep({
           />
         )}
 
+        <SimulationStatusNote simResult={simResult} />
         {/* Balance changes — simulation or static fallback */}
         {simResult && simResult.changes.length > 0 ? (
           <SimulationPreview simResult={simResult} prices={prices} />
@@ -185,13 +194,24 @@ export function PreviewStep({
 
           return <BalancePreview changes={changes} prices={prices} />;
         })()}
+        {lookalike && (
+          <label className="flex items-start gap-2.5 rounded-xl border border-red-500/30 bg-red-500/5 px-3 py-2.5 cursor-pointer" data-testid="lookalike-ack">
+            <input
+              type="checkbox"
+              className="mt-0.5 accent-red-500"
+              checked={lookalikeAcked}
+              onChange={(e) => setAckKey(e.target.checked ? ackFor : null)}
+            />
+            <span className="text-xs text-text-primary leading-relaxed">{t("review.lookalikeConfirm")}</span>
+          </label>
+        )}
         </ReviewBody>
       </div>
 
       {/* Footer — Preview step */}
       <div className="px-5 py-4 border-t border-border-secondary shrink-0 sticky bottom-0 bg-surface-secondary pb-[calc(1rem+env(safe-area-inset-bottom))] md:pb-4">
         <button
-          disabled={blocked || !!xlmBlockKey || !gate.seen}
+          disabled={blocked || !!xlmBlockKey || !gate.seen || (lookalike && !lookalikeAcked)}
           onClick={() => {
             const { executeEvm, executeBtc, executeLtc, executeBch, executeSolana, executeXrp, executeXlm, executeTron, executeTon, executeAlgo, executeAda } = signingFlows;
             const flows: Record<string, () => void> = {

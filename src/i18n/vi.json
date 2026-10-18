@@ -126,7 +126,9 @@
     "updatedJustNow": "Vừa cập nhật",
     "updatedSecondsAgo": "Cập nhật {{count}}s trước",
     "updatedMinutesAgo": "Cập nhật {{count}}m trước",
-    "updated": "Cập nhật {{time}}"
+    "updated": "Cập nhật {{time}}",
+    "testNetworks": "Mạng thử nghiệm",
+    "testNetworksHint": "Coin thử nghiệm miễn phí và không có giá trị. Chúng không được tính vào tổng tài sản."
   },
   "config": {
     "title": "Cài đặt",
@@ -329,6 +331,11 @@
     "backupRequiredDesc": "Hoàn tất sao lưu key trước trong Sao lưu & Khôi phục.",
     "policyBlocked": "Giao dịch bị chặn bởi chính sách",
     "simulatedVia": "Mô phỏng qua {{provider}}",
+    "simEstimatedTitle": "Biến động số dư ước tính",
+    "simNoteNoFee": "Ước tính từ mô phỏng, chưa gồm phí mạng. Kết quả thực tế có thể khác.",
+    "simNoteFeeIncluded": "Ước tính từ mô phỏng, đã gồm phí mạng. Kết quả thực tế có thể khác.",
+    "simMayFail": "Mô phỏng cho thấy giao dịch này có thể thất bại. Hãy kiểm tra trước khi ký.",
+    "simUnavailable": "Không thể mô phỏng giao dịch này. Bạn vẫn có thể xem lại và ký.",
     "mpcSigning": "Ký MPC",
     "validatingAndSigning": "Kiểm tra chính sách & ký",
     "localSigning": "Ký cục bộ",
@@ -576,7 +583,14 @@
       "priorityFee": "gồm phí ưu tiên {{amount}} SOL",
       "rent": "+ tiền thuê tài khoản tối đa {{amount}} SOL (hoàn lại được)"
     },
-    "signNotice": "Đây là ký tin nhắn, không phải giao dịch, nhưng các trang web có thể dùng chữ ký để đăng nhập hoặc phê duyệt chuyển tiền. Hãy đọc nội dung bên dưới và chỉ ký nếu bạn tin tưởng {{site}}."
+    "signNotice": "Đây là ký tin nhắn, không phải giao dịch, nhưng các trang web có thể dùng chữ ký để đăng nhập hoặc phê duyệt chuyển tiền. Hãy đọc nội dung bên dưới và chỉ ký nếu bạn tin tưởng {{site}}.",
+    "phishing": {
+      "title": "Trang lừa đảo đã biết",
+      "body": "Trang này nằm trong danh sách lừa đảo công khai. Kết nối hoặc ký có thể làm bạn mất tiền.",
+      "showDetails": "Chi tiết",
+      "details": "Danh sách được kiểm tra ngay trên thiết bị này; kexify không biết bạn kết nối tới trang nào. Nếu chắc chắn đây là nhầm lẫn, bạn vẫn có thể tiếp tục.",
+      "continue": "Tôi hiểu rủi ro, vẫn tiếp tục"
+    }
   },
   "broadcast": {
     "title": "Phát giao dịch",
@@ -1402,6 +1416,10 @@
       "nftApprovalForAll": {
         "title": "Quyền với toàn bộ NFT",
         "body": "{{spender}} có thể chuyển mọi NFT {{collection}} bạn sở hữu, cả hiện tại lẫn sau này. Chỉ tiếp tục với sàn bạn tin cậy. Bạn có thể thu hồi quyền sau."
+      },
+      "lookalikeAddress": {
+        "title": "Trông giống một địa chỉ bạn đã biết",
+        "body": "Địa chỉ này có đầu và đuôi giống {{known}} nhưng phần giữa khác. Kẻ lừa đảo hay bắt chước đầu và đuôi địa chỉ bạn từng dùng. Hãy kiểm tra từng ký tự trước khi gửi."
       }
     },
     "program": "chương trình",
@@ -1431,7 +1449,8 @@
     "nftAll": "Toàn bộ NFT {{collection}}",
     "extraConfirm": {
       "nftApprovalForAll": "Tôi hiểu ứng dụng này có thể chuyển TOÀN BỘ NFT {{collection}} của tôi, cả hiện tại lẫn sau này, mà không cần hỏi lại."
-    }
+    },
+    "lookalikeConfirm": "Tôi đã kiểm tra từng ký tự của địa chỉ và vẫn muốn gửi"
   },
   "explore": {
     "title": "Khám phá",

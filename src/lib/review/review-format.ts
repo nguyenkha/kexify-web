@@ -71,6 +71,7 @@ export function groupAddress(address: string): string[] {
 const WARNING_ORDER: WarningCode[] = [
   "policyBlocked",
   "riskyAddress",
+  "lookalikeAddress",
   "unreadable",
   "signHash",
   "accountControl",
@@ -94,6 +95,6 @@ export function sortWarnings(list: ReviewWarning[]): ReviewWarning[] {
 }
 
 export function warning(code: WarningCode, params: Record<string, string> = {}, blocks = false): ReviewWarning {
-  const danger: WarningCode[] = ["policyBlocked", "riskyAddress", "unreadable", "signHash", "accountControl", "nftApprovalForAll"];
+  const danger: WarningCode[] = ["policyBlocked", "riskyAddress", "lookalikeAddress", "unreadable", "signHash", "accountControl", "nftApprovalForAll"];
   return { code, tone: danger.includes(code) ? "danger" : "warning", blocks, params };
 }

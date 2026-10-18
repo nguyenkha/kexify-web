@@ -1,4 +1,6 @@
-import type { ChainAdapter, BalanceResult, Transaction } from "../../shared/types";
+import type { Asset, Chain, ChainAdapter, BalanceResult, Transaction } from "../../shared/types";
+import { historyWithProxyFallback, PublicReadError, PUBLIC_TIMEOUT_MS, type PublicHistoryPage } from "./chain-proxy-client";
+import { proxyUtxoBalance, proxyUtxoHistory } from "./chain-proxy-utxo";
 import { hexToBytes, bytesToHex } from "../../shared/utils";
 import { sha256 } from "@noble/hashes/sha256";
 import { ripemd160 } from "@noble/hashes/ripemd160";
@@ -102,19 +104,19 @@ export const ltcAdapter: ChainAdapter = {
   },
 
   async fetchNativeBalance(address, chain, nativeAsset): Promise<BalanceResult | null> {
+    let balance: bigint | null = null;
     try {
       const apiBase = chain.explorerUrl.replace(/\/+$/, "") + "/api";
-      const balance = await ltcConfirmedBalance(apiBase, address);
-      if (balance === null) return null;
-      return {
-        asset: nativeAsset,
-        chain,
-        balance: balance.toString(),
-        formatted: formatBalance(balance, nativeAsset.decimals),
-      };
-    } catch {
-      return null;
-    }
+      balance = await ltcConfirmedBalance(apiBase, address);
+    } catch { /* falls back to the chain proxy */ }
+    balance ??= await proxyUtxoBalance(chain, address);
+    if (balance === null) return null;
+    return {
+      asset: nativeAsset,
+      chain,
+      balance: balance.toString(),
+      formatted: formatBalance(balance, nativeAsset.decimals),
+    };
   },
 
   async fetchTokenBalances(): Promise<BalanceResult[]> {
@@ -122,63 +124,74 @@ export const ltcAdapter: ChainAdapter = {
   },
 
   async fetchTransactions(address, chain, asset, page) {
-    const apiBase = chain.explorerUrl.replace(/\/+$/, "") + "/api";
-    const res = await fetch(`${apiBase}/address/${address}/txs`);
-    if (!res.ok) return { transactions: [], hasMore: false };
-    const allTxs: Record<string, unknown>[] = await res.json();
-
-    const start = (page - 1) * PAGE_SIZE;
-    const slice = allTxs.slice(start, start + PAGE_SIZE);
-    const addrLower = address.toLowerCase();
-
-    const txs: Transaction[] = slice.map((tx) => {
-      const txid = tx.txid as string;
-      const status = tx.status as Record<string, unknown>;
-      const confirmed = status?.confirmed === true;
-      const timestamp = (status?.block_time as number) || Math.floor(Date.now() / 1000);
-
-      const vout = (tx.vout as { scriptpubkey_address?: string; value: number }[]) || [];
-      const vin = (tx.vin as { prevout?: { scriptpubkey_address?: string; value: number } }[]) || [];
-
-      let received = 0;
-      let sent = 0;
-      for (const o of vout) {
-        if (o.scriptpubkey_address?.toLowerCase() === addrLower) received += o.value;
-      }
-      for (const i of vin) {
-        if (i.prevout?.scriptpubkey_address?.toLowerCase() === addrLower) sent += i.prevout.value;
-      }
-
-      const net = received - sent;
-      const direction: "in" | "out" | "self" =
-        net > 0 ? "in" : net < 0 ? "out" : "self";
-
-      let from = address;
-      let to = address;
-      if (direction === "in") {
-        const inputAddrs = new Set(vin.map((i) => i.prevout?.scriptpubkey_address).filter(Boolean));
-        from = inputAddrs.size === 1 ? [...inputAddrs][0]! : "";
-      } else if (direction === "out") {
-        const outputAddr = vout.find((o) => o.scriptpubkey_address?.toLowerCase() !== addrLower);
-        to = outputAddr?.scriptpubkey_address ?? "";
-      }
-
-      return {
-        hash: txid,
-        from,
-        to,
-        value: Math.abs(net).toString(),
-        formatted: formatTxValue(Math.abs(net).toString(), asset.decimals),
-        symbol: asset.symbol,
-        timestamp,
-        direction,
-        confirmed,
-      };
-    });
-
-    return { transactions: txs, hasMore: start + PAGE_SIZE < allTxs.length };
+    return historyWithProxyFallback(
+      `${chain.id}:${address}:${asset.id}`,
+      page,
+      () => publicTransactions(address, chain, asset, page),
+      async () => (await proxyUtxoHistory(chain, address))
+        ?.map((r) => ({ ...r, formatted: formatTxValue(r.value, asset.decimals), symbol: asset.symbol })) ?? null,
+    );
   },
 };
+
+/** Esplora history page (paged client-side). Throws PublicReadError on HTTP errors; network errors and timeouts throw. */
+async function publicTransactions(address: string, chain: Chain, asset: Asset, page: number): Promise<PublicHistoryPage> {
+  const apiBase = chain.explorerUrl.replace(/\/+$/, "") + "/api";
+  const res = await fetch(`${apiBase}/address/${address}/txs`, { signal: AbortSignal.timeout(PUBLIC_TIMEOUT_MS) });
+  if (!res.ok) throw new PublicReadError(`HTTP ${res.status}`);
+  const allTxs: Record<string, unknown>[] = await res.json();
+
+  const start = (page - 1) * PAGE_SIZE;
+  const slice = allTxs.slice(start, start + PAGE_SIZE);
+  const addrLower = address.toLowerCase();
+
+  const txs: Transaction[] = slice.map((tx) => {
+    const txid = tx.txid as string;
+    const status = tx.status as Record<string, unknown>;
+    const confirmed = status?.confirmed === true;
+    const timestamp = (status?.block_time as number) || Math.floor(Date.now() / 1000);
+
+    const vout = (tx.vout as { scriptpubkey_address?: string; value: number }[]) || [];
+    const vin = (tx.vin as { prevout?: { scriptpubkey_address?: string; value: number } }[]) || [];
+
+    let received = 0;
+    let sent = 0;
+    for (const o of vout) {
+      if (o.scriptpubkey_address?.toLowerCase() === addrLower) received += o.value;
+    }
+    for (const i of vin) {
+      if (i.prevout?.scriptpubkey_address?.toLowerCase() === addrLower) sent += i.prevout.value;
+    }
+
+    const net = received - sent;
+    const direction: "in" | "out" | "self" =
+      net > 0 ? "in" : net < 0 ? "out" : "self";
+
+    let from = address;
+    let to = address;
+    if (direction === "in") {
+      const inputAddrs = new Set(vin.map((i) => i.prevout?.scriptpubkey_address).filter(Boolean));
+      from = inputAddrs.size === 1 ? [...inputAddrs][0]! : "";
+    } else if (direction === "out") {
+      const outputAddr = vout.find((o) => o.scriptpubkey_address?.toLowerCase() !== addrLower);
+      to = outputAddr?.scriptpubkey_address ?? "";
+    }
+
+    return {
+      hash: txid,
+      from,
+      to,
+      value: Math.abs(net).toString(),
+      formatted: formatTxValue(Math.abs(net).toString(), asset.decimals),
+      symbol: asset.symbol,
+      timestamp,
+      direction,
+      confirmed,
+    };
+  });
+
+  return { transactions: txs, hasMore: start + PAGE_SIZE < allTxs.length, rawRows: allTxs.length };
+}
 
 /** Confirmed balance: Blockbook first on mainnet (litecoinspace.org's address API hangs), Esplora after. */
 async function ltcConfirmedBalance(apiBase: string, address: string): Promise<bigint | null> {
@@ -186,7 +199,7 @@ async function ltcConfirmedBalance(apiBase: string, address: string): Promise<bi
   if (bb) {
     try { return await blockbookBalance(bb, address); } catch { /* fall back to Esplora */ }
   }
-  const res = await fetch(`${apiBase}/address/${address}`);
+  const res = await fetch(`${apiBase}/address/${address}`, { signal: AbortSignal.timeout(PUBLIC_TIMEOUT_MS) });
   if (!res.ok) return null;
   const data = await res.json();
   return BigInt(data.chain_stats?.funded_txo_sum ?? 0) - BigInt(data.chain_stats?.spent_txo_sum ?? 0);

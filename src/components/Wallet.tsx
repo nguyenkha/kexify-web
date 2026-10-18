@@ -26,6 +26,10 @@ import { useFrozen } from "../context/FrozenContext";
 import { useRecovery } from "../context/RecoveryContext";
 import { ManageDisplayPanel } from "./ManageDisplayPanel";
 import { AccountRowView } from "./AccountRowView";
+import { isTestnetChain } from "../lib/testnet";
+
+/** Test coins have no value: their rows get no prices. */
+const NO_PRICES: Record<string, number> = {};
 import { CreateAccountDialog } from "./CreateAccountDialog";
 import { KEYGEN_CLOSED } from "../lib/domain-migration";
 import { BackupReminder } from "./backup-reminder";
@@ -79,7 +83,7 @@ export function Wallet() {
       const overrides = getUserOverrides();
       const showTestnet = getPreference("show_testnet");
       const c = (staticConfig.chains as Chain[]).filter(
-        (ch) => showTestnet || !/testnet|sepolia|devnet/i.test(ch.name),
+        (ch) => showTestnet || !isTestnetChain(ch.name),
       );
       setKeys(recoveryKeys);
       setChainsData(c);
@@ -106,7 +110,7 @@ export function Wallet() {
         const overrides = getUserOverrides(uid);
         const showTestnet = getPreference("show_testnet", uid);
         const mergedChains = applyChainOverrides(
-          c.filter((ch: Chain) => showTestnet || !/testnet|sepolia|devnet|preprod/i.test(ch.name)),
+          c.filter((ch: Chain) => showTestnet || !isTestnetChain(ch.name)),
           uid,
         );
         setChainsData(mergedChains);
@@ -617,21 +621,37 @@ export function Wallet() {
             </div>
           )}
 
-          <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden divide-y divide-border-secondary">
-            {group.rows
-              .filter((row) => isChainVisible(row.chain.name, displayMap[group.keyId] ?? null, defaultChains))
-              .map((row) => (
+          {(() => {
+            // Test networks in their own box under the real ones, never priced: test coins have no value, so they
+            // add nothing to the total and show no fiat amount.
+            const visible = group.rows.filter((row) => isChainVisible(row.chain.name, displayMap[group.keyId] ?? null, defaultChains));
+            const rowView = (row: AccountRow, rowPrices: Record<string, number>) => (
               <AccountRowView
                 key={`${row.keyId}:${row.chain.id}:${row.address}:${refreshKey}`}
                 row={row}
                 displayPrefs={displayMap[group.keyId] ?? null}
                 pollInterval={pollInterval}
-                prices={prices}
+                prices={rowPrices}
                 onTokenDecision={(assetId, visible) => handleDisplayChange(group.keyId, assetId, visible)}
                 onBalanceUpdate={handleBalanceUpdate}
               />
-            ))}
-          </div>
+            );
+            const mainRows = visible.filter((row) => !isTestnetChain(row.chain.name));
+            const testRows = visible.filter((row) => isTestnetChain(row.chain.name));
+            const box = "bg-surface-secondary rounded-lg border border-border-primary overflow-hidden divide-y divide-border-secondary";
+            return (
+              <>
+                {mainRows.length > 0 && <div className={box}>{mainRows.map((row) => rowView(row, prices))}</div>}
+                {testRows.length > 0 && (
+                  <div className="mt-3" data-testid="testnet-section">
+                    <p className="px-1 mb-1.5 text-[11px] font-semibold text-yellow-600 dark:text-yellow-500 uppercase tracking-wider">{t("wallet.testNetworks")}</p>
+                    <p className="px-1 mb-2 text-[11px] text-text-muted">{t("wallet.testNetworksHint")}</p>
+                    <div className={`${box} border-yellow-500/30`}>{testRows.map((row) => rowView(row, NO_PRICES))}</div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       ))}
 

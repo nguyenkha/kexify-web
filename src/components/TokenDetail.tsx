@@ -24,6 +24,8 @@ import { mempoolApiUrl, fetchFeeRates } from "../lib/chains/btcTx";
 import { useExpertMode } from "../context/ExpertModeContext";
 import { useToast } from "../context/ToastContext";
 import { useTranslation } from "react-i18next";
+import { TestnetBadge } from "./testnet-badge";
+import { isTestnetChain } from "../lib/testnet";
 
 export interface PendingTxFromNavigation {
   hash: string;
@@ -145,8 +147,10 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
   }, []);
 
   useEffect(() => {
-    fetchPrices().then(setPrices);
-    const iv = setInterval(() => fetchPrices().then(setPrices), pollInterval);
+    // Test coins have no value: no fiat amounts on a test network.
+    const load = () => fetchPrices().then((p) => setPrices(isTestnetChain(chain.name) ? {} : p));
+    load();
+    const iv = setInterval(load, pollInterval);
     return () => clearInterval(iv);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -308,11 +312,7 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
         )}
         <h3 className="text-lg font-semibold text-text-primary mt-3 flex items-center gap-2">
           {asset.name.replace(/\s*\(?\s*(testnet|devnet)\s*\)?\s*/gi, " ").trim()}
-          {/devnet/i.test(chain.name) ? (
-            <span className="text-[10px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">devnet</span>
-          ) : /testnet|sepolia/i.test(chain.name) ? (
-            <span className="text-[10px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">testnet</span>
-          ) : null}
+          <TestnetBadge chainName={chain.name} />
         </h3>
         <p className="text-[11px] text-text-muted mt-0.5">{chain.displayName}</p>
         <button

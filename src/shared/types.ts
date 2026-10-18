@@ -36,6 +36,12 @@ export interface BalanceResult {
   formatted: string;   // human-readable with decimals
 }
 
+/** Stellar memo or XRP destination tag of a history row. */
+export interface TxMemo {
+  kind: "memo" | "destinationTag";
+  value: string;
+}
+
 export interface Transaction {
   hash: string;
   from: string;
@@ -52,6 +58,7 @@ export interface Transaction {
   isDeployment?: boolean;
   createdContract?: string; // address of deployed contract
   label?: string;  // override direction label (e.g. "Enabled USDC")
+  memo?: TxMemo;   // Stellar memo / XRP destination tag (lib/chains/tx-memo.ts)
 }
 
 export interface ChainAdapter {

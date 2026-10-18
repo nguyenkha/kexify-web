@@ -146,7 +146,7 @@ function heroOf(views: IxView[], outflow: AssetAmount[], prices: Prices): Review
     tone: "accent",
     verb: { key: "review.verb.solanaTx" },
     amount: outflow.length
-      ? { text: outflow.map((o) => `−${amountText(o, o.decimals)}`).join(" · ") }
+      ? { text: outflow.map((o) => `-${amountText(o, o.decimals)}`).join(" · ") }
       : { key: "review.actions", params: { count: String(views.length) } },
     usd: outflow.length && usds.every((u) => u !== undefined) ? usds.reduce<number>((s, u) => s + (u ?? 0), 0) : undefined,
   };

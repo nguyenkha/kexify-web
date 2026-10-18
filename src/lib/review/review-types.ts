@@ -13,6 +13,7 @@ export type Tone = "danger" | "warning";
 export type WarningCode =
   | "policyBlocked"
   | "riskyAddress"
+  | "lookalikeAddress"
   | "unreadable"
   | "signHash"
   | "accountControl"

@@ -1,3 +1,4 @@
+import { utxosWithProxyFallback } from "../../lib/chains/chain-proxy-utxo";
 import { hexToBytes, bytesToHex } from "../../shared/utils";
 import { toBase64, performBatchMpcSign, clientKeys, restoreKeyHandles, clearClientKey } from "../../lib/mpc";
 import { authHeaders } from "../../lib/auth";
@@ -45,7 +46,7 @@ export async function executeBchSigningFlow(ctx: SigningContext): Promise<void> 
     }
 
     // 1. Fetch UTXOs and build transaction
-    const utxos = manualUtxos ?? await fetchBchUtxos(address, api);
+    const utxos = manualUtxos ?? await utxosWithProxyFallback(chain, address, () => fetchBchUtxos(address, api));
     const amountSats = parseUnits(amount, asset.decimals);
     const bchTx = buildWithUtxoInputCap((max) => buildBchTransaction(to, amountSats, utxos, bchFeeRate, address, manualUtxos != null, max), t, asset);
 

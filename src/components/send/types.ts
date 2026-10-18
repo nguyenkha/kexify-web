@@ -6,6 +6,7 @@ import type { KeyFile, FeeLevel, TxResult, SigningPhase } from "../sendTypes";
 import type { AddressEntry } from "../../lib/addressBook";
 import type { SimulationResult } from "../../lib/txSimulation";
 import type { SendError } from "./send-error";
+import type { ReviewParty } from "../../lib/review";
 
 export type { AddressEntry };
 
@@ -206,6 +207,8 @@ export interface PreviewStepProps {
   confirmBeforeBroadcast: boolean;
   /** Not in the address book, recent recipients or outgoing history; null while checking. */
   firstTimeRecipient: boolean | null;
+  /** Address book, recent, outgoing history and own address: the lookalike (address poisoning) check. */
+  knownAddresses: ReviewParty[];
   onReviewPolicy?: () => void;
 
   t: (key: string, opts?: Record<string, unknown>) => string;

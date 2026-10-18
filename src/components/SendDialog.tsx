@@ -7,10 +7,13 @@ import { editableLocaleAmount, parseLocaleAmount } from "../lib/locale-amount";
 import { notify } from "../lib/notify";
 import type { Chain, Asset } from "../lib/api";
 import { explorerLink, bytesToHex } from "../shared/utils";
-import { simulateEvmTransaction } from "../lib/txSimulation";
+import { simulateEvmTransaction, SIMULATION_UNAVAILABLE, type KnownToken, type SimulationResult } from "../lib/txSimulation";
+import { simulateSolanaTransaction, unsignedWireTx } from "../lib/tx-simulation-solana";
+import { buildSolanaSendMessage } from "./send/sign-solana";
 import { useExpertMode } from "../context/ExpertModeContext";
 import { SigningError, SigningStepper, signRowLabel, txSigningSteps, TX_PHASE_STEP } from "./tx";
 import { fetchPrices, getUsdValue } from "../lib/prices";
+import { isTestnetChain } from "../lib/testnet";
 import { clearClientKey } from "../lib/mpc";
 import { Clock, CircleCheck, Radio, CircleX, Zap, Send } from "lucide-react";
 import { authHeaders, isStandaloneJwt } from "../lib/auth";
@@ -208,7 +211,8 @@ export function SendDialog({
   const [precheckBody, setPrecheckBody] = useState<Record<string, unknown> | null>(null);
 
   // Transaction simulation
-  const [simResult, setSimResult] = useState<import("../lib/txSimulation").SimulationResult | null>(null);
+  const [simResult, setSimResult] = useState<SimulationResult | null>(null);
+  const simSeq = useRef(0);
 
   const [signingPhase, setSigningPhase] = useState<SigningPhase>("loading-keyshare");
   const [signingError, setSigningErrorState] = useState<SendError | null>(null);
@@ -339,7 +343,8 @@ export function SendDialog({
 
   // Fetch gas price (EVM) or fee rates (BTC) and USD prices, poll every 10s
   useEffect(() => {
-    fetchPrices().then(setPrices);
+    // Test coins have no value: no fiat amounts on a test network.
+    fetchPrices().then((p) => setPrices(isTestnetChain(chain.name) ? {} : p));
 
     function onFeeFail() { setFeeError(true); }
 
@@ -409,7 +414,7 @@ export function SendDialog({
     const feeIv = setInterval(() => { refreshFees(); setFeeCountdown(10); }, 10_000);
     const countIv = setInterval(() => setFeeCountdown((c) => Math.max(0, c - 1)), 1_000);
     return () => { clearInterval(feeIv); clearInterval(countIv); };
-  }, [chain.rpcUrl, chain.explorerUrl, chain.type, feeRetry]);
+  }, [chain.rpcUrl, chain.explorerUrl, chain.type, chain.name, feeRetry]);
 
   // Fetch estimated gas and nonce for EVM chains
   useEffect(() => {
@@ -504,7 +509,7 @@ export function SendDialog({
   // Max over more coins than one tx can sign: say that the smallest ones stay behind.
   const maxInputsCapped = utxoMax?.capped && amount === maxSendable ? utxoMax.maxInputs : null;
 
-  const firstTimeRecipient = useFirstTimeRecipient(step === "preview", effectiveTo, address, chain, asset);
+  const recipientCheck = useFirstTimeRecipient(step === "preview", effectiveTo, address, chain, asset);
 
   // "Review policy rules": close the send flow and open this wallet's policy rules on /accounts.
   function openPolicyRules() {
@@ -783,17 +788,27 @@ export function SendDialog({
                 }
                 setPolicyChecking(false);
               }
+              // Estimated balance changes (free, any RPC); a failure keeps the static estimate
+              setSimResult(null);
+              const simId = ++simSeq.current;
+              const known: KnownToken[] = asset.isNative ? [] : [{ contractAddress: asset.contractAddress, symbol: asset.symbol, decimals: asset.decimals }];
+              const simTo = resolvedName?.input === to && resolvedName.address ? resolvedName.address : to;
+              const keepSim = (r: SimulationResult | null) => { if (simId === simSeq.current) setSimResult(r ?? SIMULATION_UNAVAILABLE); };
               if (chain.type === "evm" && chain.rpcUrl) {
-                setSimResult(null);
                 const value = asset.isNative ? "0x" + parseUnits(amount, asset.decimals).toString(16) : "0x0";
                 const dataBytes = !asset.isNative && asset.contractAddress
-                  ? encodeErc20Transfer(to, parseUnits(amount, asset.decimals))
+                  ? encodeErc20Transfer(simTo, parseUnits(amount, asset.decimals))
                   : null;
                 const data = dataBytes ? "0x" + bytesToHex(dataBytes as Uint8Array) : "0x";
-                const txTo = !asset.isNative && asset.contractAddress ? asset.contractAddress : to;
-                simulateEvmTransaction(chain.rpcUrl, { from: address, to: txTo, value, data }).then((r) => {
-                  if (r) setSimResult(r);
-                });
+                const txTo = !asset.isNative && asset.contractAddress ? asset.contractAddress : simTo;
+                simulateEvmTransaction(chain.rpcUrl, { from: address, to: txTo, value, data }, {
+                  nativeSymbol: asset.isNative ? asset.symbol : undefined, knownTokens: known,
+                }).then(keepSim);
+              } else if (chain.type === "solana" && chain.rpcUrl) {
+                const rpc = chain.rpcUrl;
+                buildSolanaSendMessage(rpc, address, simTo, asset, amount)
+                  .then((msg) => simulateSolanaTransaction(rpc, unsignedWireTx(msg), address, known))
+                  .then(keepSim, () => keepSim(null));
               }
               if (resolvedName?.input === to && resolvedName.address) {
                 setTo(resolvedName.address);
@@ -854,7 +869,8 @@ export function SendDialog({
             }}
             setSigningError={setSigningError}
             confirmBeforeBroadcast={confirmBeforeBroadcast}
-            firstTimeRecipient={firstTimeRecipient}
+            firstTimeRecipient={recipientCheck.firstTime}
+            knownAddresses={recipientCheck.known}
             onReviewPolicy={isRecoveryMode() ? undefined : openPolicyRules}
             t={t}
           />

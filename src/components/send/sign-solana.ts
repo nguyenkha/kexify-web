@@ -17,6 +17,30 @@ import { base58 } from "@scure/base";
 import type { SigningContext } from "./signing-flows";
 import { mapSendError } from "./send-error";
 
+/** Unsigned message of a plain SOL / SPL send (also simulated for the review). */
+export async function buildSolanaSendMessage(
+  rpcUrl: string,
+  address: string,
+  to: string,
+  asset: { isNative: boolean; contractAddress?: string | null; decimals: number },
+  amount: string,
+): Promise<Uint8Array> {
+  const fromPubKey = base58.decode(address);
+  const toPubKey = base58.decode(to);
+  const tokenAmount = parseUnits(amount, asset.decimals);
+  const recentBlockhash = await getLatestBlockhash(rpcUrl);
+  if (!asset.isNative && asset.contractAddress) {
+    const mint = base58.decode(asset.contractAddress);
+    const destAta = findAssociatedTokenAddress(toPubKey, mint);
+    const needsCreateAta = !(await checkAtaExists(rpcUrl, base58.encode(destAta)));
+    return buildSplTransferMessage({
+      from: fromPubKey, to: toPubKey, mint, amount: tokenAmount,
+      decimals: asset.decimals, recentBlockhash, createAta: needsCreateAta,
+    });
+  }
+  return buildSolanaTransferMessage({ from: fromPubKey, to: toPubKey, lamports: tokenAmount, recentBlockhash });
+}
+
 export async function executeSolanaSigningFlow(ctx: SigningContext): Promise<void> {
   const {
     keyFile, chain, asset, address, to, amount,
@@ -41,23 +65,7 @@ export async function executeSolanaSigningFlow(ctx: SigningContext): Promise<voi
     }
 
     // 1. Build unsigned transaction message
-    const fromPubKey = base58.decode(address);
-    const toPubKey = base58.decode(to);
-    const tokenAmount = parseUnits(amount, asset.decimals);
-    const recentBlockhash = await getLatestBlockhash(chain.rpcUrl);
-
-    let message: Uint8Array;
-    if (!asset.isNative && asset.contractAddress) {
-      const mint = base58.decode(asset.contractAddress);
-      const destAta = findAssociatedTokenAddress(toPubKey, mint);
-      const needsCreateAta = !(await checkAtaExists(chain.rpcUrl, base58.encode(destAta)));
-      message = buildSplTransferMessage({
-        from: fromPubKey, to: toPubKey, mint, amount: tokenAmount,
-        decimals: asset.decimals, recentBlockhash, createAta: needsCreateAta,
-      });
-    } else {
-      message = buildSolanaTransferMessage({ from: fromPubKey, to: toPubKey, lamports: tokenAmount, recentBlockhash });
-    }
+    const message = await buildSolanaSendMessage(chain.rpcUrl, address, to, asset, amount);
 
     // 2. MPC EdDSA signing
     setSigningPhase("mpc-signing");

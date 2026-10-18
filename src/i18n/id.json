@@ -126,7 +126,9 @@
     "updatedJustNow": "Diperbarui baru saja",
     "updatedSecondsAgo": "Diperbarui {{count}} dtk lalu",
     "updatedMinutesAgo": "Diperbarui {{count}} mnt lalu",
-    "updated": "Diperbarui {{time}}"
+    "updated": "Diperbarui {{time}}",
+    "testNetworks": "Jaringan uji",
+    "testNetworksHint": "Koin uji gratis dan tidak bernilai. Koin ini tidak dihitung dalam total Anda."
   },
   "config": {
     "title": "Pengaturan",
@@ -329,6 +331,11 @@
     "backupRequiredDesc": "Selesaikan dulu pencadangan kunci Anda di Cadangan & pemulihan.",
     "policyBlocked": "Transaksi diblokir oleh kebijakan",
     "simulatedVia": "Disimulasikan lewat {{provider}}",
+    "simEstimatedTitle": "Perkiraan perubahan saldo",
+    "simNoteNoFee": "Perkiraan dari simulasi, belum termasuk biaya jaringan. Hasil sebenarnya bisa berbeda.",
+    "simNoteFeeIncluded": "Perkiraan dari simulasi, sudah termasuk biaya jaringan. Hasil sebenarnya bisa berbeda.",
+    "simMayFail": "Simulasi menunjukkan transaksi ini mungkin gagal. Periksa sebelum menandatangani.",
+    "simUnavailable": "Transaksi ini tidak dapat disimulasikan. Anda tetap bisa meninjau dan menandatanganinya.",
     "mpcSigning": "Penandatanganan MPC",
     "validatingAndSigning": "Memvalidasi kebijakan & menandatangani",
     "localSigning": "Penandatanganan lokal",
@@ -576,7 +583,14 @@
       "priorityFee": "termasuk biaya prioritas {{amount}} SOL",
       "rent": "+ sewa akun hingga {{amount}} SOL (dapat dikembalikan)"
     },
-    "signNotice": "Ini menandatangani pesan, bukan transaksi, tetapi situs dapat memakai tanda tangan untuk login atau menyetujui transfer. Baca pesan di bawah dan tanda tangani hanya jika Anda memercayai {{site}}."
+    "signNotice": "Ini menandatangani pesan, bukan transaksi, tetapi situs dapat memakai tanda tangan untuk login atau menyetujui transfer. Baca pesan di bawah dan tanda tangani hanya jika Anda memercayai {{site}}.",
+    "phishing": {
+      "title": "Situs phishing yang dikenal",
+      "body": "Situs ini ada di daftar phishing publik. Menghubungkan atau menandatangani dapat membuat Anda kehilangan dana.",
+      "showDetails": "Detail",
+      "details": "Daftar ini diperiksa di perangkat ini; kexify tidak pernah tahu situs mana yang Anda hubungkan. Jika Anda yakin ini keliru, Anda tetap bisa melanjutkan.",
+      "continue": "Saya paham risikonya, lanjutkan"
+    }
   },
   "broadcast": {
     "title": "Siarkan transaksi",
@@ -1402,6 +1416,10 @@
       "nftApprovalForAll": {
         "title": "Akses ke semua NFT Anda",
         "body": "{{spender}} dapat mentransfer setiap NFT {{collection}} yang Anda miliki, sekarang dan nanti. Lanjutkan hanya di marketplace yang Anda percaya. Anda dapat mencabutnya nanti."
+      },
+      "lookalikeAddress": {
+        "title": "Mirip alamat yang Anda kenal",
+        "body": "Alamat ini berawal dan berakhir seperti {{known}}, tetapi bagian tengahnya berbeda. Penipu meniru awal dan akhir alamat yang pernah Anda pakai. Periksa setiap karakter sebelum mengirim."
       }
     },
     "program": "program",
@@ -1431,7 +1449,8 @@
     "nftAll": "Semua NFT {{collection}}",
     "extraConfirm": {
       "nftApprovalForAll": "Saya mengerti aplikasi ini dapat memindahkan SEMUA NFT {{collection}} saya, sekarang dan nanti, tanpa bertanya lagi."
-    }
+    },
+    "lookalikeConfirm": "Saya sudah memeriksa setiap karakter alamat dan tetap ingin mengirim"
   },
   "explore": {
     "title": "Jelajahi",

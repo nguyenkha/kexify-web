@@ -205,7 +205,7 @@ describe("Solana", () => {
     expect(m.actions.map((a) => a.icon)).toEqual(["send", "send", "create", "memo", "program"]);
     expect(m.fee).toMatchObject({ amount: "0.0000056 SOL", inclPriority: true, approx: true });
     expect(m.fee?.details?.map((r) => (r.label as { key: string }).key)).toEqual(["review.fee.base", "review.fee.priority", "review.fee.cuLimit", "review.fee.cuPrice", "review.fee.rent"]);
-    expect(m.hero).toMatchObject({ icon: "stack", amount: { text: "−0.001 SOL · −5 USDC" } });
+    expect(m.hero).toMatchObject({ icon: "stack", amount: { text: "-0.001 SOL · -5 USDC" } });
     expect(m.hero.usd).toBeCloseTo(5.15);
     expect(m.warnings).toEqual([expect.objectContaining({ code: "unknownProgram", params: { index: "5", program: "Jupiter v6", dapp: "Jupiter" } })]);
     expect(m.actions[4].tone).toBe("warning");

@@ -1,3 +1,4 @@
+import { utxosWithProxyFallback } from "../../lib/chains/chain-proxy-utxo";
 import { hexToBytes, bytesToHex } from "../../shared/utils";
 import { toBase64, performBatchMpcSign, clientKeys, restoreKeyHandles, clearClientKey } from "../../lib/mpc";
 import { authHeaders } from "../../lib/auth";
@@ -55,7 +56,7 @@ export async function executeLtcSigningFlow(ctx: SigningContext): Promise<void> 
     }
 
     // 1. Fetch UTXOs and build transaction
-    const utxos = manualUtxos ?? await fetchLtcUtxos(address, ltcApi);
+    const utxos = manualUtxos ?? await utxosWithProxyFallback(chain, address, () => fetchLtcUtxos(address, ltcApi));
     const amountSats = parseUnits(amount, asset.decimals);
     const addrType = detectLtcAddressType(address);
     const ltcTx = buildWithUtxoInputCap((max) => buildLtcTransaction(to, amountSats, utxos, ltcFeeRate, address, addrType, rbfEnabled, manualUtxos != null, max), t, asset);

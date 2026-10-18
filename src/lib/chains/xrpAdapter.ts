@@ -3,6 +3,7 @@ import { hexToBytes } from "../../shared/utils";
 import { sha256 } from "@noble/hashes/sha256";
 import { ripemd160 } from "@noble/hashes/ripemd160";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
+import { xrpTxMemo } from "./tx-memo";
 
 const PAGE_SIZE = 10;
 
@@ -224,6 +225,7 @@ export const xrpAdapter: ChainAdapter = {
           timestamp,
           direction,
           confirmed: (entry.validated as boolean) ?? true,
+          memo: xrpTxMemo(tx),
         });
       }
 

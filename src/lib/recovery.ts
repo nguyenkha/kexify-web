@@ -8,6 +8,7 @@ import { allOrFailure, getMpcInstance } from "./mpc";
 import { sharePartsFromString, wipe } from "./secret-bytes";
 import { isPveShare, restorePveServerShare } from "./pve-server-share";
 import type { MpcSignResult, BatchMpcSignResult } from "./mpc";
+import { setRecoveryActive } from "./recovery-flag";
 
 // ── Module-level state ──
 
@@ -153,6 +154,7 @@ export async function enterRecoveryMode(p1: KeyFileData, p2: KeyFileData): Promi
   if (handles) retire(handles);
   peer1 = p1;
   peer2 = p2;
+  setRecoveryActive(true);
   handles = h;
   document.documentElement.setAttribute("data-recovery", "");
   document.documentElement.setAttribute("data-theme", "dark");
@@ -163,6 +165,7 @@ export function exitRecoveryMode(): void {
   stopAutoLock();
   peer1 = null;
   peer2 = null;
+  setRecoveryActive(false);
   if (handles) retire(handles);
   handles = null;
   document.documentElement.removeAttribute("data-recovery");

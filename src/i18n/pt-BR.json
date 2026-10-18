@@ -126,7 +126,9 @@
     "updatedJustNow": "Atualizado agora",
     "updatedSecondsAgo": "Atualizado há {{count}}s",
     "updatedMinutesAgo": "Atualizado há {{count}}min",
-    "updated": "Atualizado {{time}}"
+    "updated": "Atualizado {{time}}",
+    "testNetworks": "Redes de teste",
+    "testNetworksHint": "Moedas de teste são gratuitas e não têm valor. Elas não entram no seu total."
   },
   "config": {
     "title": "Ajustes",
@@ -329,6 +331,11 @@
     "backupRequiredDesc": "Faça primeiro o backup da sua chave em Backup e recuperação.",
     "policyBlocked": "Transação bloqueada pela política",
     "simulatedVia": "Simulada via {{provider}}",
+    "simEstimatedTitle": "Alterações de saldo estimadas",
+    "simNoteNoFee": "Estimativa de uma simulação, sem a taxa de rede. O resultado real pode ser diferente.",
+    "simNoteFeeIncluded": "Estimativa de uma simulação, com a taxa de rede. O resultado real pode ser diferente.",
+    "simMayFail": "A simulação indica que esta transação pode falhar. Verifique antes de assinar.",
+    "simUnavailable": "Não foi possível simular esta transação. Você ainda pode revisá-la e assiná-la.",
     "mpcSigning": "Assinatura MPC",
     "validatingAndSigning": "Validando a política e assinando",
     "localSigning": "Assinatura local",
@@ -576,7 +583,14 @@
       "priorityFee": "incl. taxa de prioridade de {{amount}} SOL",
       "rent": "+ aluguel da conta de até {{amount}} SOL (reembolsável)"
     },
-    "signNotice": "Isto assina uma mensagem, não uma transação, mas sites podem usar assinaturas para fazer login ou aprovar transferências. Leia a mensagem abaixo e assine apenas se confiar em {{site}}."
+    "signNotice": "Isto assina uma mensagem, não uma transação, mas sites podem usar assinaturas para fazer login ou aprovar transferências. Leia a mensagem abaixo e assine apenas se confiar em {{site}}.",
+    "phishing": {
+      "title": "Site de phishing conhecido",
+      "body": "Este site está em uma lista pública de phishing. Conectar ou assinar pode custar seus fundos.",
+      "showDetails": "Detalhes",
+      "details": "A lista é verificada neste dispositivo; a kexify nunca sabe a quais sites você se conecta. Se tiver certeza de que é um engano, ainda pode continuar.",
+      "continue": "Entendo o risco, continuar"
+    }
   },
   "broadcast": {
     "title": "Transmitir transação",
@@ -1402,6 +1416,10 @@
       "nftApprovalForAll": {
         "title": "Acesso a todos os seus NFTs",
         "body": "{{spender}} pode transferir todos os NFTs {{collection}} que você tem, agora e depois. Continue somente em um marketplace em que você confie. Você pode revogar depois."
+      },
+      "lookalikeAddress": {
+        "title": "Parece um endereço que você conhece",
+        "body": "Este endereço começa e termina como {{known}}, mas o meio é diferente. Golpistas copiam o início e o fim de endereços que você usa. Confira cada caractere antes de enviar."
       }
     },
     "program": "programa",
@@ -1433,7 +1451,8 @@
       "nftApprovalForAll": "Entendo que este app pode movimentar TODOS os meus NFTs {{collection}}, agora e depois, sem pedir de novo."
     },
     "actions_many": "{{count}} ações",
-    "moreWarnings_many": "+{{count}} avisos a mais"
+    "moreWarnings_many": "+{{count}} avisos a mais",
+    "lookalikeConfirm": "Conferi cada caractere do endereço e ainda quero enviar"
   },
   "explore": {
     "title": "Explorar",

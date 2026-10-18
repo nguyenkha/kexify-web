@@ -27,6 +27,8 @@ import { ThemeSelector } from "./theme-selector";
 import { ConfirmDialog } from "./ui/confirm-dialog";
 import { trackExpertTool, trackExpertToolOnce } from "../lib/expert-usage";
 import { SignOutConfirmDialog } from "./sign-out-confirm-dialog";
+import { TestnetBadge } from "./testnet-badge";
+import { isTestnetChain } from "../lib/testnet";
 
 type RpcStatus = "checking" | "ok" | "error";
 
@@ -261,7 +263,6 @@ export function ConfigPage() {
       delete prefs.show_testnet;
     } else {
       prefs.show_testnet = true;
-      trackExpertTool("config_testnet");
     }
     save({ ...overrides, preferences: Object.keys(prefs).length ? prefs : undefined });
   }
@@ -297,8 +298,7 @@ export function ConfigPage() {
     save({ ...overrides, preferences: Object.keys(prefs).length ? prefs : undefined });
   }
 
-  const isTestnet = (name: string) => /testnet|sepolia|devnet/i.test(name);
-  const visibleChains = getShowTestnet() ? chains : chains.filter((c) => !isTestnet(c.name));
+  const visibleChains = getShowTestnet() ? chains : chains.filter((c) => !isTestnetChain(c.name));
 
   function getDefaultChains(): string[] {
     return overrides.preferences?.default_chains ?? serverDefaults;
@@ -513,8 +513,8 @@ export function ConfigPage() {
             </div>
           </div>
 
-          {/* Show testnets (expert only) */}
-          {expert && <div className="px-3 md:px-5 py-4">
+          {/* Show test networks: a plain setting (developers, learning with free test coins), not an Expert tool */}
+          <div className="px-3 md:px-5 py-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-text-primary">{t("config.showTestNetworks")}</p>
@@ -531,7 +531,7 @@ export function ConfigPage() {
                 }`} />
               </button>
             </div>
-          </div>}
+          </div>
 
           {/* Confirm before broadcast (expert only) */}
           {expert && <div className="px-3 md:px-5 py-4">
@@ -614,7 +614,7 @@ export function ConfigPage() {
             <p className="text-sm font-medium text-text-primary">{t("config.defaultChains")}</p>
             <p className="text-xs text-text-muted mt-0.5 mb-3">{t("config.defaultChainsDesc")}</p>
             <div className="flex flex-wrap gap-2">
-              {chains.filter((c) => !/testnet|sepolia|devnet|preprod/i.test(c.name)).map((chain) => {
+              {chains.filter((c) => !isTestnetChain(c.name)).map((chain) => {
                 const selected = getDefaultChains().includes(chain.name);
                 return (
                   <button
@@ -662,11 +662,7 @@ export function ConfigPage() {
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium text-text-primary leading-tight flex items-center gap-1.5">
                       {chain.displayName}
-                      {/devnet/i.test(chain.name) ? (
-                        <span className="text-[10px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">devnet</span>
-                      ) : /testnet|sepolia/i.test(chain.name) ? (
-                        <span className="text-[10px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">testnet</span>
-                      ) : null}
+                      <TestnetBadge chainName={chain.name} />
                       {hasFieldOverrides && (
                         <span className="text-[10px] px-1 py-0.5 rounded bg-blue-500/10 text-blue-400 font-medium">{t("config.custom")}</span>
                       )}
