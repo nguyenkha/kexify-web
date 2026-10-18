@@ -6,7 +6,8 @@ import type { KeyShare } from "../shared/types";
 import { fetchChains, fetchAssets, fetchSettings, type Chain, type Asset, type Settings } from "../lib/api";
 import staticConfig from "../config.json";
 import { getMe, getIdentityId } from "../lib/auth";
-import { getUserOverrides, applyChainOverrides, getPreference } from "../lib/userOverrides";
+import { getUserOverrides, applyChainOverrides, getPreference, getCustomNetworks } from "../lib/userOverrides";
+import { customNetworkChain } from "../lib/custom-networks";
 import { trackExpertTool } from "../lib/expert-usage";
 import { setCacheTtl, clearAllTokenBalanceCaches, notifyBalanceRefresh } from "../lib/dataCache";
 import { authHeaders } from "../lib/auth";
@@ -85,7 +86,7 @@ export function Wallet() {
       const overrides = getUserOverrides(uid);
       const showTestnet = getPreference("show_testnet", uid);
       const c = applyChainOverrides(
-        (staticConfig.chains as Chain[]).filter((ch) => showTestnet || !isTestnetChain(ch.name)),
+        [...(staticConfig.chains as Chain[]), ...getCustomNetworks(uid).map(customNetworkChain)].filter((ch) => showTestnet || !isTestnetChain(ch.name)),
         uid,
       );
       setKeys(recoveryKeys);

@@ -96,7 +96,9 @@
     "client": "客户端",
     "server": "服务器",
     "scanWalletConnect": "扫描 WalletConnect 二维码",
-    "explore": "探索"
+    "explore": "探索",
+    "decodeTx": "解码交易",
+    "verifySignature": "验证签名"
   },
   "wallet": {
     "importKeyFileLink": "有密钥文件？导入已有钱包",
@@ -1529,5 +1531,112 @@
     "title": "谨防诈骗",
     "sign": "除非是你自己写的，否则不要签署别人发给你的文本或数据。骗子会利用签名接管钱包并转走资金。",
     "broadcast": "只广播你自己创建并检查过的交易。别人给你的交易可能会转走你的资金，或者就是骗局。"
+  },
+  "expert": {
+    "decode": {
+      "title": "解码交易",
+      "desc": "粘贴原始交易以查看其作用。只读:此页面不会签名或发送任何内容。",
+      "input": "原始交易",
+      "placeholder": "EVM hex、Solana base64 / base58、Bitcoin / Litecoin / Dogecoin hex 或 PSBT...",
+      "utxoNetwork": "比特币系网络(用于地址)",
+      "network": {
+        "btc": "Bitcoin",
+        "btc-testnet": "Bitcoin 测试网",
+        "ltc": "Litecoin",
+        "ltc-testnet": "Litecoin 测试网",
+        "doge": "Dogecoin",
+        "doge-testnet": "Dogecoin 测试网"
+      },
+      "fromForSim": "发送方地址(用于模拟未签名交易)",
+      "simNetwork": "模拟网络",
+      "simNoChain": "未模拟:此钱包没有使用该链 ID 的网络。",
+      "simRunning": "正在模拟...",
+      "simOn": "已在 {{network}} 上模拟",
+      "readOnly": "要发送已签名交易,请使用广播交易。",
+      "outputN": "输出 {{n}}",
+      "inputN": "输入 {{n}}",
+      "yes": "是",
+      "no": "否",
+      "partial": "部分（缺少签名）",
+      "invalidSig": "签名无效",
+      "noChainId": "无(EIP-155 之前)",
+      "contractCreation": "合约创建",
+      "fact": {
+        "format": "格式",
+        "chainId": "链 ID",
+        "nonce": "Nonce",
+        "gasLimit": "Gas 上限",
+        "gasPrice": "Gas 价格",
+        "maxFee": "每 Gas 最高费用",
+        "priorityFee": "优先费",
+        "to": "收款方",
+        "accessList": "访问列表条目",
+        "authorizations": "授权",
+        "signed": "已签名",
+        "sender": "发送方(来自签名)",
+        "hash": "交易哈希",
+        "feePayer": "手续费支付方",
+        "instructions": "指令",
+        "txid": "交易 ID",
+        "locktime": "锁定时间",
+        "negativeFee": "输出超出输入"
+      },
+      "warn": {
+        "delegation": "此交易将发送方账户委托给一个合约 (EIP-7702)。该合约随后可以转移账户的所有资产。",
+        "replayable": "无链 ID(EIP-155 之前):此已签名交易在所有 EVM 链上有效,可能被重放。",
+        "badSignature": "有签名与此交易不符：交易在签名后被修改，或签名是伪造的。"
+      }
+    },
+    "verify": {
+      "title": "验证签名",
+      "desc": "检查是谁签署了消息。可离线使用;不会签署任何内容。",
+      "scheme": {
+        "eip191": "消息 (EIP-191)",
+        "eip712": "类型化数据 (EIP-712)",
+        "solana": "Solana 消息"
+      },
+      "message": "消息",
+      "typedData": "类型化数据 (JSON)",
+      "messagePlaceholder": "文本,或原始字节的 0x-hex",
+      "typedDataPlaceholder": "{\"types\": ..., \"domain\": ..., \"primaryType\": ..., \"message\": ...}",
+      "signature": "签名",
+      "address": "签名者地址",
+      "expectedOptional": "预期签名者(可选)",
+      "match": "签名匹配",
+      "noMatch": "由其他地址签名",
+      "invalid": "该签名对此地址无效",
+      "recovered": "恢复的签名者:",
+      "eoaOnly": "仅检查普通账户。智能合约钱包 (EIP-1271) 的签名方式不同。"
+    }
+  },
+  "customNetwork": {
+    "title": "自定义网络",
+    "addButton": "添加 EVM 网络",
+    "add": "检查并添加",
+    "checking": "正在检查 RPC...",
+    "name": "网络名称",
+    "chainId": "Chain ID",
+    "symbol": "币种符号",
+    "explorerOptional": "区块浏览器 URL（可选）",
+    "testnet": "测试网络（代币无价值）",
+    "summary": "链 {{chainId}} · {{symbol}}",
+    "remove": "移除",
+    "removeBody": "从此浏览器中移除该网络？您在该网络上的资产仍保留在链上；重新添加该网络即可查看。",
+    "note": "仅支持原生币。RPC 必须返回您输入的 chain ID。Anvil 或 Hardhat 等本地节点可使用 http://127.0.0.1:8545。仅保存在此浏览器中。",
+    "policyNote": "自定义网络：策略限额无法对其计价。如果您设置了 USD 每日限额，服务器将拒绝共同签署此次转账。",
+    "rpcMismatch": "此 RPC 对应的链与 {{chainId}} 不同。在您修复或清除之前，该网络上的转账会被拒绝。",
+    "err": {
+      "name": "请输入网络名称（最多 40 个字符）。",
+      "nameTaken": "此名称已被其他网络使用。",
+      "chainId": "请输入整数形式的 chain ID。",
+      "builtIn": "该链已内置。如需使用自己的节点，请在“网络”中设置其 RPC URL。",
+      "exists": "您已添加过相同 chain ID 的网络。",
+      "symbol": "请输入币种符号（字母和数字，最多 10 个）。",
+      "url": "请输入有效的 RPC URL。",
+      "http": "请使用 https。普通 http 仅限本机（localhost / 127.0.0.1）。",
+      "explorer": "浏览器 URL 必须以 https:// 开头。",
+      "mismatch": "RPC 返回的链为 {{actual}}，而不是 {{declared}}。未添加网络。",
+      "unreachable": "无法连接 RPC，或其未响应 eth_chainId。"
+    }
   }
 }

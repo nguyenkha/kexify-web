@@ -18,6 +18,7 @@ import {
 } from "../../lib/chains/evmTx";
 import { evmReceiptRpcUrls } from "../../lib/chains/evm-read-rpc-fallbacks";
 import { getChainId } from "../sendTypes";
+import { assertRpcChainId } from "../../lib/custom-networks";
 import type { SigningContext } from "./signing-flows";
 import { mapSendError } from "./send-error";
 
@@ -44,8 +45,15 @@ export async function executeSigningFlow(ctx: SigningContext): Promise<void> {
       await restoreKeyHandles(keyFile.id, keyFile.share, keyFile.eddsaShare);
     }
 
-    // 1. Build unsigned transaction
-    const chainId = await getChainId(chain.rpcUrl);
+    // 1. Build unsigned transaction. The chainId is the network's own (never the RPC's answer), and an RPC
+    // serving another chain is refused: a custom or overridden RPC can never switch the chain being signed.
+    let chainId: number;
+    if (chain.evmChainId) {
+      chainId = chain.evmChainId;
+      await assertRpcChainId(chain.rpcUrl, chainId);
+    } else {
+      chainId = await getChainId(chain.rpcUrl);
+    }
     const amountWei = parseUnits(amount, asset.decimals);
 
     let unsignedTx: UnsignedTx;
@@ -72,7 +80,7 @@ export async function executeSigningFlow(ctx: SigningContext): Promise<void> {
       algorithm: "ecdsa",
       keyId: keyFile.id,
       hash: sighash,
-      initPayload: { id: keyFile.id, unsignedTx: toBase64(serializedTx), from: address },
+      initPayload: { id: keyFile.id, unsignedTx: toBase64(serializedTx), from: address, evmChainId: chainId },
       headers: sensitiveHeaders(),
     });
 

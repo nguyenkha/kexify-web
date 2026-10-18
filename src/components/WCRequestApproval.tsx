@@ -10,6 +10,7 @@ import { authHeaders, getMe } from "../lib/auth";
 import { apiUrl } from "../lib/apiBase";
 import { fetchChains, fetchAssets } from "../lib/api";
 import { applyChainOverrides } from "../lib/userOverrides";
+import { isTestnetChain } from "../lib/testnet";
 import { getChainAdapter } from "../lib/chains/adapter";
 import { hasKeyShare } from "../lib/keystore";
 import type { KeyFileData } from "../lib/crypto";
@@ -819,7 +820,8 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
       const a = chainAssets.find((x) => x.contractAddress?.toLowerCase() === addr.toLowerCase());
       return a ? { symbol: a.symbol, decimals: a.decimals } : undefined;
     },
-    prices,
+    // Test coins (built-in or custom testnets) have no value: never priced as the real asset with the same symbol.
+    prices: chain && isTestnetChain(chain.name) ? {} : prices,
     nameOf: (addr) => addressLabel(addr) ?? knownEvmContract(addr) ?? KNOWN_PROGRAMS[addr],
     isKnownRecipient: chain ? (addr) => isKnownRecipient(addr, chain.type) : undefined,
     feeWei: estimatedFeeWei,

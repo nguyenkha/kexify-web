@@ -24,7 +24,8 @@ export function isChainVisible(
 ): boolean {
   const key = `chain:${chainName}`;
   if (stored && key in stored) return stored[key];
-  if (defaults) return defaults.includes(chainName) || isTestnetChain(chainName);
+  // A custom network was just added on purpose: shown like a testnet unless hidden by hand.
+  if (defaults) return defaults.includes(chainName) || isTestnetChain(chainName) || chainName.startsWith("CUSTOM_");
   return true;
 }
 

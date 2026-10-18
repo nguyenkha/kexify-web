@@ -31,8 +31,18 @@ import { trackExpertTool, trackExpertToolOnce } from "../lib/expert-usage";
 import { SignOutConfirmDialog } from "./sign-out-confirm-dialog";
 import { TestnetBadge } from "./testnet-badge";
 import { isTestnetChain } from "../lib/testnet";
+import { fetchRpcChainId } from "../lib/custom-networks";
+import { CustomNetworksSection } from "./config/CustomNetworksSection";
 
-type RpcStatus = "checking" | "ok" | "error";
+type RpcStatus = "checking" | "ok" | "error" | "mismatch";
+
+/** EVM: the RPC must answer eth_chainId with the network's own id ("mismatch" = sends there are refused). */
+async function rpcStatusOf(url: string, chain: { type: string; evmChainId: number | null }): Promise<RpcStatus> {
+  if (chain.type === "evm" && chain.evmChainId) {
+    return fetchRpcChainId(url).then((id) => (id === chain.evmChainId ? "ok" : "mismatch"), () => "error");
+  }
+  return (await checkRpcHealth(url, chain.type)) ? "ok" : "error";
+}
 
 async function checkRpcHealth(rpcUrl: string, chainType: string): Promise<boolean> {
   if (!rpcUrl) return false;
@@ -193,8 +203,8 @@ export function ConfigPage() {
         const url = userOvr.chains?.[chain.name]?.rpc_url || chain.rpcUrl;
         if (!url) continue;
         setRpcStatus((prev) => ({ ...prev, [chain.name]: "checking" }));
-        checkRpcHealth(url, chain.type).then((ok) => {
-          setRpcStatus((prev) => ({ ...prev, [chain.name]: ok ? "ok" : "error" }));
+        rpcStatusOf(url, chain).then((st) => {
+          setRpcStatus((prev) => ({ ...prev, [chain.name]: st }));
         });
       }
     });
@@ -233,8 +243,8 @@ export function ConfigPage() {
       if (url) {
         healthCheckTimers.current[name] = setTimeout(() => {
           setRpcStatus((prev) => ({ ...prev, [name]: "checking" }));
-          checkRpcHealth(url, chainData?.type || "evm").then((ok) => {
-            setRpcStatus((prev) => ({ ...prev, [name]: ok ? "ok" : "error" }));
+          rpcStatusOf(url, chainData ?? { type: "evm", evmChainId: null }).then((st) => {
+            setRpcStatus((prev) => ({ ...prev, [name]: st }));
           });
         }, 1000);
       }
@@ -652,7 +662,7 @@ export function ConfigPage() {
           {t("config.networks")}
         </p>
         <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden divide-y divide-border-secondary">
-          {visibleChains.map((chain) => {
+          {visibleChains.filter((c) => !c.custom).map((chain) => {
             const expanded = expandedChain === chain.name;
             const hasFieldOverrides = !!getChainField(chain.name, "rpc_url") || !!getChainField(chain.name, "explorer_url");
 
@@ -678,7 +688,7 @@ export function ConfigPage() {
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
                         rpcStatus[chain.name] === "ok" ? "bg-green-500 animate-heartbeat" :
-                        rpcStatus[chain.name] === "error" ? "bg-red-400" :
+                        rpcStatus[chain.name] === "error" || rpcStatus[chain.name] === "mismatch" ? "bg-red-400" :
                         rpcStatus[chain.name] === "checking" ? "bg-yellow-400 animate-pulse" :
                         "bg-surface-tertiary"
                       }`} />
@@ -694,6 +704,9 @@ export function ConfigPage() {
 
                 {expanded && (
                   <div className="px-3 md:px-5 pb-4 pt-1 space-y-3">
+                    {rpcStatus[chain.name] === "mismatch" && (
+                      <p className="text-xs text-red-400">{t("customNetwork.rpcMismatch", { chainId: String(chain.evmChainId) })}</p>
+                    )}
                     <div>
                       <label className="block text-xs text-text-muted mb-1.5">{t("config.rpcUrl")}</label>
                       <div className="relative">
@@ -745,6 +758,8 @@ export function ConfigPage() {
           })}
         </div>
       </div>}
+
+      {expert && <CustomNetworksSection overrides={overrides} save={save} builtIn={chains.filter((c) => !c.custom)} />}
 
       {/* ── Address Book ── */}
       <AddressBookPanel />

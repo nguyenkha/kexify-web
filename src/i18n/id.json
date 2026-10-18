@@ -96,7 +96,9 @@
     "client": "Klien",
     "server": "Server",
     "scanWalletConnect": "Pindai QR WalletConnect",
-    "explore": "Jelajahi"
+    "explore": "Jelajahi",
+    "decodeTx": "Dekode transaksi",
+    "verifySignature": "Verifikasi tanda tangan"
   },
   "wallet": {
     "importKeyFileLink": "Punya file kunci? Impor dompet yang sudah ada",
@@ -1529,5 +1531,112 @@
     "title": "Waspada penipuan",
     "sign": "Jangan pernah menandatangani teks atau data kiriman orang lain jika bukan Anda sendiri yang menulisnya. Penipu memakai tanda tangan untuk mengambil alih dompet dan menguras dana.",
     "broadcast": "Siarkan hanya transaksi yang Anda buat dan periksa sendiri. Transaksi dari orang lain dapat memindahkan dana Anda atau merupakan penipuan."
+  },
+  "expert": {
+    "decode": {
+      "title": "Dekode transaksi",
+      "desc": "Tempel transaksi mentah untuk melihat fungsinya. Hanya baca: tidak ada yang ditandatangani atau dikirim dari halaman ini.",
+      "input": "Transaksi mentah",
+      "placeholder": "Hex EVM, base64 / base58 Solana, hex atau PSBT Bitcoin / Litecoin / Dogecoin...",
+      "utxoNetwork": "Jaringan keluarga Bitcoin (untuk alamat)",
+      "network": {
+        "btc": "Bitcoin",
+        "btc-testnet": "Bitcoin testnet",
+        "ltc": "Litecoin",
+        "ltc-testnet": "Litecoin testnet",
+        "doge": "Dogecoin",
+        "doge-testnet": "Dogecoin testnet"
+      },
+      "fromForSim": "Alamat pengirim (untuk simulasi transaksi belum ditandatangani)",
+      "simNetwork": "Simulasikan di",
+      "simNoChain": "Tanpa simulasi: dompet ini tidak punya jaringan dengan chain ID ini.",
+      "simRunning": "Mensimulasikan...",
+      "simOn": "Disimulasikan di {{network}}",
+      "readOnly": "Untuk mengirim transaksi yang sudah ditandatangani, gunakan Siarkan transaksi.",
+      "outputN": "Output {{n}}",
+      "inputN": "Input {{n}}",
+      "yes": "Ya",
+      "no": "Tidak",
+      "partial": "Sebagian (ada tanda tangan yang kurang)",
+      "invalidSig": "Tanda tangan tidak valid",
+      "noChainId": "Tidak ada (sebelum EIP-155)",
+      "contractCreation": "Pembuatan kontrak",
+      "fact": {
+        "format": "Format",
+        "chainId": "Chain ID",
+        "nonce": "Nonce",
+        "gasLimit": "Batas gas",
+        "gasPrice": "Harga gas",
+        "maxFee": "Biaya maks per gas",
+        "priorityFee": "Biaya prioritas",
+        "to": "Ke",
+        "accessList": "Entri access list",
+        "authorizations": "Otorisasi",
+        "signed": "Ditandatangani",
+        "sender": "Pengirim (dari tanda tangan)",
+        "hash": "Hash transaksi",
+        "feePayer": "Pembayar biaya",
+        "instructions": "Instruksi",
+        "txid": "ID transaksi",
+        "locktime": "Lock time",
+        "negativeFee": "Output melebihi input sebesar"
+      },
+      "warn": {
+        "delegation": "Transaksi ini mendelegasikan akun pengirim ke sebuah kontrak (EIP-7702). Kontrak itu kemudian dapat memindahkan semua aset akun.",
+        "replayable": "Tanpa chain ID (sebelum EIP-155): transaksi bertanda tangan ini valid di semua rantai EVM dan dapat diputar ulang.",
+        "badSignature": "Ada tanda tangan yang tidak cocok dengan transaksi ini: transaksi diubah setelah ditandatangani atau tanda tangannya palsu."
+      }
+    },
+    "verify": {
+      "title": "Verifikasi tanda tangan",
+      "desc": "Periksa siapa yang menandatangani pesan. Bekerja offline; tidak ada yang ditandatangani.",
+      "scheme": {
+        "eip191": "Pesan (EIP-191)",
+        "eip712": "Data bertipe (EIP-712)",
+        "solana": "Pesan Solana"
+      },
+      "message": "Pesan",
+      "typedData": "Data bertipe (JSON)",
+      "messagePlaceholder": "Teks, atau 0x-hex untuk byte mentah",
+      "typedDataPlaceholder": "{\"types\": ..., \"domain\": ..., \"primaryType\": ..., \"message\": ...}",
+      "signature": "Tanda tangan",
+      "address": "Alamat penandatangan",
+      "expectedOptional": "Penandatangan yang diharapkan (opsional)",
+      "match": "Tanda tangan cocok",
+      "noMatch": "Ditandatangani oleh alamat lain",
+      "invalid": "Tanda tangan tidak valid untuk alamat ini",
+      "recovered": "Penandatangan terpulihkan:",
+      "eoaOnly": "Hanya memeriksa akun biasa. Dompet kontrak pintar (EIP-1271) menandatangani dengan cara berbeda."
+    }
+  },
+  "customNetwork": {
+    "title": "Jaringan kustom",
+    "addButton": "Tambah jaringan EVM",
+    "add": "Periksa dan tambah",
+    "checking": "Memeriksa RPC...",
+    "name": "Nama jaringan",
+    "chainId": "Chain ID",
+    "symbol": "Simbol koin",
+    "explorerOptional": "URL block explorer (opsional)",
+    "testnet": "Jaringan uji (koin tidak bernilai)",
+    "summary": "Chain {{chainId}} · {{symbol}}",
+    "remove": "Hapus",
+    "removeBody": "Hapus jaringan ini dari browser ini? Koin Anda di jaringan itu tetap ada di chain; tambahkan jaringan lagi untuk melihatnya.",
+    "note": "Hanya koin native. RPC harus melaporkan chain ID yang Anda masukkan. Node lokal seperti Anvil atau Hardhat berfungsi di http://127.0.0.1:8545. Hanya disimpan di browser ini.",
+    "policyNote": "Jaringan kustom: batas kebijakan tidak bisa menghitung nilainya. Jika Anda punya batas harian USD, server akan menolak ikut menandatangani pengiriman ini.",
+    "rpcMismatch": "RPC ini melayani chain yang berbeda dari {{chainId}}. Pengiriman di jaringan ini ditolak sampai Anda memperbaiki atau menghapusnya.",
+    "err": {
+      "name": "Masukkan nama jaringan (maksimal 40 karakter).",
+      "nameTaken": "Nama ini sudah dipakai jaringan lain.",
+      "chainId": "Masukkan chain ID sebagai bilangan bulat.",
+      "builtIn": "Chain ini sudah bawaan. Untuk memakai node sendiri, atur URL RPC-nya di Jaringan.",
+      "exists": "Anda sudah menambahkan jaringan dengan chain ID ini.",
+      "symbol": "Masukkan simbol koin (huruf dan angka, maksimal 10).",
+      "url": "Masukkan URL RPC yang valid.",
+      "http": "Gunakan https. http biasa hanya berfungsi untuk komputer ini (localhost / 127.0.0.1).",
+      "explorer": "URL explorer harus diawali https://.",
+      "mismatch": "RPC melaporkan chain {{actual}}, bukan {{declared}}. Jaringan tidak ditambahkan.",
+      "unreachable": "Tidak dapat menjangkau RPC atau RPC tidak menjawab eth_chainId."
+    }
   }
 }

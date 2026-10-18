@@ -1,14 +1,22 @@
 export type { Chain, Asset, ChainType, Settings } from "../shared/types";
 import type { Chain, Asset, Settings } from "../shared/types";
 import { apiUrl } from "./apiBase";
-import { getCustomTokens } from "./userOverrides";
+import { getCustomNetworks, getCustomTokens } from "./userOverrides";
+import { customNetworkAsset, customNetworkChain } from "./custom-networks";
 import { isRecoveryActive } from "./recovery-flag";
 import staticConfig from "../config.json";
 
 // Recovery mode must work with the kexify server gone: the bundled config stands in for the chain, asset and
 // settings lists, so no page waits on a server that may hang instead of refusing.
 
+/** Built-in chains plus the user's custom EVM networks (Expert mode only; a chainId the list has is never shadowed). */
 export async function fetchChains(): Promise<Chain[]> {
+  const listed = await builtInChains();
+  const ids = new Set(listed.map((c) => c.evmChainId).filter((id) => id != null));
+  return [...listed, ...getCustomNetworks().filter((n) => !ids.has(n.chain_id)).map(customNetworkChain)];
+}
+
+async function builtInChains(): Promise<Chain[]> {
   if (isRecoveryActive()) return staticConfig.chains as Chain[];
   try {
     const res = await fetch(apiUrl("/api/chains"));
@@ -33,7 +41,10 @@ async function serverAssets(chainId?: string): Promise<Asset[]> {
 }
 
 export async function fetchAssets(chainId?: string): Promise<Asset[]> {
-  const listed = await serverAssets(chainId);
+  const listed = [
+    ...await serverAssets(chainId),
+    ...getCustomNetworks().map(customNetworkAsset).filter((a) => !chainId || a.chainId === chainId),
+  ];
 
   // Merge custom tokens from user overrides
   const custom = getCustomTokens()

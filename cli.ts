@@ -6,9 +6,9 @@
  *   recover  — Reconstruct private keys and export
  *   connect  — Connect to dApps via WalletConnect with local MPC signing
  *
- * Usage:
- *   npx tsx cli.ts recover ./peer0.json ./peer2.json
- *   npx tsx cli.ts connect ./peer0.json ./peer2.json
+ * Usage (Bun, from this folder; docs/recovery-and-cli.md lists what each command covers):
+ *   bun cli.ts recover ./peer0.json ./peer2.json
+ *   bun cli.ts connect ./peer0.json ./peer2.json
  */
 
 import { readFileSync } from "node:fs";
@@ -602,7 +602,7 @@ async function broadcastSolanaTransaction(rpcUrl: string, signedTxBase58: string
 
 function privateKeyToWIF(privateKeyHex: string, version = 0x80): string {
   const keyBytes = hexToBytes(privateKeyHex);
-  // Mainnet compressed: version (BTC 0x80, DOGE 0x9e) + key(32) + 0x01
+  // Mainnet compressed: version (BTC 0x80, DOGE 0x9e, LTC 0xb0) + key(32) + 0x01
   const payload = new Uint8Array(34);
   payload[0] = version;
   payload.set(keyBytes, 1);
@@ -922,22 +922,27 @@ async function cmdRecover(share1Path: string, share2Path: string): Promise<void>
   initReadline();
   while (true) {
     console.log("\nOptions:");
-    console.log("  1. Export ECDSA private key (hex) — EVM/BTC/BCH/LTC/DOGE/XRP/TRON");
-    console.log("  2. Export EdDSA private key (hex) — Solana/XLM/TON/ALGO/ADA");
+    console.log("  1. Export ECDSA private key (hex) — EVM/BTC/LTC/BCH/DOGE/XRP/TRON");
+    console.log("  2. Export EdDSA private scalar (hex) — Solana/XLM/TON/ALGO/ADA (not a wallet seed)");
     console.log("  3. Export private key (WIF — Bitcoin)");
     console.log("  4. Export private key (WIF — Dogecoin)");
-    console.log("  5. Exit");
+    console.log("  5. Export private key (WIF — Litecoin)");
+    console.log("  6. Exit");
 
     const choice = await ask("\n> ");
 
     switch (choice.trim()) {
       case "1":
         console.log(`Private key: 0x${ecdsaPrivKeyHex}`);
-        console.log("⚠ Store this securely. Anyone with this key controls your EVM/BTC/XRP funds.");
+        console.log("⚠ Store this securely. Anyone with this key controls your funds on every ECDSA chain listed above.");
         break;
       case "2":
-        console.log(`Private key: ${eddsaPrivKeyHex}`);
-        console.log("⚠ Store this securely. Anyone with this key controls your Solana funds.");
+        console.log(`Private scalar: ${eddsaPrivKeyHex}`);
+        console.log("⚠ Store this securely. Anyone with this key controls your Solana/XLM/TON/ALGO/ADA funds.");
+        // The MPC key has no RFC 8032 seed: both shares add up to the scalar itself.
+        console.log("⚠ This is the raw Ed25519 scalar (big-endian), not a 32-byte seed. Wallets that import a seed or a");
+        console.log("  Solana/Stellar/TON secret key will derive a different address from it. To move funds");
+        console.log("  on these chains, use the web recovery page (or `connect` for Solana dApps).");
         break;
       case "3":
         console.log(`WIF: ${privateKeyToWIF(ecdsaPrivKeyHex)}`);
@@ -948,6 +953,10 @@ async function cmdRecover(share1Path: string, share2Path: string): Promise<void>
         console.log("⚠ Store this securely. Anyone with this key controls your Dogecoin funds.");
         break;
       case "5":
+        console.log(`WIF: ${privateKeyToWIF(ecdsaPrivKeyHex, 0xb0)}`);
+        console.log("⚠ Store this securely. Anyone with this key controls your Litecoin funds.");
+        break;
+      case "6":
         rl.close();
         return;
       default:
@@ -1448,7 +1457,7 @@ function parseArgs(): { command: string; files: [string, string] } {
   const command = args[0];
 
   if (!command || !["recover", "connect"].includes(command)) {
-    console.log("Usage: npx tsx cli.ts <command> <file1> <file2>");
+    console.log("Usage: bun cli.ts <command> <file1> <file2>");
     console.log("");
     console.log("Commands:");
     console.log("  recover  Reconstruct private keys and export");

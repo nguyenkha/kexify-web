@@ -40,20 +40,18 @@ Set `VITE_API_URL` in `.env.production` to point to your backend (e.g. `https://
 
 ## CLI (`cli.ts`)
 
-A Node.js CLI tool for recovery and WalletConnect signing directly from the terminal — no browser, no server required. Useful for emergency access when the server is unavailable.
+A [Bun](https://bun.sh) CLI for recovery and WalletConnect signing directly from the terminal — no browser, no kexify server. Useful for emergency access when the server is unavailable. It reads passphrase, safe backup (HKDF, asks for the hex key from support) and verifiable (PVE) server files.
 
 ### Requirements
 
 ```bash
 bun install
-# or
-npm install
 ```
 
 ### Usage
 
 ```
-npx tsx cli.ts <command> <file1> <file2>
+bun cli.ts <command> <file1> <file2>
 ```
 
 You need **two key share files** — one from your device and one from the server backup. The peer order is auto-detected from the file contents.
@@ -65,7 +63,7 @@ You need **two key share files** — one from your device and one from the serve
 Combines the two MPC key shares locally and derives all addresses and private keys. **Nothing is sent to any server.**
 
 ```bash
-npx tsx cli.ts recover ./peer0.json ./peer2.json
+bun cli.ts recover ./peer0.json ./peer2.json
 ```
 
 You will be prompted for the passphrase(s) used to encrypt the key share files (each file can have a different passphrase).
@@ -74,19 +72,26 @@ You will be prompted for the passphrase(s) used to encrypt the key share files (
 
 ```
 Recovered addresses:
-  Ethereum: 0xAbc...
-  Bitcoin:  bc1q...
-  Solana:   7xKq...
-  XRP:      rXyz...
+  Ethereum (EVM):    0xAbc...
+  Bitcoin (segwit):  bc1q...
+  ...                (Bitcoin legacy, Bitcoin Cash, Dogecoin, Litecoin, XRP, TRON, Solana, Stellar, TON, Algorand, Cardano)
 
 Options:
-  1. Export ECDSA private key (hex) — EVM / BTC / XRP
-  2. Export EdDSA private key (hex) — Solana
-  3. Export private key (WIF) — Bitcoin
-  4. Exit
+  1. Export ECDSA private key (hex) — EVM/BTC/LTC/BCH/DOGE/XRP/TRON
+  2. Export EdDSA private scalar (hex) — Solana/XLM/TON/ALGO/ADA (not a wallet seed)
+  3. Export private key (WIF — Bitcoin)
+  4. Export private key (WIF — Dogecoin)
+  5. Export private key (WIF — Litecoin)
+  6. Exit
 ```
 
 > ⚠ Private keys give full access to your funds. Store them offline and never share them.
+
+> ⚠ The EdDSA export is the raw Ed25519 scalar (big-endian), not a 32-byte seed: wallets that import a seed or a
+> Solana / Stellar / TON secret key derive a different address from it. Move funds on those chains with the web
+> app's recovery mode (`/recovery`).
+
+The CLI has no `send` command and no token views; to send on any chain or token, use the web app's recovery mode.
 
 ---
 
@@ -95,7 +100,7 @@ Options:
 Connects to a dApp using a WalletConnect URI and handles all signing requests interactively in the terminal using local MPC — the server is never contacted.
 
 ```bash
-WC_PROJECT_ID=your_project_id npx tsx cli.ts connect ./peer0.json ./peer2.json
+WC_PROJECT_ID=your_project_id bun cli.ts connect ./peer0.json ./peer2.json
 ```
 
 You will be prompted for the passphrase(s), then paste the `wc:...` URI from the dApp.
@@ -106,6 +111,9 @@ You will be prompted for the passphrase(s), then paste the `wc:...` URI from the
 |---|---|
 | EVM | `personal_sign`, `eth_sign`, `eth_signTypedData_v4`, `eth_sendTransaction` |
 | Solana | `solana_signTransaction`, `solana_signAndSendTransaction`, `solana_signMessage` |
+
+`eth_sendTransaction` is sent as a legacy (type 0) transaction. Built-in EVM RPCs: Ethereum, Polygon, Arbitrum,
+Optimism, Base, Sepolia, Base Sepolia; set `ETH_RPC_URL` for any other chain. TRON requests are not supported.
 
 **Environment variables:**
 

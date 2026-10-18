@@ -70,10 +70,12 @@ import { LangSwitcher } from "./components/LangSwitcher";
 import { setLanguage } from "./i18n/i18n";
 import { matchLocale } from "./i18n/locales";
 import { Broadcast as BroadcastPage } from "./components/Broadcast";
+import { DecodeTxPage } from "./components/expert/DecodeTxPage";
+import { VerifySignaturePage } from "./components/expert/VerifySignaturePage";
 import { RecoveryProvider } from "./context/RecoveryContext";
 import { isRecoveryMode, getRecoveryKeys, exitRecoveryMode } from "./lib/recovery";
 import { isStandaloneJwt, getIdentityId } from "./lib/auth";
-import { Briefcase, Archive, ClipboardList, Settings, KeyRound, PenLine, Radio, LayoutGrid } from "lucide-react";
+import { Briefcase, Archive, ClipboardList, Settings, KeyRound, PenLine, Radio, LayoutGrid, FileSearch, ShieldCheck } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 const WalletConnectIcon = () => (
@@ -103,6 +105,8 @@ const advancedNavItems: NavItem[] = [
   { path: "/passkeys", labelKey: "nav.passkeys", icon: KeyRound },
   { path: "/sign", labelKey: "nav.rawSigning", icon: PenLine, expertOnly: true },
   { path: "/broadcast", labelKey: "nav.broadcastTx", icon: Radio, expertOnly: true },
+  { path: "/decode", labelKey: "nav.decodeTx", icon: FileSearch, expertOnly: true },
+  { path: "/verify", labelKey: "nav.verifySignature", icon: ShieldCheck, expertOnly: true },
 ];
 
 
@@ -558,6 +562,8 @@ function App() {
           <Route path="/apps" element={<Navigate to="/explore" replace />} />
           <Route path="/sign" element={<ExpertOnly><Sign /></ExpertOnly>} />
           <Route path="/broadcast" element={<ExpertOnly><BroadcastPage /></ExpertOnly>} />
+          <Route path="/decode" element={<ExpertOnly><DecodeTxPage /></ExpertOnly>} />
+          <Route path="/verify" element={<ExpertOnly><VerifySignaturePage /></ExpertOnly>} />
           <Route path="/" element={<Navigate to="/accounts" replace />} />
         </Route>
       </Routes>

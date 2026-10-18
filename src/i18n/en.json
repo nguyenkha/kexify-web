@@ -96,7 +96,9 @@
     "client": "Client",
     "server": "Server",
     "scanWalletConnect": "Scan WalletConnect QR",
-    "explore": "Explore"
+    "explore": "Explore",
+    "decodeTx": "Decode transaction",
+    "verifySignature": "Verify signature"
   },
   "wallet": {
     "importKeyFileLink": "Have a key file? Import an existing wallet",
@@ -1529,5 +1531,112 @@
     "title": "Beware of scams",
     "sign": "Never sign text or data that someone sent you unless you wrote it yourself. Scammers use signatures to take over wallets and drain funds.",
     "broadcast": "Only broadcast a transaction you built and checked yourself. A transaction from someone else can move your funds or be a scam."
+  },
+  "expert": {
+    "decode": {
+      "title": "Decode transaction",
+      "desc": "Paste a raw transaction to see what it does. Read-only: nothing is signed or sent from this page.",
+      "input": "Raw transaction",
+      "placeholder": "EVM hex, Solana base64 / base58, Bitcoin / Litecoin / Dogecoin hex or PSBT...",
+      "utxoNetwork": "Bitcoin-family network (for addresses)",
+      "network": {
+        "btc": "Bitcoin",
+        "btc-testnet": "Bitcoin testnet",
+        "ltc": "Litecoin",
+        "ltc-testnet": "Litecoin testnet",
+        "doge": "Dogecoin",
+        "doge-testnet": "Dogecoin testnet"
+      },
+      "fromForSim": "Sender address (to simulate an unsigned transaction)",
+      "simNetwork": "Simulate on",
+      "simNoChain": "No simulation: this wallet has no network with this chain ID.",
+      "simRunning": "Simulating...",
+      "simOn": "Simulated on {{network}}",
+      "readOnly": "To send a signed transaction, use Broadcast transaction.",
+      "outputN": "Output {{n}}",
+      "inputN": "Input {{n}}",
+      "yes": "Yes",
+      "no": "No",
+      "partial": "Partly (some signatures missing)",
+      "invalidSig": "Invalid signature",
+      "noChainId": "None (pre-EIP-155)",
+      "contractCreation": "Contract creation",
+      "fact": {
+        "format": "Format",
+        "chainId": "Chain ID",
+        "nonce": "Nonce",
+        "gasLimit": "Gas limit",
+        "gasPrice": "Gas price",
+        "maxFee": "Max fee per gas",
+        "priorityFee": "Priority fee",
+        "to": "To",
+        "accessList": "Access list entries",
+        "authorizations": "Authorizations",
+        "signed": "Signed",
+        "sender": "Sender (from signature)",
+        "hash": "Transaction hash",
+        "feePayer": "Fee payer",
+        "instructions": "Instructions",
+        "txid": "Transaction ID",
+        "locktime": "Lock time",
+        "negativeFee": "Outputs exceed inputs by"
+      },
+      "warn": {
+        "delegation": "This transaction delegates the sender's account to a contract (EIP-7702). That contract could then move every asset of the account.",
+        "replayable": "No chain ID (pre-EIP-155): this signed transaction is valid on every EVM chain and can be replayed.",
+        "badSignature": "A signature does not match this transaction: it was changed after signing or the signature is fake."
+      }
+    },
+    "verify": {
+      "title": "Verify signature",
+      "desc": "Check who signed a message. Works offline; nothing is signed.",
+      "scheme": {
+        "eip191": "Message (EIP-191)",
+        "eip712": "Typed data (EIP-712)",
+        "solana": "Solana message"
+      },
+      "message": "Message",
+      "typedData": "Typed data (JSON)",
+      "messagePlaceholder": "Text, or 0x-hex for raw bytes",
+      "typedDataPlaceholder": "{\"types\": ..., \"domain\": ..., \"primaryType\": ..., \"message\": ...}",
+      "signature": "Signature",
+      "address": "Signer address",
+      "expectedOptional": "Expected signer (optional)",
+      "match": "Signature matches",
+      "noMatch": "Signed by a different address",
+      "invalid": "Signature is not valid for this address",
+      "recovered": "Recovered signer:",
+      "eoaOnly": "Checks regular accounts only. Smart-contract wallets (EIP-1271) sign differently."
+    }
+  },
+  "customNetwork": {
+    "title": "Custom networks",
+    "addButton": "Add EVM network",
+    "add": "Check and add",
+    "checking": "Checking RPC...",
+    "name": "Network name",
+    "chainId": "Chain ID",
+    "symbol": "Coin symbol",
+    "explorerOptional": "Block explorer URL (optional)",
+    "testnet": "Test network (coins have no value)",
+    "summary": "Chain {{chainId}} · {{symbol}}",
+    "remove": "Remove",
+    "removeBody": "Remove this network from this browser? Your coins on it stay on chain; add the network again to see them.",
+    "note": "Native coin only. The RPC must report the chain ID you enter. Local nodes such as Anvil or Hardhat work at http://127.0.0.1:8545. Saved in this browser only.",
+    "policyNote": "Custom network: policy limits can't price it. If you have a USD daily limit, the server will refuse to co-sign this send.",
+    "rpcMismatch": "This RPC serves a different chain than {{chainId}}. Sends on this network are refused until you fix or clear it.",
+    "err": {
+      "name": "Enter a network name (up to 40 characters).",
+      "nameTaken": "This name is already used by another network.",
+      "chainId": "Enter the chain ID as a whole number.",
+      "builtIn": "This chain is already built in. To use your own node, set its RPC URL under Networks.",
+      "exists": "You already added a network with this chain ID.",
+      "symbol": "Enter a coin symbol (letters and digits, up to 10).",
+      "url": "Enter a valid RPC URL.",
+      "http": "Use https. Plain http works only for this computer (localhost / 127.0.0.1).",
+      "explorer": "The explorer URL must start with https://.",
+      "mismatch": "The RPC reports chain {{actual}}, not {{declared}}. Network not added.",
+      "unreachable": "Could not reach the RPC or it did not answer eth_chainId."
+    }
   }
 }

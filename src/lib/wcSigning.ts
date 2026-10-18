@@ -186,6 +186,7 @@ export async function wcSendTransaction(
       id: keyFile.id,
       unsignedTx: toBase64(serializeForSigning(unsignedTx)),
       from: address,
+      evmChainId: chainId,
     },
     headers: sensitiveHeaders(),
   });

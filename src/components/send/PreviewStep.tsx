@@ -1,3 +1,4 @@
+import { isTestnetChain } from "../../lib/testnet";
 import { ExpertWarnings, SimulationPreview, SimulationStatusNote } from "../tx";
 import { BalancePreview, type BalanceChange } from "../BalancePreview";
 import { ReviewBody, useScrollGate } from "../review";
@@ -64,10 +65,10 @@ export function PreviewStep({
     to,
     from: { address },
     fee: feeDisplay.formatted != null
-      ? { amount: feeDisplay.formatted, symbol: feeDisplay.symbol, decimals: NATIVE_DECIMALS[chain.type] ?? asset.decimals, usd: feeDisplay.usd }
+      ? { amount: feeDisplay.formatted, symbol: feeDisplay.symbol, decimals: NATIVE_DECIMALS[chain.type] ?? asset.decimals, usd: isTestnetChain(chain.name) ? null : feeDisplay.usd }
       : null,
-    amountUsd,
-    prices,
+    amountUsd: isTestnetChain(chain.name) ? null : amountUsd,
+    prices: isTestnetChain(chain.name) ? {} : prices,
     nameOf: (a) => addressLabel(a) ?? undefined,
     policy: policyCheck,
     firstTimeRecipient: firstTimeRecipient === true,
@@ -94,6 +95,9 @@ export function PreviewStep({
         )}
         {xlmBlockKey && (
           <p className="text-xs text-red-400">{t(xlmBlockKey, { symbol: asset.symbol })}</p>
+        )}
+        {chain.custom && (
+          <p className="text-xs text-yellow-500" data-testid="custom-network-policy-note">{t("customNetwork.policyNote")}</p>
         )}
 
         {chain.type === "evm" && gasEstimateError && gasEstimateError !== "gas_estimate_failed" && (

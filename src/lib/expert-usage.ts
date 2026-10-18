@@ -6,7 +6,7 @@ export type ExpertEvent =
   | "expert_enabled" | "raw_sign" | "raw_broadcast" | "send_custom_fee" | "send_custom_nonce"
   | "send_manual_utxo" | "speed_up" | "audit_detail" | "config_json" | "config_networks"
   | "config_testnet" | "config_confirm_broadcast" | "config_gas_buffer" | "policy_rules"
-  | "key_share_manager";
+  | "key_share_manager" | "tx_decode" | "signature_verify";
 
 const seen = new Set<ExpertEvent>();
 

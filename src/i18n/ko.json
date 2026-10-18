@@ -96,7 +96,9 @@
     "client": "클라이언트",
     "server": "서버",
     "scanWalletConnect": "WalletConnect QR 스캔",
-    "explore": "탐색"
+    "explore": "탐색",
+    "decodeTx": "트랜잭션 디코드",
+    "verifySignature": "서명 검증"
   },
   "wallet": {
     "importKeyFileLink": "키 파일이 있나요? 기존 지갑 가져오기",
@@ -1529,5 +1531,112 @@
     "title": "사기에 주의하세요",
     "sign": "직접 작성한 것이 아니라면 다른 사람이 보낸 텍스트나 데이터에 서명하지 마세요. 사기꾼은 서명을 이용해 지갑을 장악하고 자금을 빼갑니다.",
     "broadcast": "직접 만들고 확인한 트랜잭션만 브로드캐스트하세요. 다른 사람이 준 트랜잭션은 자금을 옮기거나 사기일 수 있습니다."
+  },
+  "expert": {
+    "decode": {
+      "title": "트랜잭션 디코드",
+      "desc": "원시 트랜잭션을 붙여넣어 어떤 동작인지 확인하세요. 읽기 전용: 이 페이지에서는 서명하거나 전송하지 않습니다.",
+      "input": "원시 트랜잭션",
+      "placeholder": "EVM hex, Solana base64 / base58, Bitcoin / Litecoin / Dogecoin hex 또는 PSBT...",
+      "utxoNetwork": "비트코인 계열 네트워크 (주소용)",
+      "network": {
+        "btc": "Bitcoin",
+        "btc-testnet": "Bitcoin 테스트넷",
+        "ltc": "Litecoin",
+        "ltc-testnet": "Litecoin 테스트넷",
+        "doge": "Dogecoin",
+        "doge-testnet": "Dogecoin 테스트넷"
+      },
+      "fromForSim": "보낸 주소 (서명되지 않은 트랜잭션 시뮬레이션용)",
+      "simNetwork": "시뮬레이션 네트워크",
+      "simNoChain": "시뮬레이션 없음: 이 지갑에는 이 chain ID의 네트워크가 없습니다.",
+      "simRunning": "시뮬레이션 중...",
+      "simOn": "{{network}}에서 시뮬레이션함",
+      "readOnly": "서명된 트랜잭션을 보내려면 트랜잭션 브로드캐스트를 사용하세요.",
+      "outputN": "출력 {{n}}",
+      "inputN": "입력 {{n}}",
+      "yes": "예",
+      "no": "아니요",
+      "partial": "일부 (서명 누락)",
+      "invalidSig": "잘못된 서명",
+      "noChainId": "없음 (EIP-155 이전)",
+      "contractCreation": "컨트랙트 생성",
+      "fact": {
+        "format": "형식",
+        "chainId": "Chain ID",
+        "nonce": "Nonce",
+        "gasLimit": "가스 한도",
+        "gasPrice": "가스 가격",
+        "maxFee": "가스당 최대 수수료",
+        "priorityFee": "우선 수수료",
+        "to": "받는 곳",
+        "accessList": "액세스 리스트 항목",
+        "authorizations": "권한 위임",
+        "signed": "서명됨",
+        "sender": "보낸 사람 (서명 기준)",
+        "hash": "트랜잭션 해시",
+        "feePayer": "수수료 지불자",
+        "instructions": "인스트럭션",
+        "txid": "트랜잭션 ID",
+        "locktime": "락타임",
+        "negativeFee": "출력이 입력을 초과한 금액"
+      },
+      "warn": {
+        "delegation": "이 트랜잭션은 보낸 사람의 계정을 컨트랙트에 위임합니다 (EIP-7702). 그 컨트랙트가 계정의 모든 자산을 옮길 수 있습니다.",
+        "replayable": "chain ID 없음 (EIP-155 이전): 서명된 이 트랜잭션은 모든 EVM 체인에서 유효하며 재전송될 수 있습니다.",
+        "badSignature": "이 거래와 일치하지 않는 서명이 있습니다. 서명 후 거래가 변경되었거나 위조된 서명입니다."
+      }
+    },
+    "verify": {
+      "title": "서명 검증",
+      "desc": "메시지에 누가 서명했는지 확인합니다. 오프라인에서 작동하며 서명은 하지 않습니다.",
+      "scheme": {
+        "eip191": "메시지 (EIP-191)",
+        "eip712": "타입 데이터 (EIP-712)",
+        "solana": "Solana 메시지"
+      },
+      "message": "메시지",
+      "typedData": "타입 데이터 (JSON)",
+      "messagePlaceholder": "텍스트 또는 원시 바이트용 0x-hex",
+      "typedDataPlaceholder": "{\"types\": ..., \"domain\": ..., \"primaryType\": ..., \"message\": ...}",
+      "signature": "서명",
+      "address": "서명자 주소",
+      "expectedOptional": "예상 서명자 (선택)",
+      "match": "서명 일치",
+      "noMatch": "다른 주소가 서명함",
+      "invalid": "이 주소에 대해 유효하지 않은 서명입니다",
+      "recovered": "복구된 서명자:",
+      "eoaOnly": "일반 계정만 확인합니다. 스마트 컨트랙트 지갑 (EIP-1271)은 다른 방식으로 서명합니다."
+    }
+  },
+  "customNetwork": {
+    "title": "사용자 지정 네트워크",
+    "addButton": "EVM 네트워크 추가",
+    "add": "확인 후 추가",
+    "checking": "RPC 확인 중...",
+    "name": "네트워크 이름",
+    "chainId": "Chain ID",
+    "symbol": "코인 심볼",
+    "explorerOptional": "블록 탐색기 URL (선택)",
+    "testnet": "테스트 네트워크 (코인에 가치 없음)",
+    "summary": "체인 {{chainId}} · {{symbol}}",
+    "remove": "제거",
+    "removeBody": "이 브라우저에서 이 네트워크를 제거할까요? 해당 네트워크의 코인은 체인에 그대로 남아 있으며, 네트워크를 다시 추가하면 볼 수 있습니다.",
+    "note": "기본 코인만 지원합니다. RPC가 입력한 chain ID를 반환해야 합니다. Anvil, Hardhat 같은 로컬 노드는 http://127.0.0.1:8545 에서 작동합니다. 이 브라우저에만 저장됩니다.",
+    "policyNote": "사용자 지정 네트워크: 정책 한도로 가격을 산정할 수 없습니다. USD 일일 한도를 설정했다면 서버가 이 전송의 공동 서명을 거부합니다.",
+    "rpcMismatch": "이 RPC는 {{chainId}}와 다른 체인을 제공합니다. 수정하거나 지울 때까지 이 네트워크에서의 전송이 거부됩니다.",
+    "err": {
+      "name": "네트워크 이름을 입력하세요 (최대 40자).",
+      "nameTaken": "다른 네트워크가 이미 이 이름을 사용하고 있습니다.",
+      "chainId": "chain ID를 정수로 입력하세요.",
+      "builtIn": "이 체인은 이미 기본 제공됩니다. 직접 노드를 사용하려면 네트워크에서 RPC URL을 설정하세요.",
+      "exists": "이 chain ID의 네트워크를 이미 추가했습니다.",
+      "symbol": "코인 심볼을 입력하세요 (영문자와 숫자, 최대 10자).",
+      "url": "올바른 RPC URL을 입력하세요.",
+      "http": "https를 사용하세요. 일반 http는 이 컴퓨터(localhost / 127.0.0.1)에서만 작동합니다.",
+      "explorer": "탐색기 URL은 https://로 시작해야 합니다.",
+      "mismatch": "RPC가 {{declared}}가 아닌 체인 {{actual}}을(를) 반환했습니다. 네트워크를 추가하지 않았습니다.",
+      "unreachable": "RPC에 연결할 수 없거나 eth_chainId에 응답하지 않았습니다."
+    }
   }
 }

@@ -41,8 +41,20 @@ export interface RecentRecipientEntry {
   timestamp: number;
 }
 
+/** A user-added EVM network (Expert mode): native coin only; see lib/custom-networks.ts. */
+export interface CustomNetwork {
+  chain_id: number;
+  name: string;
+  rpc_url: string;
+  symbol: string;
+  explorer_url?: string;
+  testnet: boolean;
+  added_at: number;
+}
+
 export interface UserOverrides {
   chains?: Record<string, ChainOverride>;
+  custom_networks?: CustomNetwork[];
   custom_tokens?: CustomToken[];
   address_book?: AddressBookEntry[];
   address_book_deleted?: AddressBookTombstone[];
@@ -178,6 +190,12 @@ export function applyChainOverrides<T extends { name: string; rpcUrl: string; ex
   });
 }
 
+/** Custom EVM networks of the current user; only while Expert mode is on (like RPC overrides). */
+export function getCustomNetworks(userId?: string): CustomNetwork[] {
+  const overrides = findOverrides(userId);
+  return overrides.preferences?.expert_mode ? overrides.custom_networks ?? [] : [];
+}
+
 /** Get all custom tokens from any user override entry */
 export function getCustomTokens(): CustomToken[] {
   const overrides = findOverrides();
@@ -186,8 +204,8 @@ export function getCustomTokens(): CustomToken[] {
 
 // Expert-only preferences: return their default value when expert_mode is off,
 // regardless of what is stored in localStorage.
+// show_testnet is a plain setting since #291 (Settings > Show test networks), not Expert-only.
 const EXPERT_PREF_DEFAULTS: Partial<Record<string, unknown>> = {
-  show_testnet: false,
   confirm_before_broadcast: false,
   evm_gas_buffer_pct: 10,
 };

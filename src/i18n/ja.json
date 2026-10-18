@@ -96,7 +96,9 @@
     "client": "クライアント",
     "server": "サーバー",
     "scanWalletConnect": "WalletConnectのQRをスキャン",
-    "explore": "探す"
+    "explore": "探す",
+    "decodeTx": "トランザクションをデコード",
+    "verifySignature": "署名を検証"
   },
   "wallet": {
     "importKeyFileLink": "キーファイルをお持ちですか？既存のウォレットを読み込む",
@@ -1529,5 +1531,112 @@
     "title": "詐欺にご注意ください",
     "sign": "ご自身で書いたものでない限り、他人から送られたテキストやデータには署名しないでください。詐欺師は署名を悪用してウォレットを乗っ取り、資金を抜き取ります。",
     "broadcast": "ご自身で作成し確認したトランザクションだけをブロードキャストしてください。他人のトランザクションは資金を動かしたり、詐欺だったりする可能性があります。"
+  },
+  "expert": {
+    "decode": {
+      "title": "トランザクションをデコード",
+      "desc": "生のトランザクションを貼り付けて内容を確認します。読み取り専用: このページでは署名も送信も行いません。",
+      "input": "生のトランザクション",
+      "placeholder": "EVM hex、Solana base64 / base58、Bitcoin / Litecoin / Dogecoin hex または PSBT…",
+      "utxoNetwork": "Bitcoin系ネットワーク (アドレス用)",
+      "network": {
+        "btc": "Bitcoin",
+        "btc-testnet": "Bitcoin テストネット",
+        "ltc": "Litecoin",
+        "ltc-testnet": "Litecoin テストネット",
+        "doge": "Dogecoin",
+        "doge-testnet": "Dogecoin テストネット"
+      },
+      "fromForSim": "送信元アドレス (未署名トランザクションのシミュレーション用)",
+      "simNetwork": "シミュレーション先",
+      "simNoChain": "シミュレーションなし: このウォレットにはこの chain ID のネットワークがありません。",
+      "simRunning": "シミュレーション中…",
+      "simOn": "{{network}} でシミュレーション済み",
+      "readOnly": "署名済みトランザクションを送信するには、トランザクションをブロードキャストを使用してください。",
+      "outputN": "出力 {{n}}",
+      "inputN": "入力 {{n}}",
+      "yes": "はい",
+      "no": "いいえ",
+      "partial": "一部（署名が不足）",
+      "invalidSig": "無効な署名",
+      "noChainId": "なし (EIP-155 以前)",
+      "contractCreation": "コントラクト作成",
+      "fact": {
+        "format": "フォーマット",
+        "chainId": "Chain ID",
+        "nonce": "Nonce",
+        "gasLimit": "ガスリミット",
+        "gasPrice": "ガス価格",
+        "maxFee": "ガスあたり最大手数料",
+        "priorityFee": "優先手数料",
+        "to": "宛先",
+        "accessList": "アクセスリストのエントリ",
+        "authorizations": "認可",
+        "signed": "署名済み",
+        "sender": "送信者 (署名から)",
+        "hash": "トランザクションハッシュ",
+        "feePayer": "手数料支払者",
+        "instructions": "インストラクション",
+        "txid": "トランザクション ID",
+        "locktime": "ロックタイム",
+        "negativeFee": "出力が入力を超過"
+      },
+      "warn": {
+        "delegation": "このトランザクションは送信者のアカウントをコントラクトに委任します (EIP-7702)。そのコントラクトはアカウントのすべての資産を移動できます。",
+        "replayable": "chain ID なし (EIP-155 以前): この署名済みトランザクションはすべての EVM チェーンで有効で、リプレイされる可能性があります。",
+        "badSignature": "この取引と一致しない署名があります。署名後に変更されたか、偽の署名です。"
+      }
+    },
+    "verify": {
+      "title": "署名を検証",
+      "desc": "メッセージに誰が署名したかを確認します。オフラインで動作し、署名は行いません。",
+      "scheme": {
+        "eip191": "メッセージ (EIP-191)",
+        "eip712": "型付きデータ (EIP-712)",
+        "solana": "Solana メッセージ"
+      },
+      "message": "メッセージ",
+      "typedData": "型付きデータ (JSON)",
+      "messagePlaceholder": "テキスト、または生バイトの 0x-hex",
+      "typedDataPlaceholder": "{\"types\": ..., \"domain\": ..., \"primaryType\": ..., \"message\": ...}",
+      "signature": "署名",
+      "address": "署名者アドレス",
+      "expectedOptional": "想定する署名者 (任意)",
+      "match": "署名が一致",
+      "noMatch": "別のアドレスが署名",
+      "invalid": "この署名はこのアドレスに対して無効です",
+      "recovered": "復元された署名者:",
+      "eoaOnly": "通常のアカウントのみ確認します。スマートコントラクトウォレット (EIP-1271) は異なる方法で署名します。"
+    }
+  },
+  "customNetwork": {
+    "title": "カスタムネットワーク",
+    "addButton": "EVMネットワークを追加",
+    "add": "確認して追加",
+    "checking": "RPCを確認中...",
+    "name": "ネットワーク名",
+    "chainId": "Chain ID",
+    "symbol": "コインのシンボル",
+    "explorerOptional": "ブロックエクスプローラーのURL（任意）",
+    "testnet": "テストネットワーク（コインに価値なし）",
+    "summary": "チェーン {{chainId}} · {{symbol}}",
+    "remove": "削除",
+    "removeBody": "このブラウザからこのネットワークを削除しますか？ネットワーク上のコインはチェーンに残ります。ネットワークを再度追加すると表示されます。",
+    "note": "ネイティブコインのみ対応。RPCは入力したchain IDを返す必要があります。AnvilやHardhatなどのローカルノードは http://127.0.0.1:8545 で動作します。このブラウザにのみ保存されます。",
+    "policyNote": "カスタムネットワーク：ポリシー上限では価格を算出できません。USDの1日あたり上限を設定している場合、サーバーはこの送金の共同署名を拒否します。",
+    "rpcMismatch": "このRPCは {{chainId}} とは別のチェーンを提供しています。修正またはクリアするまで、このネットワークでの送金は拒否されます。",
+    "err": {
+      "name": "ネットワーク名を入力してください（40文字まで）。",
+      "nameTaken": "この名前は別のネットワークで使われています。",
+      "chainId": "chain IDを整数で入力してください。",
+      "builtIn": "このチェーンはすでに組み込まれています。独自のノードを使うには、ネットワークでRPC URLを設定してください。",
+      "exists": "このchain IDのネットワークはすでに追加済みです。",
+      "symbol": "コインのシンボルを入力してください（英数字、10文字まで）。",
+      "url": "有効なRPC URLを入力してください。",
+      "http": "httpsを使用してください。通常のhttpはこのコンピュータ（localhost / 127.0.0.1）でのみ使えます。",
+      "explorer": "エクスプローラーのURLは https:// で始める必要があります。",
+      "mismatch": "RPCは {{declared}} ではなくチェーン {{actual}} を返しました。ネットワークは追加されませんでした。",
+      "unreachable": "RPCに接続できないか、eth_chainIdに応答しませんでした。"
+    }
   }
 }

@@ -13,6 +13,8 @@ export interface Chain {
   rpcUrl: string;
   explorerUrl: string;
   iconUrl: string | null;
+  /** A user-added EVM network (Expert mode, stored locally): native coin only, the policy cannot price it. */
+  custom?: boolean;
 }
 
 export interface Asset {

@@ -96,7 +96,9 @@
     "client": "Ứng dụng",
     "server": "Máy chủ",
     "scanWalletConnect": "Quét mã QR WalletConnect",
-    "explore": "Khám phá"
+    "explore": "Khám phá",
+    "decodeTx": "Giải mã giao dịch",
+    "verifySignature": "Xác minh chữ ký"
   },
   "wallet": {
     "importKeyFileLink": "Đã có file key? Nhập ví có sẵn",
@@ -1529,5 +1531,112 @@
     "title": "Coi chừng lừa đảo",
     "sign": "Đừng bao giờ ký văn bản hoặc dữ liệu người khác gửi cho bạn nếu bạn không tự viết. Kẻ lừa đảo dùng chữ ký để chiếm ví và rút tiền.",
     "broadcast": "Chỉ phát giao dịch do chính bạn tạo và đã kiểm tra. Giao dịch từ người khác có thể chuyển tiền của bạn hoặc là lừa đảo."
+  },
+  "expert": {
+    "decode": {
+      "title": "Giải mã giao dịch",
+      "desc": "Dán giao dịch thô để xem nó làm gì. Chỉ đọc: không có gì được ký hay gửi từ trang này.",
+      "input": "Giao dịch thô",
+      "placeholder": "Hex EVM, base64 / base58 Solana, hex hoặc PSBT Bitcoin / Litecoin / Dogecoin...",
+      "utxoNetwork": "Mạng họ Bitcoin (để tạo địa chỉ)",
+      "network": {
+        "btc": "Bitcoin",
+        "btc-testnet": "Bitcoin testnet",
+        "ltc": "Litecoin",
+        "ltc-testnet": "Litecoin testnet",
+        "doge": "Dogecoin",
+        "doge-testnet": "Dogecoin testnet"
+      },
+      "fromForSim": "Địa chỉ người gửi (để mô phỏng giao dịch chưa ký)",
+      "simNetwork": "Mô phỏng trên",
+      "simNoChain": "Không mô phỏng: ví này không có mạng nào với chain ID này.",
+      "simRunning": "Đang mô phỏng...",
+      "simOn": "Đã mô phỏng trên {{network}}",
+      "readOnly": "Để gửi giao dịch đã ký, hãy dùng Phát giao dịch.",
+      "outputN": "Đầu ra {{n}}",
+      "inputN": "Đầu vào {{n}}",
+      "yes": "Có",
+      "no": "Không",
+      "partial": "Một phần (thiếu chữ ký)",
+      "invalidSig": "Chữ ký không hợp lệ",
+      "noChainId": "Không có (trước EIP-155)",
+      "contractCreation": "Tạo hợp đồng",
+      "fact": {
+        "format": "Định dạng",
+        "chainId": "Chain ID",
+        "nonce": "Nonce",
+        "gasLimit": "Giới hạn gas",
+        "gasPrice": "Giá gas",
+        "maxFee": "Phí tối đa mỗi gas",
+        "priorityFee": "Phí ưu tiên",
+        "to": "Đến",
+        "accessList": "Số mục access list",
+        "authorizations": "Ủy quyền",
+        "signed": "Đã ký",
+        "sender": "Người gửi (từ chữ ký)",
+        "hash": "Mã băm giao dịch",
+        "feePayer": "Người trả phí",
+        "instructions": "Lệnh",
+        "txid": "ID giao dịch",
+        "locktime": "Lock time",
+        "negativeFee": "Đầu ra vượt đầu vào"
+      },
+      "warn": {
+        "delegation": "Giao dịch này ủy quyền tài khoản của người gửi cho một hợp đồng (EIP-7702). Hợp đồng đó có thể chuyển mọi tài sản của tài khoản.",
+        "replayable": "Không có chain ID (trước EIP-155): giao dịch đã ký này hợp lệ trên mọi chuỗi EVM và có thể bị phát lại.",
+        "badSignature": "Có chữ ký không khớp với giao dịch này: giao dịch đã bị sửa sau khi ký hoặc chữ ký là giả."
+      }
+    },
+    "verify": {
+      "title": "Xác minh chữ ký",
+      "desc": "Kiểm tra ai đã ký một thông điệp. Hoạt động offline; không có gì được ký.",
+      "scheme": {
+        "eip191": "Thông điệp (EIP-191)",
+        "eip712": "Dữ liệu có kiểu (EIP-712)",
+        "solana": "Thông điệp Solana"
+      },
+      "message": "Thông điệp",
+      "typedData": "Dữ liệu có kiểu (JSON)",
+      "messagePlaceholder": "Văn bản, hoặc 0x-hex cho byte thô",
+      "typedDataPlaceholder": "{\"types\": ..., \"domain\": ..., \"primaryType\": ..., \"message\": ...}",
+      "signature": "Chữ ký",
+      "address": "Địa chỉ người ký",
+      "expectedOptional": "Người ký mong đợi (tùy chọn)",
+      "match": "Chữ ký khớp",
+      "noMatch": "Được ký bởi địa chỉ khác",
+      "invalid": "Chữ ký không hợp lệ với địa chỉ này",
+      "recovered": "Người ký khôi phục được:",
+      "eoaOnly": "Chỉ kiểm tra tài khoản thường. Ví hợp đồng thông minh (EIP-1271) ký theo cách khác."
+    }
+  },
+  "customNetwork": {
+    "title": "Mạng tùy chỉnh",
+    "addButton": "Thêm mạng EVM",
+    "add": "Kiểm tra và thêm",
+    "checking": "Đang kiểm tra RPC...",
+    "name": "Tên mạng",
+    "chainId": "Chain ID",
+    "symbol": "Ký hiệu coin",
+    "explorerOptional": "URL trình khám phá khối (tùy chọn)",
+    "testnet": "Mạng thử nghiệm (coin không có giá trị)",
+    "summary": "Chain {{chainId}} · {{symbol}}",
+    "remove": "Xóa",
+    "removeBody": "Xóa mạng này khỏi trình duyệt này? Coin của bạn trên mạng đó vẫn nằm trên chuỗi; hãy thêm lại mạng để xem.",
+    "note": "Chỉ hỗ trợ coin gốc. RPC phải trả về đúng chain ID bạn nhập. Node cục bộ như Anvil hoặc Hardhat hoạt động tại http://127.0.0.1:8545. Chỉ lưu trong trình duyệt này.",
+    "policyNote": "Mạng tùy chỉnh: giới hạn chính sách không định giá được. Nếu bạn đặt hạn mức hằng ngày theo USD, máy chủ sẽ từ chối đồng ký giao dịch gửi này.",
+    "rpcMismatch": "RPC này phục vụ chuỗi khác với {{chainId}}. Giao dịch gửi trên mạng này bị từ chối cho đến khi bạn sửa hoặc xóa nó.",
+    "err": {
+      "name": "Nhập tên mạng (tối đa 40 ký tự).",
+      "nameTaken": "Tên này đã được một mạng khác dùng.",
+      "chainId": "Nhập chain ID là một số nguyên.",
+      "builtIn": "Chuỗi này đã có sẵn. Để dùng node riêng, hãy đặt RPC URL trong mục Mạng.",
+      "exists": "Bạn đã thêm mạng có chain ID này.",
+      "symbol": "Nhập ký hiệu coin (chữ và số, tối đa 10).",
+      "url": "Nhập RPC URL hợp lệ.",
+      "http": "Hãy dùng https. http thường chỉ dùng được cho máy này (localhost / 127.0.0.1).",
+      "explorer": "URL trình khám phá phải bắt đầu bằng https://.",
+      "mismatch": "RPC báo chain {{actual}}, không phải {{declared}}. Chưa thêm mạng.",
+      "unreachable": "Không kết nối được RPC hoặc RPC không trả lời eth_chainId."
+    }
   }
 }

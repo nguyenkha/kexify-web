@@ -16,11 +16,13 @@ You need two .json files:
 - **Your key file** — downloaded during account creation or from Backup & Recovery
 - **Server key file** — downloaded from Backup & Recovery > Server Key Share
 
-There are two types of server key files:
+There are three types of server key files:
 - **Safe backup** (filename: kexify-server-hkdf-*.json) — encrypted by the server.
   Contact kexify support to get the decryption key (a 64-character hex string).
 - **Self-custody** (filename: kexify-server-*.json) — encrypted with your passphrase.
   You can decrypt it yourself.
+- **Verifiable export** (filename: kexify-server-pve-*.json) — encrypted with your passphrase.
+  Load it on the recovery web page or in the CLI (the iOS app cannot read it yet).
 
 ### Step 2: Open the recovery page
 Go to: ${RECOVERY_URL}
@@ -40,15 +42,33 @@ ${REPO_URL}
 Once in recovery mode, send your funds to a new wallet.
 You can also use WalletConnect to interact with any dApp.
 
+Recovery mode does not need the kexify server. Balances, fees and sends go straight to public
+networks. The recovery web page covers every supported chain and token (tokens, Stellar assets,
+Algorand ASAs, TON jettons). The iPhone app cannot send Algorand ASAs yet and lists Bitcoin Cash
+and Dogecoin only in test builds: use the web page for those.
+Your address book and policy are not needed. Custom tokens you added on another device must be
+added again (by contract or asset id).
+
+Good to know before you send:
+- Dogecoin: minimum 0.01 DOGE, and a sent transaction cannot be sped up.
+- Stellar: a send to a new account must be at least 1 XLM; issued assets need a trustline.
+- Algorand: the receiving account must opt in to an ASA first.
+
 ## Alternative: CLI Recovery
 
 If the web app is unavailable, you can recover using the command-line tool:
 
 1. Clone the source code: ${REPO_URL}
-2. Run: bun frontend/cli.ts recover <your-key.json> <server-key.json>
-3. The CLI supports both passphrase-encrypted and HKDF-encrypted files
-4. For HKDF files, you will be prompted for the hex decryption key
-5. The CLI can also export your private key for use in any wallet
+2. In that folder, run: bun install
+3. Run: bun cli.ts recover <your-key.json> <server-key.json>
+4. The CLI reads passphrase, safe backup (HKDF) and verifiable export files
+5. For HKDF files, you will be prompted for the hex decryption key
+6. It prints your addresses on every chain and can export your private keys:
+   - ECDSA key (hex) and WIF for Bitcoin, Litecoin and Dogecoin: import into another wallet
+   - EdDSA key (Solana, Stellar, TON, Algorand, Cardano): a raw key, not a seed. Other wallets
+     will show a different address for it, so move these funds with the recovery web page
+7. The CLI cannot send by itself. "bun cli.ts connect" signs WalletConnect requests from
+   EVM and Solana dApps; for everything else use the recovery web page
 
 ## About Server-Encrypted Backup Files (Safe Backup)
 

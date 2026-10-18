@@ -96,7 +96,9 @@
     "client": "Cliente",
     "server": "Servidor",
     "scanWalletConnect": "Escanear QR de WalletConnect",
-    "explore": "Explorar"
+    "explore": "Explorar",
+    "decodeTx": "Decodificar transacción",
+    "verifySignature": "Verificar firma"
   },
   "wallet": {
     "importKeyFileLink": "¿Tienes un archivo de clave? Importa una billetera existente",
@@ -1533,5 +1535,112 @@
     "title": "Cuidado con las estafas",
     "sign": "Nunca firmes texto o datos que te haya enviado otra persona si no los escribiste tú. Los estafadores usan firmas para tomar el control de billeteras y vaciar fondos.",
     "broadcast": "Transmite solo una transacción que hayas creado y revisado tú. Una transacción de otra persona puede mover tus fondos o ser una estafa."
+  },
+  "expert": {
+    "decode": {
+      "title": "Decodificar transacción",
+      "desc": "Pega una transacción sin procesar para ver qué hace. Solo lectura: no se firma ni se envía nada desde esta página.",
+      "input": "Transacción sin procesar",
+      "placeholder": "Hex EVM, base64 / base58 de Solana, hex o PSBT de Bitcoin / Litecoin / Dogecoin...",
+      "utxoNetwork": "Red de la familia Bitcoin (para direcciones)",
+      "network": {
+        "btc": "Bitcoin",
+        "btc-testnet": "Bitcoin testnet",
+        "ltc": "Litecoin",
+        "ltc-testnet": "Litecoin testnet",
+        "doge": "Dogecoin",
+        "doge-testnet": "Dogecoin testnet"
+      },
+      "fromForSim": "Dirección del remitente (para simular una transacción sin firmar)",
+      "simNetwork": "Simular en",
+      "simNoChain": "Sin simulación: esta billetera no tiene ninguna red con este chain ID.",
+      "simRunning": "Simulando...",
+      "simOn": "Simulado en {{network}}",
+      "readOnly": "Para enviar una transacción firmada, usa Transmitir transacción.",
+      "outputN": "Salida {{n}}",
+      "inputN": "Entrada {{n}}",
+      "yes": "Sí",
+      "no": "No",
+      "partial": "En parte (faltan firmas)",
+      "invalidSig": "Firma no válida",
+      "noChainId": "Ninguno (anterior a EIP-155)",
+      "contractCreation": "Creación de contrato",
+      "fact": {
+        "format": "Formato",
+        "chainId": "Chain ID",
+        "nonce": "Nonce",
+        "gasLimit": "Límite de gas",
+        "gasPrice": "Precio del gas",
+        "maxFee": "Tarifa máxima por gas",
+        "priorityFee": "Tarifa de prioridad",
+        "to": "Para",
+        "accessList": "Entradas de la lista de acceso",
+        "authorizations": "Autorizaciones",
+        "signed": "Firmada",
+        "sender": "Remitente (según la firma)",
+        "hash": "Hash de la transacción",
+        "feePayer": "Pagador de comisión",
+        "instructions": "Instrucciones",
+        "txid": "ID de transacción",
+        "locktime": "Tiempo de bloqueo",
+        "negativeFee": "Las salidas superan las entradas en"
+      },
+      "warn": {
+        "delegation": "Esta transacción delega la cuenta del remitente a un contrato (EIP-7702). Ese contrato podría mover todos los activos de la cuenta.",
+        "replayable": "Sin chain ID (anterior a EIP-155): esta transacción firmada es válida en todas las cadenas EVM y puede ser reproducida.",
+        "badSignature": "Una firma no coincide con esta transacción: se modificó después de firmarla o la firma es falsa."
+      }
+    },
+    "verify": {
+      "title": "Verificar firma",
+      "desc": "Comprueba quién firmó un mensaje. Funciona sin conexión; no se firma nada.",
+      "scheme": {
+        "eip191": "Mensaje (EIP-191)",
+        "eip712": "Datos tipados (EIP-712)",
+        "solana": "Mensaje de Solana"
+      },
+      "message": "Mensaje",
+      "typedData": "Datos tipados (JSON)",
+      "messagePlaceholder": "Texto, o 0x-hex para bytes sin procesar",
+      "typedDataPlaceholder": "{\"types\": ..., \"domain\": ..., \"primaryType\": ..., \"message\": ...}",
+      "signature": "Firma",
+      "address": "Dirección del firmante",
+      "expectedOptional": "Firmante esperado (opcional)",
+      "match": "La firma coincide",
+      "noMatch": "Firmado por otra dirección",
+      "invalid": "La firma no es válida para esta dirección",
+      "recovered": "Firmante recuperado:",
+      "eoaOnly": "Solo comprueba cuentas normales. Las billeteras de contrato inteligente (EIP-1271) firman de otra forma."
+    }
+  },
+  "customNetwork": {
+    "title": "Redes personalizadas",
+    "addButton": "Añadir red EVM",
+    "add": "Comprobar y añadir",
+    "checking": "Comprobando RPC...",
+    "name": "Nombre de la red",
+    "chainId": "Chain ID",
+    "symbol": "Símbolo de la moneda",
+    "explorerOptional": "URL del explorador de bloques (opcional)",
+    "testnet": "Red de prueba (las monedas no tienen valor)",
+    "summary": "Cadena {{chainId}} · {{symbol}}",
+    "remove": "Quitar",
+    "removeBody": "¿Quitar esta red de este navegador? Tus monedas en ella siguen en la cadena; vuelve a añadir la red para verlas.",
+    "note": "Solo moneda nativa. El RPC debe informar el chain ID que introduzcas. Los nodos locales como Anvil o Hardhat funcionan en http://127.0.0.1:8545. Se guarda solo en este navegador.",
+    "policyNote": "Red personalizada: los límites de la política no pueden valorarla. Si tienes un límite diario en USD, el servidor rechazará cofirmar este envío.",
+    "rpcMismatch": "Este RPC sirve una cadena distinta de {{chainId}}. Los envíos en esta red se rechazan hasta que lo corrijas o lo borres.",
+    "err": {
+      "name": "Introduce un nombre de red (máximo 40 caracteres).",
+      "nameTaken": "Otra red ya usa este nombre.",
+      "chainId": "Introduce el chain ID como número entero.",
+      "builtIn": "Esta cadena ya está integrada. Para usar tu propio nodo, configura su URL de RPC en Redes.",
+      "exists": "Ya añadiste una red con este chain ID.",
+      "symbol": "Introduce un símbolo de moneda (letras y dígitos, máximo 10).",
+      "url": "Introduce una URL de RPC válida.",
+      "http": "Usa https. http simple solo funciona en este equipo (localhost / 127.0.0.1).",
+      "explorer": "La URL del explorador debe empezar por https://.",
+      "mismatch": "El RPC informa la cadena {{actual}}, no {{declared}}. Red no añadida.",
+      "unreachable": "No se pudo conectar con el RPC o no respondió a eth_chainId."
+    }
   }
 }
