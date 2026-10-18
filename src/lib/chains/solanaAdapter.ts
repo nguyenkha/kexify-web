@@ -68,6 +68,16 @@ function formatTxValue(raw: string, decimals: number): string {
   return fracPart ? `${fmt}.${fracPart}` : fmt;
 }
 
+/** publicnode's Solana mainnet RPC keeps no history: getSignaturesForAddress answers [] and getTransaction null for
+ * older txs (not an error, so nothing falls back). History reads go to the public mainnet-beta RPC instead. */
+const HISTORY_RPC: Record<string, string> = {
+  "https://solana-rpc.publicnode.com": "https://api.mainnet-beta.solana.com",
+};
+
+export function solanaHistoryRpcUrl(rpcUrl: string): string {
+  return HISTORY_RPC[rpcUrl.replace(/\/+$/, "")] ?? rpcUrl;
+}
+
 async function solanaRpc(rpcUrl: string, method: string, params: unknown[]): Promise<unknown> {
   const res = await fetch(rpcUrl, {
     method: "POST",
@@ -134,7 +144,8 @@ export const solanaAdapter: ChainAdapter = {
   },
 
   async fetchTransactions(address, chain, asset, page) {
-    const sigRes = await fetch(chain.rpcUrl, {
+    const historyRpc = solanaHistoryRpcUrl(chain.rpcUrl);
+    const sigRes = await fetch(historyRpc, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -155,7 +166,7 @@ export const solanaAdapter: ChainAdapter = {
 
     const txPromises = slice.map(async (sig) => {
       try {
-        const txRes = await fetch(chain.rpcUrl, {
+        const txRes = await fetch(historyRpc, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
