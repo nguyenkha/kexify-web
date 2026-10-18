@@ -1,5 +1,6 @@
-// Address book + recent recipients, stored per identity (kexify:addressBook:<sub>) and synced end-to-end
-// encrypted by address-book-sync.ts.
+// Address book + recent recipients, stored per workspace (kexify:addressBook:<key share id>) and synced end-to-end
+// encrypted by address-book-sync.ts. The server keeps ONE book per workspace; the web shows the book of the
+// login's book workspace (standalone: its own key share; email: the first key share, remembered per account).
 
 import { getUserOverrides, setUserOverrides, type AddressBookEntry, type AddressBookTombstone, type RecentRecipientEntry, type UserOverrides } from "./userOverrides";
 import { recordKey, type WireRecord } from "./address-book-sync-merge";
@@ -15,20 +16,54 @@ const MAX_RECENT = 10;
 export type AddressEntry = AddressBookEntry;
 export type RecentRecipient = RecentRecipientEntry;
 
-/** JWT `sub` of a token, or undefined. */
-export function tokenSub(token: string | null | undefined): string | undefined {
+/** JWT claims `sub` / `ws` of a token. */
+export function tokenClaims(token: string | null | undefined): { sub?: string; ws?: string } {
   try {
-    if (!token) return undefined;
-    return JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))).sub || undefined;
-  } catch { return undefined; }
+    if (!token) return {};
+    const p = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    return { sub: p.sub || undefined, ws: p.ws || undefined };
+  } catch { return {}; }
 }
 
-/** Current identity (user id or standalone key share id): the session JWT, else the identity kept for the lock screen. */
+const wsPointerKey = (sub: string) => `kexify:abWorkspace:${sub}`;
+
+/** The workspace whose book this account shows: the token's `ws`, else the one remembered for the account. */
+export function bookWorkspaceFor(sub: string | undefined, ws: string | undefined): string | undefined {
+  if (ws) return ws;
+  if (!sub) return undefined;
+  try { return localStorage.getItem(wsPointerKey(sub)) || undefined; } catch { return undefined; }
+}
+
+/** Remember the book workspace of account `sub`; a book kept under the account id by an earlier build moves to it. */
+export function setBookWorkspace(sub: string, ws: string): void {
+  const prev = localStorage.getItem(wsPointerKey(sub));
+  localStorage.setItem(wsPointerKey(sub), ws);
+  // Sources, in order: the previously remembered workspace (re-pick after it was deleted), then the account id (older builds).
+  // The book and its sync state move together, from one source, and only into a workspace that has neither yet:
+  // a state moved without its book would make the next sync see an empty book against a known version.
+  const stateKey = (id: string) => `kexify:abSync:${id}`;
+  const hasBook = (id: string) => (readStore(bookKey(id))?.address_book?.length ?? 0) > 0;
+  if (hasBook(ws) || localStorage.getItem(stateKey(ws))) return;
+  const sources = [prev, sub].filter((id): id is string => !!id && id !== ws);
+  const from = sources.find((id) => hasBook(id) || localStorage.getItem(stateKey(id)));
+  if (!from) return;
+  const book = readStore(bookKey(from));
+  if (book) { localStorage.setItem(bookKey(ws), JSON.stringify(book)); localStorage.removeItem(bookKey(from)); }
+  try {
+    const s = JSON.parse(localStorage.getItem(stateKey(from)) ?? "null");
+    if (s && typeof s === "object") localStorage.setItem(stateKey(ws), JSON.stringify({ ...s, sub: ws }));
+  } catch { /* unreadable state: the next round starts fresh */ }
+  localStorage.removeItem(stateKey(from));
+}
+
+/** Current book owner: the session JWT's workspace, else the account's remembered one (also for the lock screen). */
 function currentIdentityId(): string | undefined {
-  let fromToken: string | undefined;
-  try { fromToken = tokenSub(sessionStorage.getItem("secretkey_token")); } catch { /* no sessionStorage */ }
-  if (fromToken) return fromToken;
-  try { return JSON.parse(localStorage.getItem("kxi:identity") ?? "null")?.sub || undefined; } catch { return undefined; }
+  let claims: { sub?: string; ws?: string } = {};
+  try { claims = tokenClaims(sessionStorage.getItem("secretkey_token")); } catch { /* no sessionStorage */ }
+  if (!claims.sub) {
+    try { claims = { sub: JSON.parse(localStorage.getItem("kxi:identity") ?? "null")?.sub || undefined }; } catch { /* ignore */ }
+  }
+  return bookWorkspaceFor(claims.sub, claims.ws) ?? claims.sub;
 }
 
 const BOOK_FIELDS = ["address_book", "address_book_deleted", "recent_recipients"] as const;

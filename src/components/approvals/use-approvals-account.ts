@@ -4,6 +4,7 @@ import { fetchChains, type Chain } from "../../lib/api";
 import { applyChainOverrides } from "../../lib/userOverrides";
 import { getRecoveryKeys, isRecoveryMode } from "../../lib/recovery";
 import { getChainAdapter } from "../../lib/chains/adapter";
+import { registerWalletAddress } from "../../lib/chains/chain-proxy-client";
 import { apiUrl } from "../../lib/apiBase";
 
 export interface ApprovalsAccount { chain: Chain; address: string; keyName: string }
@@ -27,6 +28,7 @@ export function useApprovalsAccount(keyId: string | undefined, chainName: string
         if (!live || !chain || chain.type !== "evm" || !key?.publicKey) return;
         const testnet = chain.name.toLowerCase().includes("testnet");
         const address = getChainAdapter(chain.type).deriveAddress(key.publicKey, { testnet });
+        registerWalletAddress(address, key.id);
         setAccount({ chain, address, keyName: key.name ?? "" });
       } catch {
         /* not found */

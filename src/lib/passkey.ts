@@ -1,5 +1,6 @@
 import { startRegistration, startAuthentication, base64URLStringToBuffer } from "@simplewebauthn/browser";
 import { authHeaders } from "./auth";
+import { workspaceHeaders } from "./workspace-token";
 import { apiUrl } from "./apiBase";
 import { splitAssertion } from "./webauthn-assertion-json";
 
@@ -12,7 +13,8 @@ import { splitAssertion } from "./webauthn-assertion-json";
 export type PasskeyActionName =
   | "sign" | "generate" | "eddsa-init" | "policy.set" | "policy.cancel" | "backup.upload"
   | "export.hkdf" | "export.request" | "export.request-cancel" | "export.share" | "export.pve"
-  | "unfreeze" | "unfreeze.cancel" | "passkey.register" | "passkey.delete";
+  | "unfreeze" | "unfreeze.cancel" | "passkey.register" | "passkey.delete"
+  | "session.revoke" | "session.revoke-others";
 
 export interface PasskeyAction {
   action: PasskeyActionName;
@@ -23,6 +25,8 @@ export interface PasskeyAction {
   rulesSha256?: string;
   /** passkey.delete */
   passkeyId?: string;
+  /** session.revoke */
+  sessionId?: string;
   /** export.share / export.pve: sha256 hex of the base64 ephemeral or PVE key sent in the body. */
   ekSha256?: string;
 }
@@ -44,6 +48,11 @@ export function passkeyHeader(ticket: string | undefined): Record<string, string
 /** Headers for sensitive endpoints: JSON + auth, plus the action's ticket when given. */
 export function sensitiveHeaders(ticket?: string): Record<string, string> {
   return { "Content-Type": "application/json", ...authHeaders(), ...passkeyHeader(ticket) };
+}
+
+/** Same as sensitiveHeaders, with the token of workspace (key share) `ws` — for wallet routes. */
+export async function sensitiveHeadersFor(ws: string, ticket?: string): Promise<Record<string, string>> {
+  return { "Content-Type": "application/json", ...(await workspaceHeaders(ws)), ...passkeyHeader(ticket) };
 }
 
 /** One passkey tap, then the request with its ticket. */

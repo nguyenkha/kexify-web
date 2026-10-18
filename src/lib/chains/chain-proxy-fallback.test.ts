@@ -26,7 +26,7 @@ g.document ??= { documentElement: { setAttribute() {}, removeAttribute() {} } };
 
 const { evmAdapter } = await import("./evmAdapter");
 const { solanaAdapter } = await import("./solanaAdapter");
-const { proxyNetwork, resetChainProxyState, pauseMs } = await import("./chain-proxy-client");
+const { proxyNetwork, resetChainProxyState, pauseMs, registerWalletAddress } = await import("./chain-proxy-client");
 const { parseEvmBalance, parseEvmHistory } = await import("./chain-proxy-evm");
 const { exitRecoveryMode } = await import("../recovery");
 // Other test files in the same run may have installed their own storage stubs or left recovery mode on.
@@ -140,7 +140,17 @@ describe("evmAdapter balances", () => {
     expect(tokens.map((t) => [t.asset.symbol, t.balance])).toEqual([["USDC", "5000000"], ["LITHO", "9000000000"]]);
   });
 
+  test("403 for an address without a workspace token does not pause the network", async () => {
+    mockFetch(rpcError, () => json({ error: "Address not owned" }, 403));
+    expect(await evmAdapter.fetchNativeBalance(EVM_ADDR, BASE, ETH)).toBeNull();
+    expect(proxyNetwork(BASE)).toBe("base");
+  });
+
   test("403 keeps the public result and pauses the network", async () => {
+    // A token that really carries the workspace (standalone-style, ws = k1): the 403 is a real refusal.
+    const scoped = `e30.${Buffer.from(JSON.stringify({ sub: "k1", ws: "k1", exp: 4102444800 })).toString("base64url")}.sig`;
+    (globalThis.sessionStorage as Storage).setItem("secretkey_token", scoped);
+    registerWalletAddress(EVM_ADDR, "k1");
     mockFetch(rpcError, () => json({ error: "Address not owned" }, 403));
     expect(await evmAdapter.fetchNativeBalance(EVM_ADDR, BASE, ETH)).toBeNull();
     expect(await evmAdapter.fetchNativeBalance(EVM_ADDR, BASE, ETH)).toBeNull();

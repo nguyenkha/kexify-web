@@ -11,6 +11,7 @@ import { customNetworkChain } from "../lib/custom-networks";
 import { trackExpertTool } from "../lib/expert-usage";
 import { setCacheTtl, clearAllTokenBalanceCaches, notifyBalanceRefresh } from "../lib/dataCache";
 import { authHeaders } from "../lib/auth";
+import { workspaceHeaders } from "../lib/workspace-token";
 import { apiUrl } from "../lib/apiBase";
 import { fetchPasskeys } from "../lib/passkey";
 import { PasskeyGate } from "./PasskeyGate";
@@ -304,7 +305,7 @@ export function Wallet() {
   async function toggleKey(id: string, enabled: boolean) {
     const res = await fetch(apiUrl(`/api/keys/${id}`), {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json", ...(await workspaceHeaders(id)) },
       body: JSON.stringify({ enabled }),
     });
     const data = await res.json();
@@ -323,7 +324,7 @@ export function Wallet() {
   async function cancelEnable(id: string) {
     await fetch(apiUrl(`/api/keys/${id}`), {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json", ...(await workspaceHeaders(id)) },
       body: JSON.stringify({ cancelEnable: true }),
     });
     setKeys((prev) =>
@@ -334,7 +335,7 @@ export function Wallet() {
   async function renameKey(id: string, name: string) {
     await fetch(apiUrl(`/api/keys/${id}`), {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json", ...(await workspaceHeaders(id)) },
       body: JSON.stringify({ name: name || null }),
     });
     setKeys((prev) =>

@@ -2,7 +2,7 @@ import { hexToBytes } from "../../shared/utils";
 import { toBase64, performMpcSign, clientKeys, restoreKeyHandles, clearClientKey } from "../../lib/mpc";
 import { authHeaders } from "../../lib/auth";
 import { apiUrl } from "../../lib/apiBase";
-import { sensitiveHeaders } from "../../lib/passkey";
+import { sensitiveHeadersFor } from "../../lib/passkey";
 import {
   buildTransaction,
   serializeForSigning,
@@ -81,7 +81,7 @@ export async function executeSigningFlow(ctx: SigningContext): Promise<void> {
       keyId: keyFile.id,
       hash: sighash,
       initPayload: { id: keyFile.id, unsignedTx: toBase64(serializedTx), from: address, evmChainId: chainId },
-      headers: sensitiveHeaders(),
+      headers: await sensitiveHeadersFor(keyFile.id),
     });
 
     // 3. Parse DER signature, determine recovery param, assemble signed tx

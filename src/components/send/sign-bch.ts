@@ -3,7 +3,7 @@ import { hexToBytes, bytesToHex } from "../../shared/utils";
 import { toBase64, performBatchMpcSign, clientKeys, restoreKeyHandles, clearClientKey } from "../../lib/mpc";
 import { authHeaders } from "../../lib/auth";
 import { apiUrl } from "../../lib/apiBase";
-import { sensitiveHeaders } from "../../lib/passkey";
+import { sensitiveHeadersFor } from "../../lib/passkey";
 import { parseDerSignature, parseUnits } from "../../lib/chains/evmTx";
 import {
   fetchUtxos as fetchBchUtxos,
@@ -83,7 +83,7 @@ export async function executeBchSigningFlow(ctx: SigningContext): Promise<void> 
         id: keyFile.id, chainType: "bch", bchTx: bchTxPayload,
         pubKeyHash: toBase64(pkHash), from: address,
       },
-      headers: sensitiveHeaders(),
+      headers: await sensitiveHeadersFor(keyFile.id),
     });
 
     for (let i = 0; i < allSigs.length; i++) {

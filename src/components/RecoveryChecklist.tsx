@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useExpertMode } from "../context/ExpertModeContext";
 import { authHeaders, isStandaloneJwt, getIdentityId } from "../lib/auth";
-import { sensitiveHeaders, authenticatePasskey, authenticatePasskeyForImport, PasskeyPendingError } from "../lib/passkey";
+import { sensitiveHeadersFor, authenticatePasskey, authenticatePasskeyForImport, PasskeyPendingError } from "../lib/passkey";
 import { passkeyErrorMessage } from "../lib/passkey-error-message";
 import { Spinner } from "./ui";
 import { apiUrl } from "../lib/apiBase";
@@ -101,7 +101,7 @@ export function RecoveryChecklist() {
     setHkdfError(null);
     try {
       const { token } = await authenticatePasskey({ action: { action: "export.hkdf", keyShareId: account.id } });
-      const res = await fetch(apiUrl(`/api/keys/${account.id}/backup/server-share-hkdf`), { headers: sensitiveHeaders(token) });
+      const res = await fetch(apiUrl(`/api/keys/${account.id}/backup/server-share-hkdf`), { headers: await sensitiveHeadersFor(account.id, token) });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         setHkdfError(data.error || t("recovery.downloadFailed"));
@@ -232,7 +232,7 @@ export function RecoveryChecklist() {
     setEscrowError(null);
     try {
       const { token } = await authenticatePasskey({ action: { action: "backup.upload", keyShareId: data.id } });
-      const headers = sensitiveHeaders(token);
+      const headers = await sensitiveHeadersFor(data.id, token);
       const encryptedJson = JSON.stringify(data);
       const res = await fetch(apiUrl(`/api/keys/${data.id}/backup`), {
         method: "POST",
@@ -263,7 +263,7 @@ export function RecoveryChecklist() {
     setRestoreError(null);
     try {
       // Step 1: Download the backup (session only; the PRF tap below decrypts it)
-      const res = await fetch(apiUrl(`/api/keys/${accountId}/backup`), { headers: sensitiveHeaders() });
+      const res = await fetch(apiUrl(`/api/keys/${accountId}/backup`), { headers: await sensitiveHeadersFor(accountId) });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
         setRestoreError(d.error || t("recovery.restoreFailed"));

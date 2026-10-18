@@ -4,7 +4,7 @@ import { keccak_256 } from "@noble/hashes/sha3";
 import { hexToBytes } from "../shared/utils";
 import { ethers } from "ethers";
 import { performMpcSign, toBase64, toHex, clientKeys, restoreKeyHandles } from "./mpc";
-import { sensitiveHeaders } from "./passkey";
+import { sensitiveHeadersFor } from "./passkey";
 import {
   buildTransaction,
   hashForSigning,
@@ -53,7 +53,7 @@ async function signHash(
     keyId: keyFile.id,
     hash,
     initPayload: { id: keyFile.id, data: toBase64(hash), from: address, ...(messageType ? { messageType } : {}), ...(messagePayload ?? {}) },
-    headers: sensitiveHeaders(),
+    headers: await sensitiveHeadersFor(keyFile.id),
   });
 
   const { r, s } = parseDerSignature(sigRaw);
@@ -188,7 +188,7 @@ export async function wcSendTransaction(
       from: address,
       evmChainId: chainId,
     },
-    headers: sensitiveHeaders(),
+    headers: await sensitiveHeadersFor(keyFile.id),
   });
 
   onProgress?.("broadcasting");
@@ -238,7 +238,7 @@ export async function wcSolanaSignTransaction(
       chainType: "solana",
       unsignedTx: toBase64(message),
     },
-    headers: sensitiveHeaders(),
+    headers: await sensitiveHeadersFor(keyFile.id),
   });
 
   // Fill our signature into the original transaction at slot 0 (fee payer)
@@ -326,7 +326,7 @@ export async function wcSolanaSignMessage(
       messageType: "solana_signMessage",
       raw: toBase64(messageBytes),
     },
-    headers: sensitiveHeaders(),
+    headers: await sensitiveHeadersFor(keyFile.id),
   });
 
   return { signature: encodeSolanaSignature(sigRaw) };
@@ -367,7 +367,7 @@ export async function wcTronSignTransaction(
       },
       from: address,
     },
-    headers: sensitiveHeaders(),
+    headers: await sensitiveHeadersFor(keyFile.id),
   });
 
   const { r, s } = parseDerSignature(sigRaw);

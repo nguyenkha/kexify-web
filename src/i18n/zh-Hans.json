@@ -786,6 +786,25 @@
       "cancel": "取消"
     }
   },
+  "sessions": {
+    "title": "会话",
+    "description": "已登录你账户的设备。退出其他设备需要使用你的通行密钥。",
+    "thisDevice": "此设备",
+    "lastActive": "最近活动 {{when}}",
+    "signOut": "退出登录",
+    "signingOut": "正在退出...",
+    "cancel": "取消",
+    "signOutOthers": "退出所有其他设备",
+    "signOutOthersConfirm": "退出所有其他设备?",
+    "loadFailed": "无法加载会话。",
+    "revokeFailed": "无法退出该会话。",
+    "platform": {
+      "web": "网页浏览器",
+      "ios": "iOS 应用",
+      "cli": "命令行"
+    },
+    "needPasskey": "添加通行密钥后才能退出其他设备。"
+  },
   "keyShare": {
     "exportPending": "已请求导出服务器密钥分片。{{date}} 起可用。",
     "exportReady": "服务器密钥分片的导出已就绪。请立即下载，或取消该请求。",

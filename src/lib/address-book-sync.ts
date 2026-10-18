@@ -7,10 +7,11 @@
 
 import { apiUrl } from "./apiBase";
 import { getToken } from "./auth";
+import { WorkspaceNotFoundError, workspaceToken } from "./workspace-token";
 import { isRecoveryMode } from "./recovery";
 import { availableKeks, onKekAdded } from "./address-book-kek";
 import { syncOnce, type RemoteBook, type SyncIO, type SyncState, type SyncStatus } from "./address-book-sync-engine";
-import { ADDRESS_BOOK_LOCAL_EDIT, claimLegacyAddressBook, readLocalRecords, tokenSub, writeLocalRecords } from "./addressBook";
+import { ADDRESS_BOOK_LOCAL_EDIT, claimLegacyAddressBook, bookWorkspaceFor, readLocalRecords, setBookWorkspace, tokenClaims, writeLocalRecords } from "./addressBook";
 
 const STATE_KEY = "kexify:abSync";
 export const ADDRESS_BOOK_CHANGED = "kexify:address-book-changed";
@@ -68,21 +69,67 @@ async function ownKeks(sub: string, token: string): Promise<ReadonlyMap<string, 
   return out;
 }
 
+/** The OLDEST key share by createdAt among `keys` (the API list has no order); same rule as iOS. Ties: smaller id. */
+export function oldestKeyId(keys: { id?: unknown; createdAt?: unknown }[]): string | null {
+  const rows = keys.filter((k): k is { id: string; createdAt?: unknown } => typeof k.id === "string");
+  const time = (k: { createdAt?: unknown }) => { const t = Date.parse(String(k.createdAt)); return Number.isNaN(t) ? Infinity : t; };
+  rows.sort((a, b) => time(a) - time(b) || (a.id < b.id ? -1 : 1));
+  return rows[0]?.id ?? null;
+}
+
+/** The workspace whose book this login syncs: standalone = its own key share; email = the remembered wallet while it
+ *  still exists, else the account's oldest key share (re-picked and remembered). */
+async function bookWorkspace(token: string, gone?: string): Promise<string | null> {
+  const { sub, ws } = tokenClaims(token);
+  if (!sub) return null;
+  if (ws) return ws;
+  const res = await fetch(apiUrl("/api/keys"), { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) { const kept = bookWorkspaceFor(sub, ws); return kept && kept !== gone ? kept : null; } // offline-ish: keep what we had
+  const keys = ((await res.json()) as { keys?: { id?: unknown; createdAt?: unknown }[] }).keys ?? [];
+  const remembered = bookWorkspaceFor(sub, ws);
+  if (remembered && remembered !== gone && keys.some((k) => k.id === remembered)) return remembered;
+  // Re-pick (setBookWorkspace moves the old local book and sync state to the new workspace).
+  const pick = oldestKeyId(keys.filter((k) => k.id !== gone));
+  // No wallet left: keep the stale pointer, so the next wallet's pick still migrates the local book from it.
+  if (pick) setBookWorkspace(sub, pick);
+  return pick;
+}
+
+/** Owner of the book (workspace = key share id) and its token. A 404 on the exchange means that wallet is gone: re-pick once. */
+async function resolveBook(token: string): Promise<{ sub: string; wsToken: string } | null> {
+  let gone: string | undefined;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const sub = await bookWorkspace(token, gone);
+    if (!sub) return null;
+    try {
+      const wsToken = await workspaceToken(sub, { strict: true });
+      return wsToken ? { sub, wsToken } : null;
+    } catch (err) {
+      if (!(err instanceof WorkspaceNotFoundError)) throw err;
+      gone = sub;
+    }
+  }
+  return null;
+}
+
 async function round(): Promise<void> {
   const token = getToken();
-  const sub = tokenSub(token);
-  if (!token || !sub || isRecoveryMode()) return;
+  const accountSub = tokenClaims(token).sub;
+  if (!token || !accountSub || isRecoveryMode()) return;
+  const book = await resolveBook(token);
+  if (!book) return;
+  const { sub, wsToken } = book;
   const io: SyncIO = {
     sub,
     async get() {
-      const res = await api(token, "GET");
+      const res = await api(wsToken, "GET");
       if (!res.ok) throw new Error(`address book GET ${res.status}`);
       return remoteFrom(await res.json());
     },
     async put(blob, expected) {
       // Signed out or switched account since the round started: send nothing.
       if (getToken() !== token) throw new Error("session changed");
-      const res = await api(token, "PUT", { blob }, expected);
+      const res = await api(wsToken, "PUT", { blob }, expected);
       const j = await res.json().catch(() => ({}));
       if (res.ok) return { ok: true, version: Number(j.version) };
       if (res.status === 409) return { ok: false, conflict: remoteFrom(j) };
@@ -97,7 +144,7 @@ async function round(): Promise<void> {
     },
     loadState: () => loadState(sub),
     saveState,
-    ownKeks: async () => (keks = await ownKeks(sub, token)),
+    ownKeks: async () => (keks = await ownKeks(accountSub, token)),
   };
   let keks: ReadonlyMap<string, Uint8Array> = new Map();
   try {

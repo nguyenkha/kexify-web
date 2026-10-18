@@ -1,7 +1,7 @@
 import { performMpcSign, clientKeys, restoreKeyHandles, clearClientKey } from "../../lib/mpc";
 import { authHeaders } from "../../lib/auth";
 import { apiUrl } from "../../lib/apiBase";
-import { sensitiveHeaders } from "../../lib/passkey";
+import { sensitiveHeadersFor } from "../../lib/passkey";
 import {
   buildAlgoPaymentTx,
   buildAlgoAssetTransferTx,
@@ -75,7 +75,7 @@ export async function executeAlgoSigningFlow(ctx: SigningContext): Promise<void>
         eddsaPublicKey: keyFile.eddsaPublicKey,
         algoTx: toBase64(txBytes),
       },
-      headers: sensitiveHeaders(),
+      headers: await sensitiveHeadersFor(keyFile.id),
     });
 
     // 4. Assemble signed transaction

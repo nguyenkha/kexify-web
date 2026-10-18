@@ -5,7 +5,8 @@
 
 import type { Chain, Transaction } from "../../shared/types";
 import { apiUrl } from "../apiBase";
-import { getToken } from "../auth";
+import { decodeJwtPayload, getToken } from "../auth";
+import { workspaceHeaders } from "../workspace-token";
 import { isRecoveryActive } from "../recovery-flag";
 
 /** App chain name -> proxy network (the route's allowlist, api/src/chain-proxy/networks.ts). Mainnets only. */
@@ -30,6 +31,30 @@ export type ProxyBody = Record<string, unknown>;
 const pausedUntil = new Map<string, number>();
 const balanceMemo = new Map<string, { at: number; body: Promise<ProxyBody | null> }>();
 const lastHistoryRows = new Map<string, number>();
+/** wallet address (canonical) -> key share id: the proxy only serves a token's own workspace addresses. */
+const addressWorkspace = new Map<string, string>();
+
+/** Record that `address` belongs to wallet `keyId`, so proxy calls for it carry that workspace's token. */
+export function registerWalletAddress(address: string, keyId: string): void {
+  if (address) addressWorkspace.set(canonical(address), keyId);
+}
+
+/** Auth header for a proxy call: the workspace token of the address's wallet when known, else the account token. */
+async function proxyAuth(address: unknown): Promise<{ headers: Record<string, string>; scoped: boolean } | null> {
+  const token = getToken();
+  if (!token) return null;
+  const ws = typeof address === "string" ? addressWorkspace.get(canonical(address)) : undefined;
+  if (!ws) return { headers: { Authorization: `Bearer ${token}` }, scoped: false };
+  const headers = await workspaceHeaders(ws);
+  // Scoped only when the token really carries a workspace (the exchange may have fallen back to the account token).
+  const jwt = headers.Authorization?.slice(7);
+  return jwt ? { headers, scoped: !!decodeJwtPayload(jwt)?.ws } : null;
+}
+
+/** A 403 for a request without a workspace token (unknown address) says nothing about the network: no pause. */
+function pauseFor(status: number, fallbackPublic: boolean, scoped: boolean): number | null {
+  return status === 403 && !scoped ? null : pauseMs(status, fallbackPublic);
+}
 
 /** How long a refusal pauses a network: a daily cap (429) longer than the rest. null = no pause. */
 export function pauseMs(status: number, fallbackPublic: boolean): number | null {
@@ -64,19 +89,19 @@ function sameAddress(a: unknown, b: string): boolean {
 
 /** One proxy call, with its status; null on a network error or a non-JSON answer. Refusals pause the network. */
 export async function proxyPost(network: string, method: string, body: Record<string, unknown>): Promise<{ status: number; body: ProxyBody } | null> {
-  const token = getToken();
-  if (!token) return null;
+  const auth = await proxyAuth(body.address);
+  if (!auth) return null;
   try {
     const res = await fetch(apiUrl(`/api/chain/${network}/${method}`), {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      headers: { ...auth.headers, "Content-Type": "application/json" },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     const json = (await res.json().catch(() => null)) as ProxyBody | null;
     if (!json || typeof json !== "object") return null;
     if (!res.ok) {
-      const ms = pauseMs(res.status, json.fallback === "public");
+      const ms = pauseFor(res.status, json.fallback === "public", auth.scoped);
       if (ms) pausedUntil.set(network, Math.max(pausedUntil.get(network) ?? 0, Date.now() + ms));
     }
     return { status: res.status, body: json };
@@ -87,18 +112,18 @@ export async function proxyPost(network: string, method: string, body: Record<st
 
 /** One proxy read; null on any failure (the caller keeps its public result). */
 export async function proxyRead(network: string, method: "balance" | "history" | "utxos" | "approvals", address: string): Promise<ProxyBody | null> {
-  const token = getToken();
-  if (!token) return null;
+  const auth = await proxyAuth(address);
+  if (!auth) return null;
   try {
     const res = await fetch(apiUrl(`/api/chain/${network}/${method}`), {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      headers: { ...auth.headers, "Content-Type": "application/json" },
       body: JSON.stringify({ address }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     const body = (await res.json().catch(() => null)) as ProxyBody | null;
     if (!res.ok || !body || typeof body !== "object") {
-      const ms = pauseMs(res.status, body?.fallback === "public");
+      const ms = pauseFor(res.status, body?.fallback === "public", auth.scoped);
       if (ms) pausedUntil.set(network, Math.max(pausedUntil.get(network) ?? 0, Date.now() + ms));
       return null;
     }
@@ -188,4 +213,5 @@ export function resetChainProxyState(): void {
   pausedUntil.clear();
   balanceMemo.clear();
   lastHistoryRows.clear();
+  addressWorkspace.clear();
 }

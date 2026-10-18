@@ -786,6 +786,25 @@
       "cancel": "Cancel"
     }
   },
+  "sessions": {
+    "title": "Sessions",
+    "description": "Devices signed in to your account. Signing out another device needs your passkey.",
+    "thisDevice": "This device",
+    "lastActive": "Last active {{when}}",
+    "signOut": "Sign out",
+    "signingOut": "Signing out...",
+    "cancel": "Cancel",
+    "signOutOthers": "Sign out all other devices",
+    "signOutOthersConfirm": "Sign out every other device?",
+    "loadFailed": "Could not load sessions.",
+    "revokeFailed": "Could not sign out that session.",
+    "platform": {
+      "web": "Web browser",
+      "ios": "iOS app",
+      "cli": "Command line"
+    },
+    "needPasskey": "Add a passkey to sign out other devices."
+  },
   "keyShare": {
     "exportPending": "Server key share export requested. Available from {{date}}.",
     "exportReady": "Server key share export is ready. Download it now, or cancel the request.",

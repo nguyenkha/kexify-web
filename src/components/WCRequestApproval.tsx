@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import type { PendingRequest } from "../context/WalletConnectContext";
 import type { KeyShare, Chain, Asset } from "../shared/types";
 import { authHeaders, getMe } from "../lib/auth";
+import { workspaceHeaders } from "../lib/workspace-token";
 import { apiUrl } from "../lib/apiBase";
 import { fetchChains, fetchAssets } from "../lib/api";
 import { applyChainOverrides } from "../lib/userOverrides";
@@ -531,7 +532,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss, ori
         if (to) {
           const res = await fetch(apiUrl(`/api/keys/${account.keyId}/rules/check`), {
             method: "POST",
-            headers: { ...authHeaders(), "Content-Type": "application/json" },
+            headers: { ...(await workspaceHeaders(account.keyId)), "Content-Type": "application/json" },
             body: JSON.stringify({
               to, amount, nativeSymbol, contractAddress, chainId: reqChainId,
               chainType: isSolana ? "solana" : isTronTx ? "tron" : "evm",

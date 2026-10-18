@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { authHeaders } from "../lib/auth";
-import { sensitiveHeaders, fetchWithPasskey, rulesSha256, type PasskeyAction } from "../lib/passkey";
+import { workspaceHeaders } from "../lib/workspace-token";
+import { sensitiveHeadersFor, fetchWithPasskey, rulesSha256, type PasskeyAction } from "../lib/passkey";
 import { PasskeyChallenge } from "./PasskeyChallenge";
 import type { PolicyRuleBody, PolicyVersion } from "../shared/types";
 import { useFrozen } from "../context/FrozenContext";
@@ -76,7 +76,7 @@ export function PolicyRules({
     setLoadFailed(false);
     try {
       const res = await fetch(apiUrl(`/api/keys/${keyId}/rules`), {
-        headers: authHeaders(),
+        headers: await workspaceHeaders(keyId),
       });
       if (!res.ok) throw new Error(`rules ${res.status}`);
       const data = await res.json();
@@ -148,7 +148,7 @@ export function PolicyRules({
     try {
       const res = await fetch(apiUrl(`/api/keys/${keyId}/rules/pending`), {
         method: "POST",
-        headers: sensitiveHeaders(ticket),
+        headers: await sensitiveHeadersFor(keyId, ticket),
         body: JSON.stringify({ rules: draft }),
       });
       const data = await res.json();
@@ -170,7 +170,7 @@ export function PolicyRules({
     try {
       const res = await fetchWithPasskey(apiUrl(`/api/keys/${keyId}/rules/pending`), {
         method: "DELETE",
-        headers: sensitiveHeaders(),
+        headers: await sensitiveHeadersFor(keyId),
       }, { action: "policy.cancel", keyShareId: keyId });
       if (!res.ok) {
         const data = await res.json();

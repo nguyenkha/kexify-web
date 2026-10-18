@@ -13,7 +13,7 @@ import { performMpcSign, clientKeys, restoreKeyHandles, clearClientKey } from ".
 import { authHeaders } from "../lib/auth";
 import { useToast } from "../context/ToastContext";
 import { apiUrl } from "../lib/apiBase";
-import { sensitiveHeaders } from "../lib/passkey";
+import { sensitiveHeadersFor } from "../lib/passkey";
 import { usePasskeyPresence } from "./use-passkey-presence";
 import { PasskeyGate } from "./PasskeyGate";
 import { isRecoveryMode } from "../lib/recovery";
@@ -154,7 +154,7 @@ export function AlgoOptInDialog({
           eddsaPublicKey: keyFile.eddsaPublicKey,
           algoTx: btoa(String.fromCharCode(...txBytes)),
         },
-        headers: sensitiveHeaders(),
+        headers: await sensitiveHeadersFor(keyFile.id),
       });
       const signedTx = assembleAlgoSignedTx(txBytes, sigRaw);
 

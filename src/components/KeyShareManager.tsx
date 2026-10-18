@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { listKeyShares, deleteKeyShare, saveKeyShareWithPrf, saveKeyShareWithPassphrase, hasKeyShare, getKeyShareFromStoredShare, getKeyShareMode, getKeyShareWithPrf, type KeyShareInfo } from "../lib/keystore";
-import { authenticatePasskey, authenticatePasskeyForImport, sensitiveHeaders, sha256Hex } from "../lib/passkey";
+import { authenticatePasskey, authenticatePasskeyForImport, sensitiveHeadersFor, sha256Hex } from "../lib/passkey";
 import { authenticateWithTapFallback } from "../lib/passkey-tap-prompt";
 import { passkeyErrorMessage } from "../lib/passkey-error-message";
 import { encryptKeyFile, decryptKeyFile, type KeyFileData } from "../lib/crypto";
@@ -217,7 +217,7 @@ export function KeyShareManager() {
     setError("");
     try {
       // Reading the escrow needs only the session; the PRF tap below decrypts it.
-      const res = await fetch(apiUrl(`/api/keys/${keyId}/backup`), { headers: sensitiveHeaders() });
+      const res = await fetch(apiUrl(`/api/keys/${keyId}/backup`), { headers: await sensitiveHeadersFor(keyId) });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         setError(data.error || t("keyShare.failedToDownload"));
@@ -312,7 +312,7 @@ export function KeyShareManager() {
     setServerExportError("");
     try {
       const { token } = await authenticatePasskey({ action: { action: "export.hkdf", keyShareId: keyId } });
-      const res = await fetch(apiUrl(`/api/keys/${keyId}/backup/server-share-hkdf`), { headers: sensitiveHeaders(token) });
+      const res = await fetch(apiUrl(`/api/keys/${keyId}/backup/server-share-hkdf`), { headers: await sensitiveHeadersFor(keyId, token) });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         setServerExportError(data.error || t("keyShare.downloadFailed"));
@@ -367,7 +367,7 @@ export function KeyShareManager() {
       // The ticket is bound to the key the share will be encrypted to.
       const { token } = await authenticateWithTapFallback({ action: { action: "export.share", keyShareId: keyId, ekSha256: await sha256Hex(ephKeyBase64) } });
 
-      const headers = sensitiveHeaders(token);
+      const headers = await sensitiveHeadersFor(keyId, token);
       const res = await fetch(apiUrl(`/api/keys/${keyId}/backup/server-share`), {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },

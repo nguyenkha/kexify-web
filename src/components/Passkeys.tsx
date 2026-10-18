@@ -12,6 +12,7 @@ import {
 import { passkeyErrorMessage } from "../lib/passkey-error-message";
 import { ErrorBox } from "./ui";
 import { KeyRound } from "lucide-react";
+import { SessionsList } from "./settings/sessions-list";
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString(undefined, {
@@ -192,6 +193,7 @@ export function Passkeys() {
           {adding ? t("passkey.registering") : <><KeyRound className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("passkey.addFirstButton")}</>}
         </button>
         {error && <ErrorBox className="mt-4">{error}</ErrorBox>}
+        <div className="w-full max-w-xl text-left mt-8"><SessionsList hasPasskeys={false} /></div>
       </div>
     );
   }
@@ -299,6 +301,8 @@ export function Passkeys() {
         </svg>
         {adding ? t("passkey.registering") : t("passkey.addPasskey")}
       </button>
+
+      <SessionsList hasPasskeys={passkeys.some((p) => !isPasskeyPending(p))} />
     </div>
   );
 }

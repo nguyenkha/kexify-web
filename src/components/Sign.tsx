@@ -4,7 +4,7 @@ import { ExpertPhishingWarning } from "./expert-phishing-warning";
 import { trackExpertTool } from "../lib/expert-usage";
 import { toHex, sha256, performMpcSign, clientKeys, restoreKeyHandles } from "../lib/mpc";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
-import { sensitiveHeaders } from "../lib/passkey";
+import { sensitiveHeadersFor } from "../lib/passkey";
 import { usePasskeyPresence } from "./use-passkey-presence";
 import { parseDerSignature } from "../lib/chains/evmTx";
 import { hexToBytes } from "../shared/utils";
@@ -136,7 +136,7 @@ export function Sign() {
         keyId: keyFile.id,
         hash,
         initPayload: { id: keyFile.id, raw: message, algorithm: useEddsa ? "eddsa" : "ecdsa" },
-        headers: sensitiveHeaders(),
+        headers: await sensitiveHeadersFor(keyFile.id),
       });
 
       setSignature(toHex(sigRaw));

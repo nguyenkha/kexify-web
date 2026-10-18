@@ -1,7 +1,7 @@
 import { toBase64, performMpcSign, clientKeys, restoreKeyHandles, clearClientKey } from "../../lib/mpc";
 import { authHeaders } from "../../lib/auth";
 import { apiUrl } from "../../lib/apiBase";
-import { sensitiveHeaders } from "../../lib/passkey";
+import { sensitiveHeadersFor } from "../../lib/passkey";
 import {
   strKeyToPublicKey,
   eddsaPubKeyToXlmAddress,
@@ -99,7 +99,7 @@ export async function executeXlmSigningFlow(ctx: SigningContext): Promise<void> 
           ...(xlmMemo ? { memo: xlmMemo } : {}),
         },
       },
-      headers: sensitiveHeaders(),
+      headers: await sensitiveHeadersFor(keyFile.id),
     });
 
     // 4. Assemble signed envelope

@@ -1,5 +1,6 @@
 import type { Chain, Asset, KeyShare, ChainType } from "../shared/types";
 import { getChainAdapter } from "./chains/adapter";
+import { registerWalletAddress } from "./chains/chain-proxy-client";
 import { publicKeyToBtcLegacyAddress } from "./chains/btcAdapter";
 import { publicKeyToLtcLegacyAddress } from "./chains/ltcAdapter";
 
@@ -274,5 +275,6 @@ export function buildAccountRows(
       }
     }
   }
+  for (const r of rows) registerWalletAddress(r.address, r.keyId);
   return rows;
 }

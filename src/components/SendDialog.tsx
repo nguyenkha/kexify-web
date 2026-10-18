@@ -17,6 +17,7 @@ import { isTestnetChain } from "../lib/testnet";
 import { clearClientKey } from "../lib/mpc";
 import { Clock, CircleCheck, Radio, CircleX, Zap, Send } from "lucide-react";
 import { authHeaders, isStandaloneJwt } from "../lib/auth";
+import { workspaceHeaders } from "../lib/workspace-token";
 import { apiUrl } from "../lib/apiBase";
 import { usePasskeyPresence } from "./use-passkey-presence";
 import { PasskeyGate } from "./PasskeyGate";
@@ -800,7 +801,7 @@ export function SendDialog({
                   setPrecheckBody(checkBody);
                   const res = await fetch(apiUrl(`/api/keys/${keyId}/rules/check`), {
                     method: "POST",
-                    headers: { ...authHeaders(), "Content-Type": "application/json" },
+                    headers: { ...(await workspaceHeaders(keyId)), "Content-Type": "application/json" },
                     body: JSON.stringify(checkBody),
                   });
                   if (res.ok) {

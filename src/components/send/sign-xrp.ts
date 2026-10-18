@@ -2,7 +2,7 @@ import { hexToBytes, bytesToHex } from "../../shared/utils";
 import { performMpcSign, clientKeys, restoreKeyHandles, clearClientKey } from "../../lib/mpc";
 import { authHeaders } from "../../lib/auth";
 import { apiUrl } from "../../lib/apiBase";
-import { sensitiveHeaders } from "../../lib/passkey";
+import { sensitiveHeadersFor } from "../../lib/passkey";
 import { parseDerSignature } from "../../lib/chains/evmTx";
 import { getCompressedPublicKey } from "../../lib/chains/btcTx";
 import {
@@ -87,7 +87,7 @@ export async function executeXrpSigningFlow(ctx: SigningContext): Promise<void> 
         },
         from: address,
       },
-      headers: sensitiveHeaders(),
+      headers: await sensitiveHeadersFor(keyFile.id),
     });
 
     // 3. Parse DER signature (low-S normalized) and re-encode as minimal DER for XRP

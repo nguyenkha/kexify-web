@@ -2,7 +2,7 @@ import { hexToBytes } from "../../shared/utils";
 import { performMpcSign, clientKeys, restoreKeyHandles, clearClientKey } from "../../lib/mpc";
 import { authHeaders } from "../../lib/auth";
 import { apiUrl } from "../../lib/apiBase";
-import { sensitiveHeaders } from "../../lib/passkey";
+import { sensitiveHeadersFor } from "../../lib/passkey";
 import { parseDerSignature, recoverV } from "../../lib/chains/evmTx";
 import {
   buildTrxTransfer,
@@ -68,7 +68,7 @@ export async function executeTronSigningFlow(ctx: SigningContext): Promise<void>
         },
         from: address,
       },
-      headers: sensitiveHeaders(),
+      headers: await sensitiveHeadersFor(keyFile.id),
     });
 
     // 3. Parse DER signature and assemble 65-byte TRON signature (r || s || v)

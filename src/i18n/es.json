@@ -786,6 +786,25 @@
       "cancel": "Cancelar"
     }
   },
+  "sessions": {
+    "title": "Sesiones",
+    "description": "Dispositivos con la sesión iniciada en tu cuenta. Cerrar la sesión de otro dispositivo requiere tu passkey.",
+    "thisDevice": "Este dispositivo",
+    "lastActive": "Última actividad {{when}}",
+    "signOut": "Cerrar sesión",
+    "signingOut": "Cerrando sesión...",
+    "cancel": "Cancelar",
+    "signOutOthers": "Cerrar sesión en todos los demás dispositivos",
+    "signOutOthersConfirm": "¿Cerrar sesión en todos los demás dispositivos?",
+    "loadFailed": "No se pudieron cargar las sesiones.",
+    "revokeFailed": "No se pudo cerrar esa sesión.",
+    "platform": {
+      "web": "Navegador web",
+      "ios": "App de iOS",
+      "cli": "Línea de comandos"
+    },
+    "needPasskey": "Añade una passkey para cerrar sesión en otros dispositivos."
+  },
   "keyShare": {
     "exportPending": "Se solicitó exportar el fragmento de clave del servidor. Disponible desde el {{date}}.",
     "exportReady": "La exportación del fragmento de clave del servidor está lista. Descárgala ahora o cancela la solicitud.",

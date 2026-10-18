@@ -786,6 +786,25 @@
       "cancel": "Hủy"
     }
   },
+  "sessions": {
+    "title": "Phiên đăng nhập",
+    "description": "Các thiết bị đang đăng nhập tài khoản của bạn. Đăng xuất thiết bị khác cần passkey của bạn.",
+    "thisDevice": "Thiết bị này",
+    "lastActive": "Hoạt động {{when}}",
+    "signOut": "Đăng xuất",
+    "signingOut": "Đang đăng xuất...",
+    "cancel": "Hủy",
+    "signOutOthers": "Đăng xuất tất cả thiết bị khác",
+    "signOutOthersConfirm": "Đăng xuất mọi thiết bị khác?",
+    "loadFailed": "Không tải được các phiên.",
+    "revokeFailed": "Không đăng xuất được phiên đó.",
+    "platform": {
+      "web": "Trình duyệt web",
+      "ios": "Ứng dụng iOS",
+      "cli": "Dòng lệnh"
+    },
+    "needPasskey": "Thêm passkey để đăng xuất các thiết bị khác."
+  },
   "keyShare": {
     "exportPending": "Đã yêu cầu xuất phần khóa trên máy chủ. Tải được từ {{date}}.",
     "exportReady": "Phần khóa trên máy chủ đã sẵn sàng để xuất. Hãy tải ngay hoặc hủy yêu cầu.",

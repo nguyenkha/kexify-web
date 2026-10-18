@@ -1,5 +1,7 @@
 import { apiUrl } from "./apiBase";
 import { clearKeks } from "./address-book-kek";
+import { clearWorkspaceTokens } from "./workspace-token";
+import { resetChainProxyState } from "./chains/chain-proxy-client";
 
 // Session JWT — short-lived, dies with browser tab/close
 const TOKEN_KEY = "secretkey_token";
@@ -11,6 +13,7 @@ export function getToken(): string | null {
 }
 
 export function setToken(token: string) {
+  clearWorkspaceTokensIfNewIdentity(token);
   sessionStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem("kxi:authenticated", "1");
   // Cache identity for lock screen (survives tab close)
@@ -25,6 +28,14 @@ export function clearToken() {
   localStorage.removeItem("kxi:authenticated");
   localStorage.removeItem("kxi:identity");
   clearKeks();
+  clearWorkspaceTokens();
+  resetChainProxyState();
+}
+
+/** A different login (user or session) than the cached workspace tokens belong to: drop them. */
+function clearWorkspaceTokensIfNewIdentity(token: string) {
+  const p = decodeJwtPayload(token);
+  clearWorkspaceTokens(p ? `${p.sub}:${p.sid ?? ""}` : undefined);
 }
 
 /** Whether user has previously authenticated (persists across tabs/sessions) */
@@ -46,10 +57,26 @@ async function safeJson(res: Response): Promise<Record<string, unknown> | null> 
   }
 }
 
+/** Best-effort, fire and forget: end the login session `sid` on the server with the (already captured) token. */
+function revokeSession(token: string | null, sid: string | undefined): void {
+  if (!token || !sid) return;
+  try {
+    void fetch(apiUrl(`/api/sessions/${encodeURIComponent(sid)}`), {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+      keepalive: true,
+    }).catch(() => {});
+  } catch { /* offline: local sign-out proceeds */ }
+}
+
 /** Clear the session and go to sign-in. Keeps the device share (signing out is not removing the wallet).
  * `sessionEnded` shows "Your session ended. Sign in again." on the login page. */
 export function signOut(opts?: { sessionEnded?: boolean }) {
+  // Local state goes first and sign-out never waits on the network. An ended session is already gone on the server.
+  const token = getToken();
+  const sid = token ? decodeJwtPayload(token)?.sid : undefined;
   clearToken();
+  if (!opts?.sessionEnded) revokeSession(token, sid);
   window.location.href = opts?.sessionEnded ? "/login?session=ended" : "/login";
 }
 
@@ -131,14 +158,16 @@ export async function verifyCode(email: string, code: string): Promise<string> {
 // ── JWT helpers ──
 
 /** Decode JWT payload (works on expired tokens too — no signature check) */
-function decodeJwtPayload(token: string): { sub: string; type?: string; email?: string; exp?: number } | null {
+export interface JwtPayload { sub: string; type?: string; email?: string; exp?: number; sid?: string; ws?: string }
+
+export function decodeJwtPayload(token: string): JwtPayload | null {
   try {
     // base64url (JWT): map to the standard alphabet before atob, as userOverrides.currentUserId does
     return JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
   } catch { return null; }
 }
 
-export function getJwtPayload(): { sub: string; type?: string; email?: string; exp?: number } | null {
+export function getJwtPayload(): JwtPayload | null {
   const token = getToken();
   if (token) return decodeJwtPayload(token);
   // Fallback: cached identity from localStorage (for lock screen after tab close)

@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PasskeyChallenge } from "../PasskeyChallenge";
-import { rulesSha256, sensitiveHeaders, type PasskeyAction } from "../../lib/passkey";
+import { rulesSha256, sensitiveHeadersFor, type PasskeyAction } from "../../lib/passkey";
 import { apiUrl } from "../../lib/apiBase";
 import { mapCommonError } from "../../lib/error-message";
 import {
@@ -65,7 +65,7 @@ export function SimplePolicyEditor({ keyId, initial, replacesCustom = 0, onCance
     setBusy(true);
     setError("");
     try {
-      const res = await fetch(apiUrl(`/api/keys/${keyId}/rules/pending`), { method: "POST", headers: sensitiveHeaders(ticket), body: JSON.stringify({ rules: compiled.rules }) });
+      const res = await fetch(apiUrl(`/api/keys/${keyId}/rules/pending`), { method: "POST", headers: await sensitiveHeadersFor(keyId, ticket), body: JSON.stringify({ rules: compiled.rules }) });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? "");
       onDone(data.applied === true);

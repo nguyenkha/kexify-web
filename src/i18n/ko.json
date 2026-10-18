@@ -786,6 +786,25 @@
       "cancel": "취소"
     }
   },
+  "sessions": {
+    "title": "세션",
+    "description": "계정에 로그인된 기기입니다. 다른 기기를 로그아웃하려면 패스키가 필요합니다.",
+    "thisDevice": "이 기기",
+    "lastActive": "마지막 활동 {{when}}",
+    "signOut": "로그아웃",
+    "signingOut": "로그아웃 중...",
+    "cancel": "취소",
+    "signOutOthers": "다른 모든 기기 로그아웃",
+    "signOutOthersConfirm": "다른 모든 기기를 로그아웃할까요?",
+    "loadFailed": "세션을 불러오지 못했습니다.",
+    "revokeFailed": "해당 세션을 로그아웃하지 못했습니다.",
+    "platform": {
+      "web": "웹 브라우저",
+      "ios": "iOS 앱",
+      "cli": "명령줄"
+    },
+    "needPasskey": "다른 기기를 로그아웃하려면 패스키를 추가하세요."
+  },
   "keyShare": {
     "exportPending": "서버 키 조각 내보내기를 요청했습니다. {{date}}부터 사용할 수 있습니다.",
     "exportReady": "서버 키 조각 내보내기가 준비되었습니다. 지금 다운로드하거나 요청을 취소하세요.",

@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Spinner, ErrorBox } from "./ui";
 import { getMpcInstance, createHttpTransport, clientKeys, toBase64, toHex, NID_secp256k1, NID_ED25519 } from "../lib/mpc";
 import type { ClientKeyHandles } from "../lib/mpc";
-import { sensitiveHeaders, authenticatePasskey, fetchPasskeys, fetchWithPasskey, passkeyHeader } from "../lib/passkey";
+import { sensitiveHeaders, sensitiveHeadersFor, authenticatePasskey, fetchPasskeys, fetchWithPasskey, passkeyHeader } from "../lib/passkey";
 import { PasskeyChallenge } from "./PasskeyChallenge";
 import { isRecoveryMode } from "../lib/recovery";
 import { encryptKeyFile, type KeyFileData } from "../lib/crypto";
@@ -19,7 +19,8 @@ import {
 } from "../lib/keystore";
 import { apiUrl } from "../lib/apiBase";
 import { useExpertMode, useSetExpertMode } from "../context/ExpertModeContext";
-import { getMe, isStandaloneJwt, authHeaders } from "../lib/auth";
+import { getMe, isStandaloneJwt } from "../lib/auth";
+import { workspaceHeaders } from "../lib/workspace-token";
 import { getUserOverrides, setUserOverrides } from "../lib/userOverrides";
 import { useSteppedProgress, CREATING_DURATION_MS, ProgressBar } from "./ProgressBar";
 
@@ -229,7 +230,7 @@ export function CreateAccountDialog({
         stepUrl: apiUrl("/api/generate/eddsa-step"),
         initExtra: { keyId },
         // Fallback for an API older than the frontend (deploy order): its token is reusable.
-        headers: { ...headers, ...passkeyHeader(eddsaTicket ?? generateTicket) },
+        headers: { ...(await sensitiveHeadersFor(keyId)), ...passkeyHeader(eddsaTicket ?? generateTicket) },
       });
       eddsaFailed.catch(() => {});
 
@@ -295,7 +296,7 @@ export function CreateAccountDialog({
             if (stored) {
               await fetch(apiUrl(`/api/keys/${keyId}/backup`), {
                 method: "POST",
-                headers: sensitiveHeaders(freshAuth?.token),
+                headers: await sensitiveHeadersFor(keyId, freshAuth?.token),
                 body: JSON.stringify({
                   encryptedData: stored,
                   publicKey: newRawKeyData.publicKey,
@@ -692,7 +693,7 @@ export function CreateAccountDialog({
                       try {
                         await fetchWithPasskey(apiUrl(`/api/keys/${rawKeyData.id}/backup`), {
                           method: "POST",
-                          headers: { ...authHeaders(), "Content-Type": "application/json" },
+                          headers: { ...(await workspaceHeaders(rawKeyData.id)), "Content-Type": "application/json" },
                           body: JSON.stringify({
                             encryptedData: encryptedJson,
                             publicKey: rawKeyData.publicKey,
@@ -768,7 +769,7 @@ export function CreateAccountDialog({
                       const encryptedJson = await keyFile.blob.text();
                       const res = await fetchWithPasskey(apiUrl(`/api/keys/${rawKeyData.id}/backup`), {
                         method: "POST",
-                        headers: { ...authHeaders(), "Content-Type": "application/json" },
+                        headers: { ...(await workspaceHeaders(rawKeyData.id)), "Content-Type": "application/json" },
                         body: JSON.stringify({
                           encryptedData: encryptedJson,
                           publicKey: rawKeyData.publicKey,

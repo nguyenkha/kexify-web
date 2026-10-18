@@ -1,7 +1,7 @@
 import { performMpcSign, clientKeys, restoreKeyHandles, clearClientKey } from "../../lib/mpc";
 import { authHeaders } from "../../lib/auth";
 import { apiUrl } from "../../lib/apiBase";
-import { sensitiveHeaders } from "../../lib/passkey";
+import { sensitiveHeadersFor } from "../../lib/passkey";
 import {
   buildTonTransferMessage,
   buildTonJettonTransferMessage,
@@ -108,7 +108,7 @@ export async function executeTonSigningFlow(ctx: SigningContext): Promise<void> 
           }),
         },
       },
-      headers: sensitiveHeaders(),
+      headers: await sensitiveHeadersFor(keyFile.id),
     });
 
     // 4. Assemble signed external message (include state init if wallet not yet deployed)

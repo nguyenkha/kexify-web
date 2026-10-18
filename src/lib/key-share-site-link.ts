@@ -1,6 +1,6 @@
 import i18n from "../i18n/i18n";
 import { apiUrl } from "./apiBase";
-import { authHeaders } from "./auth";
+import { WorkspaceNotFoundError, workspaceToken } from "./workspace-token";
 
 /**
  * Tell the server this wallet now lives on this site too. Each domain lists only
@@ -13,13 +13,17 @@ import { authHeaders } from "./auth";
  * already saved and the import can be retried.
  */
 export async function linkKeyShareToSite(keyId: string): Promise<void> {
+  const notOnAccount = () => new Error(i18n.t("recovery.keyFileNotOnAccount", { id: keyId.slice(0, 8) }));
   let res: Response;
   try {
-    res = await fetch(apiUrl(`/api/keys/${keyId}/link`), { method: "POST", headers: authHeaders() });
-  } catch {
+    const token = await workspaceToken(keyId, { strict: true });
+    if (!token) return; // exchange failed (offline): linking is best effort, as before
+    res = await fetch(apiUrl(`/api/keys/${keyId}/link`), { method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  } catch (err) {
+    if (err instanceof WorkspaceNotFoundError) throw notOnAccount();
     return;
   }
   if (res.status === 404 || res.status === 403) {
-    throw new Error(i18n.t("recovery.keyFileNotOnAccount", { id: keyId.slice(0, 8) }));
+    throw notOnAccount();
   }
 }

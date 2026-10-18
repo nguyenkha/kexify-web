@@ -4,8 +4,8 @@
  * until then; this turns that into a scheduled request the UI can show and cancel.
  */
 import { apiUrl } from "./apiBase";
-import { authHeaders } from "./auth";
-import { sensitiveHeaders, fetchWithPasskey } from "./passkey";
+import { workspaceHeaders } from "./workspace-token";
+import { sensitiveHeadersFor, fetchWithPasskey } from "./passkey";
 
 /** Requesting or cancelling the export failed; the UI shows its own translated text. */
 export class ExportRequestError extends Error {
@@ -55,7 +55,7 @@ export async function throwIfExportGated(res: Response): Promise<void> {
 export async function requestServerShareExport(keyId: string): Promise<never> {
   const req = await fetchWithPasskey(apiUrl(`/api/keys/${encodeURIComponent(keyId)}/backup/server-share-request`), {
     method: "POST",
-    headers: sensitiveHeaders(),
+    headers: await sensitiveHeadersFor(keyId),
   }, { action: "export.request", keyShareId: keyId });
   const body = await req.json().catch(() => ({})) as { readyAt?: string; error?: string };
   if (!req.ok || !body.readyAt) throw new ExportRequestError(body.error || "request failed");
@@ -65,7 +65,7 @@ export async function requestServerShareExport(keyId: string): Promise<never> {
 export async function cancelServerShareExport(keyId: string): Promise<void> {
   const res = await fetchWithPasskey(apiUrl(`/api/keys/${encodeURIComponent(keyId)}/backup/server-share-request`), {
     method: "DELETE",
-    headers: authHeaders(),
+    headers: await workspaceHeaders(keyId),
   }, { action: "export.request-cancel", keyShareId: keyId });
   if (!res.ok) throw new ExportRequestError("cancel failed");
 }

@@ -6,6 +6,7 @@ import { fetchChains, fetchAssets, fetchSettings, type Chain, type Asset } from 
 import { applyChainOverrides } from "../lib/userOverrides";
 import { isRecoveryMode, getRecoveryKeys } from "../lib/recovery";
 import { getChainAdapter } from "../lib/chains/adapter";
+import { registerWalletAddress } from "../lib/chains/chain-proxy-client";
 import { publicKeyToBtcLegacyAddress } from "../lib/chains/btcAdapter.js";
 import { publicKeyToLtcLegacyAddress } from "../lib/chains/ltcAdapter.js";
 import { TokenDetail, type PendingTxFromNavigation } from "./TokenDetail";
@@ -103,6 +104,7 @@ export function AccountDetail() {
           addr = adapter.deriveAddress(pubKeyHex, { testnet });
         }
 
+        registerWalletAddress(addr, key.id);
         setChain(foundChain);
         setAsset(foundAsset);
         setAddress(addr);

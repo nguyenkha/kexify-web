@@ -786,6 +786,25 @@
       "cancel": "Cancelar"
     }
   },
+  "sessions": {
+    "title": "Sessões",
+    "description": "Dispositivos conectados à sua conta. Desconectar outro dispositivo exige sua passkey.",
+    "thisDevice": "Este dispositivo",
+    "lastActive": "Última atividade {{when}}",
+    "signOut": "Sair",
+    "signingOut": "Saindo...",
+    "cancel": "Cancelar",
+    "signOutOthers": "Sair de todos os outros dispositivos",
+    "signOutOthersConfirm": "Sair de todos os outros dispositivos?",
+    "loadFailed": "Não foi possível carregar as sessões.",
+    "revokeFailed": "Não foi possível encerrar essa sessão.",
+    "platform": {
+      "web": "Navegador web",
+      "ios": "App iOS",
+      "cli": "Linha de comando"
+    },
+    "needPasskey": "Adicione uma passkey para sair de outros dispositivos."
+  },
   "keyShare": {
     "exportPending": "Exportação da parte da chave do servidor solicitada. Disponível a partir de {{date}}.",
     "exportReady": "A exportação da parte da chave do servidor está pronta. Baixe agora ou cancele o pedido.",

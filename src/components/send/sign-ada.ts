@@ -1,7 +1,7 @@
 import { performMpcSign, clientKeys, restoreKeyHandles, clearClientKey } from "../../lib/mpc";
 import { authHeaders } from "../../lib/auth";
 import { apiUrl } from "../../lib/apiBase";
-import { sensitiveHeaders } from "../../lib/passkey";
+import { sensitiveHeadersFor } from "../../lib/passkey";
 import {
   prepareAdaPaymentTx,
   hashTxBody,
@@ -63,7 +63,7 @@ export async function executeAdaSigningFlow(ctx: SigningContext): Promise<void> 
         eddsaPublicKey: keyFile.eddsaPublicKey,
         adaTx: toBase64(txBody),
       },
-      headers: sensitiveHeaders(),
+      headers: await sensitiveHeadersFor(keyFile.id),
     });
 
     // 5. Assemble signed transaction

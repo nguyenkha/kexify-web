@@ -1,7 +1,7 @@
 import { toBase64, performMpcSign, clientKeys, restoreKeyHandles, clearClientKey } from "../../lib/mpc";
 import { authHeaders } from "../../lib/auth";
 import { apiUrl } from "../../lib/apiBase";
-import { sensitiveHeaders } from "../../lib/passkey";
+import { sensitiveHeadersFor } from "../../lib/passkey";
 import { parseUnits } from "../../lib/chains/evmTx";
 import {
   buildSolanaTransferMessage,
@@ -75,7 +75,7 @@ export async function executeSolanaSigningFlow(ctx: SigningContext): Promise<voi
       keyId: keyFile.id,
       hash: message,
       initPayload: { id: keyFile.id, algorithm: "eddsa", from: address, chainType: "solana", unsignedTx: toBase64(message) },
-      headers: sensitiveHeaders(),
+      headers: await sensitiveHeadersFor(keyFile.id),
     });
 
     // 3. Assemble signed transaction

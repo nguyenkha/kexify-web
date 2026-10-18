@@ -2,7 +2,7 @@
 // the settings into rules (the passkey ticket binds the hash of exactly that list) and decides
 // whether a change applies at once (tighter) or after the 24 h cooling period.
 
-import { authHeaders } from "./auth";
+import { workspaceHeaders } from "./workspace-token";
 import { apiUrl } from "./apiBase";
 import type { PolicyRuleBody } from "../shared/types";
 
@@ -31,7 +31,7 @@ export interface ScheduledSend {
 }
 
 async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(apiUrl(`/api/keys/${path}`), { ...init, headers: { ...authHeaders(), "Content-Type": "application/json", ...(init.headers ?? {}) } });
+  const res = await fetch(apiUrl(`/api/keys/${path}`), { ...init, headers: { ...(await workspaceHeaders(path.split("/")[0])), "Content-Type": "application/json", ...(init.headers ?? {}) } });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : `HTTP ${res.status}`);
   return data as T;

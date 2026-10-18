@@ -2,7 +2,7 @@
 
 import { getMpcInstance, toBase64 } from "./mpc";
 import { apiUrl } from "./apiBase";
-import { sensitiveHeaders, sha256Hex } from "./passkey";
+import { sensitiveHeadersFor, sha256Hex } from "./passkey";
 import type { KeyFileData } from "./crypto";
 import { sealPveExport, type PveSharePayload } from "./pve-server-share";
 import { throwIfExportGated } from "./server-share-export-request";
@@ -26,7 +26,7 @@ export async function requestPveServerExport(
     const { ticket, clientFile } = await authorize(await sha256Hex(toBase64(ek)));
     const res = await fetch(apiUrl(`/api/keys/${keyId}/backup/server-share-pve`), {
       method: "POST",
-      headers: sensitiveHeaders(ticket),
+      headers: await sensitiveHeadersFor(keyId, ticket),
       body: JSON.stringify({ ek: toBase64(ek) }),
     });
     if (!res.ok) await throwIfExportGated(res);

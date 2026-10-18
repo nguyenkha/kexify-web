@@ -786,6 +786,25 @@
       "cancel": "Batal"
     }
   },
+  "sessions": {
+    "title": "Sesi",
+    "description": "Perangkat yang masuk ke akun Anda. Mengeluarkan perangkat lain memerlukan passkey Anda.",
+    "thisDevice": "Perangkat ini",
+    "lastActive": "Terakhir aktif {{when}}",
+    "signOut": "Keluar",
+    "signingOut": "Sedang keluar...",
+    "cancel": "Batal",
+    "signOutOthers": "Keluarkan semua perangkat lain",
+    "signOutOthersConfirm": "Keluarkan semua perangkat lain?",
+    "loadFailed": "Sesi tidak dapat dimuat.",
+    "revokeFailed": "Sesi itu tidak dapat dikeluarkan.",
+    "platform": {
+      "web": "Peramban web",
+      "ios": "Aplikasi iOS",
+      "cli": "Command line"
+    },
+    "needPasskey": "Tambahkan passkey untuk mengeluarkan perangkat lain."
+  },
   "keyShare": {
     "exportPending": "Ekspor bagian kunci server diminta. Tersedia mulai {{date}}.",
     "exportReady": "Ekspor bagian kunci server sudah siap. Unduh sekarang, atau batalkan permintaan.",

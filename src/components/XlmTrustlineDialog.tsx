@@ -14,7 +14,7 @@ import { toBase64, performMpcSign, clientKeys, restoreKeyHandles, clearClientKey
 import { authHeaders } from "../lib/auth";
 import { useToast } from "../context/ToastContext";
 import { apiUrl } from "../lib/apiBase";
-import { sensitiveHeaders } from "../lib/passkey";
+import { sensitiveHeadersFor } from "../lib/passkey";
 import { usePasskeyPresence } from "./use-passkey-presence";
 import { PasskeyGate } from "./PasskeyGate";
 import { isRecoveryMode } from "../lib/recovery";
@@ -170,7 +170,7 @@ export function XlmTrustlineDialog({
           eddsaPublicKey: keyFile.eddsaPublicKey,
           xlmTx: { type: "change_trust", asset: selectedAsset.symbol },
         },
-        headers: sensitiveHeaders(),
+        headers: await sensitiveHeadersFor(keyFile.id),
       });
       const txBase64 = assembleXlmSignedTx(txXdr, fromPubKey, sigRaw);
       setSigningPhase("broadcasting");
