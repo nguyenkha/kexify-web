@@ -22,6 +22,8 @@ import { decodeSolanaMessageParam } from "../lib/solana-wc-message";
 import { evmReceiptRpcUrls } from "../lib/chains/evm-read-rpc-fallbacks";
 import { usePendingEvmReceipt } from "./send/use-pending-evm-receipt";
 import { waitForReceipt, estimateGas, getTransactionCount } from "../lib/chains/evmTx";
+import { fetchEvmGasQuote, evmLevelGasPrices, type EvmGasQuote } from "../lib/chains/evm-gas-price";
+import { EVM_FEE_MULTIPLIER } from "./sendTypes";
 import { solanaSolOutflow } from "../lib/chains/solanaIx";
 import { decodeSolanaTransaction, formatLamports, waitForSolanaConfirmation, type DecodedSolanaTx } from "../lib/chains/solanaTx";
 import { formatSun, waitForTronConfirmation, estimateTronFee } from "../lib/chains/tronTx";
@@ -70,7 +72,6 @@ interface ResolvedAccount {
 // ── Fee constants ────────────────────────────────────────────────
 type FeeLevel = "low" | "medium" | "high";
 const FEE_LABEL_KEYS: Record<FeeLevel, string> = { low: "send.feeSlow", medium: "send.feeStandard", high: "send.feeFast" };
-const FEE_MULTIPLIER: Record<FeeLevel, number> = { low: 0.8, medium: 1.0, high: 1.3 };
 const GAS_LIMIT_DEFAULT = 21_000n;
 const GAS_LIMIT_CONTRACT = 200_000n;
 
@@ -123,7 +124,9 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   useEffect(() => () => cancelKeyPassphrase(passphraseOwner), [passphraseOwner]);
 
   // Fee state (for eth_sendTransaction)
-  const [baseGasPrice, setBaseGasPrice] = useState<bigint | null>(null);
+  const [evmGasQuote, setEvmGasQuote] = useState<EvmGasQuote | null>(null);
+  const evmGasPrices = useMemo(() => (evmGasQuote ? evmLevelGasPrices(evmGasQuote) : null), [evmGasQuote]);
+  const baseGasPrice = evmGasPrices?.medium ?? null;
   const [feeLevel, setFeeLevel] = useState<FeeLevel>("medium");
   const [prices, setPrices] = useState<Record<string, number>>({});
   const [gasLimitInput, setGasLimitInput] = useState<string>("");
@@ -295,9 +298,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
   const gasPrice = maxFeeOverride && /^\d+(\.\d+)?$/.test(maxFeeOverride)
     ? BigInt(Math.round(parseFloat(maxFeeOverride) * 1e9))
-    : baseGasPrice != null
-      ? BigInt(Math.round(Number(baseGasPrice) * FEE_MULTIPLIER[feeLevel]))
-    : null;
+    : evmGasPrices?.[feeLevel] ?? null;
   const estimatedFeeWei = gasPrice != null ? gasPrice * gasLimit : null;
 
   // Resolve account from request
@@ -420,16 +421,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
     function refreshGasPrice() {
       const rpcUrl = chain?.rpcUrl;
       if (!rpcUrl) return;
-      fetch(rpcUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_gasPrice", params: [] }),
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.result) setBaseGasPrice(BigInt(data.result));
-        })
-        .catch(() => {});
+      fetchEvmGasQuote(rpcUrl).then(setEvmGasQuote).catch(() => {});
     }
 
     refreshGasPrice();
@@ -938,9 +930,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                     <div className="grid grid-cols-3 gap-1">
                       {(["low", "medium", "high"] as FeeLevel[]).map((level) => {
                         const isActive = feeLevel === level;
-                        const gp = baseGasPrice != null
-                          ? BigInt(Math.round(Number(baseGasPrice) * FEE_MULTIPLIER[level]))
-                          : null;
+                        const gp = evmGasPrices?.[level] ?? null;
                         const feeText = gp != null ? `${formatGwei(gp)} Gwei` : "...";
                         return (
                           <button
@@ -1012,7 +1002,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                         maxFeeOverride={maxFeeOverride}
                         estimatedGas={estimatedGasLimit}
                         baseGasPrice={baseGasPrice}
-                        lowMultiplier={FEE_MULTIPLIER.low}
+                        lowMultiplier={EVM_FEE_MULTIPLIER.low}
                       />
                     </div>
                   )}

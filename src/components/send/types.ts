@@ -91,6 +91,8 @@ export interface InputStepProps {
   ltcFeeRates: { low: number; medium: number; high: number } | null;
   bchFeeRates: { low: number; medium: number; high: number } | null;
   baseGasPrice: bigint | null;
+  /** EVM gas price per fee level (lib/chains/evm-gas-price.ts). */
+  evmGasPrices: Record<FeeLevel, bigint> | null;
   gasPrice: bigint | null;
   defaultGasLimit: bigint;
 

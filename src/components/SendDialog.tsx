@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { ScheduleSendOffer } from "./send/schedule-send-offer";
 import { useTranslation } from "react-i18next";
@@ -23,6 +23,7 @@ import {
   estimateGas,
   getTransactionCount,
 } from "../lib/chains/evmTx";
+import { fetchEvmGasQuote, evmLevelGasPrices, type EvmGasQuote } from "../lib/chains/evm-gas-price";
 import { getChainAdapter } from "../lib/chains/adapter";
 import {
   fetchFeeRates,
@@ -54,7 +55,6 @@ import { checkXlmAccountExists } from "../lib/chains/xlmTx";
 import type { KeyFile, FeeLevel, SendStep, SigningPhase, TxResult, SpeedUpData } from "./sendTypes";
 import { useSteppedProgress, signingDurationMs, ProgressBar } from "./ProgressBar";
 import {
-  EVM_FEE_MULTIPLIER,
   GAS_LIMIT_NATIVE,
   GAS_LIMIT_ERC20,
   isValidAmount,
@@ -145,7 +145,10 @@ export function SendDialog({
   const [bookmarkLabel, setBookmarkLabel] = useState("");
   const [resolvedName, setResolvedName] = useState<{ input: string; address: string; source: string } | null>(null);
   const [resolving, setResolving] = useState(false);
-  const [baseGasPrice, setBaseGasPrice] = useState<bigint | null>(null);
+  const [evmGasQuote, setEvmGasQuote] = useState<EvmGasQuote | null>(null);
+  const evmGasPrices = useMemo(() => (evmGasQuote ? evmLevelGasPrices(evmGasQuote) : null), [evmGasQuote]);
+  // The standard-level price: the reference for expert warnings and placeholders.
+  const baseGasPrice = evmGasPrices?.medium ?? null;
   const [prices, setPrices] = useState<Record<string, number>>({});
   const [feeLevel, setFeeLevel] = useState<FeeLevel>("medium");
 
@@ -371,16 +374,10 @@ export function SendDialog({
           .catch(onFeeFail);
       } else if (chain.type === "evm") {
         if (!chain.rpcUrl) return;
-        fetch(chain.rpcUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_gasPrice", params: [] }),
-        })
-          .then((r) => r.json())
-          .then((data) => {
-            if (!data.result) throw new Error("no gas price");
+        fetchEvmGasQuote(chain.rpcUrl)
+          .then((quote) => {
             setFeeError(false);
-            setBaseGasPrice(BigInt(data.result));
+            setEvmGasQuote(quote);
           })
           .catch(onFeeFail);
       }
@@ -431,9 +428,7 @@ export function SendDialog({
   // Effective fee values based on selected level + expert overrides
   const gasPrice = maxFeeOverride && /^\d+(\.\d+)?$/.test(maxFeeOverride)
     ? BigInt(Math.round(parseFloat(maxFeeOverride) * 1e9))
-    : baseGasPrice != null
-      ? BigInt(Math.round(Number(baseGasPrice) * EVM_FEE_MULTIPLIER[feeLevel]))
-      : null;
+    : evmGasPrices?.[feeLevel] ?? null;
   const manualUtxos = selectedUtxoKeys.size > 0 && availableUtxos
     ? availableUtxos.filter(u => selectedUtxoKeys.has(`${u.txid}:${u.vout}`))
     : null;
@@ -710,6 +705,7 @@ export function SendDialog({
             ltcFeeRates={ltcFeeRates}
             bchFeeRates={bchFeeRates}
             baseGasPrice={baseGasPrice}
+            evmGasPrices={evmGasPrices}
             gasPrice={gasPrice}
             defaultGasLimit={defaultGasLimit}
             nonceOverride={nonceOverride}

@@ -1,5 +1,4 @@
 import {
-  EVM_FEE_MULTIPLIER,
   FEE_LABEL_KEYS,
   formatGwei,
 } from "../sendTypes";
@@ -251,7 +250,7 @@ interface FeeLevelSelectorProps {
   setFeeLevel: (l: FeeLevel) => void;
   btcFeeRates: { low: number; medium: number; high: number } | null;
   ltcFeeRates: { low: number; medium: number; high: number } | null;
-  baseGasPrice: bigint | null;
+  evmGasPrices: Record<FeeLevel, bigint> | null;
   t: (key: string, opts?: Record<string, unknown>) => string;
 }
 
@@ -261,7 +260,7 @@ export function ExpertFeeLevelSelector({
   setFeeLevel,
   btcFeeRates,
   ltcFeeRates,
-  baseGasPrice,
+  evmGasPrices,
   t,
 }: FeeLevelSelectorProps) {
   return (
@@ -271,7 +270,7 @@ export function ExpertFeeLevelSelector({
           const isActive = feeLevel === level;
           const feeText = chain.type === "btc" || chain.type === "ltc"
             ? ((chain.type === "btc" ? btcFeeRates : ltcFeeRates)?.[level] != null ? `${(chain.type === "btc" ? btcFeeRates : ltcFeeRates)![level]} sat/vB` : "...")
-            : (baseGasPrice != null ? `${formatGwei(BigInt(Math.round(Number(baseGasPrice) * EVM_FEE_MULTIPLIER[level])))} Gwei` : "...");
+            : (evmGasPrices != null ? `${formatGwei(evmGasPrices[level])} Gwei` : "...");
           return (
             <button
               key={level}

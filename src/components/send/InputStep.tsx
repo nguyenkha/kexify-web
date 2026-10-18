@@ -76,6 +76,7 @@ export function InputStep({
   ltcFeeRates,
   bchFeeRates,
   baseGasPrice,
+  evmGasPrices,
   gasPrice,
   defaultGasLimit,
   nonceOverride,
@@ -220,7 +221,7 @@ export function InputStep({
               setFeeLevel={setFeeLevel}
               btcFeeRates={btcFeeRates}
               ltcFeeRates={ltcFeeRates}
-              baseGasPrice={baseGasPrice}
+              evmGasPrices={evmGasPrices}
               t={t}
             />
           ) : (

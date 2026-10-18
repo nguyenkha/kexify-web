@@ -16,6 +16,7 @@ export const FEE_LABEL_KEYS: Record<FeeLevel, string> = { low: "send.feeSlow", m
 /** @deprecated Use FEE_LABEL_KEYS with t() instead */
 export const FEE_LABELS: Record<FeeLevel, string> = { low: "Slow", medium: "Standard", high: "Fast" };
 
+/** EVM fee levels, as multipliers on the headroom price (lib/chains/evm-gas-price.ts). */
 export const EVM_FEE_MULTIPLIER: Record<FeeLevel, number> = { low: 0.8, medium: 1.0, high: 1.3 };
 
 export const GAS_LIMIT_NATIVE = 21_000n;
