@@ -295,6 +295,9 @@ export function tonMessageHash(bocBase64: string): string {
   return Cell.fromBoc(Buffer.from(bocBase64, "base64"))[0].hash().toString("hex");
 }
 
+/** toncenter judged the message (ok:false): final, a relay through the chain proxy would get the same answer. */
+export class TonNodeRejected extends Error {}
+
 export async function broadcastTonTransaction(rpcUrl: string, bocBase64: string): Promise<string> {
   // Retry on rate limit
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -307,8 +310,16 @@ export async function broadcastTonTransaction(rpcUrl: string, bocBase64: string)
       await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
       continue;
     }
-    const data = await res.json();
-    if (!data.ok) throw new Error(`TON broadcast failed: ${data.error || res.statusText}`);
+    const data = await res.json().catch(() => null);
+    if (!data) throw new Error(`TON broadcast failed: HTTP ${res.status}`);
+    if (data.ok !== true) {
+      const reason = String(data.error || res.statusText);
+      // Final only when the node judged the message; a 5xx outage (or a gateway's JSON) may be relayed elsewhere.
+      if (data.ok === false && (res.status < 500 || /cannot apply external message/i.test(reason))) {
+        throw new TonNodeRejected(`TON broadcast failed: ${reason}`);
+      }
+      throw new Error(`TON broadcast failed: ${reason}`);
+    }
     return tonMessageHash(bocBase64);
   }
   throw new Error("TON broadcast rate limited. Please try again.");

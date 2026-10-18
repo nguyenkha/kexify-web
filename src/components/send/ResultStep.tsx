@@ -71,7 +71,8 @@ async function broadcastAndConfirm(
       txHash = await broadcastTronTransaction(chain.rpcUrl, rawTx);
     } else if (chain.type === "ton") {
       const tonTx = await import("../../lib/chains/tonTx");
-      txHash = await tonTx.broadcastTonTransaction(chain.rpcUrl, rawTx);
+      const { broadcastTonWithProxyFallback } = await import("../../lib/chains/chain-proxy-ton");
+      txHash = await broadcastTonWithProxyFallback(chain, rawTx, () => tonTx.broadcastTonTransaction(chain.rpcUrl, rawTx));
     } else if (chain.type === "algo") {
       const algoTx = await import("../../lib/chains/algoTx");
       const txBytes = Uint8Array.from(atob(rawTx), c => c.charCodeAt(0));

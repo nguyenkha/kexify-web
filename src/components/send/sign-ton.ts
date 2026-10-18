@@ -13,6 +13,7 @@ import {
   isTonWalletInitialized,
 } from "../../lib/chains/tonTx";
 import { publicKeyToTonAddress } from "../../lib/chains/tonAdapter";
+import { broadcastTonWithProxyFallback, jettonWalletWithProxyFallback, tonSeqnoWithProxyFallback } from "../../lib/chains/chain-proxy-ton";
 import type { SigningContext } from "./signing-flows";
 import { mapSendError } from "./send-error";
 
@@ -45,12 +46,11 @@ export async function executeTonSigningFlow(ctx: SigningContext): Promise<void> 
     // Stagger all toncenter calls sequentially (free tier: 1 req/sec)
     let jettonWalletAddress: string | undefined;
     if (isJetton) {
-      jettonWalletAddress = await resolveJettonWalletAddress(
-        chain.rpcUrl, asset.contractAddress!, fromAddress,
-      );
+      jettonWalletAddress = await jettonWalletWithProxyFallback(chain, fromAddress, asset.contractAddress!,
+        () => resolveJettonWalletAddress(chain.rpcUrl, asset.contractAddress!, fromAddress));
       await new Promise((r) => setTimeout(r, 1500));
     }
-    const seqno = await getTonSeqno(chain.rpcUrl, fromAddress);
+    const seqno = await tonSeqnoWithProxyFallback(chain, fromAddress, () => getTonSeqno(chain.rpcUrl, fromAddress));
     // seqno > 0 means wallet is definitely deployed — skip the extra API call
     let walletInitialized = seqno > 0;
     if (!walletInitialized) {
@@ -127,7 +127,7 @@ export async function executeTonSigningFlow(ctx: SigningContext): Promise<void> 
 
     // 5. Broadcast
     setSigningPhase("broadcasting");
-    const txHash = await broadcastTonTransaction(chain.rpcUrl, signedBoc);
+    const txHash = await broadcastTonWithProxyFallback(chain, signedBoc, () => broadcastTonTransaction(chain.rpcUrl, signedBoc));
 
     fetch(apiUrl("/api/sign/broadcast"), {
       method: "POST",
@@ -140,7 +140,9 @@ export async function executeTonSigningFlow(ctx: SigningContext): Promise<void> 
     // 6. Poll for confirmation (check seqno increment)
     setPendingTxHash(txHash);
     setSigningPhase("polling");
-    const result = await waitForTonConfirmation(chain.rpcUrl, fromAddress, seqno, () => {}, 30, 3000);
+    // Sent already: a confirmation poll that cannot read the seqno (toncenter down) leaves it pending, never an error.
+    const result = await waitForTonConfirmation(chain.rpcUrl, fromAddress, seqno, () => {}, 30, 3000)
+      .catch(() => ({ confirmed: false }));
 
     setTxResult({
       status: result.confirmed ? "success" : "pending",

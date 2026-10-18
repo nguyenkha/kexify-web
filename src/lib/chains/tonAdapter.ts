@@ -1,5 +1,8 @@
-import type { ChainAdapter, Chain, BalanceResult, Transaction } from "../../shared/types";
-import { hexToBytes, base64ToHex } from "../../shared/utils";
+import type { ChainAdapter, Chain, BalanceResult } from "../../shared/types";
+import { hexToBytes } from "../../shared/utils";
+import { historyWithProxyFallback, PublicReadError, PUBLIC_TIMEOUT_MS, type PublicHistoryPage } from "./chain-proxy-client";
+import { proxyTonAccount, proxyTonHistory, tonRaw } from "./chain-proxy-ton";
+import { formatTonUnits as formatBalance, tonJettonTransactions, tonNativeTransactions, type JettonTransferRow, type TonTxRow } from "./ton-history-rows";
 import { beginCell, Cell, contractAddress } from "@ton/core";
 
 // ── Wallet V4R2 code cell (constant for all v4r2 wallets) ───────
@@ -84,15 +87,6 @@ export function isValidTonAddress(address: string): boolean {
 
 const PAGE_SIZE = 20;
 
-function formatBalance(raw: bigint, decimals: number): string {
-  if (raw === 0n) return "0";
-  const str = raw.toString().padStart(decimals + 1, "0");
-  const intPart = str.slice(0, str.length - decimals) || "0";
-  const fracPart = str.slice(str.length - decimals).replace(/0+$/, "");
-  const fmt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  return fracPart ? `${fmt}.${fracPart}` : fmt;
-}
-
 // ── TON Center API v2 helpers ───────────────────────────────────
 
 function apiBase(chain: Chain): string {
@@ -107,7 +101,7 @@ function tonQueuedFetch(url: string): Promise<Response> {
   return new Promise<Response>((resolve, reject) => {
     tonApiQueue = tonApiQueue.then(async () => {
       try {
-        resolve(await fetch(url));
+        resolve(await fetch(url, { signal: AbortSignal.timeout(PUBLIC_TIMEOUT_MS) }));
       } catch (err) {
         reject(err);
       }
@@ -120,67 +114,63 @@ async function tonApi(chain: Chain, method: string, params: Record<string, strin
   const url = new URL(`${apiBase(chain)}/${method}`);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   const res = await tonQueuedFetch(url.toString());
-  if (!res.ok) throw new Error(`TON API ${method} failed: ${res.status}`);
-  const data = await res.json();
-  if (!data.ok) throw new Error(`TON API error: ${data.error || "unknown"}`);
+  if (!res.ok) throw new PublicReadError(`TON API ${method} failed: ${res.status}`);
+  const data = await res.json().catch(() => null);
+  if (!data?.ok) throw new PublicReadError(`TON API error: ${data?.error || "unknown"}`);
   return data.result;
 }
 
 // ── Jetton transaction history (v3 API) ─────────────────────────
 
+/** One public page of a jetton's transfers. Throws PublicReadError on a bad answer; network errors throw. */
 async function fetchJettonTransactions(
   ownerAddress: string,
   chain: Chain,
   asset: { decimals: number; symbol: string; contractAddress?: string | null },
   page: number,
-): Promise<{ transactions: Transaction[]; hasMore: boolean }> {
-  try {
-    const baseUrl = (chain.rpcUrl || "https://toncenter.com/api/v2").replace(/\/api\/v2\/?$/, "");
-    const url = new URL(`${baseUrl}/api/v3/jetton/transfers`);
-    url.searchParams.set("owner_address", ownerAddress);
-    url.searchParams.set("jetton_master", asset.contractAddress!);
-    url.searchParams.set("direction", "both");
-    url.searchParams.set("limit", String(PAGE_SIZE + 1));
-    url.searchParams.set("offset", String((page - 1) * PAGE_SIZE));
-    url.searchParams.set("sort", "desc");
+): Promise<PublicHistoryPage> {
+  const baseUrl = (chain.rpcUrl || "https://toncenter.com/api/v2").replace(/\/api\/v2\/?$/, "");
+  const url = new URL(`${baseUrl}/api/v3/jetton/transfers`);
+  url.searchParams.set("owner_address", ownerAddress);
+  url.searchParams.set("jetton_master", asset.contractAddress!);
+  url.searchParams.set("direction", "both");
+  url.searchParams.set("limit", String(PAGE_SIZE + 1));
+  url.searchParams.set("offset", String((page - 1) * PAGE_SIZE));
+  url.searchParams.set("sort", "desc");
 
-    const res = await tonQueuedFetch(url.toString());
-    if (!res.ok) return { transactions: [], hasMore: false };
-    const data = await res.json();
-    const transfers = data.jetton_transfers;
-    if (!Array.isArray(transfers)) return { transactions: [], hasMore: false };
+  const res = await tonQueuedFetch(url.toString());
+  if (!res.ok) throw new PublicReadError(`TON jetton transfers: ${res.status}`);
+  const data = await res.json().catch(() => null);
+  const transfers = data?.jetton_transfers;
+  if (!Array.isArray(transfers)) throw new PublicReadError("TON jetton transfers: shape");
 
-    const hasMore = transfers.length > PAGE_SIZE;
-    const slice = transfers.slice(0, PAGE_SIZE);
-    // address_book maps raw addresses to user-friendly format
-    const addrBook = (data.address_book ?? {}) as Record<string, { user_friendly?: string }>;
-    const friendly = (raw: string) => addrBook[raw]?.user_friendly ?? raw;
+  const hasMore = transfers.length > PAGE_SIZE;
+  const slice = transfers.slice(0, PAGE_SIZE) as JettonTransferRow[];
+  // address_book maps raw addresses to user-friendly format
+  const addrBook = (data.address_book ?? {}) as Record<string, { user_friendly?: string }>;
+  const friendly = (raw: string) => addrBook[raw]?.user_friendly ?? raw;
+  const ownerRaw = tonRaw(ownerAddress);
+  const rows = slice.map((t) => ({ ...t, source: friendly(t.source), destination: friendly(t.destination), rawSource: t.source }));
+  return {
+    transactions: tonJettonTransactions(rows, asset, (t) => tonRaw((t as typeof rows[0]).rawSource) === ownerRaw),
+    hasMore,
+    rawRows: transfers.length,
+  };
+}
 
-    const txs: Transaction[] = slice.map((t: {
-      source: string; destination: string; amount: string;
-      transaction_hash: string; transaction_now: number;
-    }) => {
-      const fromFriendly = friendly(t.source);
-      const toFriendly = friendly(t.destination);
-      const isOutgoing = fromFriendly === ownerAddress
-        || fromFriendly.replace(/-/g, "+").replace(/_/g, "/") === ownerAddress.replace(/-/g, "+").replace(/_/g, "/");
-      return {
-        hash: base64ToHex(t.transaction_hash),
-        from: fromFriendly,
-        to: toFriendly,
-        value: t.amount,
-        formatted: formatBalance(BigInt(t.amount), asset.decimals),
-        symbol: asset.symbol,
-        timestamp: t.transaction_now,
-        direction: isOutgoing ? "out" as const : "in" as const,
-        confirmed: true,
-      };
-    });
-
-    return { transactions: txs, hasMore };
-  } catch {
-    return { transactions: [], hasMore: false };
-  }
+/** One public page of native transactions (v2 getTransactions). */
+async function fetchNativeTransactions(address: string, chain: Chain, asset: { decimals: number; symbol: string }, page: number): Promise<PublicHistoryPage> {
+  const result = await tonApi(chain, "getTransactions", {
+    address,
+    limit: String(PAGE_SIZE + 1),
+    offset: String((page - 1) * PAGE_SIZE),
+  }) as TonTxRow[];
+  if (!Array.isArray(result)) throw new PublicReadError("TON getTransactions: shape");
+  return {
+    transactions: tonNativeTransactions(result.slice(0, PAGE_SIZE), asset),
+    hasMore: result.length > PAGE_SIZE,
+    rawRows: result.length,
+  };
 }
 
 // ── Adapter ─────────────────────────────────────────────────────
@@ -198,18 +188,19 @@ export const tonAdapter: ChainAdapter = {
   },
 
   async fetchNativeBalance(address, chain, nativeAsset): Promise<BalanceResult | null> {
+    let balance: bigint | null = null;
     try {
-      const result = await tonApi(chain, "getAddressBalance", { address }) as string;
-      const balance = BigInt(result);
-      return {
-        asset: nativeAsset,
-        chain,
-        balance: balance.toString(),
-        formatted: formatBalance(balance, nativeAsset.decimals),
-      };
+      balance = BigInt(await tonApi(chain, "getAddressBalance", { address }) as string);
     } catch {
-      return null;
+      balance = (await proxyTonAccount(chain, address))?.balance ?? null;
     }
+    if (balance === null) return null;
+    return {
+      asset: nativeAsset,
+      chain,
+      balance: balance.toString(),
+      formatted: formatBalance(balance, nativeAsset.decimals),
+    };
   },
 
   async fetchTokenBalances(address, chain, tokenAssets): Promise<BalanceResult[]> {
@@ -217,8 +208,11 @@ export const tonAdapter: ChainAdapter = {
     // Jettons (TEP-74): use toncenter v3 API to query jetton wallets by owner
     // Fetch sequentially through the shared rate-limit queue
     const results: (BalanceResult | null)[] = [];
+    // After one public failure the proxy's single answer serves the remaining tokens too (no more queued reads).
+    let account: Awaited<ReturnType<typeof proxyTonAccount>> | undefined;
     for (const asset of tokenAssets) {
       try {
+        if (account !== undefined) throw new PublicReadError("TON: public jetton reads failed");
         const baseUrl = (chain.rpcUrl || "https://toncenter.com/api/v2").replace(/\/api\/v2\/?$/, "");
         const url = new URL(`${baseUrl}/api/v3/jetton/wallets`);
         url.searchParams.set("owner_address", address);
@@ -226,100 +220,38 @@ export const tonAdapter: ChainAdapter = {
         url.searchParams.set("limit", "1");
 
         const res = await tonQueuedFetch(url.toString());
-        if (!res.ok) { results.push(null); continue; }
+        if (!res.ok) throw new PublicReadError(`TON jetton wallets: ${res.status}`);
         const data = await res.json();
+        if (!Array.isArray(data?.jetton_wallets)) throw new PublicReadError("TON jetton wallets: shape");
 
-        const wallet = data.jetton_wallets?.[0];
-        if (!wallet) { results.push(null); continue; }
-
-        const balance = BigInt(wallet.balance ?? "0");
-        if (balance === 0n) { results.push(null); continue; }
-
-        results.push({
+        const wallet = data.jetton_wallets[0];
+        const balance = BigInt(wallet?.balance ?? "0");
+        results.push(balance === 0n ? null : {
           asset,
           chain,
           balance: balance.toString(),
           formatted: formatBalance(balance, asset.decimals),
         });
       } catch {
-        results.push(null);
+        // Public read failed: the proxy lists every jetton wallet of the owner in one call (shared memo).
+        if (account === undefined) account = await proxyTonAccount(chain, address);
+        const master = asset.contractAddress ? tonRaw(asset.contractAddress) : null;
+        const held = account && master ? account.jettons.get(master) : undefined;
+        const balance = held?.balance ?? (account && master && !account.jettonsTruncated ? 0n : null);
+        results.push(!balance ? null : { asset, chain, balance: balance.toString(), formatted: formatBalance(balance, asset.decimals) });
       }
     }
     return results.filter((r): r is BalanceResult => r !== null);
   },
 
   async fetchTransactions(address, chain, asset, page) {
-    try {
-      // For Jetton tokens, use v3 API to fetch transfer events
-      if (!asset.isNative && asset.contractAddress) {
-        return fetchJettonTransactions(address, chain, asset, page);
-      }
-
-      const result = await tonApi(chain, "getTransactions", {
-        address,
-        limit: String(PAGE_SIZE + 1),
-        offset: String((page - 1) * PAGE_SIZE),
-      }) as {
-        transaction_id: { hash: string };
-        utime: number;
-        in_msg?: { source: string; destination: string; value: string; bounced?: boolean };
-        out_msgs?: { source: string; destination: string; value: string }[];
-      }[];
-
-      if (!Array.isArray(result)) return { transactions: [], hasMore: false };
-      const hasMore = result.length > PAGE_SIZE;
-      const slice = result.slice(0, PAGE_SIZE);
-
-      // Minimum value to display (filter dust spam): 1000 nanoTON = 0.000001 TON
-      const DUST_THRESHOLD = 1000n;
-
-      const txs: Transaction[] = [];
-      for (const tx of slice) {
-        const hash = base64ToHex(tx.transaction_id?.hash);
-
-        // Outgoing: out_msgs with value > threshold
-        const hasOutgoing = tx.out_msgs?.some((m) => BigInt(m.value || "0") > DUST_THRESHOLD);
-        if (tx.out_msgs) {
-          for (const msg of tx.out_msgs) {
-            const val = BigInt(msg.value || "0");
-            if (val > DUST_THRESHOLD) {
-              txs.push({
-                hash,
-                from: msg.source,
-                to: msg.destination,
-                value: msg.value,
-                formatted: formatBalance(val, asset.decimals),
-                symbol: asset.symbol,
-                timestamp: tx.utime,
-                direction: "out",
-                confirmed: true,
-              });
-            }
-          }
-        }
-
-        // Incoming: in_msg with value > threshold, skip bounced and excess returns
-        if (tx.in_msg?.source && !tx.in_msg.bounced && !hasOutgoing) {
-          const val = BigInt(tx.in_msg.value || "0");
-          if (val > DUST_THRESHOLD) {
-            txs.push({
-              hash,
-              from: tx.in_msg.source,
-              to: tx.in_msg.destination,
-              value: tx.in_msg.value,
-              formatted: formatBalance(val, asset.decimals),
-              symbol: asset.symbol,
-              timestamp: tx.utime,
-              direction: "in",
-              confirmed: true,
-            });
-          }
-        }
-      }
-
-      return { transactions: txs, hasMore };
-    } catch {
-      return { transactions: [], hasMore: false };
-    }
+    // For Jetton tokens, use v3 API to fetch transfer events
+    const jetton = !asset.isNative && !!asset.contractAddress;
+    return historyWithProxyFallback(
+      `${chain.id}:${address}:${asset.id}`,
+      page,
+      () => (jetton ? fetchJettonTransactions(address, chain, asset, page) : fetchNativeTransactions(address, chain, asset, page)),
+      () => proxyTonHistory(chain, address, asset),
+    );
   },
 };
