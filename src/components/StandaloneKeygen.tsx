@@ -393,7 +393,7 @@ export function StandaloneKeygen() {
               </div>
             )}
 
-            {KEYGEN_CLOSED ? <DomainMovedNotice /> : (
+            {KEYGEN_CLOSED ? <DomainMovedNotice dismissible={false} /> : (
             <button
               onClick={() => setStep("name")}
               className="w-full bg-blue-600 hover:bg-blue-700 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors text-white"

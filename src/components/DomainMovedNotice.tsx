@@ -1,22 +1,34 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { ArrowRight, ChevronDown } from "lucide-react";
+import { ArrowRight, ChevronDown, X } from "lucide-react";
 import { KEYGEN_CLOSED, MIGRATE_TO_HOST, MIGRATE_TO_URL } from "../lib/domain-migration";
+import { dismissMigrateNotice, isMigrateNoticeDismissed } from "../lib/migrate-notice-dismissal";
 
 /**
  * Shown on the legacy domain only. Explains the move to the new domain and the two ways
  * to bring funds across: a new wallet + transfer (recommended) or key-file import.
  */
 /** `signedIn` adds in-app links (export key file, config) that only work after login. */
-export function DomainMovedNotice({ className = "", signedIn = false }: { className?: string; signedIn?: boolean }) {
+/** `dismissible={false}` for screens where the notice is the only content (keygen is closed). */
+export function DomainMovedNotice({ className = "", signedIn = false, dismissible = true }: { className?: string; signedIn?: boolean; dismissible?: boolean }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  if (!KEYGEN_CLOSED) return null;
+  const [dismissed, setDismissed] = useState(() => dismissible && isMigrateNoticeDismissed());
+  if (!KEYGEN_CLOSED || dismissed) return null;
 
   return (
-    <div className={`bg-blue-500/10 border border-blue-500/20 rounded-lg px-4 py-3 text-left ${className}`}>
-      <p className="text-xs text-blue-400 font-medium">{t("domainMove.title", { host: MIGRATE_TO_HOST })}</p>
+    <div className={`relative bg-blue-500/10 border border-blue-500/20 rounded-lg px-4 py-3 text-left ${className}`}>
+      {dismissible && (
+        <button
+          onClick={() => { dismissMigrateNotice(); setDismissed(true); }}
+          aria-label={t("common.close")}
+          className="absolute top-2 right-2 p-1 text-text-muted hover:text-text-secondary transition-colors"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      )}
+      <p className={`text-xs text-blue-400 font-medium ${dismissible ? "pr-6" : ""}`}>{t("domainMove.title", { host: MIGRATE_TO_HOST })}</p>
       <p className="text-[11px] text-text-muted mt-1 leading-relaxed">{t("domainMove.desc")}</p>
 
       <div className="flex items-center gap-3 mt-2.5">
