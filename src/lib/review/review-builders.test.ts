@@ -91,6 +91,19 @@ describe("EVM transaction", () => {
     expect(m.rows.find((r) => r.fullAddress)?.party).toEqual({ address: TO, name: "Uniswap Universal Router" });
   });
 
+  test("setApprovalForAll(operator, false) is a collection revoke; true stays an approval, dirty words a contract call", () => {
+    const op = "0x" + "ab".repeat(20);
+    const off = "0xa22cb465" + word(op) + word("0");
+    const call = decodeEvmCall(off, FROM.address, TO);
+    expect(call).toMatchObject({ kind: "revokeAll", operator: checksumEvmAddress(op), token: TO });
+    const m = buildEvmTxReview({ tx: { to: TO, data: off }, from: FROM, nativeSymbol: "ETH", tokenOf: () => ({ symbol: "BAYC", decimals: 0 }), feeWei: 1n, prices });
+    expect(m.hero).toMatchObject({ verb: { key: "review.verb.revoke" }, amount: { key: "review.revokeNftAll", params: { collection: "BAYC" } } });
+    expect(m.hero.counterparty?.party.address).toBe(checksumEvmAddress(op));
+    expect(m.extraConfirm).toBeUndefined();
+    expect(decodeEvmCall("0xa22cb465" + word(op) + word("1"), FROM.address, TO).kind).toBe("approve");
+    expect(decodeEvmCall("0xa22cb465" + "1".repeat(24) + "0".repeat(40) + word("0"), FROM.address, TO).kind).toBe("contract");
+  });
+
   test("calldata with a dirty address word is not treated as ERC-20", () => {
     expect(decodeEvmCall("0xa9059cbb" + "1".repeat(24) + "0".repeat(40) + "0".repeat(64)).kind).toBe("contract");
   });

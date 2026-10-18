@@ -1454,7 +1454,8 @@
     "extraConfirm": {
       "nftApprovalForAll": "我明白此应用可以转移我所有的 {{collection}} NFT，包括现在和以后的，且无需再次询问。"
     },
-    "lookalikeConfirm": "我已逐个字符核对地址，仍要发送"
+    "lookalikeConfirm": "我已逐个字符核对地址，仍要发送",
+    "revokeNftAll": "所有 {{collection}} NFT"
   },
   "explore": {
     "title": "探索",
@@ -1638,5 +1639,22 @@
       "mismatch": "RPC 返回的链为 {{actual}}，而不是 {{declared}}。未添加网络。",
       "unreachable": "无法连接 RPC，或其未响应 eth_chainId。"
     }
+  },
+  "approvals": {
+    "title": "授权管理",
+    "subtitle": "可在 {{chain}} 上从你的账户转移代币的应用和地址",
+    "allNfts": "所有 NFT",
+    "unlimited": "无限额",
+    "collection": "NFT 合集",
+    "spender": "被授权方",
+    "flagged": "已标记为高风险",
+    "granted": "授权于 {{date}}",
+    "revoking": "正在撤销…",
+    "revoke": "撤销",
+    "loadFailed": "无法加载授权列表。",
+    "partial": "仅显示近期授权（最近约 5 万个区块）",
+    "truncated": "可能缺少较早的授权（数量过多无法列出）。",
+    "empty": "没有有效授权",
+    "emptyHint": "目前没有应用或地址可以转移你的代币。"
   }
 }

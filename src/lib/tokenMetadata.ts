@@ -31,7 +31,7 @@ async function ethCall(rpcUrl: string, to: string, data: string): Promise<string
   return json.result;
 }
 
-function decodeString(hex: string): string {
+export function decodeString(hex: string): string {
   if (!hex || hex === "0x") return "";
   const h = hex.startsWith("0x") ? hex.slice(2) : hex;
   // Try ABI-encoded string (offset + length + data)
@@ -45,6 +45,18 @@ function decodeString(hex: string): string {
   const bytes = new Uint8Array(32);
   for (let i = 0; i < 32; i++) bytes[i] = parseInt(h.substr(i * 2, 2), 16);
   return new TextDecoder().decode(bytes).replace(/\0+$/, "");
+}
+
+/** Best display name of any contract (ERC-721 / 1155 collections have no decimals): name(), else symbol(); "" when neither reads. */
+export async function fetchEvmContractName(contractAddress: string, rpcUrl: string): Promise<string> {
+  const addr = contractAddress.toLowerCase();
+  for (const sel of [ERC20_NAME, ERC20_SYMBOL]) {
+    try {
+      const name = decodeString(await ethCall(rpcUrl, addr, sel)).trim();
+      if (name) return name;
+    } catch { /* next */ }
+  }
+  return "";
 }
 
 export async function fetchEvmTokenMetadata(contractAddress: string, rpcUrl: string, evmChainId: number | null): Promise<TokenMetadata> {

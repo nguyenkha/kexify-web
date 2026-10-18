@@ -1454,7 +1454,8 @@
     "extraConfirm": {
       "nftApprovalForAll": "Tôi hiểu ứng dụng này có thể chuyển TOÀN BỘ NFT {{collection}} của tôi, cả hiện tại lẫn sau này, mà không cần hỏi lại."
     },
-    "lookalikeConfirm": "Tôi đã kiểm tra từng ký tự của địa chỉ và vẫn muốn gửi"
+    "lookalikeConfirm": "Tôi đã kiểm tra từng ký tự của địa chỉ và vẫn muốn gửi",
+    "revokeNftAll": "Tất cả NFT {{collection}}"
   },
   "explore": {
     "title": "Khám phá",
@@ -1638,5 +1639,22 @@
       "mismatch": "RPC báo chain {{actual}}, không phải {{declared}}. Chưa thêm mạng.",
       "unreachable": "Không kết nối được RPC hoặc RPC không trả lời eth_chainId."
     }
+  },
+  "approvals": {
+    "title": "Quyền truy cập token",
+    "subtitle": "Ứng dụng và địa chỉ có thể chuyển token từ tài khoản của bạn trên {{chain}}",
+    "allNfts": "Tất cả NFT",
+    "unlimited": "Không giới hạn",
+    "collection": "Bộ sưu tập NFT",
+    "spender": "Bên được cấp quyền",
+    "flagged": "Bị gắn cờ rủi ro",
+    "granted": "Cấp ngày {{date}}",
+    "revoking": "Đang thu hồi…",
+    "revoke": "Thu hồi",
+    "loadFailed": "Không tải được danh sách quyền.",
+    "partial": "Chỉ hiển thị các quyền gần đây (~50k khối gần nhất)",
+    "truncated": "Có thể thiếu các quyền cũ hơn (quá nhiều để liệt kê).",
+    "empty": "Không có quyền nào đang hoạt động",
+    "emptyHint": "Hiện không có ứng dụng hay địa chỉ nào có thể chuyển token của bạn."
   }
 }

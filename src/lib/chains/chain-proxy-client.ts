@@ -85,7 +85,7 @@ export async function proxyPost(network: string, method: string, body: Record<st
 }
 
 /** One proxy read; null on any failure (the caller keeps its public result). */
-export async function proxyRead(network: string, method: "balance" | "history" | "utxos", address: string): Promise<ProxyBody | null> {
+export async function proxyRead(network: string, method: "balance" | "history" | "utxos" | "approvals", address: string): Promise<ProxyBody | null> {
   const token = getToken();
   if (!token) return null;
   try {

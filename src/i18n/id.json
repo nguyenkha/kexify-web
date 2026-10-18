@@ -1454,7 +1454,8 @@
     "extraConfirm": {
       "nftApprovalForAll": "Saya mengerti aplikasi ini dapat memindahkan SEMUA NFT {{collection}} saya, sekarang dan nanti, tanpa bertanya lagi."
     },
-    "lookalikeConfirm": "Saya sudah memeriksa setiap karakter alamat dan tetap ingin mengirim"
+    "lookalikeConfirm": "Saya sudah memeriksa setiap karakter alamat dan tetap ingin mengirim",
+    "revokeNftAll": "Semua NFT {{collection}}"
   },
   "explore": {
     "title": "Jelajahi",
@@ -1638,5 +1639,22 @@
       "mismatch": "RPC melaporkan chain {{actual}}, bukan {{declared}}. Jaringan tidak ditambahkan.",
       "unreachable": "Tidak dapat menjangkau RPC atau RPC tidak menjawab eth_chainId."
     }
+  },
+  "approvals": {
+    "title": "Persetujuan",
+    "subtitle": "Aplikasi dan alamat yang dapat memindahkan token dari akun Anda di {{chain}}",
+    "allNfts": "Semua NFT",
+    "unlimited": "Tanpa batas",
+    "collection": "Koleksi NFT",
+    "spender": "Penerima izin",
+    "flagged": "Ditandai berisiko",
+    "granted": "Diberikan {{date}}",
+    "revoking": "Mencabut…",
+    "revoke": "Cabut",
+    "loadFailed": "Gagal memuat persetujuan.",
+    "partial": "Hanya persetujuan terbaru yang ditampilkan (~50 ribu blok terakhir)",
+    "truncated": "Persetujuan lama mungkin tidak tampil (terlalu banyak untuk didaftar).",
+    "empty": "Tidak ada persetujuan aktif",
+    "emptyHint": "Saat ini tidak ada aplikasi atau alamat yang dapat memindahkan token Anda."
   }
 }

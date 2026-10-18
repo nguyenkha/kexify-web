@@ -62,6 +62,9 @@ interface Props {
   onApprove: (result: unknown) => void;
   onReject: () => void;
   onDismiss?: () => void;
+  /** An in-app request (no WalletConnect session), e.g. the approvals screen's revoke: names the source and
+   *  the tokens it knows beyond the asset list; hides the allowance cap editor so a revoke stays a revoke. */
+  origin?: { name: string; tokens?: { address: string; symbol: string; decimals: number }[] };
 }
 
 interface ResolvedAccount {
@@ -97,7 +100,7 @@ function formatGwei(wei: bigint): string {
 
 // ── Component ────────────────────────────────────────────────────
 
-export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: Props) {
+export function WCRequestApproval({ request, onApprove, onReject, onDismiss, origin }: Props) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const expert = useExpertMode();
@@ -238,7 +241,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   // Notify on tx confirmation
   useEffect(() => {
     if (txResult?.status === "success") {
-      const dappName = wcService.getSessions().find((s) => s.topic === request.topic)?.peer.metadata.name || "dApp";
+      const dappName = origin?.name ?? (wcService.getSessions().find((s) => s.topic === request.topic)?.peer.metadata.name || "dApp");
       notify({
         title: t("notify.txConfirmed"),
         body: dappName,
@@ -810,14 +813,16 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   const requestDisplay = formatRequest(request, expert, permitToken);
 
   // Review models (UX spec: docs/ux/review-and-sign.md), from the same decoded bytes as signing.
-  const dappMeta = wcService.getSessions().find((s) => s.topic === request.topic)?.peer.metadata;
+  const dappMeta = origin ? undefined : wcService.getSessions().find((s) => s.topic === request.topic)?.peer.metadata;
+  const sourceName = origin?.name ?? (dappMeta?.name || "dApp");
   const reviewCtx: WcReviewContext = {
     from: { address: account?.address ?? "", name: account?.keyName },
-    dappName: dappMeta?.name || "dApp",
+    dappName: sourceName,
     chainId: chainId || undefined,
     nativeSymbol: chainAssets.find((a) => a.isNative)?.symbol ?? (isSolana ? "SOL" : isTron ? "TRX" : "ETH"),
     tokenOf: (addr) => {
-      const a = chainAssets.find((x) => x.contractAddress?.toLowerCase() === addr.toLowerCase());
+      const a = chainAssets.find((x) => x.contractAddress?.toLowerCase() === addr.toLowerCase())
+        ?? origin?.tokens?.find((x) => x.address.toLowerCase() === addr.toLowerCase());
       return a ? { symbol: a.symbol, decimals: a.decimals } : undefined;
     },
     // Test coins (built-in or custom testnets) have no value: never priced as the real asset with the same symbol.
@@ -853,7 +858,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   const solanaUnreadable = isSolanaTx && !decodedSolTx;
   const previewBlocked = policyCheck?.allowed === false || !!previewModel?.warnings.some((w) => w.blocks) || solanaUnreadable;
   const reviewedAll = !previewModel || gate.seen;
-  const capEditor = (m: ReviewModel) => m.allowance
+  const capEditor = (m: ReviewModel) => m.allowance && !origin
     ? <AllowanceEditor allowance={m.allowance} dappName={reviewCtx.dappName} onChange={setApproveOverride} onInvalid={setCapInvalid} />
     : null;
   const reviewPolicy = isRecoveryMode() || !account ? undefined : () => {
@@ -903,7 +908,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                   </svg>
                 </button>
               )}
-              <DappTitle name={dappMeta?.name || "dApp"} url={dappMeta?.url} iconUrl={dappMeta?.icons?.[0]} />
+              <DappTitle name={sourceName} url={dappMeta?.url} iconUrl={dappMeta?.icons?.[0]} />
               {chain && <span className="ml-auto"><NetworkChip name={chain.displayName} iconUrl={chain.iconUrl} /></span>}
             </div>
           ) : (

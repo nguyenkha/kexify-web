@@ -1454,7 +1454,8 @@
     "extraConfirm": {
       "nftApprovalForAll": "このアプリが、現在および今後、あらためて確認することなく、私のすべての{{collection}}のNFTを動かせることを理解しました。"
     },
-    "lookalikeConfirm": "アドレスをすべての文字まで確認しました。それでも送ります"
+    "lookalikeConfirm": "アドレスをすべての文字まで確認しました。それでも送ります",
+    "revokeNftAll": "{{collection}} の NFT すべて"
   },
   "explore": {
     "title": "探す",
@@ -1638,5 +1639,22 @@
       "mismatch": "RPCは {{declared}} ではなくチェーン {{actual}} を返しました。ネットワークは追加されませんでした。",
       "unreachable": "RPCに接続できないか、eth_chainIdに応答しませんでした。"
     }
+  },
+  "approvals": {
+    "title": "承認",
+    "subtitle": "{{chain}} 上であなたのアカウントからトークンを移動できるアプリとアドレス",
+    "allNfts": "すべての NFT",
+    "unlimited": "無制限",
+    "collection": "NFT コレクション",
+    "spender": "承認先",
+    "flagged": "危険としてフラグ済み",
+    "granted": "{{date}} に承認",
+    "revoking": "取り消し中…",
+    "revoke": "取り消す",
+    "loadFailed": "承認を読み込めませんでした。",
+    "partial": "最近の承認のみ表示しています（直近約 5 万ブロック）",
+    "truncated": "古い承認は表示されない場合があります（数が多すぎます）。",
+    "empty": "有効な承認はありません",
+    "emptyHint": "現在、トークンを移動できるアプリやアドレスはありません。"
   }
 }

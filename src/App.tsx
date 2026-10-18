@@ -3,6 +3,7 @@ import * as Sentry from "@sentry/react";
 import { ExplorePage } from "./components/explore-page";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, Outlet } from "react-router-dom";
 import { Wallet } from "./components/Wallet";
+import { ApprovalsPage } from "./components/approvals/ApprovalsPage";
 import { AccountDetail } from "./components/AccountDetail";
 import { Sign } from "./components/Sign";
 import { Passkeys } from "./components/Passkeys";
@@ -552,6 +553,7 @@ function App() {
           }
         >
           <Route path="/accounts" element={<Wallet />} />
+          <Route path="/accounts/:keyId/:chainName/approvals" element={<ApprovalsPage />} />
           <Route path="/accounts/:keyId/:chainName/:assetSymbol/:btcAddrType?" element={<AccountDetail />} />
           <Route path="/passkeys" element={<Passkeys />} />
           <Route path="/backup-recovery" element={<BackupRecoveryPage />} />

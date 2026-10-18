@@ -60,7 +60,7 @@ function bytesToBigint(bytes: Uint8Array): bigint {
 
 // ── RPC Helper ──────────────────────────────────────────────────
 
-async function ethRpc(rpcUrl: string, method: string, params: unknown[]): Promise<unknown> {
+export async function ethRpc(rpcUrl: string, method: string, params: unknown[]): Promise<unknown> {
   const res = await fetch(rpcUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

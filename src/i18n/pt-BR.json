@@ -1456,7 +1456,8 @@
     },
     "actions_many": "{{count}} ações",
     "moreWarnings_many": "+{{count}} avisos a mais",
-    "lookalikeConfirm": "Conferi cada caractere do endereço e ainda quero enviar"
+    "lookalikeConfirm": "Conferi cada caractere do endereço e ainda quero enviar",
+    "revokeNftAll": "Todos os NFTs de {{collection}}"
   },
   "explore": {
     "title": "Explorar",
@@ -1642,5 +1643,22 @@
       "mismatch": "O RPC informa a chain {{actual}}, não {{declared}}. Rede não adicionada.",
       "unreachable": "Não foi possível acessar o RPC ou ele não respondeu a eth_chainId."
     }
+  },
+  "approvals": {
+    "title": "Aprovações",
+    "subtitle": "Apps e endereços que podem mover tokens da sua conta na {{chain}}",
+    "allNfts": "Todos os NFTs",
+    "unlimited": "Ilimitado",
+    "collection": "Coleção de NFTs",
+    "spender": "Autorizado",
+    "flagged": "Sinalizado como arriscado",
+    "granted": "Concedida em {{date}}",
+    "revoking": "Revogando…",
+    "revoke": "Revogar",
+    "loadFailed": "Não foi possível carregar as aprovações.",
+    "partial": "Só aprovações recentes são exibidas (últimos ~50 mil blocos)",
+    "truncated": "Aprovações mais antigas podem estar faltando (são muitas para listar).",
+    "empty": "Nenhuma aprovação ativa",
+    "emptyHint": "Nenhum app ou endereço pode mover seus tokens no momento."
   }
 }

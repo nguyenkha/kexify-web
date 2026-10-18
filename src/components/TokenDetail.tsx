@@ -26,6 +26,7 @@ import { useToast } from "../context/ToastContext";
 import { useTranslation } from "react-i18next";
 import { TestnetBadge } from "./testnet-badge";
 import { isTestnetChain } from "../lib/testnet";
+import { useNavigate } from "react-router-dom";
 
 export interface PendingTxFromNavigation {
   hash: string;
@@ -63,6 +64,7 @@ function formatLastUpdated(date: Date, t: (key: string, opts?: Record<string, un
 export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval: pollIntervalProp, pendingTx, chainAssets }: TokenDetailProps) {
   const { t } = useTranslation();
   const frozen = useFrozen();
+  const navigate = useNavigate();
   const expert = useExpertMode();
   const { addToast } = useToast();
   const pollInterval = pollIntervalProp ?? DEFAULT_POLL_INTERVAL;
@@ -351,6 +353,19 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
             </div>
             <span className="text-[11px] text-text-muted group-hover:text-text-secondary transition-colors">{t("common.receive")}</span>
           </button>
+          {chain.type === "evm" && asset.isNative && (
+            <button
+              onClick={() => navigate(`/accounts/${keyId}/${chain.name}/approvals`)}
+              className="flex flex-col items-center gap-1.5 group"
+            >
+              <div className="w-11 h-11 rounded-full bg-surface-tertiary group-hover:bg-border-primary group-active:bg-border-secondary flex items-center justify-center transition-colors">
+                <svg className="w-5 h-5 text-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+              </div>
+              <span className="text-[11px] text-text-muted group-hover:text-text-secondary transition-colors">{t("approvals.title")}</span>
+            </button>
+          )}
           {(chain.type === "xlm" || chain.type === "algo") && asset.isNative && chainAssets && chainAssets.some(a => !a.isNative) && (
             <button
               onClick={() => chain.type === "algo" ? setShowAlgoOptIn(true) : setShowXlmTrustline(true)}

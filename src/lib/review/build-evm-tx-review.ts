@@ -9,11 +9,21 @@ import type { NameLookup, PolicyCheckInput, Prices, ReviewModel, ReviewRow, Revi
 const MAX_UINT256 = 2n ** 256n - 1n;
 
 const APPROVE = "095ea7b3";
+const SET_APPROVAL_FOR_ALL = "a22cb465";
+
+/** setApprovalForAll(operator, false) with clean words: a collection-wide revoke (review-only; the policy sees a contract call). */
+function revokeAllOf(hex: string, to: string): EvmCall | null {
+  if (!hex.startsWith(SET_APPROVAL_FOR_ALL) || hex.length !== 8 + 128) return null;
+  const opWord = hex.slice(8, 72);
+  if (!/^0{24}[0-9a-f]{40}$/.test(opWord) || !/^0{64}$/.test(hex.slice(72))) return null;
+  return { kind: "revokeAll", operator: checksumEvmAddress("0x" + opWord.slice(24)), token: checksumEvmAddress(to) };
+}
 
 export type EvmCall =
   | { kind: "native" }
   | { kind: "transfer"; to: string; amount: bigint | "ALL"; token: string }
   | { kind: "approve"; spender: string; amount: bigint | "ALL"; token: string; nft: boolean; plain: boolean }
+  | { kind: "revokeAll"; operator: string; token: string }
   | { kind: "contract" };
 
 /**
@@ -27,6 +37,10 @@ export function decodeEvmCall(data: string | undefined, from = "", to = ""): Evm
   const hex = data.replace(/^0x/, "").toLowerCase();
   const leg = evmLegs(from, to, 0n, hex).find((l) => l.kind !== "transfer" || l.asset.contract !== null);
   if (leg?.kind === "transfer") return { kind: "transfer", to: checksumEvmAddress(leg.to), amount: leg.amount, token: leg.asset.contract ?? to };
+  if (leg?.kind === "contract_call") {
+    const revoke = revokeAllOf(hex, to);
+    if (revoke) return revoke;
+  }
   if (leg?.kind === "approval") {
     return {
       kind: "approve", spender: checksumEvmAddress(leg.spender), amount: leg.amount, token: checksumEvmAddress(leg.asset.contract ?? to),
@@ -142,6 +156,12 @@ export function buildEvmTxReview(i: EvmTxReviewInput): ReviewModel {
     rows.push({ label: { key: "review.token" }, party: partyOf(call.token, (a) => i.nameOf?.(a) ?? info?.symbol) });
     if (call.token.toLowerCase() !== to.toLowerCase()) rows.push({ label: { key: "review.contract" }, party: contractParty });
     if (editable) allowance = allowanceOf(requested, amount, info!, i.tokenBalanceRaw);
+  } else if (call.kind === "revokeAll") {
+    const collection = i.tokenOf?.(call.token)?.symbol ?? i.nameOf?.(call.token) ?? shortAddress(call.token);
+    const operator = partyOf(call.operator, i.nameOf);
+    model = { hero: { icon: "approve", tone: "accent", verb: { key: "review.verb.revoke" }, amount: { key: "review.revokeNftAll", params: { collection } }, counterparty: { prefix: "for", party: operator } } };
+    rows.push({ label: { key: "review.spender" }, party: operator, fullAddress: true });
+    rows.push({ label: { key: "review.contract" }, party: contractParty });
   } else {
     // Contract call: the contract is what the user talks to.
     model = {

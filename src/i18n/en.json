@@ -1454,7 +1454,8 @@
     "extraConfirm": {
       "nftApprovalForAll": "I understand this app can move ALL my {{collection}} NFTs, now and later, without asking again."
     },
-    "lookalikeConfirm": "I checked every character of the address and still want to send"
+    "lookalikeConfirm": "I checked every character of the address and still want to send",
+    "revokeNftAll": "All {{collection}} NFTs"
   },
   "explore": {
     "title": "Explore",
@@ -1638,5 +1639,22 @@
       "mismatch": "The RPC reports chain {{actual}}, not {{declared}}. Network not added.",
       "unreachable": "Could not reach the RPC or it did not answer eth_chainId."
     }
+  },
+  "approvals": {
+    "title": "Approvals",
+    "subtitle": "Apps and addresses that may move tokens from your account on {{chain}}",
+    "allNfts": "All NFTs",
+    "unlimited": "Unlimited",
+    "collection": "NFT collection",
+    "spender": "Spender",
+    "flagged": "Flagged as risky",
+    "granted": "Granted {{date}}",
+    "revoking": "Revoking…",
+    "revoke": "Revoke",
+    "loadFailed": "Could not load approvals.",
+    "partial": "Only recent approvals shown (last ~50k blocks)",
+    "truncated": "Older approvals may be missing (too many to list).",
+    "empty": "No active approvals",
+    "emptyHint": "No app or address can move your tokens right now."
   }
 }
