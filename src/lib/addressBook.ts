@@ -1,25 +1,89 @@
-// Address book + recent recipients stored in local config (kexify:config)
+// Address book + recent recipients, stored per identity (kexify:addressBook:<sub>) and synced end-to-end
+// encrypted by address-book-sync.ts.
 
-import { getUserOverrides, setUserOverrides, type AddressBookEntry, type RecentRecipientEntry } from "./userOverrides";
+import { getUserOverrides, setUserOverrides, type AddressBookEntry, type AddressBookTombstone, type RecentRecipientEntry, type UserOverrides } from "./userOverrides";
+import { recordKey, type WireRecord } from "./address-book-sync-merge";
+
+/** Fired after a local edit; address-book-sync.ts pushes it (kept as an event to avoid an import cycle). */
+export const ADDRESS_BOOK_LOCAL_EDIT = "kexify:address-book-local-edit";
+const notifyEdit = () => { globalThis.dispatchEvent?.(new Event(ADDRESS_BOOK_LOCAL_EDIT)); };
+const sameKey = (a: { address: string; chain?: string }, b: { address: string; chain?: string }) =>
+  a.address.toLowerCase() === b.address.toLowerCase() && (a.chain ?? "") === (b.chain ?? "");
 
 const MAX_RECENT = 10;
 
 export type AddressEntry = AddressBookEntry;
 export type RecentRecipient = RecentRecipientEntry;
 
-/** Get current user's identity ID from JWT */
-function currentIdentityId(): string | undefined {
+/** JWT `sub` of a token, or undefined. */
+export function tokenSub(token: string | null | undefined): string | undefined {
   try {
-    const token = localStorage.getItem("secretkey_token");
     if (!token) return undefined;
-    return JSON.parse(atob(token.split(".")[1])).sub;
+    return JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))).sub || undefined;
   } catch { return undefined; }
 }
 
-/** Get overrides scoped to the current identity (userId or keyShareId) */
-function findOverrides(): { overrides: ReturnType<typeof getUserOverrides>; userId?: string } {
-  const userId = currentIdentityId();
-  return { overrides: getUserOverrides(userId), userId };
+/** Current identity (user id or standalone key share id): the session JWT, else the identity kept for the lock screen. */
+function currentIdentityId(): string | undefined {
+  let fromToken: string | undefined;
+  try { fromToken = tokenSub(sessionStorage.getItem("secretkey_token")); } catch { /* no sessionStorage */ }
+  if (fromToken) return fromToken;
+  try { return JSON.parse(localStorage.getItem("kxi:identity") ?? "null")?.sub || undefined; } catch { return undefined; }
+}
+
+const BOOK_FIELDS = ["address_book", "address_book_deleted", "recent_recipients"] as const;
+type BookStore = Pick<UserOverrides, (typeof BOOK_FIELDS)[number]>;
+const bookKey = (sub?: string) => (sub ? `kexify:addressBook:${sub}` : "kexify:addressBook");
+
+function readStore(key: string): BookStore | null {
+  try { const v = JSON.parse(localStorage.getItem(key) ?? "null"); return v && typeof v === "object" ? v : null; } catch { return null; }
+}
+
+/**
+ * The book lives under its own key, not inside kexify:config: the config page exports, emails and rewrites
+ * the config, and the book must stay out of that (end-to-end encrypted sync, no stale overwrites).
+ * Earlier builds kept it in the unscoped kexify:config (the token lookup never found the session token):
+ * the first identity to open the book on this browser takes those fields over, once.
+ */
+function findOverrides(sub = currentIdentityId()): { overrides: BookStore; userId?: string } {
+  const store: BookStore = { ...(readStore(bookKey(sub)) ?? {}) };
+  let changed = false;
+  // Book fields in a config (the shared legacy one, or one imported from an old backup) move into the book,
+  // so the config page never exports or emails them and sync sees them.
+  for (const legacyId of sub ? [sub, undefined] : [undefined]) {
+    const legacy = getUserOverrides(legacyId);
+    if (!BOOK_FIELDS.some((f) => legacy[f] !== undefined)) continue;
+    store.address_book = unionBy(store.address_book, legacy.address_book);
+    store.address_book_deleted = unionBy(store.address_book_deleted, legacy.address_book_deleted);
+    store.recent_recipients = store.recent_recipients ?? legacy.recent_recipients;
+    changed = true;
+    // No identity yet (signed out): show the legacy book, move nothing (no account would ever read it back).
+    if (!sub) continue;
+    // Also the pre-snake_case names, or userOverrides.migrate() would bring the book back for the next identity.
+    for (const f of [...BOOK_FIELDS, "addressBook", "recentRecipients"]) delete (legacy as Record<string, unknown>)[f];
+    setUserOverrides(legacy, legacyId);
+  }
+  if (sub && (changed || !readStore(bookKey(sub)))) setUserOverridesBook(store, sub);
+  return { overrides: store, userId: sub };
+}
+
+/** Entries of `a`, plus those of `b` whose chain + address `a` does not have. */
+function unionBy<T extends { address: string; chain?: string }>(a: T[] | undefined, b: T[] | undefined): T[] | undefined {
+  if (!b?.length) return a;
+  const out = [...(a ?? [])];
+  for (const e of b) if (!out.some((x) => sameKey(x, e))) out.push(e);
+  return out;
+}
+
+/** Run the one-time move of the legacy book now (app start), before the config page can export it. */
+export function claimLegacyAddressBook(): void {
+  if (currentIdentityId()) findOverrides();
+}
+
+function setUserOverridesBook(store: BookStore, sub?: string): void {
+  const out: BookStore = {};
+  for (const f of BOOK_FIELDS) if (store[f] !== undefined) (out as Record<string, unknown>)[f] = store[f];
+  localStorage.setItem(bookKey(sub), JSON.stringify(out));
 }
 
 // ── Address Book ──────────────────────────────────────────────────
@@ -32,23 +96,54 @@ export function getAddressBook(): AddressEntry[] {
 export function saveAddressEntry(entry: Omit<AddressEntry, "added_at">): void {
   const { overrides, userId } = findOverrides();
   const book: AddressEntry[] = overrides.address_book ?? [];
-  const existing = book.findIndex(
-    (e) => e.address.toLowerCase() === entry.address.toLowerCase() && e.chain === entry.chain,
-  );
+  const existing = book.findIndex((e) => sameKey(e, entry));
   if (existing >= 0) {
-    book[existing] = { ...entry, added_at: Date.now() };
+    // An edit keeps the network hint iOS gave the entry.
+    book[existing] = { network: book[existing].network, ...entry, added_at: Date.now() };
   } else {
     book.push({ ...entry, added_at: Date.now() });
   }
-  setUserOverrides({ ...overrides, address_book: book }, userId);
+  const deleted = (overrides.address_book_deleted ?? []).filter((d) => !sameKey(d, entry));
+  setUserOverridesBook({ ...overrides, address_book: book, address_book_deleted: deleted }, userId);
+  notifyEdit();
 }
 
 export function removeAddressEntry(address: string, chain?: string): void {
   const { overrides, userId } = findOverrides();
-  const book = (overrides.address_book ?? []).filter(
-    (e) => !(e.address.toLowerCase() === address.toLowerCase() && e.chain === chain),
-  );
-  setUserOverrides({ ...overrides, address_book: book }, userId);
+  const key = { address, chain };
+  const book = (overrides.address_book ?? []).filter((e) => !sameKey(e, key));
+  const deleted = (overrides.address_book_deleted ?? []).filter((d) => !sameKey(d, key));
+  deleted.push({ address, chain, deleted_at: Date.now() });
+  setUserOverridesBook({ ...overrides, address_book: book, address_book_deleted: deleted }, userId);
+  notifyEdit();
+}
+
+// ── Sync records (address-book-sync.ts) ──────────────────────────
+
+/** The local book (live entries + tombstones) of `sub` as wire records. */
+export function readLocalRecords(sub: string): WireRecord[] {
+  const { overrides } = findOverrides(sub);
+  const live: WireRecord[] = (overrides.address_book ?? []).map((e) => ({
+    a: e.address, c: e.chain ?? "", l: e.label ?? "", t: Number(e.added_at) || 0, ...(e.network ? { n: e.network } : {}),
+  }));
+  const gone: WireRecord[] = (overrides.address_book_deleted ?? []).map((d) => ({
+    a: d.address, c: d.chain ?? "", l: "", t: 0, d: Number(d.deleted_at) || 0,
+  }));
+  return [...live, ...gone].filter((r) => r.a);
+}
+
+/** Replace the local book of `sub` with merged records (the order of existing entries is kept). */
+export function writeLocalRecords(records: WireRecord[], sub: string): void {
+  const { overrides, userId } = findOverrides(sub);
+  const order = new Map((overrides.address_book ?? []).map((e, i) => [recordKey({ a: e.address, c: e.chain ?? "" }), i]));
+  const live = records.filter((r) => r.d === undefined)
+    .sort((x, y) => (order.get(recordKey(x)) ?? Infinity) - (order.get(recordKey(y)) ?? Infinity) || x.t - y.t);
+  const address_book: AddressEntry[] = live.map((r) => ({
+    address: r.a, label: r.l, ...(r.c ? { chain: r.c } : {}), ...(r.n ? { network: r.n } : {}), added_at: r.t,
+  }));
+  const address_book_deleted: AddressBookTombstone[] = records.filter((r) => r.d !== undefined)
+    .map((r) => ({ address: r.a, ...(r.c ? { chain: r.c } : {}), deleted_at: r.d! }));
+  setUserOverridesBook({ ...overrides, address_book, address_book_deleted }, userId);
 }
 
 // ── Recent Recipients ─────────────────────────────────────────────
@@ -65,7 +160,7 @@ export function addRecentRecipient(address: string, chain: string, asset: string
   );
   recent.unshift({ address, chain, asset, timestamp: Date.now() });
   if (recent.length > MAX_RECENT) recent = recent.slice(0, MAX_RECENT);
-  setUserOverrides({ ...overrides, recent_recipients: recent }, userId);
+  setUserOverridesBook({ ...overrides, recent_recipients: recent }, userId);
 }
 
 /** Get combined suggestions: address book entries first, then recent, filtered by chain */

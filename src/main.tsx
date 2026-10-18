@@ -11,12 +11,14 @@ import { initSentry } from './lib/sentry'
 import { installClientVersionGate } from './lib/client-version-gate'
 import { initAlgoAdapter } from './lib/chains/algoAdapter'
 import { initAdaAdapter } from './lib/chains/adaAdapter'
+import { installAddressBookSync } from './lib/address-book-sync'
 
 initSentry()
 installClientVersionGate()
 initTheme()
 initAlgoAdapter()
 initAdaAdapter()
+installAddressBookSync()
 
 declare const __BUILD_TIME__: string;
 declare const __GIT_HASH__: string;

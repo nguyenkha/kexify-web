@@ -8,6 +8,7 @@ import {
   buildXlmTransactionXdr,
   buildXlmCreateAccountXdr,
   checkXlmAccountExists,
+  checkXlmTrustline,
   xlmHashForSigning,
   assembleXlmSignedTx,
   getXlmAccountInfo,
@@ -16,6 +17,7 @@ import {
 } from "../../lib/chains/xlmTx";
 import type { SigningContext } from "./signing-flows";
 import { mapSendError, LocalizedSendError } from "./send-error";
+import { xlmDestinationBlockKey, xlmDestinationVerdict } from "../../lib/chains/xlm-destination";
 
 export async function executeXlmSigningFlow(ctx: SigningContext): Promise<void> {
   const {
@@ -52,11 +54,13 @@ export async function executeXlmSigningFlow(ctx: SigningContext): Promise<void> 
     const amountStroops = BigInt(Math.round(parseFloat(amount.replace(/,/g, "")) * 1e7));
     const isTestnet = chain.rpcUrl.includes("testnet");
 
-    // 2. Check if destination exists; use CREATE_ACCOUNT for new native XLM accounts
+    // 2. Check the destination; XLM to a new account is a CREATE_ACCOUNT (at least 1 XLM), an issued asset needs an
+    //    activated account that trusts it. Anything Stellar would reject on-chain is refused before signing.
     const destExists = await checkXlmAccountExists(chain.rpcUrl, to);
-    if (!destExists && !asset.isNative) {
-      throw new LocalizedSendError(t("send.xlmDestNotActive"));
-    }
+    const destTrusts = !asset.isNative && destExists && !!asset.contractAddress
+      && await checkXlmTrustline(chain.rpcUrl, to, asset.symbol, asset.contractAddress);
+    const blockKey = xlmDestinationBlockKey(xlmDestinationVerdict({ destExists, destTrusts, isNative: asset.isNative, amountStroops }));
+    if (blockKey) throw new LocalizedSendError(t(blockKey, { symbol: asset.symbol }));
 
     const txXdr = destExists
       ? buildXlmTransactionXdr({

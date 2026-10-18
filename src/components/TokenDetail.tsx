@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { displayAmount } from "../lib/display-amount";
 import { createPortal } from "react-dom";
 import { Spinner, CopyableText } from "./ui";
+import { trackExpertTool } from "../lib/expert-usage";
 import type { Chain, Asset } from "../lib/api";
 import { explorerLink } from "../shared/utils";
 import { fetchTransactions, type Transaction } from "../lib/transactions";
@@ -247,6 +248,7 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
   }
 
   async function handleSpeedUp(txHash: string) {
+    trackExpertTool("speed_up");
     const apiBase = mempoolApiUrl(chain.explorerUrl);
     try {
       const [txRes, feeRates] = await Promise.all([

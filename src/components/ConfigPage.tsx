@@ -25,6 +25,7 @@ import { friendlyError } from "../lib/error-message";
 import { isRecoveryMode } from "../lib/recovery";
 import { ThemeSelector } from "./theme-selector";
 import { ConfirmDialog } from "./ui/confirm-dialog";
+import { trackExpertTool, trackExpertToolOnce } from "../lib/expert-usage";
 import { SignOutConfirmDialog } from "./sign-out-confirm-dialog";
 
 type RpcStatus = "checking" | "ok" | "error";
@@ -192,6 +193,7 @@ export function ConfigPage() {
   function save(next: UserOverrides) {
     setOverrides(next);
     setUserOverrides(next, userId);
+    setExpertContext(next.preferences?.expert_mode ?? false); // JSON edit / import can flip it
     setSaved(true);
     setTimeout(() => setSaved(false), 1500);
   }
@@ -199,6 +201,7 @@ export function ConfigPage() {
   // ── Chain overrides ──
 
   function setChainField(name: string, field: "rpc_url" | "explorer_url", value: string) {
+    if (value) trackExpertToolOnce("config_networks");
     const prev = overrides.chains ?? {};
     const chain = { ...prev[name] };
     if (value) {
@@ -258,6 +261,7 @@ export function ConfigPage() {
       delete prefs.show_testnet;
     } else {
       prefs.show_testnet = true;
+      trackExpertTool("config_testnet");
     }
     save({ ...overrides, preferences: Object.keys(prefs).length ? prefs : undefined });
   }
@@ -272,6 +276,7 @@ export function ConfigPage() {
       delete prefs.expert_mode;
     } else {
       prefs.expert_mode = true;
+      trackExpertTool("expert_enabled");
     }
     save({ ...overrides, preferences: Object.keys(prefs).length ? prefs : undefined });
     setExpertContext(value);
@@ -287,6 +292,7 @@ export function ConfigPage() {
       delete prefs.confirm_before_broadcast;
     } else {
       prefs.confirm_before_broadcast = true;
+      trackExpertTool("config_confirm_broadcast");
     }
     save({ ...overrides, preferences: Object.keys(prefs).length ? prefs : undefined });
   }
@@ -376,6 +382,7 @@ export function ConfigPage() {
   function resetConfig() {
     clearUserOverrides(userId);
     setOverrides({});
+    setExpertContext(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 1500);
   }
@@ -406,6 +413,7 @@ export function ConfigPage() {
   }, [jsonText, jsonTab, chains, assets, serverSettings, serverDefaults, serverRefresh]);
 
   function openJsonEditor() {
+    trackExpertTool("config_json");
     setJsonText(JSON.stringify(overrides, null, 2));
     setJsonError("");
     setJsonTab("edit");
@@ -565,6 +573,7 @@ export function ConfigPage() {
                       delete prefs.evm_gas_buffer_pct;
                     } else {
                       prefs.evm_gas_buffer_pct = val;
+                      trackExpertToolOnce("config_gas_buffer");
                     }
                     save({ ...overrides, preferences: Object.keys(prefs).length ? prefs : undefined });
                   }}

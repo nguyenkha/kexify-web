@@ -7,6 +7,7 @@ import { fetchChains, fetchAssets, fetchSettings, type Chain, type Asset, type S
 import staticConfig from "../config.json";
 import { getMe, getIdentityId } from "../lib/auth";
 import { getUserOverrides, applyChainOverrides, getPreference } from "../lib/userOverrides";
+import { trackExpertTool } from "../lib/expert-usage";
 import { setCacheTtl, clearAllTokenBalanceCaches, notifyBalanceRefresh } from "../lib/dataCache";
 import { authHeaders } from "../lib/auth";
 import { apiUrl } from "../lib/apiBase";
@@ -565,7 +566,7 @@ export function Wallet() {
               </button>
               {!isRecovery && expert && (
                 <button
-                  onClick={() => { setPolicyKeyId(group.keyId); setMenuKeyId(null); }}
+                  onClick={() => { trackExpertTool("policy_rules"); setPolicyKeyId(group.keyId); setMenuKeyId(null); }}
                   className="w-full px-4 py-2.5 text-sm text-text-secondary hover:bg-surface-tertiary transition-colors flex items-center gap-3"
                 >
                   <svg className="w-4 h-4 text-text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

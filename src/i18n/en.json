@@ -345,6 +345,9 @@
     "closeDialog": "Close",
     "tryAgain": "Try again",
     "xlmDestNotActive": "Destination account is not activated. Send XLM first to activate it.",
+    "xlmBelowMinimum": "A new Stellar account needs at least 1 XLM to open. Send 1 XLM or more.",
+    "xlmCreatesAccount": "This send creates and activates the recipient's Stellar account.",
+    "xlmDestNoTrustline": "The recipient has not added {{symbol}} yet (no trustline). Ask them to enable it first.",
     "insufficient": "Insufficient",
     "gasEstFailed": "Gas estimation failed — transaction may revert",
     "maxInputsCapped": "Max sends what your {{max}} largest coins (UTXOs) cover, the most one transaction can sign. Send the rest in a second transaction.",
@@ -572,7 +575,8 @@
       "networkFee": "Network fee",
       "priorityFee": "incl. priority fee {{amount}} SOL",
       "rent": "+ account rent up to {{amount}} SOL (refundable)"
-    }
+    },
+    "signNotice": "This signs a message, not a transaction, but sites can use signatures to sign you in or to approve transfers. Read the message below and sign only if you trust {{site}}."
   },
   "broadcast": {
     "title": "Broadcast transaction",
@@ -1025,7 +1029,9 @@
     "addressRequired": "Address is required",
     "selectChainFirst": "Select a chain first",
     "invalidAddress": "Invalid {{chain}} address",
-    "invalidChain": "Invalid chain type"
+    "invalidChain": "Invalid chain type",
+    "syncOn": "Synced, end-to-end encrypted",
+    "syncAfterUnlock": "Syncs after you next sign with a wallet"
   },
   "policy": {
     "editPolicy": "Edit policy",
@@ -1497,5 +1503,10 @@
     "noStoredShare": "This key share is not stored on this device.",
     "wrongKeyFile": "This key share file belongs to another wallet.",
     "orUploadFile": "Or sign with a key share file"
+  },
+  "expertWarning": {
+    "title": "Beware of scams",
+    "sign": "Never sign text or data that someone sent you unless you wrote it yourself. Scammers use signatures to take over wallets and drain funds.",
+    "broadcast": "Only broadcast a transaction you built and checked yourself. A transaction from someone else can move your funds or be a scam."
   }
 }

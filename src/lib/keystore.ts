@@ -5,6 +5,7 @@ import type { KeyFileData } from "./crypto";
 import { toBase64, fromBase64, DEFERRED_PRF_SHARE } from "./mpc";
 import { linkKeyShareToSite } from "./key-share-site-link";
 import { findJsonStringField, sharePartsFromAscii, wipe } from "./secret-bytes";
+import { noteUnlockedShare } from "./address-book-kek";
 
 const STORAGE_PREFIX = "keyshare:";
 
@@ -168,6 +169,7 @@ export async function saveKeyShareWithPrf(
   credentialId: string,
   type: "email" | "standalone" = "email",
 ): Promise<void> {
+  noteUnlockedShare(data.id, data.share); // a new or imported wallet: its address book sync KEK
   const plain = serialize(data);
   const { iv, ciphertext } = await aesEncrypt(prfKey, plain).finally(() => wipe(plain));
   lsPut({
@@ -201,6 +203,7 @@ export async function saveKeyShareWithPassphrase(
   passphrase: string,
   type: "email" | "standalone" = "email",
 ): Promise<void> {
+  noteUnlockedShare(data.id, data.share); // a new or imported wallet: its address book sync KEK
   const salt = crypto.getRandomValues(new Uint8Array(SALT_BYTES));
   const key = await derivePassphraseKey(passphrase, salt);
   const plain = serialize(data);
@@ -238,6 +241,7 @@ export async function getKeyShareWithPrf(keyId: string, prfKey: CryptoKey): Prom
     return null;
   }
   backfillPublicMeta(entry, data);
+  noteUnlockedShare(keyId, data.share);
   return data;
 }
 
@@ -254,6 +258,11 @@ export async function getKeySharePartsWithPrf(keyId: string, prfKey: CryptoKey):
   } catch {
     return null;
   }
+  // Address book sync KEK from the share's bytes, before deserializeParts wipes them (address-book-kek.ts).
+  try {
+    const shareAt = findJsonStringField(plain, "share");
+    if (shareAt) noteUnlockedShare(keyId, plain.subarray(...shareAt));
+  } catch { /* malformed: deserializeParts below throws and wipes */ }
   const parts = deserializeParts(plain);
   try {
     backfillPublicMeta(entry, parts.meta);
@@ -294,7 +303,9 @@ export async function getKeyShareWithPassphrase(keyId: string, passphrase: strin
   if (!entry || entry.mode !== "passphrase" || !entry.salt) return null;
   const key = await derivePassphraseKey(passphrase, fromBase64(entry.salt));
   try {
-    return deserialize(await aesDecrypt(key, entry.iv, entry.ciphertext));
+    const data = deserialize(await aesDecrypt(key, entry.iv, entry.ciphertext));
+    noteUnlockedShare(keyId, data.share);
+    return data;
   } catch {
     throw new Error("Incorrect passphrase");
   }

@@ -345,6 +345,9 @@
     "closeDialog": "Cerrar",
     "tryAgain": "Intentar de nuevo",
     "xlmDestNotActive": "La cuenta de destino no está activada. Envía primero XLM para activarla.",
+    "xlmBelowMinimum": "Una cuenta nueva de Stellar necesita al menos 1 XLM para abrirse. Envía 1 XLM o más.",
+    "xlmCreatesAccount": "Este envío crea y activa la cuenta de Stellar del destinatario.",
+    "xlmDestNoTrustline": "El destinatario aún no ha añadido {{symbol}} (sin trustline). Pídele que lo active primero.",
     "insufficient": "Insuficiente",
     "gasEstFailed": "Falló la estimación de gas: la transacción podría revertirse",
     "maxInputsCapped": "Máx. envía lo que cubren tus {{max}} monedas (UTXO) más grandes, el máximo que puede firmar una transacción. Envía el resto en una segunda transacción.",
@@ -572,7 +575,8 @@
       "networkFee": "Comisión de red",
       "priorityFee": "incl. comisión de prioridad {{amount}} SOL",
       "rent": "+ renta de la cuenta hasta {{amount}} SOL (reembolsable)"
-    }
+    },
+    "signNotice": "Esto firma un mensaje, no una transacción, pero los sitios pueden usar firmas para iniciar sesión o aprobar transferencias. Lee el mensaje de abajo y firma solo si confías en {{site}}."
   },
   "broadcast": {
     "title": "Transmitir transacción",
@@ -1025,7 +1029,9 @@
     "addressRequired": "La dirección es obligatoria",
     "selectChainFirst": "Primero selecciona una red",
     "invalidAddress": "Dirección de {{chain}} no válida",
-    "invalidChain": "Tipo de red no válido"
+    "invalidChain": "Tipo de red no válido",
+    "syncOn": "Sincronizada, cifrada de extremo a extremo",
+    "syncAfterUnlock": "Se sincroniza la próxima vez que firmes con una billetera"
   },
   "policy": {
     "editPolicy": "Editar política",
@@ -1501,5 +1507,10 @@
     "noStoredShare": "Este fragmento de clave no está guardado en este dispositivo.",
     "wrongKeyFile": "Este archivo de fragmento de clave pertenece a otra billetera.",
     "orUploadFile": "O firma con un archivo de fragmento de clave"
+  },
+  "expertWarning": {
+    "title": "Cuidado con las estafas",
+    "sign": "Nunca firmes texto o datos que te haya enviado otra persona si no los escribiste tú. Los estafadores usan firmas para tomar el control de billeteras y vaciar fondos.",
+    "broadcast": "Transmite solo una transacción que hayas creado y revisado tú. Una transacción de otra persona puede mover tus fondos o ser una estafa."
   }
 }

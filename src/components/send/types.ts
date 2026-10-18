@@ -1,3 +1,4 @@
+import type { XlmDestinationVerdict } from "../../lib/chains/xlm-destination";
 // Shared prop interfaces for SendDialog step components
 import type { Chain, Asset } from "../../lib/api";
 import type { UTXO } from "../../lib/chains/btcTx";
@@ -158,7 +159,8 @@ export interface PreviewStepProps {
   gasEstimateError: string | null;
   estimatedFeeWei: bigint | null;
 
-  xlmDestExists: boolean | null;
+  /** Stellar: what the send does to its destination (null until checked, other chains). */
+  xlmDestination: XlmDestinationVerdict | null;
   destinationTag: string;
   xlmMemo: string;
 

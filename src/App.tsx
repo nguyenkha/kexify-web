@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import * as Sentry from "@sentry/react";
 import { ExplorePage } from "./components/explore-page";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, Outlet } from "react-router-dom";
@@ -19,12 +19,22 @@ import { ExpertModeProvider } from "./context/ExpertModeContext";
 import { KeyShareManager } from "./components/KeyShareManager";
 import { RecoveryChecklist } from "./components/RecoveryChecklist";
 import { RecoveryGuide } from "./components/RecoveryGuide";
-import { useExpertMode } from "./context/ExpertModeContext";
+import { trackExpertToolOnce } from "./lib/expert-usage";
+import { useExpertMode, useExpertModeReady } from "./context/ExpertModeContext";
 import { WalletTutorial } from "./components/WalletTutorial";
 import { UpdateRequiredScreen } from "./components/update-required-screen";
 
+/** Expert-only pages: a typed or bookmarked URL must not bypass the switch. */
+function ExpertOnly({ children }: { children: ReactNode }) {
+  const expert = useExpertMode();
+  const ready = useExpertModeReady();
+  if (!ready) return null;
+  return expert ? <>{children}</> : <Navigate to="/accounts" replace />;
+}
+
 function BackupRecoveryPage() {
   const expert = useExpertMode();
+  useEffect(() => { if (expert) trackExpertToolOnce("key_share_manager"); }, [expert]);
   return (
     <div className="space-y-6">
       {expert ? (
@@ -546,8 +556,8 @@ function App() {
           <Route path="/walletconnect" element={<WalletConnectPage />} />
           <Route path="/explore" element={<ExplorePage />} />
           <Route path="/apps" element={<Navigate to="/explore" replace />} />
-          <Route path="/sign" element={<Sign />} />
-          <Route path="/broadcast" element={<BroadcastPage />} />
+          <Route path="/sign" element={<ExpertOnly><Sign /></ExpertOnly>} />
+          <Route path="/broadcast" element={<ExpertOnly><BroadcastPage /></ExpertOnly>} />
           <Route path="/" element={<Navigate to="/accounts" replace />} />
         </Route>
       </Routes>

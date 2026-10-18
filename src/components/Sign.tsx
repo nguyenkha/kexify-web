@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { ExpertPhishingWarning } from "./expert-phishing-warning";
+import { trackExpertTool } from "../lib/expert-usage";
 import { toHex, sha256, performMpcSign, clientKeys, restoreKeyHandles } from "../lib/mpc";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import { sensitiveHeaders } from "../lib/passkey";
@@ -138,6 +140,7 @@ export function Sign() {
       });
 
       setSignature(toHex(sigRaw));
+      trackExpertTool("raw_sign");
 
       // Verify
       setSigningPhase("verifying");
@@ -195,6 +198,8 @@ export function Sign() {
           {t("sign.desc")}
         </p>
       </div>
+
+      <ExpertPhishingWarning kind="sign" />
 
       {/* Form */}
       <div className="space-y-4">

@@ -1,4 +1,5 @@
 import { apiUrl } from "./apiBase";
+import { clearKeks } from "./address-book-kek";
 
 // Session JWT — short-lived, dies with browser tab/close
 const TOKEN_KEY = "secretkey_token";
@@ -15,6 +16,7 @@ export function setToken(token: string) {
   // Cache identity for lock screen (survives tab close)
   const payload = decodeJwtPayload(token);
   if (payload?.sub) localStorage.setItem("kxi:identity", JSON.stringify(payload));
+  globalThis.dispatchEvent?.(new Event("kexify:token")); // address book sync starts its first round
 }
 
 /** Clear session token and auth state (refresh token is httpOnly cookie, managed by server) */
@@ -22,6 +24,7 @@ export function clearToken() {
   sessionStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem("kxi:authenticated");
   localStorage.removeItem("kxi:identity");
+  clearKeks();
 }
 
 /** Whether user has previously authenticated (persists across tabs/sessions) */

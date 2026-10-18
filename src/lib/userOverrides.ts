@@ -20,7 +20,16 @@ export interface AddressBookEntry {
   address: string;
   label: string;
   chain?: string;
+  /** Network hint from iOS (e.g. "base" for an evm entry), kept so a sync round trip does not lose it. */
+  network?: string;
   added_at: number;
+}
+
+/** A deleted address book entry, kept so the deletion syncs (address-book-sync-merge.ts). */
+export interface AddressBookTombstone {
+  address: string;
+  chain?: string;
+  deleted_at: number;
 }
 
 export interface RecentRecipientEntry {
@@ -34,6 +43,7 @@ export interface UserOverrides {
   chains?: Record<string, ChainOverride>;
   custom_tokens?: CustomToken[];
   address_book?: AddressBookEntry[];
+  address_book_deleted?: AddressBookTombstone[];
   recent_recipients?: RecentRecipientEntry[];
   hide_balances?: boolean;
   display?: Record<string, Record<string, boolean>>;

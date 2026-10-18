@@ -345,6 +345,9 @@
     "closeDialog": "Fechar",
     "tryAgain": "Tentar de novo",
     "xlmDestNotActive": "A conta de destino não está ativada. Envie XLM primeiro para ativá-la.",
+    "xlmBelowMinimum": "Uma conta nova da Stellar precisa de pelo menos 1 XLM para abrir. Envie 1 XLM ou mais.",
+    "xlmCreatesAccount": "Este envio cria e ativa a conta Stellar do destinatário.",
+    "xlmDestNoTrustline": "O destinatário ainda não adicionou {{symbol}} (sem trustline). Peça para ele ativar primeiro.",
     "insufficient": "Insuficiente",
     "gasEstFailed": "Falha na estimativa de gas. A transação pode ser revertida",
     "maxInputsCapped": "Máx. envia o que suas {{max}} maiores moedas (UTXOs) cobrem, o máximo que uma transação pode assinar. Envie o restante em uma segunda transação.",
@@ -572,7 +575,8 @@
       "networkFee": "Taxa de rede",
       "priorityFee": "incl. taxa de prioridade de {{amount}} SOL",
       "rent": "+ aluguel da conta de até {{amount}} SOL (reembolsável)"
-    }
+    },
+    "signNotice": "Isto assina uma mensagem, não uma transação, mas sites podem usar assinaturas para fazer login ou aprovar transferências. Leia a mensagem abaixo e assine apenas se confiar em {{site}}."
   },
   "broadcast": {
     "title": "Transmitir transação",
@@ -1025,7 +1029,9 @@
     "addressRequired": "O endereço é obrigatório",
     "selectChainFirst": "Selecione uma rede primeiro",
     "invalidAddress": "Endereço {{chain}} inválido",
-    "invalidChain": "Tipo de rede inválido"
+    "invalidChain": "Tipo de rede inválido",
+    "syncOn": "Sincronizado, criptografado de ponta a ponta",
+    "syncAfterUnlock": "Sincroniza na próxima vez que você assinar com uma carteira"
   },
   "policy": {
     "editPolicy": "Editar política",
@@ -1501,5 +1507,10 @@
     "noStoredShare": "Esta parte da chave não está armazenada neste dispositivo.",
     "wrongKeyFile": "Este arquivo da parte da chave pertence a outra carteira.",
     "orUploadFile": "Ou assine com um arquivo da parte da chave"
+  },
+  "expertWarning": {
+    "title": "Cuidado com golpes",
+    "sign": "Nunca assine textos ou dados que outra pessoa enviou, a menos que você mesmo os tenha escrito. Golpistas usam assinaturas para tomar carteiras e esvaziar fundos.",
+    "broadcast": "Transmita apenas uma transação que você mesmo criou e conferiu. Uma transação de outra pessoa pode mover seus fundos ou ser um golpe."
   }
 }

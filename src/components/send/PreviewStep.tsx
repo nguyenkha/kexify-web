@@ -7,6 +7,7 @@ import { bytesToHex } from "../../shared/utils";
 import { encodeErc20Transfer, parseUnits } from "../../lib/chains/evmTx";
 import { SOLANA_BASE_FEE } from "../../lib/chains/solanaTx";
 import { XRP_BASE_FEE } from "../../lib/chains/xrpTx";
+import { xlmDestinationBlockKey } from "../../lib/chains/xlm-destination";
 import { EVM_FEE_MULTIPLIER } from "../sendTypes";
 import type { PreviewStepProps } from "./types";
 import { Lock } from "lucide-react";
@@ -29,7 +30,7 @@ export function PreviewStep({
   baseGasPrice,
   gasEstimateError,
   estimatedFeeWei,
-  xlmDestExists,
+  xlmDestination,
   destinationTag,
   xlmMemo,
   policyCheck,
@@ -72,13 +73,18 @@ export function PreviewStep({
   });
   const gate = useScrollGate(`${chain.id}:${to}:${amount}`);
   const blocked = policyCheck?.allowed === false;
+  // Stellar would reject it on-chain (new account under 1 XLM, asset to an account that cannot hold it): never signed.
+  const xlmBlockKey = chain.type === "xlm" && xlmDestination ? xlmDestinationBlockKey(xlmDestination) : null;
   return (
     <>
       {/* Body — Preview step */}
       <div className="p-5 space-y-5">
         <ReviewBody model={model} copyable={false} expert={expert} onReviewPolicy={onReviewPolicy} onSeenEnd={gate.onSeenEnd}>
-        {chain.type === "xlm" && xlmDestExists === false && (
-          <p className="text-[10px] text-yellow-400">{t("send.xlmDestNotActive")}</p>
+        {chain.type === "xlm" && xlmDestination === "createAccount" && (
+          <p className="text-xs text-blue-400">{t("send.xlmCreatesAccount")}</p>
+        )}
+        {xlmBlockKey && (
+          <p className="text-xs text-red-400">{t(xlmBlockKey, { symbol: asset.symbol })}</p>
         )}
 
         {chain.type === "evm" && gasEstimateError && gasEstimateError !== "gas_estimate_failed" && (
@@ -185,7 +191,7 @@ export function PreviewStep({
       {/* Footer — Preview step */}
       <div className="px-5 py-4 border-t border-border-secondary shrink-0 sticky bottom-0 bg-surface-secondary pb-[calc(1rem+env(safe-area-inset-bottom))] md:pb-4">
         <button
-          disabled={blocked || !gate.seen}
+          disabled={blocked || !!xlmBlockKey || !gate.seen}
           onClick={() => {
             const { executeEvm, executeBtc, executeLtc, executeBch, executeSolana, executeXrp, executeXlm, executeTron, executeTon, executeAlgo, executeAda } = signingFlows;
             const flows: Record<string, () => void> = {

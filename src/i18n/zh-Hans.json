@@ -345,6 +345,9 @@
     "closeDialog": "关闭",
     "tryAgain": "重试",
     "xlmDestNotActive": "目标账户尚未激活。请先发送 XLM 以激活。",
+    "xlmBelowMinimum": "新的 Stellar 账户至少需要 1 XLM 才能开通。请发送 1 XLM 或以上。",
+    "xlmCreatesAccount": "此次发送将创建并激活收款人的 Stellar 账户。",
+    "xlmDestNoTrustline": "收款人尚未添加 {{symbol}}（没有信任线）。请让对方先启用。",
     "insufficient": "余额不足",
     "gasEstFailed": "Gas 估算失败，交易可能会回滚",
     "maxInputsCapped": "“最大”只发送您最大的 {{max}} 个币（UTXO）所覆盖的金额，这是一笔交易能签名的上限。其余部分请用第二笔交易发送。",
@@ -572,7 +575,8 @@
       "networkFee": "网络费用",
       "priorityFee": "含优先费用 {{amount}} SOL",
       "rent": "+ 账户租金最高 {{amount}} SOL（可退还）"
-    }
+    },
+    "signNotice": "这是签署消息，不是交易，但网站可以用签名来登录或批准转账。请阅读下方消息，仅在信任 {{site}} 时才签名。"
   },
   "broadcast": {
     "title": "广播交易",
@@ -1025,7 +1029,9 @@
     "addressRequired": "请输入地址",
     "selectChainFirst": "请先选择链",
     "invalidAddress": "{{chain}} 地址无效",
-    "invalidChain": "链类型无效"
+    "invalidChain": "链类型无效",
+    "syncOn": "已同步，端到端加密",
+    "syncAfterUnlock": "下次用钱包签名后同步"
   },
   "policy": {
     "editPolicy": "编辑策略",
@@ -1497,5 +1503,10 @@
     "noStoredShare": "此密钥分片未存储在本设备上。",
     "wrongKeyFile": "此密钥分片文件属于另一个钱包。",
     "orUploadFile": "或使用密钥分片文件签名"
+  },
+  "expertWarning": {
+    "title": "谨防诈骗",
+    "sign": "除非是你自己写的，否则不要签署别人发给你的文本或数据。骗子会利用签名接管钱包并转走资金。",
+    "broadcast": "只广播你自己创建并检查过的交易。别人给你的交易可能会转走你的资金，或者就是骗局。"
   }
 }

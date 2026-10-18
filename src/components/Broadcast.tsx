@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { ErrorBox } from "./ui";
+import { ExpertPhishingWarning } from "./expert-phishing-warning";
+import { trackExpertTool } from "../lib/expert-usage";
 import { broadcastBtcTx, mempoolApiUrl } from "../lib/chains/btcTx";
 import { broadcastTransaction } from "../lib/chains/evmTx";
 import { broadcastBchTx, bchApiUrl } from "../lib/chains/bchTx";
@@ -32,6 +34,7 @@ export function Broadcast() {
 
   async function handleBroadcast() {
     if (!rawTx.trim() || !selectedChain) return;
+    trackExpertTool("raw_broadcast");
     setBroadcasting(true);
     setError(null);
     setResult(null);
@@ -83,6 +86,8 @@ export function Broadcast() {
         <h2 className="text-lg font-semibold text-text-primary flex items-center gap-2"><Radio className="w-5 h-5" />{t("broadcast.title")}</h2>
         <p className="text-xs text-text-muted mt-1">{t("broadcast.desc")}</p>
       </div>
+
+      <ExpertPhishingWarning kind="broadcast" />
 
       {/* Chain selector */}
       <div>

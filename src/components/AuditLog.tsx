@@ -8,6 +8,7 @@ import { getIdentityId } from "../lib/auth";
 import { EmptyState } from "./ui";
 import Prism from "prismjs";
 import "prismjs/components/prism-json";
+import { trackExpertToolOnce } from "../lib/expert-usage";
 import { Check, X, Shield, Download, Upload, KeyRound, LogIn, Send, Fingerprint, Ban, Clock, Trash2 } from "lucide-react";
 
 interface AuditEntry {
@@ -390,7 +391,7 @@ function EntryRow({ entry, showAccount, expert }: { entry: AuditEntry; showAccou
     <button
       type="button"
       className="w-full text-left px-3 py-3 flex items-start gap-3 hover:bg-surface-tertiary/50 transition-colors"
-      onClick={() => setExpanded(!expanded)}
+      onClick={() => { if (!expanded && expert) trackExpertToolOnce("audit_detail"); setExpanded(!expanded); }}
     >
       <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${desc.iconBg}`}>
         <Icon className={`w-4 h-4 ${desc.iconColor}`} />

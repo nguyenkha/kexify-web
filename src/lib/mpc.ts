@@ -6,6 +6,7 @@ import { apiUrl } from "./apiBase";
 import cbmpcWasmUrl from "cb-mpc/cbmpc.wasm?url";
 import { clientKeys, freeClientKeyHandles, type ClientKeyHandles } from "./client-key-cache";
 import { sharePartsFromString, wipe } from "./secret-bytes";
+import { noteUnlockedShare } from "./address-book-kek";
 import { signSessionStarted, signSessionFinished, cancelOpenSignSession, cancelStaleSignSession, openSignSessionId } from "./sign-session-cancel";
 
 /** Policy-blocked tx parts that have their own user-facing message (send.policyBlockedLeg.*). */
@@ -59,6 +60,8 @@ export const deferredPrfKeys = new Set<string>();
  * No-op if already in memory.
  */
 export async function restoreKeyHandles(keyId: string, shareData: string, eddsaShareData?: string): Promise<void> {
+  // Address book sync KEK (address-book-kek.ts), also when the handle is already cached (e.g. after a re-login).
+  if (shareData !== DEFERRED_PRF_SHARE) noteUnlockedShare(keyId, shareData);
   if (clientKeys.has(keyId)) return;
   if (shareData === DEFERRED_PRF_SHARE) {
     deferredPrfKeys.add(keyId);

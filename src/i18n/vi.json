@@ -345,6 +345,9 @@
     "closeDialog": "Đóng",
     "tryAgain": "Thử lại",
     "xlmDestNotActive": "Tài khoản đích chưa được kích hoạt. Gửi XLM trước để kích hoạt.",
+    "xlmBelowMinimum": "Tài khoản Stellar mới cần ít nhất 1 XLM để mở. Hãy gửi từ 1 XLM trở lên.",
+    "xlmCreatesAccount": "Lần gửi này sẽ tạo và kích hoạt tài khoản Stellar của người nhận.",
+    "xlmDestNoTrustline": "Người nhận chưa bật {{symbol}} (chưa có trustline). Hãy nhờ họ bật trước.",
     "insufficient": "Không đủ số dư",
     "gasEstFailed": "Không thể ước tính gas — giao dịch có thể thất bại",
     "maxInputsCapped": "Tối đa: gửi số tiền mà {{max}} UTXO lớn nhất của bạn đủ trả, mức tối đa một giao dịch có thể ký. Hãy gửi phần còn lại trong giao dịch thứ hai.",
@@ -572,7 +575,8 @@
       "networkFee": "Phí mạng",
       "priorityFee": "gồm phí ưu tiên {{amount}} SOL",
       "rent": "+ tiền thuê tài khoản tối đa {{amount}} SOL (hoàn lại được)"
-    }
+    },
+    "signNotice": "Đây là ký tin nhắn, không phải giao dịch, nhưng các trang web có thể dùng chữ ký để đăng nhập hoặc phê duyệt chuyển tiền. Hãy đọc nội dung bên dưới và chỉ ký nếu bạn tin tưởng {{site}}."
   },
   "broadcast": {
     "title": "Phát giao dịch",
@@ -1025,7 +1029,9 @@
     "addressRequired": "Cần nhập địa chỉ",
     "selectChainFirst": "Hãy chọn chain trước",
     "invalidAddress": "Địa chỉ {{chain}} không hợp lệ",
-    "invalidChain": "Loại chain không hợp lệ"
+    "invalidChain": "Loại chain không hợp lệ",
+    "syncOn": "Đã đồng bộ, mã hoá đầu cuối",
+    "syncAfterUnlock": "Sẽ đồng bộ sau lần ký tiếp theo"
   },
   "policy": {
     "editPolicy": "Sửa chính sách",
@@ -1497,5 +1503,10 @@
     "noStoredShare": "Key share này không được lưu trên thiết bị này.",
     "wrongKeyFile": "File key share này thuộc ví khác.",
     "orUploadFile": "Hoặc ký bằng file key share"
+  },
+  "expertWarning": {
+    "title": "Coi chừng lừa đảo",
+    "sign": "Đừng bao giờ ký văn bản hoặc dữ liệu người khác gửi cho bạn nếu bạn không tự viết. Kẻ lừa đảo dùng chữ ký để chiếm ví và rút tiền.",
+    "broadcast": "Chỉ phát giao dịch do chính bạn tạo và đã kiểm tra. Giao dịch từ người khác có thể chuyển tiền của bạn hoặc là lừa đảo."
   }
 }

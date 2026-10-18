@@ -345,6 +345,9 @@
     "closeDialog": "Tutup",
     "tryAgain": "Coba lagi",
     "xlmDestNotActive": "Akun tujuan belum diaktifkan. Kirim XLM terlebih dahulu untuk mengaktifkannya.",
+    "xlmBelowMinimum": "Akun Stellar baru butuh minimal 1 XLM untuk dibuka. Kirim 1 XLM atau lebih.",
+    "xlmCreatesAccount": "Pengiriman ini membuat dan mengaktifkan akun Stellar penerima.",
+    "xlmDestNoTrustline": "Penerima belum menambahkan {{symbol}} (belum ada trustline). Minta mereka mengaktifkannya dulu.",
     "insufficient": "Tidak cukup",
     "gasEstFailed": "Estimasi gas gagal — transaksi mungkin dibatalkan",
     "maxInputsCapped": "Maks mengirim jumlah yang dicakup {{max}} koin (UTXO) terbesar Anda, batas yang dapat ditandatangani satu transaksi. Kirim sisanya dalam transaksi kedua.",
@@ -572,7 +575,8 @@
       "networkFee": "Biaya jaringan",
       "priorityFee": "termasuk biaya prioritas {{amount}} SOL",
       "rent": "+ sewa akun hingga {{amount}} SOL (dapat dikembalikan)"
-    }
+    },
+    "signNotice": "Ini menandatangani pesan, bukan transaksi, tetapi situs dapat memakai tanda tangan untuk login atau menyetujui transfer. Baca pesan di bawah dan tanda tangani hanya jika Anda memercayai {{site}}."
   },
   "broadcast": {
     "title": "Siarkan transaksi",
@@ -1025,7 +1029,9 @@
     "addressRequired": "Alamat wajib diisi",
     "selectChainFirst": "Pilih jaringan dulu",
     "invalidAddress": "Alamat {{chain}} tidak valid",
-    "invalidChain": "Jenis jaringan tidak valid"
+    "invalidChain": "Jenis jaringan tidak valid",
+    "syncOn": "Tersinkron, terenkripsi end-to-end",
+    "syncAfterUnlock": "Tersinkron setelah Anda menandatangani dengan dompet berikutnya"
   },
   "policy": {
     "editPolicy": "Ubah kebijakan",
@@ -1497,5 +1503,10 @@
     "noStoredShare": "Bagian kunci ini tidak tersimpan di perangkat ini.",
     "wrongKeyFile": "File bagian kunci ini milik dompet lain.",
     "orUploadFile": "Atau tandatangani dengan file bagian kunci"
+  },
+  "expertWarning": {
+    "title": "Waspada penipuan",
+    "sign": "Jangan pernah menandatangani teks atau data kiriman orang lain jika bukan Anda sendiri yang menulisnya. Penipu memakai tanda tangan untuk mengambil alih dompet dan menguras dana.",
+    "broadcast": "Siarkan hanya transaksi yang Anda buat dan periksa sendiri. Transaksi dari orang lain dapat memindahkan dana Anda atau merupakan penipuan."
   }
 }

@@ -37,6 +37,7 @@ import { useSteppedProgress, signingDurationMs, ProgressBar } from "./ProgressBa
 import { BalancePreview, type BalanceChange } from "./BalancePreview";
 import { simulateEvmTransaction, type SimulationResult } from "../lib/txSimulation";
 import { useExpertMode } from "../context/ExpertModeContext";
+import { trackExpertTool } from "../lib/expert-usage";
 import { PolicyWarning, ExpertWarnings, SimulationPreview, SigningError, SigningStepper } from "./tx";
 import { ReviewBody, useScrollGate, DappTitle, NetworkChip, AllowanceEditor, ReviewExtraConfirm } from "./review";
 import { buildWcRequestReview, decodeEvmCall, knownEvmContract, withEvmApproveAmount, withTronApproveAmount, type ReviewModel, type TronTxJson, type WcReviewContext } from "../lib/review";
@@ -147,6 +148,8 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   const isSolanaTx = request.method === "solana_signTransaction" || request.method === "solana_signAndSendTransaction";
   const isTron = request.method.startsWith("tron_");
   const isTronTx = request.method === "tron_signTransaction";
+  // dApp message signing (login, permits, typed data) works in every mode; it always shows this notice.
+  const isMessageSign = /^(personal_sign|eth_sign|eth_signTypedData(_v\d)?|solana_signMessage|tron_signMessage)$/.test(request.method);
   const isTx = request.method === "eth_sendTransaction" || isSolanaTx || isTronTx;
 
   // Stepped progress: 90% for MPC signing, 10% for other steps (1s each)
@@ -555,6 +558,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   /** Approve button: key must already be loaded → pre-check policy → go to preview */
   async function handleApproveClick() {
     if (!account || (!keyFile && !account.hasStored)) return;
+    if (expert && (maxFeeOverride || priorityFeeOverride || gasLimitInput)) trackExpertTool("send_custom_fee");
     await runPolicyCheck();
 
     // EVM transaction simulation (non-blocking)
@@ -921,6 +925,11 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                 <KeyShareUpload keyFile={keyFile} onChange={setKeyFile} expectedKeyId={account.keyId} showRestoreHint />
               )}
 
+              {isMessageSign && (
+                <div role="note" className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl px-3 py-2.5 text-xs text-text-secondary leading-relaxed">
+                  {t("wc.signNotice", { site: siteHost(dappMeta?.url) || dappMeta?.name || "dApp" })}
+                </div>
+              )}
               {reviewModel ? (
                 <ReviewBody model={reviewModel} copyable expert={expert} heroAccessory={capEditor(reviewModel)}>
                   {isTx && !isSolana && !isTron && (
@@ -1421,6 +1430,11 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 }
 
 // ── Helpers ──────────────────────────────────────────────────────
+
+/** Host of the dApp's URL, for the message-signing notice ("" when it is not a URL). */
+function siteHost(url?: string): string {
+  try { return url ? new URL(url).host : ""; } catch { return ""; }
+}
 
 function formatRequest(request: PendingRequest, expertMode = false, permitTokenInfo?: { symbol: string; decimals: number } | null): Array<{ label: string; value: string }> {
   switch (request.method) {

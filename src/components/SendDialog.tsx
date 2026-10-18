@@ -48,10 +48,12 @@ import { useHideBalances } from "../context/HideBalancesContext";
 import { chainUsesEddsa } from "../lib/sign-passkey-authorization";
 import { isRecoveryMode } from "../lib/recovery";
 import { getPreference } from "../lib/userOverrides";
+import { trackExpertTool } from "../lib/expert-usage";
 import { getIdentityId } from "../lib/auth";
 import { addRecentRecipient } from "../lib/addressBook";
 import { resolveName, isResolvableName } from "../lib/nameResolution";
-import { checkXlmAccountExists } from "../lib/chains/xlmTx";
+import { checkXlmAccountExists, checkXlmTrustline } from "../lib/chains/xlmTx";
+import { xlmDestinationVerdict, type XlmDestinationVerdict } from "../lib/chains/xlm-destination";
 import type { KeyFile, FeeLevel, SendStep, SigningPhase, TxResult, SpeedUpData } from "./sendTypes";
 import { useSteppedProgress, signingDurationMs, ProgressBar } from "./ProgressBar";
 import {
@@ -160,7 +162,7 @@ export function SendDialog({
   const [ltcFeeRates, setLtcFeeRates] = useState<{ low: number; medium: number; high: number } | null>(null);
   // XLM-specific state (stroops per operation)
   const [xlmFeeRates, setXlmFeeRates] = useState<{ low: number; medium: number; high: number } | null>(null);
-  const [xlmDestExists, setXlmDestExists] = useState<boolean | null>(null);
+  const [xlmDestination, setXlmDestination] = useState<XlmDestinationVerdict | null>(null);
   const [xlmMemo, setXlmMemo] = useState("");
   const [feeCountdown, setFeeCountdown] = useState(10);
   // Last fee quote request failed; feeRetry re-runs the fee effect on "Retry".
@@ -230,6 +232,11 @@ export function SendDialog({
   const { hasPasskey, markRegistered } = usePasskeyPresence();
 
   async function guardedSign(action: () => void) {
+    if (expert) {
+      if (maxFeeOverride || priorityFeeOverride || gasLimitOverride || btcFeeRateOverride) trackExpertTool("send_custom_fee");
+      if (nonceOverride) trackExpertTool("send_custom_nonce");
+      if (selectedUtxoKeys.size > 0) trackExpertTool("send_manual_utxo");
+    }
     // The share that signs: the uploaded file, or this device's share for the account
     // (a passphrase share asks for its passphrase here; a PRF share stays locked).
     try {
@@ -737,9 +744,14 @@ export function SendDialog({
             onClose={onClose}
             onPreview={async () => {
               if (chain.type === "xlm" && chain.rpcUrl) {
-                setXlmDestExists(null);
+                setXlmDestination(null);
                 const exists = await checkXlmAccountExists(chain.rpcUrl, to);
-                setXlmDestExists(exists);
+                const trusts = !asset.isNative && exists && !!asset.contractAddress
+                  && await checkXlmTrustline(chain.rpcUrl, to, asset.symbol, asset.contractAddress);
+                setXlmDestination(xlmDestinationVerdict({
+                  destExists: exists, destTrusts: trusts, isNative: asset.isNative,
+                  amountStroops: parseUnits(amount, asset.decimals),
+                }));
               }
               if (!isRecoveryMode()) {
                 setPolicyChecking(true);
@@ -809,7 +821,7 @@ export function SendDialog({
             baseGasPrice={baseGasPrice}
             gasEstimateError={gasEstimateError}
             estimatedFeeWei={estimatedFeeWei}
-            xlmDestExists={xlmDestExists}
+            xlmDestination={xlmDestination}
             destinationTag={destinationTag}
             xlmMemo={xlmMemo}
             policyCheck={policyCheck}

@@ -1,8 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { getAddressBook, removeAddressEntry, saveAddressEntry, getRecentRecipients, type AddressEntry } from "../lib/addressBook";
 import { getChainAdapter } from "../lib/chains/adapter";
+import { ADDRESS_BOOK_CHANGED, addressBookSyncStatus, syncAddressBookNow } from "../lib/address-book-sync";
 import type { ChainType } from "../shared/types";
 
 const CHAIN_OPTIONS: { value: ChainType; label: string }[] = [
@@ -47,6 +48,15 @@ export function AddressBookPanel() {
   const [newChain, setNewChain] = useState("");
   const [touched, setTouched] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = useState(() => addressBookSyncStatus());
+
+  // Another device's edits land through sync: reload the list when a round changes it.
+  useEffect(() => {
+    const reload = () => { setEntries(getAddressBook()); setSyncStatus(addressBookSyncStatus()); };
+    window.addEventListener(ADDRESS_BOOK_CHANGED, reload);
+    void syncAddressBookNow().then(reload);
+    return () => window.removeEventListener(ADDRESS_BOOK_CHANGED, reload);
+  }, []);
 
   // Validate address when chain is selected and address is entered
   const addrError = useMemo(() => {
@@ -89,6 +99,10 @@ export function AddressBookPanel() {
       <div className="flex items-center justify-between mb-2 px-1">
         <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">
           {t("addressBook.title")}
+          {syncStatus === "synced" && <span className="ml-2 normal-case tracking-normal font-normal">· {t("addressBook.syncOn")}</span>}
+          {(syncStatus === "locked" || syncStatus === "needs-unlock") && (
+            <span className="ml-2 normal-case tracking-normal font-normal">· {t("addressBook.syncAfterUnlock")}</span>
+          )}
         </p>
         <button
           onClick={() => { setAdding(!adding); setTouched(false); setNewAddr(""); setNewLabel(""); setNewChain(""); }}
