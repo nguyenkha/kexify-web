@@ -182,6 +182,10 @@ export async function authenticatePasskey(opts?: { withPrf?: boolean; action?: P
   // none on another until it registers there — a normal state that must read as one.
   if (!optRes.ok) {
     const data = await optRes.json().catch(() => ({}));
+    // The only passkey is still in its cooling period: say when it activates instead of a generic failure.
+    if (data?.code === "passkey_pending" && typeof data.activeAt === "string") {
+      throw new PasskeyPendingError({ id: "", name: null, createdAt: "", lastUsedAt: null, activeAt: data.activeAt });
+    }
     throw new Error((data?.error as string) || "Could not start passkey authentication");
   }
   const { options, challengeId } = await optRes.json();

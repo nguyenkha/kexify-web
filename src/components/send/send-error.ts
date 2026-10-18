@@ -80,6 +80,9 @@ export function mapSendError(err: unknown, t: T): SendError {
   if (raw === "passkey_auth_required" || /passkey authentication required/i.test(raw)) {
     return { kind: "error", message: t("send.passkeySessionExpired") };
   }
+  // The only passkey is still in probation (lib/passkey PasskeyPendingError; matched by name to keep this module light).
+  const pendingAt = e.name === "PasskeyPendingError" ? (err as { passkey?: { activeAt?: string } }).passkey?.activeAt : undefined;
+  if (pendingAt) return { kind: "error", message: t("passkey.pendingUntil", { date: new Date(pendingAt).toLocaleString() }) };
   if (raw === "prf_unavailable") return { kind: "error", message: t("send.passkeyNoEncryption") };
   if (/could not decrypt the key share/i.test(raw)) return { kind: "error", message: t("send.couldNotDecryptWrongPasskey") };
   if (/account is disabled/i.test(raw)) return { kind: "error", message: t("activity.blockedDisabledDetail") };

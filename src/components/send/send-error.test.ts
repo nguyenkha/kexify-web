@@ -37,6 +37,14 @@ describe("mapSendError", () => {
     expect(mapSendError(new Error("insufficient funds for gas * price + value"), t).message).toBe("send.insufficientWithFee");
   });
 
+  test("a passkey still in probation says when it activates", () => {
+    const err = Object.assign(new Error("Passkey becomes active"), { name: "PasskeyPendingError", passkey: { activeAt: "2026-10-19T07:04:13.579Z" } });
+    const tt = (key: string, o?: Record<string, unknown>) => `${key}|${o?.date}`;
+    const m = mapSendError(err, tt);
+    expect(m.kind).toBe("error");
+    expect(m.message).toBe(`passkey.pendingUntil|${new Date("2026-10-19T07:04:13.579Z").toLocaleString()}`);
+  });
+
   test("localised errors pass through; unknown errors are generic with details", () => {
     expect(mapSendError(new LocalizedSendError("Too many inputs"), t)).toEqual({ kind: "error", message: "Too many inputs" });
     expect(mapSendError(new Error("Error: weird thing"), t)).toEqual({ kind: "error", message: "alert.error", detail: "weird thing" });

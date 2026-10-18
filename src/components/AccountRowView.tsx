@@ -204,7 +204,7 @@ export function AccountRowView({
             return (
               <div
                 key={b.asset.id}
-                className="flex items-center h-14 pl-8 md:pl-12 pr-3 md:pr-5 hover:bg-surface-tertiary/40 transition-colors cursor-pointer group"
+                className="flex items-center h-14 pl-[60px] md:pl-[68px] pr-3 md:pr-5 border-t border-border-secondary/50 hover:bg-surface-tertiary/40 transition-colors cursor-pointer group"
                 onClick={() =>
                   navigate(`/accounts/${row.keyId}/${row.chain.name.toLowerCase()}/${b.asset.symbol}${row.btcAddrType ? `/${row.btcAddrType}` : ""}`)
                 }

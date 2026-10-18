@@ -55,7 +55,8 @@ class WalletConnectService {
         name: "Kexify",
         description: "Self-custodial MPC wallet",
         url: window.location.origin,
-        icons: [`${window.location.origin}/vite.svg`],
+        // Public absolute URL (dApps fetch it from their own origin); same logo as the iOS app.
+        icons: ["https://app.kexify.co/icon-512.png"],
       },
     });
 
