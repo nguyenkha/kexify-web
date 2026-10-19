@@ -1679,5 +1679,43 @@
     "truncated": "Aprovações mais antigas podem estar faltando (são muitas para listar).",
     "empty": "Nenhuma aprovação ativa",
     "emptyHint": "Nenhum app ou endereço pode mover seus tokens no momento."
+  },
+  "signers": {
+    "title": "Dispositivos de assinatura",
+    "description": "Cada carteira assina em um dispositivo por vez. Os outros podem apenas visualizá-la.",
+    "thisDevice": "Este dispositivo",
+    "useThis": "Usar este dispositivo",
+    "keepOther": "Continuar assinando em {{device}}",
+    "makeSigning": "Tornar dispositivo de assinatura",
+    "remove": "Remover",
+    "removed": "Removido",
+    "lastUsed": "Último uso {{time}}",
+    "never": "Nunca usado",
+    "loadFailed": "Não foi possível carregar os dispositivos de assinatura.",
+    "actionFailed": "Não deu certo. Tente novamente.",
+    "cancel": "Cancelar",
+    "confirmRemove": "Remover dispositivo",
+    "removeLast": {
+      "confirm": "Este é o único dispositivo que pode assinar para esta carteira. Remover? Você precisará do seu backup para assinar novamente.",
+      "noBackup": "Faça backup desta carteira antes de remover seu único dispositivo de assinatura."
+    },
+    "viewOnly": {
+      "body": "A assinatura acontece em {{device}}. Usar este dispositivo no lugar?"
+    },
+    "error": {
+      "notSigner": "Este dispositivo não é o dispositivo de assinatura desta carteira."
+    },
+    "device": {
+      "signing": "Dispositivo de assinatura",
+      "viewOnly": "Somente leitura",
+      "unnamed": "Dispositivo sem nome"
+    },
+    "move": {
+      "prompt": {
+        "title": "Usar este dispositivo para assinar?",
+        "body": "Sua carteira assina em um dispositivo por vez. Este dispositivo pode apenas visualizá-la agora."
+      }
+    },
+    "unlockFirst": "Desbloqueie esta carteira primeiro e tente novamente."
   }
 }

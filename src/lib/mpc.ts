@@ -96,6 +96,8 @@ export async function restoreKeyHandlesFromParts(keyId: string, ecdsaParts: Uint
       throw err;
     }
     clientKeys.set(keyId, entry);
+    // Silent signer registration once the client share is loaded (no-op when already registered; never throws).
+    if (entry.ecdsa && !isRecoveryMode()) void import("./signer-api").then((m) => m.ensureSigner(keyId));
   } finally {
     wipe(ecdsaParts, eddsaParts);
   }
@@ -112,6 +114,49 @@ async function signTicketHeaders(keyId: string, initPayload: Record<string, unkn
   const { authorizeSign } = await import("./sign-passkey-authorization");
   const ticket = await authorizeSign(keyId, String(initPayload.id ?? keyId), digests);
   return { "x-passkey-token": ticket };
+}
+
+/**
+ * Device signer fields + passkey ticket for /sign/init: digests -> nonce -> device sig -> ticket (a signer error
+ * costs no tap). With a PRF-locked share and no local signer, the ticket unlocks first and the device registers
+ * before the nonce (see authorizeWithSigner). Empty fields = the server decides (SIGNER_REQUIRED if it has signers).
+ */
+async function authorizeInit(keyId: string, initPayload: Record<string, unknown>, dataB64: string[]) {
+  const { authorizeWithSigner } = await import("./signer-api");
+  try {
+    const { fields, ticket } = await authorizeWithSigner({
+      keyShareId: String(initPayload.id ?? keyId),
+      dataB64,
+      shareLocked: deferredPrfKeys.has(keyId) && !clientKeys.has(keyId),
+      getTicket: () => signTicketHeaders(keyId, initPayload, dataB64),
+    });
+    return { signerFields: fields, ticketHeaders: ticket };
+  } catch (err) {
+    const code = (err as { code?: string })?.code;
+    if (code?.startsWith("SIGNER_")) {
+      throw Object.assign(new Error(i18n.t("signers.error.notSigner")), { status: 403, code });
+    }
+    throw err;
+  }
+}
+
+/** Fresh signer fields for one retry after SIGNER_NONCE (the passkey ticket is still unused). */
+function signerNonceRetry(initPayload: Record<string, unknown>, keyId: string, dataB64: string[]) {
+  return async (): Promise<Record<string, string> | null> => {
+    try {
+      const { freshSignerFields } = await import("./signer-api");
+      return await freshSignerFields(String(initPayload.id ?? keyId), dataB64);
+    } catch {
+      return null;
+    }
+  };
+}
+
+/** The server refused this device at /sign/init: mark the wallet View only here. */
+function signerRefused(initPayload: Record<string, unknown>, keyId: string) {
+  return (code: string) => {
+    void import("./signer-api").then((m) => m.noteSignerRefused(String(initPayload.id ?? keyId), code));
+  };
 }
 
 // ── Helpers ──
@@ -172,6 +217,10 @@ export function createHttpTransport(opts: {
   onSession?: (sessionId: string) => void;
   /** Init answered 409 SESSION_ACTIVE (another operation in progress): true = the cause was cleared, send the init once more. */
   retryOn409?: () => Promise<boolean>;
+  /** The first send was refused with a SIGNER_* code. */
+  onSignerRefused?: (code: string) => void;
+  /** New signer fields for one retry of the first send after SIGNER_NONCE. */
+  refreshSigner?: () => Promise<Record<string, string> | null>;
 }): { transport: DataTransport; getSessionId: () => string; getServerResult: () => Record<string, unknown> | null; getError: () => Error | null; transportFailed: Promise<never> } {
   let sessionId = "";
   let inbox: Uint8Array | null = null;
@@ -198,7 +247,7 @@ export function createHttpTransport(opts: {
       // Copy — WASM memory views may be invalidated after return
       const msgCopy = new Uint8Array(message);
       const url = isFirst ? opts.initUrl : opts.stepUrl;
-      const body = isFirst
+      let body: Record<string, unknown> = isFirst
         ? { ...opts.initExtra, message: toBase64(msgCopy) }
         : { sessionId, message: toBase64(msgCopy) };
 
@@ -214,12 +263,24 @@ export function createHttpTransport(opts: {
         res = await post();
         data = await res.json();
       }
+      // SIGNER_NONCE (used / expired) is refused before the ticket is used: one retry with a new nonce + signature.
+      if (isFirst && res.status === 403 && data?.code === "SIGNER_NONCE" && opts.refreshSigner) {
+        const fresh = await opts.refreshSigner();
+        if (fresh) {
+          body = { ...body, ...fresh };
+          res = await post();
+          data = await res.json();
+        }
+      }
       if (data.error) {
+        const signerCode = isFirst && res.status === 403 && typeof data.code === "string" && data.code.startsWith("SIGNER_") ? data.code : null;
+        if (signerCode) opts.onSignerRefused?.(signerCode);
         // A policy block names the part of the tx it refused; show that instead of the generic text.
         const leg = typeof data.blockedLeg === "string" && POLICY_BLOCKED_LEGS.includes(data.blockedLeg) ? data.blockedLeg : null;
         // BTC/LTC chain binding (server looks up each input on both chains).
         const chainCode = data.code === "CHAIN_MISMATCH" ? "mismatch" : data.code === "CHAIN_LOOKUP_UNAVAILABLE" ? "unavailable" : null;
-        transportError = new Error(leg ? i18n.t(`send.policyBlockedLeg.${leg}`)
+        transportError = new Error(signerCode ? i18n.t("signers.error.notSigner")
+          : leg ? i18n.t(`send.policyBlockedLeg.${leg}`)
           : chainCode ? i18n.t(`send.chainBinding.${chainCode}`)
           : data.error);
         // Structured fields for the send error mapper (send/send-error.ts).
@@ -328,7 +389,8 @@ async function runMpcSign(opts: {
     return performLocalMpcSign({ algorithm, keyId, hash, onStep });
   }
 
-  const ticketHeaders = await signTicketHeaders(keyId, initPayload, [toBase64(hash)]);
+  // digests -> nonce -> device sig -> passkey ticket -> init (a signer error costs no passkey tap)
+  const { signerFields, ticketHeaders } = await authorizeInit(keyId, initPayload, [toBase64(hash)]);
 
   const entry = clientKeys.get(keyId);
   if (!entry) {
@@ -351,6 +413,7 @@ async function runMpcSign(opts: {
     stepUrl: apiUrl("/api/sign/step"),
     initExtra: {
       ...initPayload,
+      ...signerFields,
       data: toBase64(hash),
       ...(algorithm === "ecdsa" ? { sigSessionId: toBase64(sigSessionId) } : {}),
     },
@@ -358,6 +421,8 @@ async function runMpcSign(opts: {
     onStep,
     onSession: (id) => signSessionStarted(id, headers),
     retryOn409: cancelStaleSignSession,
+    onSignerRefused: signerRefused(initPayload, keyId),
+    refreshSigner: signerNonceRetry(initPayload, keyId, [toBase64(hash)]),
   });
 
   const startedAt = Date.now();
@@ -468,7 +533,7 @@ async function runBatchMpcSign(opts: {
   }
 
   // The whole batch is one authorization: the ticket binds every digest, in order.
-  const ticketHeaders = await signTicketHeaders(keyId, initPayload, hashes.map((h) => toBase64(h)));
+  const { signerFields, ticketHeaders } = await authorizeInit(keyId, initPayload, hashes.map((h) => toBase64(h)));
 
   const entry = clientKeys.get(keyId);
   if (!entry) {
@@ -497,6 +562,7 @@ async function runBatchMpcSign(opts: {
     stepUrl: apiUrl("/api/sign/step"),
     initExtra: {
       ...initPayload,
+      ...signerFields,
       data: toBase64(hashes[0]),
       hashes: hashesPayload,
       sigSessionId: toBase64(sigSessionId),
@@ -505,6 +571,8 @@ async function runBatchMpcSign(opts: {
     onStep,
     onSession: (id) => signSessionStarted(id, headers),
     retryOn409: cancelStaleSignSession,
+    onSignerRefused: signerRefused(initPayload, keyId),
+    refreshSigner: signerNonceRetry(initPayload, keyId, hashes.map((h) => toBase64(h))),
   });
 
   const startedAt = Date.now();

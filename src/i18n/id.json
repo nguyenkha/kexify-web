@@ -1675,5 +1675,43 @@
     "truncated": "Persetujuan lama mungkin tidak tampil (terlalu banyak untuk didaftar).",
     "empty": "Tidak ada persetujuan aktif",
     "emptyHint": "Saat ini tidak ada aplikasi atau alamat yang dapat memindahkan token Anda."
+  },
+  "signers": {
+    "title": "Perangkat penandatangan",
+    "description": "Setiap dompet menandatangani di satu perangkat dalam satu waktu. Perangkat lain hanya bisa melihat.",
+    "thisDevice": "Perangkat ini",
+    "useThis": "Gunakan perangkat ini",
+    "keepOther": "Tetap menandatangani di {{device}}",
+    "makeSigning": "Jadikan perangkat penandatangan",
+    "remove": "Hapus",
+    "removed": "Dihapus",
+    "lastUsed": "Terakhir dipakai {{time}}",
+    "never": "Belum pernah dipakai",
+    "loadFailed": "Gagal memuat perangkat penandatangan.",
+    "actionFailed": "Tidak berhasil. Coba lagi.",
+    "cancel": "Batal",
+    "confirmRemove": "Hapus perangkat",
+    "removeLast": {
+      "confirm": "Ini satu-satunya perangkat yang bisa menandatangani dompet ini. Hapus? Anda memerlukan cadangan untuk menandatangani lagi.",
+      "noBackup": "Cadangkan dompet ini sebelum menghapus satu-satunya perangkat penandatangannya."
+    },
+    "viewOnly": {
+      "body": "Penandatanganan dilakukan di {{device}}. Gunakan perangkat ini sebagai gantinya?"
+    },
+    "error": {
+      "notSigner": "Perangkat ini bukan perangkat penandatangan untuk dompet ini."
+    },
+    "device": {
+      "signing": "Perangkat penandatangan",
+      "viewOnly": "Hanya lihat",
+      "unnamed": "Perangkat tanpa nama"
+    },
+    "move": {
+      "prompt": {
+        "title": "Gunakan perangkat ini untuk menandatangani?",
+        "body": "Dompet Anda menandatangani di satu perangkat dalam satu waktu. Perangkat ini kini hanya bisa melihatnya."
+      }
+    },
+    "unlockFirst": "Buka kunci dompet ini dulu, lalu coba lagi."
   }
 }

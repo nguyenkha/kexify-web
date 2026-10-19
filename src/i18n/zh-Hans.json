@@ -1675,5 +1675,43 @@
     "truncated": "可能缺少较早的授权（数量过多无法列出）。",
     "empty": "没有有效授权",
     "emptyHint": "目前没有应用或地址可以转移你的代币。"
+  },
+  "signers": {
+    "title": "签名设备",
+    "description": "每个钱包一次只在一台设备上签名。其他设备只能查看。",
+    "thisDevice": "此设备",
+    "useThis": "使用此设备",
+    "keepOther": "继续在 {{device}} 上签名",
+    "makeSigning": "设为签名设备",
+    "remove": "移除",
+    "removed": "已移除",
+    "lastUsed": "上次使用 {{time}}",
+    "never": "从未使用",
+    "loadFailed": "无法加载签名设备。",
+    "actionFailed": "操作失败，请重试。",
+    "cancel": "取消",
+    "confirmRemove": "移除设备",
+    "removeLast": {
+      "confirm": "这是唯一能为此钱包签名的设备。要移除吗？之后需要备份才能再次签名。",
+      "noBackup": "移除唯一的签名设备前，请先备份此钱包。"
+    },
+    "viewOnly": {
+      "body": "签名在 {{device}} 上进行。改用此设备？"
+    },
+    "error": {
+      "notSigner": "此设备不是该钱包的签名设备。"
+    },
+    "device": {
+      "signing": "签名设备",
+      "viewOnly": "仅查看",
+      "unnamed": "未命名设备"
+    },
+    "move": {
+      "prompt": {
+        "title": "使用此设备签名？",
+        "body": "你的钱包一次只在一台设备上签名。此设备目前只能查看。"
+      }
+    },
+    "unlockFirst": "请先解锁此钱包，然后重试。"
   }
 }

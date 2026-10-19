@@ -1675,5 +1675,43 @@
     "truncated": "오래된 승인이 빠졌을 수 있습니다 (너무 많아 모두 표시할 수 없음).",
     "empty": "활성 승인 없음",
     "emptyHint": "현재 내 토큰을 옮길 수 있는 앱이나 주소가 없습니다."
+  },
+  "signers": {
+    "title": "서명 기기",
+    "description": "각 지갑은 한 번에 한 기기에서만 서명합니다. 다른 기기는 볼 수만 있습니다.",
+    "thisDevice": "이 기기",
+    "useThis": "이 기기 사용",
+    "keepOther": "{{device}}에서 계속 서명",
+    "makeSigning": "서명 기기로 지정",
+    "remove": "삭제",
+    "removed": "삭제됨",
+    "lastUsed": "마지막 사용 {{time}}",
+    "never": "사용한 적 없음",
+    "loadFailed": "서명 기기를 불러오지 못했습니다.",
+    "actionFailed": "실패했습니다. 다시 시도하세요.",
+    "cancel": "취소",
+    "confirmRemove": "기기 삭제",
+    "removeLast": {
+      "confirm": "이 기기는 이 지갑에 서명할 수 있는 유일한 기기입니다. 삭제할까요? 다시 서명하려면 백업이 필요합니다.",
+      "noBackup": "유일한 서명 기기를 삭제하기 전에 이 지갑을 백업하세요."
+    },
+    "viewOnly": {
+      "body": "서명은 {{device}}에서 이루어집니다. 대신 이 기기를 사용할까요?"
+    },
+    "error": {
+      "notSigner": "이 기기는 이 지갑의 서명 기기가 아닙니다."
+    },
+    "device": {
+      "signing": "서명 기기",
+      "viewOnly": "보기 전용",
+      "unnamed": "이름 없는 기기"
+    },
+    "move": {
+      "prompt": {
+        "title": "이 기기로 서명할까요?",
+        "body": "지갑은 한 번에 한 기기에서만 서명합니다. 이 기기는 현재 볼 수만 있습니다."
+      }
+    },
+    "unlockFirst": "먼저 이 지갑의 잠금을 해제한 후 다시 시도하세요."
   }
 }

@@ -13,6 +13,7 @@ import { passkeyErrorMessage } from "../lib/passkey-error-message";
 import { ErrorBox } from "./ui";
 import { KeyRound } from "lucide-react";
 import { SessionsList } from "./settings/sessions-list";
+import { SignersList } from "./settings/signers-list";
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString(undefined, {
@@ -303,6 +304,7 @@ export function Passkeys() {
       </button>
 
       <SessionsList hasPasskeys={passkeys.some((p) => !isPasskeyPending(p))} />
+      <SignersList />
     </div>
   );
 }

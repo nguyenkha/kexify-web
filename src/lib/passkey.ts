@@ -14,7 +14,7 @@ export type PasskeyActionName =
   | "sign" | "generate" | "eddsa-init" | "policy.set" | "policy.cancel" | "backup.upload"
   | "export.hkdf" | "export.request" | "export.request-cancel" | "export.share" | "export.pve"
   | "unfreeze" | "unfreeze.cancel" | "passkey.register" | "passkey.delete"
-  | "session.revoke" | "session.revoke-others";
+  | "session.revoke" | "session.revoke-others" | "signer.activate" | "signer.revoke";
 
 export interface PasskeyAction {
   action: PasskeyActionName;
@@ -27,6 +27,8 @@ export interface PasskeyAction {
   passkeyId?: string;
   /** session.revoke */
   sessionId?: string;
+  /** signer.activate / signer.revoke */
+  signerId?: string;
   /** export.share / export.pve: sha256 hex of the base64 ephemeral or PVE key sent in the body. */
   ekSha256?: string;
 }

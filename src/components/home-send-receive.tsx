@@ -12,6 +12,8 @@ import { notifyBalanceRefresh } from "../lib/dataCache";
 import { HomeSendAssetPicker, type FundedAsset } from "./home-send-asset-picker";
 import { ReceiveNetworkPicker } from "./receive-network-picker";
 import { SendDialog } from "./SendDialog";
+import { ViewOnlyCard } from "./settings/view-only-card";
+import { useViewOnlyKeys } from "../lib/use-view-only-keys";
 import { QrModal } from "./QrModal";
 
 type Step =
@@ -32,7 +34,11 @@ export function HomeSendReceive({ rows, prices, walletName }: Props) {
   const frozen = useFrozen();
   const online = useOnlineStatus();
   // Signing needs the server share: Send is off while frozen or offline, with the reason shown.
-  const sendBlockedReason = frozen ? t("freeze.blockedReason") : !online ? t("common.offlineReason") : null;
+  const keyIds = [...new Set(rows.map((r) => r.keyId))];
+  const viewOnlyKeys = useViewOnlyKeys(keyIds);
+  // View only on this device for every wallet shown: nothing here can sign.
+  const allViewOnly = keyIds.length > 0 && viewOnlyKeys.length === keyIds.length;
+  const sendBlockedReason = frozen ? t("freeze.blockedReason") : !online ? t("common.offlineReason") : allViewOnly ? t("signers.device.viewOnly") : null;
   const { addToast } = useToast();
   const [step, setStep] = useState<Step>({ kind: "idle" });
   const close = () => setStep({ kind: "idle" });
@@ -66,10 +72,13 @@ export function HomeSendReceive({ rows, prices, walletName }: Props) {
         </button>
       </div>
       {sendBlockedReason && <p className="text-[11px] text-text-muted mt-2">{sendBlockedReason}</p>}
+      {viewOnlyKeys.map((id) => (
+        <div key={id} className="w-full mt-3"><ViewOnlyCard keyShareId={id} walletName={walletName(id)} /></div>
+      ))}
 
       {step.kind === "pickAsset" && (
         <HomeSendAssetPicker
-          rows={rows}
+          rows={rows.filter((r) => !viewOnlyKeys.includes(r.keyId))}
           prices={prices}
           walletName={walletName}
           onPick={(item) => setStep({ kind: "send", item })}

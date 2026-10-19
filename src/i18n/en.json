@@ -1675,5 +1675,43 @@
     "truncated": "Older approvals may be missing (too many to list).",
     "empty": "No active approvals",
     "emptyHint": "No app or address can move your tokens right now."
+  },
+  "signers": {
+    "title": "Signing devices",
+    "description": "Each wallet signs on one device at a time. Other devices can view it.",
+    "thisDevice": "This device",
+    "useThis": "Use this device",
+    "keepOther": "Keep signing on {{device}}",
+    "makeSigning": "Make signing device",
+    "remove": "Remove",
+    "removed": "Removed",
+    "lastUsed": "Last used {{time}}",
+    "never": "Never used",
+    "loadFailed": "Could not load signing devices.",
+    "actionFailed": "That did not work. Try again.",
+    "cancel": "Cancel",
+    "confirmRemove": "Remove device",
+    "removeLast": {
+      "confirm": "This is the only device that can sign for this wallet. Remove it? You will need your backup to sign again.",
+      "noBackup": "Back up this wallet before removing its only signing device."
+    },
+    "viewOnly": {
+      "body": "Signing happens on {{device}}. Use this device instead?"
+    },
+    "error": {
+      "notSigner": "This device is not the signing device for this wallet."
+    },
+    "device": {
+      "signing": "Signing device",
+      "viewOnly": "View only",
+      "unnamed": "Unnamed device"
+    },
+    "move": {
+      "prompt": {
+        "title": "Use this device for signing?",
+        "body": "Your wallet signs on one device at a time. This device can view it now."
+      }
+    },
+    "unlockFirst": "Unlock this wallet first, then try again."
   }
 }

@@ -6,7 +6,7 @@
  */
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import type { KeyFileData } from "./crypto";
-import { getMpcInstance } from "./mpc";
+import { getMpcInstance, type CbMpc, type Ecdsa2pKeyHandle } from "./mpc";
 import { sharePartsFromString, wipe } from "./secret-bytes";
 import { authHeaders } from "./auth";
 import { apiUrl } from "./apiBase";
@@ -16,6 +16,21 @@ const METHOD = "share-possession";
 /** Must match api/src/routes/account-unfreeze-without-passkey.ts unfreezeProofMessage(). */
 function proofMessage(challengeHex: string, keyShareId: string): Uint8Array {
   return new TextEncoder().encode(`kexify-unfreeze:v1:${METHOD}:${keyShareId}:${challengeHex}`);
+}
+
+/** x1 mod n from an in-memory ECDSA key handle, as 32 bytes. The handle is NOT freed. */
+export async function clientScalarFromHandle(mpc: CbMpc, key: Ecdsa2pKeyHandle): Promise<Uint8Array> {
+  const info = mpc.ecdsa2pKeyInfo(key);
+  try {
+    if (info.roleIndex !== 0) throw new Error("Not a client share");
+    const n = secp256k1.Point.CURVE().n;
+    // A refreshed share may exceed n; reduce it.
+    const x1 = BigInt("0x" + Array.from(info.xShare, (b) => b.toString(16).padStart(2, "0")).join("")) % n;
+    if (x1 === 0n) throw new Error("Invalid share");
+    return Uint8Array.from(x1.toString(16).padStart(64, "0").match(/.{2}/g)!.map((h) => parseInt(h, 16)));
+  } finally {
+    info.xShare.fill(0);
+  }
 }
 
 /** x1 mod n from the client's serialized ECDSA share, as 32 bytes; the key handle is freed. */
@@ -29,17 +44,7 @@ async function clientScalar(share: string): Promise<Uint8Array> {
     wipe(parts);
   }
   try {
-    const info = mpc.ecdsa2pKeyInfo(key);
-    try {
-      if (info.roleIndex !== 0) throw new Error("Not a client share");
-      const n = secp256k1.Point.CURVE().n;
-      // A refreshed share may exceed n; reduce it.
-      const x1 = BigInt("0x" + Array.from(info.xShare, (b) => b.toString(16).padStart(2, "0")).join("")) % n;
-      if (x1 === 0n) throw new Error("Invalid share");
-      return Uint8Array.from(x1.toString(16).padStart(64, "0").match(/.{2}/g)!.map((h) => parseInt(h, 16)));
-    } finally {
-      info.xShare.fill(0);
-    }
+    return await clientScalarFromHandle(mpc, key);
   } finally {
     mpc.freeEcdsa2pKey(key);
   }

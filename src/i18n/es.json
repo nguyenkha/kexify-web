@@ -1679,5 +1679,43 @@
     "truncated": "Puede faltar alguna aprobación antigua (hay demasiadas para listarlas).",
     "empty": "Sin aprobaciones activas",
     "emptyHint": "Ninguna app ni dirección puede mover tus tokens ahora mismo."
+  },
+  "signers": {
+    "title": "Dispositivos de firma",
+    "description": "Cada billetera firma en un solo dispositivo a la vez. Los demás pueden verla.",
+    "thisDevice": "Este dispositivo",
+    "useThis": "Usar este dispositivo",
+    "keepOther": "Seguir firmando en {{device}}",
+    "makeSigning": "Usar para firmar",
+    "remove": "Quitar",
+    "removed": "Quitado",
+    "lastUsed": "Último uso {{time}}",
+    "never": "Nunca usado",
+    "loadFailed": "No se pudieron cargar los dispositivos de firma.",
+    "actionFailed": "No funcionó. Inténtalo de nuevo.",
+    "cancel": "Cancelar",
+    "confirmRemove": "Quitar dispositivo",
+    "removeLast": {
+      "confirm": "Este es el único dispositivo que puede firmar para esta billetera. ¿Quitarlo? Necesitarás tu copia de seguridad para volver a firmar.",
+      "noBackup": "Haz una copia de seguridad de esta billetera antes de quitar su único dispositivo de firma."
+    },
+    "viewOnly": {
+      "body": "La firma se hace en {{device}}. ¿Usar este dispositivo en su lugar?"
+    },
+    "error": {
+      "notSigner": "Este dispositivo no es el dispositivo de firma de esta billetera."
+    },
+    "device": {
+      "signing": "Dispositivo de firma",
+      "viewOnly": "Solo lectura",
+      "unnamed": "Dispositivo sin nombre"
+    },
+    "move": {
+      "prompt": {
+        "title": "¿Usar este dispositivo para firmar?",
+        "body": "Tu billetera firma en un solo dispositivo a la vez. Este dispositivo puede verla ahora."
+      }
+    },
+    "unlockFirst": "Desbloquea primero esta billetera y vuelve a intentarlo."
   }
 }

@@ -1675,5 +1675,43 @@
     "truncated": "Có thể thiếu các quyền cũ hơn (quá nhiều để liệt kê).",
     "empty": "Không có quyền nào đang hoạt động",
     "emptyHint": "Hiện không có ứng dụng hay địa chỉ nào có thể chuyển token của bạn."
+  },
+  "signers": {
+    "title": "Thiết bị ký",
+    "description": "Mỗi ví chỉ ký trên một thiết bị tại một thời điểm. Các thiết bị khác chỉ xem được.",
+    "thisDevice": "Thiết bị này",
+    "useThis": "Dùng thiết bị này",
+    "keepOther": "Tiếp tục ký trên {{device}}",
+    "makeSigning": "Đặt làm thiết bị ký",
+    "remove": "Gỡ",
+    "removed": "Đã gỡ",
+    "lastUsed": "Dùng lần cuối {{time}}",
+    "never": "Chưa từng dùng",
+    "loadFailed": "Không tải được danh sách thiết bị ký.",
+    "actionFailed": "Không thành công. Hãy thử lại.",
+    "cancel": "Hủy",
+    "confirmRemove": "Gỡ thiết bị",
+    "removeLast": {
+      "confirm": "Đây là thiết bị duy nhất có thể ký cho ví này. Gỡ nó? Bạn sẽ cần bản sao lưu để ký lại.",
+      "noBackup": "Hãy sao lưu ví này trước khi gỡ thiết bị ký duy nhất của nó."
+    },
+    "viewOnly": {
+      "body": "Việc ký diễn ra trên {{device}}. Dùng thiết bị này thay thế?"
+    },
+    "error": {
+      "notSigner": "Thiết bị này không phải là thiết bị ký của ví này."
+    },
+    "device": {
+      "signing": "Thiết bị ký",
+      "viewOnly": "Chỉ xem",
+      "unnamed": "Thiết bị chưa đặt tên"
+    },
+    "move": {
+      "prompt": {
+        "title": "Dùng thiết bị này để ký?",
+        "body": "Ví của bạn chỉ ký trên một thiết bị tại một thời điểm. Thiết bị này hiện chỉ có thể xem."
+      }
+    },
+    "unlockFirst": "Hãy mở khóa ví này trước, rồi thử lại."
   }
 }
