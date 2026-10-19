@@ -10,20 +10,21 @@ import { waitLeft } from "../../lib/device-facts";
 import { transferStatus } from "../../lib/device-move/move-api";
 import { moveErrorMessage } from "../../lib/device-move/move-error-message";
 import {
-  claimMove, dropStaged, finishMove, forgetMove, hadBackup, keepClaimedShare, openClaim, startMove,
+  backedUpFrom, claimMove, dropStaged, finishMove, forgetMove, keepClaimedShare, openClaim, startMove,
   type PendingMove, type ShareLock,
 } from "../../lib/device-move/move-new-device";
 import type { StagedRefresh } from "../../lib/device-move/move-share-refresh";
+import { fetchBackupStatus } from "../../lib/escrow-download";
 import type { KeyFileData } from "../../lib/crypto";
 import type { MoveSigner } from "../../lib/device-move/move-share-refresh";
 import { PassphraseInput } from "../PassphraseInput";
 import { ErrorBox } from "../ui";
 import { MoveCodeField } from "./move-code-field";
 
-type Phase = "qr" | "wait" | "lock" | "working" | "done" | "error" | "stopped" | "expired";
+type Phase = "qr" | "wait" | "lock" | "password" | "working" | "done" | "error" | "stopped" | "expired";
 /** Commit refused for the backup: the user may choose to go on without one (noBackup). */
 const BACKUP_CODES = ["BACKUP_REQUIRED", "ENVELOPE_REFUSED"];
-interface Claimed { keyFile: KeyFileData; signer: MoveSigner; lock?: ShareLock; backedUp?: boolean; staged?: StagedRefresh }
+interface Claimed { keyFile: KeyFileData; signer: MoveSigner; lock?: ShareLock; backedUp?: boolean; staged?: StagedRefresh; password?: string }
 
 export function MoveNewDevicePage() {
   const { t } = useTranslation();
@@ -37,6 +38,7 @@ export function MoveNewDevicePage() {
   const claiming = useRef(false);
   const typedCode = useRef<string | undefined>(undefined);
   const lockWaiter = useRef<((lock: ShareLock) => void) | null>(null);
+  const passwordWaiter = useRef<((password: string | undefined) => void) | null>(null);
   const [canSkipBackup, setCanSkipBackup] = useState(false);
 
   const begin = useCallback(async () => {
@@ -54,7 +56,7 @@ export function MoveNewDevicePage() {
     setError("");
     setCanSkipBackup(false);
     try {
-      await finishMove({ keyFile: c.keyFile, signer: c.signer, lock: c.lock!, backedUp: !!c.backedUp, staged: c.staged, noBackup });
+      await finishMove({ keyFile: c.keyFile, signer: c.signer, lock: c.lock!, backedUp: !!c.backedUp, staged: c.staged, password: c.password, noBackup });
       c.staged = undefined;
       setPhase("done");
     } catch (err) {
@@ -78,7 +80,15 @@ export function MoveNewDevicePage() {
         ? { prfKey: auth.prfKey, credentialId: auth.credentialId, rpId: auth.rpId }
         : await new Promise<ShareLock>((resolve) => { lockWaiter.current = resolve; setPhase("lock"); });
       await keepClaimedShare(opened.keyFile, lock);
-      claimed.current = { ...opened, lock, backedUp: await hadBackup(opened.keyFile.id) };
+      const status = await fetchBackupStatus(opened.keyFile.id);
+      // The wallet had a backup password: ask one once (contract 4a 8b) so the new backup keeps a password copy, or
+      // Skip (passkey + slot copies only). It cannot be checked against the old password backup here: that one is
+      // served only to the active signer, and this device signs only after the commit. (Without PRF the password
+      // just typed for this device already is that copy.)
+      const password = "prfKey" in lock && status?.password
+        ? await new Promise<string | undefined>((resolve) => { passwordWaiter.current = resolve; setPhase("password"); })
+        : undefined;
+      claimed.current = { ...opened, lock, backedUp: backedUpFrom(status), password };
       await finish();
     } catch (err) {
       const code2 = (err as { code?: string }).code;
@@ -129,6 +139,13 @@ export function MoveNewDevicePage() {
           <>
             <p className="text-sm text-text-primary">{t("move.password.ask")}</p>
             <PassphraseInput mode="set" submitLabel={t("move.password.save")} onSubmit={async (passphrase) => { lockWaiter.current?.({ passphrase }); }} />
+          </>
+        )}
+        {phase === "password" && (
+          <>
+            <p className="text-sm text-text-primary">{t("move.password.reset")}</p>
+            <PassphraseInput mode="set" submitLabel={t("move.password.save")} onSubmit={async (passphrase) => { passwordWaiter.current?.(passphrase); }} />
+            <button onClick={() => passwordWaiter.current?.(undefined)} className="text-xs text-text-muted underline">{t("move.password.skip")}</button>
           </>
         )}
         {phase === "working" && <p className="text-sm text-text-primary">{t("move.working")}</p>}

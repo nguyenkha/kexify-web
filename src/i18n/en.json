@@ -130,7 +130,16 @@
     "updatedMinutesAgo": "Updated {{count}}m ago",
     "updated": "Updated {{time}}",
     "testNetworks": "Test networks",
-    "testNetworksHint": "Test coins are free and have no value. They are not counted in your total."
+    "testNetworksHint": "Test coins are free and have no value. They are not counted in your total.",
+    "locked": {
+      "title": "This wallet is locked",
+      "body": "Signing and backups are stopped.",
+      "unlock": "Unlock",
+      "unlockAt": "Unlocks {{time}}"
+    },
+    "lockAction": "Lock this wallet",
+    "lockConfirm": "Lock this wallet? Nobody can sign until you unlock it.",
+    "lockNoPath": "Add a passkey first"
   },
   "config": {
     "title": "Settings",
@@ -948,7 +957,17 @@
     "newKit": "Download a new kit",
     "fromSigner": "Back up from the signing device.",
     "notBackedUp": "Not backed up. Set a backup password",
-    "setPassword": "Set a backup password"
+    "setPassword": "Set a backup password",
+    "allowPasskey": {
+      "title": "Allow passkey \"{{name}}\" to restore this wallet?",
+      "body": "Anyone with this passkey and your email can move this wallet to a new device after a wait.",
+      "allow": "Allow",
+      "later": "Not now",
+      "unnamed": "unnamed"
+    },
+    "passkeys": {
+      "count": "{{n}} passkeys can restore this wallet"
+    }
   },
   "activity": {
     "title": "Activity log",
@@ -1891,7 +1910,11 @@
       "move_stopped": "A device move was stopped on your signing device",
       "share_refreshed": "Signing moved to a new device. Older backups no longer work.",
       "escrow_downloaded": "Your wallet backup was opened on a signing device",
-      "backup_dropped": "Signing moved without a new backup. Set a backup on your signing device."
+      "backup_dropped": "Signing moved without a new backup. Set a backup on your signing device.",
+      "backup_passkey_allowed": "Passkey \"{{passkey}}\" can now restore {{wallet}}",
+      "wallet_locked": "Your wallet was locked",
+      "wallet_unlock_scheduled": "Someone asked to unlock your wallet. Stop it if this was not you",
+      "wallet_unlocked": "Your signing device unlocked your wallet"
     },
     "markReadFailed": "Could not mark alerts as read. Try again."
   },
@@ -1952,7 +1975,9 @@
     "expired": "This code expired. Show a new one.",
     "password": {
       "ask": "Set a backup password. You'll need it only if you lose this device and your passkey.",
-      "save": "Save"
+      "save": "Save",
+      "skip": "Skip",
+      "reset": "Your old backup password stops working after this move. Set one again, or skip to rely on your passkey only."
     },
     "start": "Move signing to a new device",
     "scan": {

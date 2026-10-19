@@ -9,7 +9,8 @@ import { Sign } from "./components/Sign";
 import { Passkeys } from "./components/Passkeys";
 import { Login } from "./components/Login";
 import { VerifyToken } from "./components/VerifyToken";
-import { getMe, hasAnyToken, type MeUser } from "./lib/auth";
+import { getMe, getMeStandalone, hasAnyToken, type MeStandalone, type MeUser } from "./lib/auth";
+import { LockWalletButton, WalletLockBanner } from "./components/wallet-lock-banner";
 import { apiUrl } from "./lib/apiBase";
 import { FrozenBanner } from "./components/FrozenBanner";
 import { FrozenProvider } from "./context/FrozenContext";
@@ -71,6 +72,7 @@ import { MoveRestorePick } from "./components/device-move/move-restore-pick";
 import { AlertEmailConfirmPage } from "./components/alert-email-confirm-page";
 import { SecurityAlertsBanner } from "./components/security-alerts-banner";
 import { PendingSignerApproval } from "./components/settings/pending-signer-approval";
+import { AllowPasskeyPrompt } from "./components/backup/allow-passkey-prompt";
 import { RecoveryImport } from "./components/RecoveryImport";
 import { StandaloneKeygen } from "./components/StandaloneKeygen";
 import { DomainMovedNotice } from "./components/DomainMovedNotice";
@@ -197,6 +199,7 @@ function DashboardLayout() {
   const recovery = isRecoveryMode();
   const standalone = isStandaloneJwt();
   const [user, setUser] = useState<MeUser | null>(null);
+  const [wallet, setWallet] = useState<MeStandalone | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   useSwipeSidebar(sidebarOpen, setSidebarOpen);
   const mainRef = useRef<HTMLElement>(null);
@@ -214,6 +217,7 @@ function DashboardLayout() {
   function refreshUser() {
     if (recovery) return;
     getMe().then((u) => setUser(u));
+    if (standalone) getMeStandalone().then((w) => setWallet(w));
   }
 
   useEffect(() => {
@@ -285,7 +289,7 @@ function DashboardLayout() {
 
   return (
     <RecoveryProvider value={{ isRecovery: recovery, recoveryKeys: recovery ? getRecoveryKeys() : [] }}>
-    <FrozenProvider value={!standalone && !!user?.frozenAt}>
+    <FrozenProvider value={standalone ? !!wallet?.frozenAt : !!user?.frozenAt}>
     <div className="h-dvh bg-surface-primary text-text-primary flex overflow-hidden">
       {/* Mobile overlay */}
       {sidebarOpen && (
@@ -378,6 +382,9 @@ function DashboardLayout() {
                 })}
                 {user && !user.frozenAt && !standalone && (
                   <FrozenBanner user={user} onUpdate={refreshUser} />
+                )}
+                {wallet && !wallet.frozenAt && standalone && (
+                  <LockWalletButton keyShareId={wallet.keyShareId} onUpdate={refreshUser} />
                 )}
               </div>
             )}
@@ -482,6 +489,7 @@ function DashboardLayout() {
           {recovery && <RecoveryBanner />}
           {!recovery && <DomainMovedNotice className="mb-6" signedIn />}
           {user?.frozenAt && !standalone && <FrozenBanner user={user} onUpdate={refreshUser} />}
+          {wallet?.frozenAt && standalone && <WalletLockBanner wallet={wallet} onUpdate={refreshUser} />}
           {!recovery && <SecurityAlertsBanner />}
           <Outlet />
         </main>
@@ -499,6 +507,9 @@ function DashboardLayout() {
 
       {/* Signing device: another device waits to take over signing */}
       {!recovery && <PendingSignerApproval />}
+
+      {/* Signing device: let the owner's other passkeys restore this wallet */}
+      {!recovery && <AllowPasskeyPrompt />}
 
       <SignOutConfirmDialog open={confirmSignOut} onCancel={() => setConfirmSignOut(false)} />
     </div>

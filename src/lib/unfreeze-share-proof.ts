@@ -33,8 +33,13 @@ export async function clientScalarFromHandle(mpc: CbMpc, key: Ecdsa2pKeyHandle):
   }
 }
 
+/** 64-byte compact secp256k1 signature by x1 over `msg` (noble sha256 prehash), hex: the "share proof". */
+export function shareProofHex(msg: Uint8Array, x1: Uint8Array): string {
+  return Array.from(secp256k1.sign(msg, x1), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 /** x1 mod n from the client's serialized ECDSA share, as 32 bytes; the key handle is freed. */
-async function clientScalar(share: string): Promise<Uint8Array> {
+export async function clientScalar(share: string): Promise<Uint8Array> {
   const mpc = await getMpcInstance();
   const parts = sharePartsFromString(share);
   let key;

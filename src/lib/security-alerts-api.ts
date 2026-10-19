@@ -12,7 +12,7 @@ export interface SecurityAlert {
   id: string;
   kind: string;
   keyShareId: string | null;
-  meta: { label?: string | null; platform?: string | null; country?: string | null; signerId?: string; activeFrom?: string | null; walletName?: string | null };
+  meta: { label?: string | null; platform?: string | null; country?: string | null; signerId?: string; activeFrom?: string | null; walletName?: string | null; passkeyName?: string | null };
   createdAt: string;
   readAt: string | null;
 }

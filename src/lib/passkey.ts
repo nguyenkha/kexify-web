@@ -3,6 +3,9 @@ import { authHeaders } from "./auth";
 import { workspaceHeaders } from "./workspace-token";
 import { apiUrl } from "./apiBase";
 import { splitAssertion } from "./webauthn-assertion-json";
+import { ESCROW_SALT, escrowPublicKey, escrowSecretFromPrf, noteEscrowPasskey, wipePrfOutput } from "./passkey-escrow-key";
+import { b64 } from "./device-move/move-codec";
+import { wipe } from "./secret-bytes";
 
 // ── Action-bound passkey tickets (audit F15) ────────────────────
 //
@@ -172,6 +175,11 @@ export interface PasskeyAuthResult {
   credentialId?: string;
   /** The RP the assertion was made for (PRF output is scoped to it). */
   rpId?: string;
+  /**
+   * X25519 escrow secret of this passkey (second PRF salt), only with `keepEscrowSecret`: for opening a restore
+   * envelope. The caller wipes it right after use.
+   */
+  escrowSecret?: Uint8Array;
 }
 
 /**
@@ -179,7 +187,7 @@ export interface PasskeyAuthResult {
  * result carries its single-use ticket; with `withPrf`, the same assertion also returns
  * the PRF key, so unlocking the browser share and authorizing the action take one tap.
  */
-export async function authenticatePasskey(opts?: { withPrf?: boolean; action?: PasskeyAction }): Promise<PasskeyAuthResult> {
+export async function authenticatePasskey(opts?: { withPrf?: boolean; action?: PasskeyAction; keepEscrowSecret?: boolean }): Promise<PasskeyAuthResult> {
   // 1. Get authentication options (challenge bound to the action)
   const optRes = await fetch(apiUrl("/api/passkeys/authenticate-options"), {
     method: "POST",
@@ -202,6 +210,7 @@ export async function authenticatePasskey(opts?: { withPrf?: boolean; action?: P
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let credential: any;
   let prfOutput: BufferSource | undefined;
+  let prfSecond: BufferSource | undefined;
 
   if (opts?.withPrf) {
     // Bypass @simplewebauthn/browser's startAuthentication — it doesn't pass
@@ -220,8 +229,9 @@ export async function authenticatePasskey(opts?: { withPrf?: boolean; action?: P
       timeout: options.timeout,
       userVerification: options.userVerification as UserVerificationRequirement,
       allowCredentials,
+      // Two salts in one assertion: the first unlocks the browser share, the second gives the escrow key.
       extensions: {
-        prf: { eval: { first: PRF_SALT } },
+        prf: { eval: { first: PRF_SALT, second: ESCROW_SALT } },
       } as AuthenticationExtensionsClientInputs,
     };
 
@@ -238,34 +248,51 @@ export async function authenticatePasskey(opts?: { withPrf?: boolean; action?: P
     }
     if (!rawCredential) throw new Error("Authentication was not completed");
     // The PRF output stays in a local: it never goes into the serialized credential.
-    ({ credential, prfOutput } = splitAssertion(rawCredential));
+    ({ credential, prfOutput, prfSecond } = splitAssertion(rawCredential));
   } else {
     credential = await startAuthentication({ optionsJSON: options });
   }
 
-  // 3. Verify with server
-  const authRes = await fetch(apiUrl("/api/passkeys/authenticate"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ challengeId, credential }),
-  });
-  const data = await authRes.json();
-  if (data.error) throw new Error(data.error);
-
-  // 5. Derive AES-256-GCM key from PRF output if available
+  // 3. Escrow key from the second PRF output: its public half goes with the verify call (stored once per passkey).
+  let escrowSecret: Uint8Array | undefined;
   let prfKey: CryptoKey | undefined;
-  if (prfOutput) {
-    const rawKey = await crypto.subtle.importKey("raw", prfOutput, "HKDF", false, ["deriveKey"]);
-    prfKey = await crypto.subtle.deriveKey(
-      { name: "HKDF", hash: "SHA-256", salt: PRF_SALT, info: new Uint8Array(0) },
-      rawKey,
-      { name: "AES-GCM", length: 256 },
-      false,
-      ["encrypt", "decrypt"],
-    );
-  }
+  try {
+    let escrowPublic: Uint8Array | undefined;
+    if (prfSecond) {
+      escrowSecret = await escrowSecretFromPrf(prfSecond);
+      escrowPublic = escrowPublicKey(escrowSecret);
+    }
+    const escrowKey = escrowPublic ? b64(escrowPublic) : undefined;
 
-  return { token: data.passkeyToken, prfKey, credentialId: credential.id, rpId: typeof options.rpId === "string" ? options.rpId : undefined };
+    // 4. Verify with server
+    const authRes = await fetch(apiUrl("/api/passkeys/authenticate"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ challengeId, credential, ...(escrowKey ? { escrowKey } : {}) }),
+    });
+    const data = await authRes.json();
+    if (data.error) throw new Error(data.error);
+    if (escrowPublic) noteEscrowPasskey(credential.id, escrowPublic);
+
+    // 5. Derive AES-256-GCM key from PRF output if available
+    if (prfOutput) {
+      const rawKey = await crypto.subtle.importKey("raw", prfOutput, "HKDF", false, ["deriveKey"]);
+      prfKey = await crypto.subtle.deriveKey(
+        { name: "HKDF", hash: "SHA-256", salt: PRF_SALT, info: new Uint8Array(0) },
+        rawKey,
+        { name: "AES-GCM", length: 256 },
+        false,
+        ["encrypt", "decrypt"],
+      );
+    }
+    const keep = opts?.keepEscrowSecret ? escrowSecret : undefined;
+    if (keep) escrowSecret = undefined; // handed over: the caller wipes it
+    return { token: data.passkeyToken, prfKey, credentialId: credential.id, rpId: typeof options.rpId === "string" ? options.rpId : undefined, escrowSecret: keep };
+  } finally {
+    wipe(escrowSecret);
+    wipePrfOutput(prfOutput);
+    wipePrfOutput(prfSecond);
+  }
 }
 
 /**

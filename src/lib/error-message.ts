@@ -33,6 +33,7 @@ export function mapCommonError(err: unknown, t: TFunction): string | null {
   }
   if (/\b429\b|too many requests|rate limit/i.test(text)) return t("common.rateLimited");
   if (/account_frozen|account is frozen/i.test(text)) return t("freeze.blockedReason");
+  if (/wallet_frozen/i.test(text)) return t("wallet.locked.title");
   if (/another operation is (already )?in progress|\b409\b.*in progress/i.test(text)) return t("send.busy");
   return null;
 }

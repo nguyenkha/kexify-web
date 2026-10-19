@@ -6,7 +6,7 @@ import { getSignerRecord, setLocalSignerState } from "../device-signer-key";
 import { dropPendingShare, getPendingShare, openSealedStoredShare, promotePendingShare } from "../keystore";
 import { getMpcInstance } from "../mpc";
 import { sharePartsFromString, wipe } from "../secret-bytes";
-import { envelopesFor } from "./move-escrow-envelopes";
+import { approvedRecipients, envelopesFor, withApprovedPasskeys } from "./move-escrow-envelopes";
 import { settlePendingShare, type ShareLock } from "./move-new-device";
 import { backupAndCommit, RefreshError, type MoveSigner } from "./move-share-refresh";
 
@@ -37,7 +37,8 @@ export async function retryPendingCommit(keyId: string, lock: ShareLock, opts: {
       const dp = sharePartsFromString(keyFile.eddsaShare);
       try { handles.eddsa = mpc.deserializeEcKey2p(dp); } finally { wipe(dp); }
     }
-    const envelopes = "prfKey" in lock ? envelopesFor(p.sealed, lock.credentialId, lock.rpId) : envelopesFor(p.sealed, "passphrase", undefined);
+    const base = "prfKey" in lock ? envelopesFor(p.sealed, lock.credentialId, lock.rpId) : envelopesFor(p.sealed, "passphrase", undefined);
+    const envelopes = await withApprovedPasskeys(base, await approvedRecipients(keyId), keyFile, p.target);
     await backupAndCommit({ keyShareId: keyId, signer: rec as MoveSigner, staged: { keyFile, handles, target: p.target }, envelopes, noBackup: opts.noBackup });
   } catch (err) {
     freeClientKeyHandles(handles);

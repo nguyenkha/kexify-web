@@ -2,7 +2,6 @@
 // so every older copy and backup stops working. ECDSA then EdDSA over /keys/:id/share-refresh/init + /step
 // (cb-mpc party 0, names client/server); then the new backup (with its slot: envelope) and the commit with a
 // proof by the new ECDSA copy. Nothing local changes until the commit succeeded: the caller stores the result then.
-import { secp256k1 } from "@noble/curves/secp256k1.js";
 import type { DataTransport } from "cb-mpc";
 import { apiUrl } from "../apiBase";
 import type { KeyFileData } from "../crypto";
@@ -10,10 +9,10 @@ import { createHttpTransport, getMpcInstance, toBase64, toHex, type CbMpc, type 
 import { freeClientKeyHandles, type ClientKeyHandles } from "../client-key-cache";
 import { deviceSign, type SignerRecord } from "../device-signer-key";
 import { fetchSignerNonce } from "../signer-api";
-import { clientScalarFromHandle } from "../unfreeze-share-proof";
+import { clientScalarFromHandle, shareProofHex } from "../unfreeze-share-proof";
 import { workspaceHeaders } from "../workspace-token";
 import { sharePartsFromString, wipe } from "../secret-bytes";
-import { hex, sha256HexOf, utf8 } from "./move-codec";
+import { sha256HexOf, utf8 } from "./move-codec";
 import { refreshMessage } from "./move-signer-messages";
 import { envelopesJson, type EscrowEnvelope } from "./move-escrow-envelopes";
 
@@ -136,7 +135,7 @@ export async function backupAndCommit(opts: {
   const msg = refreshMessage("commit", keyShareId, target, nonce);
   const x1 = await clientScalarFromHandle(handles.mpc, handles.ecdsa!);
   let shareProof: string;
-  try { shareProof = hex(secp256k1.sign(msg, x1)); } finally { x1.fill(0); }
+  try { shareProof = shareProofHex(msg, x1); } finally { x1.fill(0); }
   const sig = await deviceSign(signer, msg);
   // An already committed move (lost answer) answers { generation, already: true }: same outcome.
   const out = await post<{ generation: number; already?: boolean }>(keyShareId, "/commit", {

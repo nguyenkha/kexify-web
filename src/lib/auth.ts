@@ -233,6 +233,22 @@ export interface MeUser {
 export interface MeStandalone {
   keyShareId: string;
   type: "standalone";
+  /** Wallet lock (anonymous wallets): set while locked; unfreezeAt = a passkey unlock waiting out its 24 h. */
+  frozenAt?: string | null;
+  unfreezeAt?: string | null;
+}
+
+/** /auth/me of a wallet session without an account (null for an account session or on failure). */
+export async function getMeStandalone(): Promise<MeStandalone | null> {
+  const token = getToken();
+  if (!token || !isStandaloneJwt()) return null;
+  try {
+    const res = await fetch(apiUrl("/api/auth/me"), { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) return null;
+    return ((await safeJson(res))?.standalone as MeStandalone) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export async function getMe(): Promise<MeUser | null> {

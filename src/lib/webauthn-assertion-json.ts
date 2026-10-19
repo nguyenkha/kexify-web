@@ -14,8 +14,9 @@ export interface AssertionJSON {
   authenticatorAttachment: string | null;
 }
 
-export function splitAssertion(raw: PublicKeyCredential): { credential: AssertionJSON; prfOutput?: BufferSource } {
-  const ext = raw.getClientExtensionResults() as { prf?: { results?: { first?: BufferSource } } };
+/** prfOutput = PRF result for the first salt, prfSecond = for the second (escrow) salt; both stay out of `credential`. */
+export function splitAssertion(raw: PublicKeyCredential): { credential: AssertionJSON; prfOutput?: BufferSource; prfSecond?: BufferSource } {
+  const ext = raw.getClientExtensionResults() as { prf?: { results?: { first?: BufferSource; second?: BufferSource } } };
   const response = raw.response as AuthenticatorAssertionResponse;
   const credential: AssertionJSON = {
     id: raw.id,
@@ -30,5 +31,5 @@ export function splitAssertion(raw: PublicKeyCredential): { credential: Assertio
     clientExtensionResults: {}, // the server needs none
     authenticatorAttachment: raw.authenticatorAttachment,
   };
-  return { credential, prfOutput: ext.prf?.results?.first };
+  return { credential, prfOutput: ext.prf?.results?.first, prfSecond: ext.prf?.results?.second };
 }

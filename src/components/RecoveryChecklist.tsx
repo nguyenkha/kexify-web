@@ -1,3 +1,6 @@
+import { wipe } from "../lib/secret-bytes";
+import { openPasskeyBackupOrPassword } from "../lib/device-move/move-restore";
+import { isPasswordBackup, openPasswordBackup } from "../lib/device-move/move-restore-backup";
 import { backupUploadErrorText, backupUploadSignerFields, downloadEscrow, EscrowError, fetchBackupStatus, type EscrowBlob } from "../lib/escrow-download";
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -275,14 +278,18 @@ export function RecoveryChecklist() {
       // Step 1: one passkey ceremony downloads the backup (ticket backup.download) and reads PRF
       let prfAuth: EscrowBlob;
       try {
-        prfAuth = await downloadEscrow(accountId);
+        prfAuth = await downloadEscrow(accountId, { keepEscrowSecret: true });
       } catch (err) {
         setRestoreError(err instanceof EscrowError && err.code === "ESCROW_SIGNER_REQUIRED" ? t("signers.error.notSigner") : t("recovery.restoreFailed"));
         setRestoreStep("idle");
         setRestoreId(null);
         return;
       }
-      if (!prfAuth.current) { setRestoreError(t("backup.old")); setRestoreStep("idle"); setRestoreId(null); return; } // from before the last device move
+      if (!prfAuth.current) { wipe(prfAuth.escrowSecret); setRestoreError(t("backup.old")); setRestoreStep("idle"); setRestoreId(null); return; } // from before the last device move
+      // A v2 passkey envelope opens here, or is swapped once for the password backup (wipes the escrow secret).
+      const opened = await openPasskeyBackupOrPassword(accountId, prfAuth);
+      prfAuth = opened.blob;
+      const v2Data = opened.keyFile;
       const parsed = JSON.parse(prfAuth.encryptedData);
 
       setRestoreStep("saving");
@@ -297,7 +304,9 @@ export function RecoveryChecklist() {
 
       let keyData: KeyFileData;
 
-      if (parsed.mode === "prf" && parsed.ciphertext) {
+      if (v2Data) {
+        keyData = v2Data;
+      } else if (parsed.mode === "prf" && parsed.ciphertext) {
         // PRF-encrypted escrow: decrypt first, then re-encrypt to save
         const decrypted = await getKeyShareFromStoredShare(parsed, prfAuth.prfKey);
         if (!decrypted) {
@@ -307,7 +316,8 @@ export function RecoveryChecklist() {
           return;
         }
         keyData = decrypted;
-      } else if ((parsed as KeyFileData).encrypted) {
+      } else if (isPasswordBackup(parsed)) {
+        // An encrypted key file, or the password-sealed copy a refresh wrote
         // Passphrase-encrypted: need user to enter passphrase
         setRestoreEncryptedData(parsed as KeyFileData);
         setRestoreStep("passphrase");
@@ -336,7 +346,7 @@ export function RecoveryChecklist() {
     if (!restoreEncryptedData || !restoreId) return;
     setRestoreError(null);
     try {
-      const decrypted = await decryptKeyFile(restoreEncryptedData, passphrase);
+      const decrypted = await openPasswordBackup(restoreId, restoreEncryptedData, passphrase);
       setRestoreStep("saving");
 
       const prfAuth = await authenticatePasskey({ withPrf: true });

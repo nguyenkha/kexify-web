@@ -4,7 +4,12 @@
 import { apiUrl } from "../apiBase";
 import { newKeyRecord, putSignerRecord, deviceSign, registerMessage, spkiFingerprint } from "../device-signer-key";
 import { downloadEscrow, type EscrowBlob } from "../escrow-download";
+import { decryptRestoreBackup } from "./move-restore-backup";
 export { blobNeedsPassword, decryptRestoreBackup } from "./move-restore-backup";
+import type { KeyFileData } from "../crypto";
+import { isEnvelopeV2 } from "../escrow-envelope-v2";
+import { wipe } from "../secret-bytes";
+import { walletPublicKey } from "./move-new-device";
 import { authenticatePasskey, sensitiveHeadersFor } from "../passkey";
 import { webDeviceLabel, type SignerRow } from "../signer-api";
 import { MoveApiError } from "./move-api";
@@ -34,8 +39,8 @@ export async function startRestore(keyShareId: string): Promise<{ signer: Signer
   return { signer: out.signer, passwordRequired: !!out.passwordRequired };
 }
 
-/** The backup as this device may open it (one passkey ceremony; also reads PRF). */
-export const openRestoreBackup = (keyShareId: string, opts: { passwordOnly?: boolean } = {}): Promise<EscrowBlob> => downloadEscrow(keyShareId, opts);
+/** The backup as this device may open it (one passkey ceremony; also reads PRF, both salts: wipe `escrowSecret`). */
+export const openRestoreBackup = (keyShareId: string, opts: { passwordOnly?: boolean; keepEscrowSecret?: boolean } = {}): Promise<EscrowBlob> => downloadEscrow(keyShareId, opts);
 
 /** A restore this browser started and has not finished (its device key is the signer, but no copy is here yet). */
 const flag = (id: string) => `kx-restore:${id}`;
@@ -44,4 +49,32 @@ export function restorePending(id: string): boolean {
 }
 export function markRestorePending(id: string, on: boolean): void {
   try { if (on) localStorage.setItem(flag(id), "1"); else localStorage.removeItem(flag(id)); } catch { /* storage blocked */ }
+}
+
+/**
+ * Open a served blob if it is a v2 passkey envelope (checked against the wallet's public key); null otherwise or
+ * when it does not open. Always wipes the blob's escrow secret, so callers call it right after the download.
+ */
+export async function takeV2Backup(keyShareId: string, blob: EscrowBlob): Promise<KeyFileData | null> {
+  try {
+    if (!isEnvelopeV2(blob.encryptedData) || !blob.escrowSecret) return null;
+    const publicKey = await walletPublicKey(keyShareId);
+    return await decryptRestoreBackup(keyShareId, { ...blob, publicKey }).catch(() => null);
+  } finally {
+    wipe(blob.escrowSecret);
+    blob.escrowSecret = undefined;
+  }
+}
+
+/**
+ * A served blob opened as far as the passkey can: a v2 envelope that opens gives `keyFile`; one that does not is
+ * replaced ONCE by the password backup only (`passwordOnly`, one more passkey tap), returned as `blob` with the
+ * first assertion's PRF key kept for saving locally. Any other blob comes back as is. The escrow secret is wiped.
+ */
+export async function openPasskeyBackupOrPassword(keyShareId: string, blob: EscrowBlob): Promise<{ keyFile: KeyFileData | null; blob: EscrowBlob }> {
+  if (!isEnvelopeV2(blob.encryptedData)) { wipe(blob.escrowSecret); blob.escrowSecret = undefined; return { keyFile: null, blob }; }
+  const keyFile = await takeV2Backup(keyShareId, blob);
+  if (keyFile) return { keyFile, blob };
+  const pw = await downloadEscrow(keyShareId, { passwordOnly: true });
+  return { keyFile: null, blob: { ...pw, prfKey: blob.prfKey, credentialId: blob.credentialId, rpId: blob.rpId } };
 }

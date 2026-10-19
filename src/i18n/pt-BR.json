@@ -130,7 +130,16 @@
     "updatedMinutesAgo": "Atualizado há {{count}}min",
     "updated": "Atualizado {{time}}",
     "testNetworks": "Redes de teste",
-    "testNetworksHint": "Moedas de teste são gratuitas e não têm valor. Elas não entram no seu total."
+    "testNetworksHint": "Moedas de teste são gratuitas e não têm valor. Elas não entram no seu total.",
+    "locked": {
+      "title": "Esta carteira está bloqueada",
+      "body": "Assinaturas e backups estão parados.",
+      "unlock": "Desbloquear",
+      "unlockAt": "Desbloqueia {{time}}"
+    },
+    "lockAction": "Bloquear esta carteira",
+    "lockConfirm": "Bloquear esta carteira? Ninguém poderá assinar até você desbloqueá-la.",
+    "lockNoPath": "Adicione uma passkey primeiro"
   },
   "config": {
     "title": "Ajustes",
@@ -948,7 +957,17 @@
     "newKit": "Baixar um novo kit",
     "fromSigner": "Faça o backup no dispositivo que assina.",
     "notBackedUp": "Sem backup. Crie uma senha de backup",
-    "setPassword": "Criar senha de backup"
+    "setPassword": "Criar senha de backup",
+    "allowPasskey": {
+      "title": "Permitir que a passkey \"{{name}}\" restaure esta carteira?",
+      "body": "Qualquer pessoa com esta passkey e seu e-mail pode mover esta carteira para um novo dispositivo após uma espera.",
+      "allow": "Permitir",
+      "later": "Agora não",
+      "unnamed": "sem nome"
+    },
+    "passkeys": {
+      "count": "{{n}} passkeys podem restaurar esta carteira"
+    }
   },
   "activity": {
     "title": "Registro de atividade",
@@ -1895,7 +1914,11 @@
       "move_stopped": "Uma mudança de dispositivo foi interrompida no seu dispositivo que assina",
       "share_refreshed": "A assinatura foi para um novo dispositivo. Backups antigos não funcionam mais.",
       "escrow_downloaded": "O backup da sua carteira foi aberto em um dispositivo que assina",
-      "backup_dropped": "A assinatura mudou sem novo backup. Crie um backup no dispositivo que assina."
+      "backup_dropped": "A assinatura mudou sem novo backup. Crie um backup no dispositivo que assina.",
+      "backup_passkey_allowed": "A passkey \"{{passkey}}\" agora pode restaurar {{wallet}}",
+      "wallet_locked": "Sua carteira foi bloqueada",
+      "wallet_unlock_scheduled": "Alguém pediu para desbloquear sua carteira. Impeça se não foi você",
+      "wallet_unlocked": "Seu dispositivo de assinatura desbloqueou sua carteira"
     },
     "markReadFailed": "Não foi possível marcar os alertas como lidos. Tente de novo."
   },
@@ -1956,7 +1979,9 @@
     "expired": "Este código expirou. Mostre um novo.",
     "password": {
       "ask": "Crie uma senha de backup. Você só vai precisar dela se perder este dispositivo e sua passkey.",
-      "save": "Salvar"
+      "save": "Salvar",
+      "skip": "Pular",
+      "reset": "Sua senha de backup antiga deixa de funcionar após esta mudança. Defina uma novamente ou pule para usar apenas sua passkey."
     },
     "start": "Mover a assinatura para um novo dispositivo",
     "scan": {

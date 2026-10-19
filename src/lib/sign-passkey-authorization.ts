@@ -28,6 +28,8 @@ export async function authorizeSign(keyId: string, keyShareId: string, payloads:
     // No PRF from this ceremony (e.g. a provider that rejects PRF): the share stays locked.
     if (!prfKey) throw new PrfUnavailableError();
     await unlockDeferredShare(keyId, prfKey);
+    // The passkey just used may not yet be able to restore this wallet: allow it silently (guarded, background).
+    void import("./backup-passkey-allow").then((m) => m.allowOwnPasskeyAfterUnlock(keyShareId, keyId, prfKey));
   }
   if (!token) throw new Error("passkey_auth_required");
   return token;

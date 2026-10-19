@@ -130,7 +130,16 @@
     "updatedMinutesAgo": "Actualizado hace {{count}} min",
     "updated": "Actualizado {{time}}",
     "testNetworks": "Redes de prueba",
-    "testNetworksHint": "Las monedas de prueba son gratis y no tienen valor. No se suman a tu total."
+    "testNetworksHint": "Las monedas de prueba son gratis y no tienen valor. No se suman a tu total.",
+    "locked": {
+      "title": "Esta billetera está bloqueada",
+      "body": "Las firmas y las copias de seguridad están detenidas.",
+      "unlock": "Desbloquear",
+      "unlockAt": "Se desbloquea {{time}}"
+    },
+    "lockAction": "Bloquear esta billetera",
+    "lockConfirm": "¿Bloquear esta billetera? Nadie podrá firmar hasta que la desbloquees.",
+    "lockNoPath": "Agrega primero una llave de acceso"
   },
   "config": {
     "title": "Ajustes",
@@ -948,7 +957,17 @@
     "newKit": "Descargar un kit nuevo",
     "fromSigner": "Haz la copia desde el dispositivo que firma.",
     "notBackedUp": "Sin copia de seguridad. Crea una contraseña de respaldo",
-    "setPassword": "Crear contraseña de respaldo"
+    "setPassword": "Crear contraseña de respaldo",
+    "allowPasskey": {
+      "title": "¿Permitir que la llave de acceso \"{{name}}\" restaure esta billetera?",
+      "body": "Cualquiera con esta llave de acceso y tu correo puede mover esta billetera a un dispositivo nuevo tras una espera.",
+      "allow": "Permitir",
+      "later": "Ahora no",
+      "unnamed": "sin nombre"
+    },
+    "passkeys": {
+      "count": "{{n}} llaves de acceso pueden restaurar esta billetera"
+    }
   },
   "activity": {
     "title": "Registro de actividad",
@@ -1895,7 +1914,11 @@
       "move_stopped": "Se detuvo un traslado de dispositivo en tu dispositivo que firma",
       "share_refreshed": "La firma se movió a un dispositivo nuevo. Las copias anteriores ya no sirven.",
       "escrow_downloaded": "Se abrió la copia de seguridad de tu billetera en un dispositivo que firma",
-      "backup_dropped": "La firma se movió sin copia nueva. Crea una copia en tu dispositivo que firma."
+      "backup_dropped": "La firma se movió sin copia nueva. Crea una copia en tu dispositivo que firma.",
+      "backup_passkey_allowed": "La llave de acceso \"{{passkey}}\" ya puede restaurar {{wallet}}",
+      "wallet_locked": "Tu billetera se bloqueó",
+      "wallet_unlock_scheduled": "Alguien pidió desbloquear tu billetera. Detenlo si no fuiste tú",
+      "wallet_unlocked": "Tu dispositivo de firma desbloqueó tu billetera"
     },
     "markReadFailed": "No se pudieron marcar las alertas como leídas. Inténtalo de nuevo."
   },
@@ -1956,7 +1979,9 @@
     "expired": "Este código caducó. Muestra uno nuevo.",
     "password": {
       "ask": "Crea una contraseña de respaldo. Solo la necesitarás si pierdes este dispositivo y tu passkey.",
-      "save": "Guardar"
+      "save": "Guardar",
+      "skip": "Omitir",
+      "reset": "Tu contraseña de copia de seguridad anterior deja de funcionar tras este traslado. Crea una de nuevo, u omite para depender solo de tu llave de acceso."
     },
     "start": "Mover la firma a un dispositivo nuevo",
     "scan": {

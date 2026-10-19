@@ -130,7 +130,16 @@
     "updatedMinutesAgo": "Cập nhật {{count}}m trước",
     "updated": "Cập nhật {{time}}",
     "testNetworks": "Mạng thử nghiệm",
-    "testNetworksHint": "Coin thử nghiệm miễn phí và không có giá trị. Chúng không được tính vào tổng tài sản."
+    "testNetworksHint": "Coin thử nghiệm miễn phí và không có giá trị. Chúng không được tính vào tổng tài sản.",
+    "locked": {
+      "title": "Ví này đang bị khóa",
+      "body": "Việc ký và sao lưu đã bị dừng.",
+      "unlock": "Mở khóa",
+      "unlockAt": "Mở khóa lúc {{time}}"
+    },
+    "lockAction": "Khóa ví này",
+    "lockConfirm": "Khóa ví này? Không ai có thể ký cho đến khi bạn mở khóa.",
+    "lockNoPath": "Hãy thêm passkey trước"
   },
   "config": {
     "title": "Cài đặt",
@@ -948,7 +957,17 @@
     "newKit": "Tải bộ khôi phục mới",
     "fromSigner": "Hãy sao lưu từ thiết bị ký.",
     "notBackedUp": "Chưa sao lưu. Hãy đặt mật khẩu sao lưu",
-    "setPassword": "Đặt mật khẩu sao lưu"
+    "setPassword": "Đặt mật khẩu sao lưu",
+    "allowPasskey": {
+      "title": "Cho phép passkey \"{{name}}\" khôi phục ví này?",
+      "body": "Bất kỳ ai có passkey này và email của bạn đều có thể chuyển ví này sang thiết bị mới sau một thời gian chờ.",
+      "allow": "Cho phép",
+      "later": "Để sau",
+      "unnamed": "không tên"
+    },
+    "passkeys": {
+      "count": "{{n}} passkey có thể khôi phục ví này"
+    }
   },
   "activity": {
     "title": "Nhật ký hoạt động",
@@ -1891,7 +1910,11 @@
       "move_stopped": "Một lần chuyển thiết bị đã bị dừng trên thiết bị ký",
       "share_refreshed": "Việc ký đã chuyển sang thiết bị mới. Các bản sao lưu cũ không còn dùng được.",
       "escrow_downloaded": "Bản sao lưu ví đã được mở trên một thiết bị ký",
-      "backup_dropped": "Việc ký đã chuyển mà không có bản sao lưu mới. Hãy sao lưu trên thiết bị ký."
+      "backup_dropped": "Việc ký đã chuyển mà không có bản sao lưu mới. Hãy sao lưu trên thiết bị ký.",
+      "backup_passkey_allowed": "Passkey \"{{passkey}}\" giờ có thể khôi phục {{wallet}}",
+      "wallet_locked": "Ví của bạn đã bị khóa",
+      "wallet_unlock_scheduled": "Có người yêu cầu mở khóa ví của bạn. Hãy dừng lại nếu đó không phải là bạn",
+      "wallet_unlocked": "Thiết bị ký của bạn đã mở khóa ví"
     },
     "markReadFailed": "Không đánh dấu đã đọc được. Hãy thử lại."
   },
@@ -1952,7 +1975,9 @@
     "expired": "Mã này đã hết hạn. Hiện mã mới.",
     "password": {
       "ask": "Đặt mật khẩu sao lưu. Bạn chỉ cần nó nếu mất thiết bị này và passkey.",
-      "save": "Lưu"
+      "save": "Lưu",
+      "skip": "Bỏ qua",
+      "reset": "Mật khẩu sao lưu cũ sẽ không còn dùng được sau lần chuyển này. Hãy đặt lại, hoặc bỏ qua để chỉ dùng passkey."
     },
     "start": "Chuyển việc ký sang thiết bị mới",
     "scan": {

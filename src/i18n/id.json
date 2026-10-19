@@ -130,7 +130,16 @@
     "updatedMinutesAgo": "Diperbarui {{count}} mnt lalu",
     "updated": "Diperbarui {{time}}",
     "testNetworks": "Jaringan uji",
-    "testNetworksHint": "Koin uji gratis dan tidak bernilai. Koin ini tidak dihitung dalam total Anda."
+    "testNetworksHint": "Koin uji gratis dan tidak bernilai. Koin ini tidak dihitung dalam total Anda.",
+    "locked": {
+      "title": "Dompet ini terkunci",
+      "body": "Penandatanganan dan pencadangan dihentikan.",
+      "unlock": "Buka kunci",
+      "unlockAt": "Terbuka {{time}}"
+    },
+    "lockAction": "Kunci dompet ini",
+    "lockConfirm": "Kunci dompet ini? Tidak ada yang bisa menandatangani sampai Anda membukanya.",
+    "lockNoPath": "Tambahkan passkey dulu"
   },
   "config": {
     "title": "Pengaturan",
@@ -948,7 +957,17 @@
     "newKit": "Unduh kit baru",
     "fromSigner": "Buat cadangan dari perangkat penanda tangan.",
     "notBackedUp": "Belum dicadangkan. Buat kata sandi cadangan",
-    "setPassword": "Buat kata sandi cadangan"
+    "setPassword": "Buat kata sandi cadangan",
+    "allowPasskey": {
+      "title": "Izinkan passkey \"{{name}}\" memulihkan dompet ini?",
+      "body": "Siapa pun yang punya passkey ini dan email Anda dapat memindahkan dompet ini ke perangkat baru setelah menunggu.",
+      "allow": "Izinkan",
+      "later": "Nanti",
+      "unnamed": "tanpa nama"
+    },
+    "passkeys": {
+      "count": "{{n}} passkey dapat memulihkan dompet ini"
+    }
   },
   "activity": {
     "title": "Log aktivitas",
@@ -1891,7 +1910,11 @@
       "move_stopped": "Pemindahan perangkat dihentikan di perangkat penanda tangan",
       "share_refreshed": "Penandatanganan pindah ke perangkat baru. Cadangan lama tidak berlaku lagi.",
       "escrow_downloaded": "Cadangan dompet dibuka di perangkat penanda tangan",
-      "backup_dropped": "Penandatanganan pindah tanpa cadangan baru. Buat cadangan di perangkat penanda tangan."
+      "backup_dropped": "Penandatanganan pindah tanpa cadangan baru. Buat cadangan di perangkat penanda tangan.",
+      "backup_passkey_allowed": "Passkey \"{{passkey}}\" kini dapat memulihkan {{wallet}}",
+      "wallet_locked": "Dompet Anda dikunci",
+      "wallet_unlock_scheduled": "Seseorang meminta membuka kunci dompet Anda. Hentikan jika itu bukan Anda",
+      "wallet_unlocked": "Perangkat penanda tangan Anda membuka kunci dompet"
     },
     "markReadFailed": "Tidak bisa menandai peringatan sebagai sudah dibaca. Coba lagi."
   },
@@ -1952,7 +1975,9 @@
     "expired": "Kode ini kedaluwarsa. Tampilkan yang baru.",
     "password": {
       "ask": "Buat kata sandi cadangan. Anda hanya memerlukannya jika kehilangan perangkat ini dan passkey Anda.",
-      "save": "Simpan"
+      "save": "Simpan",
+      "skip": "Lewati",
+      "reset": "Kata sandi cadangan lama Anda tidak berlaku lagi setelah pemindahan ini. Atur lagi, atau lewati untuk hanya mengandalkan passkey Anda."
     },
     "start": "Pindahkan penandatanganan ke perangkat baru",
     "scan": {

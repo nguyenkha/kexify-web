@@ -25,3 +25,10 @@ export const escrowMessage = (keyShareId: string, nonce: string) => utf8(`kexify
 
 /** Active signer replaces the wallet backup (POST /keys/:id/backup); blobSha256 = sha256 hex of encryptedData. */
 export const backupUploadMessage = (keyShareId: string, blobSha256: string, nonce: string) => utf8(`kexify-signer:v1:backup:${keyShareId}:${blobSha256}:${nonce}`);
+
+/** Active signer lets a passkey restore the wallet (POST /keys/:id/backup/envelopes); blobSha256 = sha256 hex of encryptedData. */
+export const envelopeAllowMessage = (keyShareId: string, credentialId: string, generation: number, nonce: string, blobSha256: string) =>
+  utf8(`kexify-signer:v1:envelope:${keyShareId}:${credentialId}:${generation}:${nonce}:${blobSha256}`);
+
+/** Active signer unlocks a locked wallet at once (POST /keys/:id/unfreeze); also signed by x1 as the share proof. */
+export const unfreezeMessage = (keyShareId: string, nonce: string) => utf8(`kexify-signer:v1:unfreeze:${keyShareId}:${nonce}`);

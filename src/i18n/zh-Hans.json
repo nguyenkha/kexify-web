@@ -130,7 +130,16 @@
     "updatedMinutesAgo": "{{count}} 分钟前更新",
     "updated": "更新于 {{time}}",
     "testNetworks": "测试网络",
-    "testNetworksHint": "测试币免费且没有价值，不计入你的总资产。"
+    "testNetworksHint": "测试币免费且没有价值，不计入你的总资产。",
+    "locked": {
+      "title": "此钱包已锁定",
+      "body": "签名和备份已停止。",
+      "unlock": "解锁",
+      "unlockAt": "将于 {{time}} 解锁"
+    },
+    "lockAction": "锁定此钱包",
+    "lockConfirm": "锁定此钱包?在您解锁之前,任何人都无法签名。",
+    "lockNoPath": "请先添加通行密钥"
   },
   "config": {
     "title": "设置",
@@ -948,7 +957,17 @@
     "newKit": "下载新的恢复包",
     "fromSigner": "请在签名设备上备份。",
     "notBackedUp": "未备份。请设置备份密码",
-    "setPassword": "设置备份密码"
+    "setPassword": "设置备份密码",
+    "allowPasskey": {
+      "title": "允许通行密钥“{{name}}”恢复此钱包?",
+      "body": "任何拥有此通行密钥和您邮箱的人,都可以在等待期后将此钱包转移到新设备。",
+      "allow": "允许",
+      "later": "以后再说",
+      "unnamed": "未命名"
+    },
+    "passkeys": {
+      "count": "{{n}} 个通行密钥可以恢复此钱包"
+    }
   },
   "activity": {
     "title": "活动记录",
@@ -1891,7 +1910,11 @@
       "move_stopped": "一次设备转移已在签名设备上被停止",
       "share_refreshed": "签名已移到新设备。较早的备份已失效。",
       "escrow_downloaded": "钱包备份已在签名设备上打开",
-      "backup_dropped": "签名已转移但没有新备份。请在签名设备上设置备份。"
+      "backup_dropped": "签名已转移但没有新备份。请在签名设备上设置备份。",
+      "backup_passkey_allowed": "通行密钥“{{passkey}}”现在可以恢复 {{wallet}}",
+      "wallet_locked": "您的钱包已被锁定",
+      "wallet_unlock_scheduled": "有人请求解锁您的钱包。如果不是您本人,请阻止",
+      "wallet_unlocked": "您的签名设备已解锁钱包"
     },
     "markReadFailed": "无法将提醒标为已读。请重试。"
   },
@@ -1952,7 +1975,9 @@
     "expired": "此代码已过期。请显示新的代码。",
     "password": {
       "ask": "设置备份密码。只有在丢失此设备和通行密钥时才需要它。",
-      "save": "保存"
+      "save": "保存",
+      "skip": "跳过",
+      "reset": "此次转移后,旧的备份密码将失效。请重新设置,或跳过以仅依靠通行密钥。"
     },
     "start": "将签名移到新设备",
     "scan": {

@@ -8,12 +8,14 @@ import { fetchSignerNonce } from "./signer-api";
 import { workspaceHeaders } from "./workspace-token";
 import { backupUploadMessage, escrowMessage } from "./device-move/move-signer-messages";
 import { sha256HexOf, utf8 } from "./device-move/move-codec";
+import { ENVELOPE_V2_MODE } from "./escrow-envelope-v2";
+import { wipe } from "./secret-bytes";
 
 /** User text for a refused POST /keys/:id/backup, or "" for anything without its own line. */
 export function backupUploadErrorText(data: { code?: unknown }, t: (k: string) => string): string {
   const code = String(data?.code ?? "");
   if (code === "SHARE_GENERATION_MISMATCH") return t("backup.old");
-  if (code.startsWith("SIGNER_")) return t("backup.fromSigner");
+  if (code.startsWith("SIGNER_") || code === "ESCROW_SIGNER_REQUIRED") return t("backup.fromSigner");
   return "";
 }
 
@@ -30,12 +32,18 @@ export async function backupUploadSignerFields(keyShareId: string, encryptedData
   return { signerId: rec.signerId, nonce, sig: await deviceSign(rec, backupUploadMessage(keyShareId, blobSha, nonce)) };
 }
 
+/** A passkey of the owner that may hold a backup (past probation, has an escrow key). approved = has one now. */
+export interface BackupRecipient { credentialId: string; name: string | null; escrowKey: string; approved: boolean }
+
 export interface BackupStatus {
   hasBackup: boolean; mode: "prf" | "passphrase" | null; shareGeneration: number;
   /** false: the backup is from before the last device move and no longer works. */
   current: boolean; passkeys: number; password: boolean;
   /** The wallet's key version now, and the one a refresh in flight is making (null = none). */
   walletGeneration?: number; refreshPending?: number | null;
+  recipients?: BackupRecipient[];
+  /** A refresh commit will require the slot copy (any site's slot counts). */
+  slotNeeded?: boolean;
 }
 
 export async function fetchBackupStatus(keyShareId: string): Promise<BackupStatus | null> {
@@ -56,6 +64,8 @@ export interface EscrowBlob {
   current: boolean;
   /** From the same assertion (absent when the passkey has no PRF). */
   prfKey?: CryptoKey; credentialId?: string; rpId?: string;
+  /** Escrow secret of the same passkey (only with keepEscrowSecret): opens a v2 envelope. The caller wipes it. */
+  escrowSecret?: Uint8Array;
 }
 
 async function read(res: Response) {
@@ -65,23 +75,33 @@ async function read(res: Response) {
 }
 
 /** One passkey ceremony, then the blob this device may open. Throws EscrowError (NO_BACKUP, ESCROW_SIGNER_REQUIRED, ...). */
-export async function downloadEscrow(keyShareId: string, opts: { passwordOnly?: boolean } = {}): Promise<EscrowBlob> {
-  const auth = await authenticatePasskey({ withPrf: !opts.passwordOnly, action: { action: "backup.download", keyShareId } });
-  const extra = { prfKey: auth.prfKey, credentialId: auth.credentialId, rpId: auth.rpId };
+export async function downloadEscrow(keyShareId: string, opts: { passwordOnly?: boolean; keepEscrowSecret?: boolean } = {}): Promise<EscrowBlob> {
+  const keep = !opts.passwordOnly && !!opts.keepEscrowSecret;
+  const auth = await authenticatePasskey({ withPrf: !opts.passwordOnly, keepEscrowSecret: keep, action: { action: "backup.download", keyShareId } });
+  const extra = { prfKey: auth.prfKey, credentialId: auth.credentialId, rpId: auth.rpId, escrowSecret: auth.escrowSecret };
+  try {
+    return await fetchEscrowBlob(keyShareId, auth.token, opts, extra);
+  } catch (err) {
+    wipe(auth.escrowSecret);
+    throw err;
+  }
+}
+
+async function fetchEscrowBlob(keyShareId: string, ticket: string | undefined, opts: { passwordOnly?: boolean }, extra: Partial<EscrowBlob>): Promise<EscrowBlob> {
   const id = encodeURIComponent(keyShareId);
   const rec = await getSignerRecord(keyShareId);
   if (!rec?.signerId || rec.status !== "active") {
     if (opts.passwordOnly) throw new EscrowError(403, "SIGNER_NOT_ACTIVE");
     // No signing device yet: the plain route (refused with ESCROW_SIGNER_REQUIRED once the wallet has one).
-    const d = await read(await fetch(apiUrl(`/api/keys/${id}/backup`), { headers: await sensitiveHeadersFor(keyShareId, auth.token) }));
+    const d = await read(await fetch(apiUrl(`/api/keys/${id}/backup`), { headers: await sensitiveHeadersFor(keyShareId, ticket) }));
     if (typeof d.encryptedData !== "string" || !d.encryptedData) throw new EscrowError(404, "NO_BACKUP");
-    const isPrf = (() => { try { return JSON.parse(d.encryptedData as string)?.mode === "prf"; } catch { return false; } })();
+    const isPrf = (() => { try { return ["prf", ENVELOPE_V2_MODE].includes(JSON.parse(d.encryptedData as string)?.mode); } catch { return false; } })();
     return { encryptedData: d.encryptedData, source: isPrf ? "passkey" : "password", shareGeneration: Number(d.shareGeneration ?? 0), current: d.current !== false, ...extra };
   }
   const nonce = await fetchSignerNonce(keyShareId);
   const sig = await deviceSign(rec, escrowMessage(keyShareId, nonce));
   const d = await read(await fetch(apiUrl(`/api/keys/${id}/backup/escrow`), {
-    method: "POST", headers: await sensitiveHeadersFor(keyShareId, auth.token), body: JSON.stringify({ signerId: rec.signerId, nonce, sig, ...(opts.passwordOnly ? { passwordOnly: true } : {}) }),
+    method: "POST", headers: await sensitiveHeadersFor(keyShareId, ticket), body: JSON.stringify({ signerId: rec.signerId, nonce, sig, ...(opts.passwordOnly ? { passwordOnly: true } : {}) }),
   }));
   return { encryptedData: String(d.encryptedData), source: d.source === "password" ? "password" : "passkey", shareGeneration: Number(d.shareGeneration ?? 0), current: true, ...extra };
 }

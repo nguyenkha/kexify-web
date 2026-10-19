@@ -11,7 +11,9 @@ import {
 import { listSigners } from "../signer-api";
 import { wipe } from "../secret-bytes";
 import { fromB64, sha256HexOf } from "./move-codec";
-import { envelopesFor, type EscrowEnvelope } from "./move-escrow-envelopes";
+import { approvedRecipients, envelopesFor, withApprovedPasskeys, type EscrowEnvelope } from "./move-escrow-envelopes";
+import { allowOwnPasskeysSilently, BACKUP_RECIPIENTS_EVENT } from "../backup-passkey-allow";
+import type { BackupRecipient, BackupStatus } from "../escrow-download";
 import { fetchBackupStatus } from "../escrow-download";
 import { claimTransfer, openTransfer, type ClaimResult } from "./move-api";
 import { encodeMoveQr, moveFingerprint } from "./move-qr-text";
@@ -79,9 +81,12 @@ export async function openClaim(m: PendingMove, claim: ClaimResult): Promise<{ k
 
 /** Did the wallet have a server backup before the move? (GET /keys/:id/backup/status, no blob). */
 export async function hadBackup(keyShareId: string): Promise<boolean> {
-  const s = await fetchBackupStatus(keyShareId);
-  return !!s && (s.hasBackup || s.passkeys > 0 || s.password);
+  return backedUpFrom(await fetchBackupStatus(keyShareId));
 }
+
+// slotNeeded: the commit will require the slot copy. This browser can always make it (from the same sealed copy it
+// keeps the wallet in, passkey or password), so it only forces the backup on instead of waiting for BACKUP_REQUIRED.
+export const backedUpFrom = (s: BackupStatus | null): boolean => !!s && (s.hasBackup || s.passkeys > 0 || s.password || !!s.slotNeeded);
 
 /** Keep the claimed copy in this browser (so a closed tab can retry), sealed with `lock`. */
 export async function keepClaimedShare(keyFile: KeyFileData, lock: ShareLock): Promise<void> {
@@ -100,14 +105,14 @@ async function sealChecked(next: KeyFileData, lock: ShareLock): Promise<string> 
  * The g+1 backup: a PRF wallet always gets one (its passkey's envelope + the site slot); a password-only wallet
  * only when it had one before. `password` (the backup password the user typed) keeps a password envelope too.
  */
-async function sealBackup(next: KeyFileData, lock: ShareLock, backedUp: boolean, password?: string): Promise<{ sealed: string; envelopes: EscrowEnvelope[] | null }> {
+async function sealBackup(next: KeyFileData, lock: ShareLock, backedUp: boolean, approved: BackupRecipient[], password?: string): Promise<{ sealed: string; envelopes: EscrowEnvelope[] | null }> {
   const sealed = await sealChecked(next, lock);
   const envelopes = "prfKey" in lock ? envelopesFor(sealed, lock.credentialId, lock.rpId)
     : backedUp ? envelopesFor(sealed, "passphrase", undefined) : null;
   if (envelopes && password && "prfKey" in lock) {
     envelopes.push({ credentialId: "passphrase", encryptedData: await sealChecked(next, { passphrase: password }) });
   }
-  return { sealed, envelopes };
+  return { sealed, envelopes: await withApprovedPasskeys(envelopes, approved, next, next.shareGeneration ?? 0) };
 }
 
 /** Commit answers that mean the staged copy is gone: drop it and start over at ecdsa (never commit again). */
@@ -125,10 +130,14 @@ export async function finishMove(opts: {
   onPhase?: (p: string) => void;
 }): Promise<void> {
   const { keyFile, signer, lock } = opts;
+  // Approvals are for generation g: read them before the refresh (a retry reads again; still g until the commit).
+  // (On a commit retry it is read inside the try below, so a failed read keeps the staged copy for the next retry.)
+  let approved = opts.staged ? null : await approvedRecipients(keyFile.id);
   const staged = opts.staged ?? await runRefresh({ keyShareId: keyFile.id, signer, keyFile, generation: keyFile.shareGeneration ?? 0, onPhase: opts.onPhase });
   try {
+    approved ??= await approvedRecipients(keyFile.id);
     opts.onPhase?.("commit");
-    const { sealed, envelopes } = await sealBackup(staged.keyFile, lock, opts.backedUp, opts.password);
+    const { sealed, envelopes } = await sealBackup(staged.keyFile, lock, opts.backedUp, approved, opts.password);
     savePendingShare({ keyId: keyFile.id, sealed, target: staged.target });
     await backupAndCommit({ keyShareId: keyFile.id, signer, staged, envelopes, noBackup: opts.noBackup });
     await saveSealedStoredShare(keyFile.id, sealed, staged.keyFile);
@@ -144,6 +153,9 @@ export async function finishMove(opts: {
   }
   clientKeys.set(keyFile.id, staged.handles);
   await setLocalSignerState(keyFile.id, { status: "active" }, signer.spki);
+  // Now the active signer: the passkey this tab just used may restore the wallet too (silent, best effort).
+  await allowOwnPasskeysSilently(keyFile.id, staged.keyFile).catch(() => 0);
+  window.dispatchEvent(new Event(BACKUP_RECIPIENTS_EVENT));
 }
 
 /** Drop a staged refresh that will not be committed. */

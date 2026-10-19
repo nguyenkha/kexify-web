@@ -7,6 +7,9 @@
 import { browserSupportsWebAuthn, browserSupportsWebAuthnAutofill, startAuthentication, WebAuthnAbortService } from "@simplewebauthn/browser";
 import { apiUrl } from "./apiBase";
 import { AuthError, setToken } from "./auth";
+import { b64 } from "./device-move/move-codec";
+import { noteEscrowPasskey } from "./passkey-escrow-key";
+import { loginAssertionWithEscrowKey } from "./passkey-login-assertion";
 
 type GetAssertion = typeof startAuthentication;
 
@@ -69,8 +72,11 @@ export async function signInWithPasskey(opts: { autofill?: boolean; signal?: Abo
   const mine = opts.autofill ? "autofill" : "modal";
   ceremony = mine;
   let credential;
+  let escrowPublic: Uint8Array | undefined;
   try {
-    credential = await (opts.getAssertion ?? startAuthentication)({ optionsJSON: options, useBrowserAutofill: !!opts.autofill });
+    // Default: our own assertion with the escrow PRF salt (the passkey's escrow key goes with the verify call).
+    if (opts.getAssertion) credential = await opts.getAssertion({ optionsJSON: options, useBrowserAutofill: !!opts.autofill });
+    else ({ credential, escrowPublic } = await loginAssertionWithEscrowKey(options, !!opts.autofill));
   } catch (err) {
     // Dismissed prompt, timeout, or cancelled by another ceremony: not an error to show.
     const name = (err as { name?: string })?.name;
@@ -80,8 +86,9 @@ export async function signInWithPasskey(opts: { autofill?: boolean; signal?: Abo
     if (ceremony === mine) ceremony = null;
   }
 
-  const res = await post("/api/auth/passkey/verify", { challengeId, credential });
+  const res = await post("/api/auth/passkey/verify", { challengeId, credential, ...(escrowPublic ? { escrowKey: b64(escrowPublic) } : {}) });
   if (!res.ok) throw await failure(res);
+  if (escrowPublic) noteEscrowPasskey(credential.id, escrowPublic);
   const data = await res.json().catch(() => null) as { token?: string } | null;
   if (!data?.token) throw new AuthError("unknown", "Invalid server response");
   // Stopped while verifying (the page moved on, or another sign-in started): this session must not

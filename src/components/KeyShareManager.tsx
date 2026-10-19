@@ -1,4 +1,7 @@
 import { downloadEscrow, EscrowError, type EscrowBlob } from "../lib/escrow-download";
+import { wipe } from "../lib/secret-bytes";
+import { openPasskeyBackupOrPassword } from "../lib/device-move/move-restore";
+import { isPasswordBackup, openPasswordBackup } from "../lib/device-move/move-restore-backup";
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -220,16 +223,24 @@ export function KeyShareManager() {
       // One passkey ceremony: the backup.download ticket and the PRF key that decrypts the blob.
       let blob: EscrowBlob;
       try {
-        blob = await downloadEscrow(keyId);
+        blob = await downloadEscrow(keyId, { keepEscrowSecret: true });
       } catch (err) {
         setError(err instanceof EscrowError && err.code === "ESCROW_SIGNER_REQUIRED" ? t("signers.error.notSigner") : t("keyShare.failedToDownload"));
         setRestoreStep("idle");
         setRestoreId(null);
         return;
       }
-      if (!blob.current) { setError(t("backup.old")); setRestoreStep("idle"); setRestoreId(null); return; } // from before the last device move
+      if (!blob.current) { wipe(blob.escrowSecret); setError(t("backup.old")); setRestoreStep("idle"); setRestoreId(null); return; } // from before the last device move
+      // A v2 passkey envelope opens here, or is swapped once for the password backup (wipes the escrow secret).
+      const opened = await openPasskeyBackupOrPassword(keyId, blob);
+      blob = opened.blob;
+      const v2Data = opened.keyFile;
       const parsed = JSON.parse(blob.encryptedData);
 
+      if (v2Data) {
+        setRestoreData(v2Data);
+        setRestoreStep("encrypt");
+      } else
       // Detect StoredShare format (PRF-encrypted browser backup from auto-escrow)
       if (parsed.mode === "prf" && parsed.ciphertext) {
         const prfAuth = blob;
@@ -248,12 +259,19 @@ export function KeyShareManager() {
         }
         setRestoreData(decrypted);
         setRestoreStep("encrypt");
-      } else if ((parsed as KeyFileData).encrypted) {
+      } else if (isPasswordBackup(parsed)) {
+        // An encrypted key file, or the password-sealed copy a refresh wrote: ask the backup password.
         setRestoreData(parsed as KeyFileData);
         setRestoreStep("decrypt");
-      } else {
+      } else if (typeof parsed.share === "string" && !parsed.mode) {
         setRestoreData(parsed as KeyFileData);
         setRestoreStep("encrypt");
+      } else {
+        // A format this screen cannot open (e.g. a password-sealed copy): never save it as a key file.
+        setError(t("keyShare.decryptFailed"));
+        setRestoreStep("idle");
+        setRestoreId(null);
+        return;
       }
     } catch (err) {
       setError(String(err));
@@ -265,7 +283,7 @@ export function KeyShareManager() {
   async function handleRestoreDecrypt(passphrase: string) {
     if (!restoreData) return;
     try {
-      const decrypted = await decryptKeyFile(restoreData, passphrase);
+      const decrypted = await openPasswordBackup(restoreId ?? restoreData.id, restoreData, passphrase);
       setRestoreData(decrypted);
       setRestoreStep("encrypt");
     } catch {

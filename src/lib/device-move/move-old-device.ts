@@ -8,7 +8,8 @@ import { requestKeyPassphrase } from "../key-passphrase-prompt";
 import { fetchSignerNonce } from "../signer-api";
 import { workspaceHeaders } from "../workspace-token";
 import { wipe } from "../secret-bytes";
-import { sha256HexOf, utf8 } from "./move-codec";
+import { sha256HexOf } from "./move-codec";
+import { keyFilePlaintext } from "../escrow-envelope-v2";
 import { approveTransfer, getTransfer, rejectTransfer, MoveApiError, type TransferView } from "./move-api";
 import { qrMatchesServer, type MoveQr } from "./move-qr-text";
 import { transferApproveMessage, transferRejectMessage } from "./move-signer-messages";
@@ -33,7 +34,7 @@ export async function loadScannedTransfer(qr: MoveQr): Promise<TransferView> {
 }
 
 /** This browser's copy of the wallet (one passkey tap, or the passphrase prompt). */
-async function unlockKeyFile(keyShareId: string): Promise<KeyFileData> {
+export async function unlockKeyFile(keyShareId: string): Promise<KeyFileData> {
   const mode = getKeyShareMode(keyShareId);
   if (mode === "passphrase") return requestKeyPassphrase(keyShareId);
   if (mode !== "prf") throw new MoveApiError(0, "NO_SIGNER");
@@ -55,10 +56,7 @@ export async function approveMove(keyShareId: string, t: TransferView, code: str
   const fp = await sha256HexOf(Uint8Array.from(atob(t.devicePubkey), (c) => c.charCodeAt(0)));
   const keyFile = await unlockKeyFile(keyShareId);
   const generation = keyFile.shareGeneration ?? 0;
-  const plain = utf8(JSON.stringify({
-    id: keyFile.id, peer: keyFile.peer, share: keyFile.share, publicKey: keyFile.publicKey,
-    eddsaShare: keyFile.eddsaShare, eddsaPublicKey: keyFile.eddsaPublicKey, type: keyFile.type, shareGeneration: generation,
-  } satisfies KeyFileData));
+  const plain = keyFilePlaintext(keyFile, generation);
   let sealed: { ciphertext: string; senderEphPubkey: string };
   try {
     const eph = Uint8Array.from(atob(t.ephPubkey), (c) => c.charCodeAt(0));

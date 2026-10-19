@@ -130,7 +130,16 @@
     "updatedMinutesAgo": "{{count}}분 전 업데이트됨",
     "updated": "{{time}} 업데이트됨",
     "testNetworks": "테스트 네트워크",
-    "testNetworksHint": "테스트 코인은 무료이며 가치가 없습니다. 총액에 포함되지 않습니다."
+    "testNetworksHint": "테스트 코인은 무료이며 가치가 없습니다. 총액에 포함되지 않습니다.",
+    "locked": {
+      "title": "이 지갑은 잠겨 있습니다",
+      "body": "서명과 백업이 중지되었습니다.",
+      "unlock": "잠금 해제",
+      "unlockAt": "{{time}}에 잠금 해제"
+    },
+    "lockAction": "이 지갑 잠그기",
+    "lockConfirm": "이 지갑을 잠글까요? 잠금을 해제할 때까지 아무도 서명할 수 없습니다.",
+    "lockNoPath": "먼저 패스키를 추가하세요"
   },
   "config": {
     "title": "설정",
@@ -948,7 +957,17 @@
     "newKit": "새 키트 다운로드",
     "fromSigner": "서명 기기에서 백업하세요.",
     "notBackedUp": "백업되지 않음. 백업 비밀번호를 설정하세요",
-    "setPassword": "백업 비밀번호 설정"
+    "setPassword": "백업 비밀번호 설정",
+    "allowPasskey": {
+      "title": "패스키 \"{{name}}\"(으)로 이 지갑을 복원할 수 있게 할까요?",
+      "body": "이 패스키와 이메일을 가진 사람은 대기 시간 후 이 지갑을 새 기기로 옮길 수 있습니다.",
+      "allow": "허용",
+      "later": "나중에",
+      "unnamed": "이름 없음"
+    },
+    "passkeys": {
+      "count": "패스키 {{n}}개로 이 지갑을 복원할 수 있습니다"
+    }
   },
   "activity": {
     "title": "활동 기록",
@@ -1891,7 +1910,11 @@
       "move_stopped": "서명 기기에서 기기 이동이 중지되었습니다",
       "share_refreshed": "서명이 새 기기로 옮겨졌습니다. 이전 백업은 작동하지 않습니다.",
       "escrow_downloaded": "지갑 백업이 서명 기기에서 열렸습니다",
-      "backup_dropped": "새 백업 없이 서명이 옮겨졌습니다. 서명 기기에서 백업을 설정하세요."
+      "backup_dropped": "새 백업 없이 서명이 옮겨졌습니다. 서명 기기에서 백업을 설정하세요.",
+      "backup_passkey_allowed": "이제 패스키 \"{{passkey}}\"(으)로 {{wallet}}을(를) 복원할 수 있습니다",
+      "wallet_locked": "지갑이 잠겼습니다",
+      "wallet_unlock_scheduled": "누군가 지갑 잠금 해제를 요청했습니다. 본인이 아니면 중지하세요",
+      "wallet_unlocked": "서명 기기가 지갑 잠금을 해제했습니다"
     },
     "markReadFailed": "알림을 읽음으로 표시하지 못했습니다. 다시 시도하세요."
   },
@@ -1952,7 +1975,9 @@
     "expired": "이 코드는 만료되었습니다. 새 코드를 표시하세요.",
     "password": {
       "ask": "백업 비밀번호를 설정하세요. 이 기기와 패스키를 모두 잃었을 때만 필요합니다.",
-      "save": "저장"
+      "save": "저장",
+      "skip": "건너뛰기",
+      "reset": "이번 이동 후에는 이전 백업 비밀번호가 더 이상 작동하지 않습니다. 다시 설정하거나, 건너뛰고 패스키만 사용하세요."
     },
     "start": "새 기기로 서명 옮기기",
     "scan": {

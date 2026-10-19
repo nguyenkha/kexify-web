@@ -13,6 +13,7 @@ import { fetchBackupStatus, type EscrowBlob } from "../../lib/escrow-download";
 import { PassphraseInput } from "../PassphraseInput";
 import { SignerCoolingWait } from "../settings/signer-cooling-wait";
 import { ErrorBox } from "../ui";
+import { wipe } from "../../lib/secret-bytes";
 
 type Phase = "load" | "intro" | "cooling" | "ready" | "password" | "working" | "done" | "error";
 const BACKUP_CODES = ["BACKUP_REQUIRED", "ENVELOPE_REFUSED"];
@@ -29,8 +30,11 @@ export function MoveRestorePage() {
   const blob = useRef<EscrowBlob | null>(null);
   const staged = useRef<{ run: (noBackup?: boolean) => Promise<void> } | null>(null);
   const [canSkip, setCanSkip] = useState(false);
+  const triedPasswordOnly = useRef(false);
+  const pwBlob = useRef<EscrowBlob | null>(null); // the password backup the typed password was checked against
   const [pwError, setPwError] = useState("");
-  useEffect(() => () => { blob.current = null; staged.current = null; }, []); // the verified password lives only in these closures
+  // The verified password lives only in these closures; the passkey's escrow secret is wiped on the way out.
+  useEffect(() => () => { wipe(blob.current?.escrowSecret); blob.current = null; staged.current = null; }, []);
 
   const load = useCallback(async () => {
     const rec = await getSignerRecord(keyId).catch(() => null);
@@ -62,10 +66,25 @@ export function MoveRestorePage() {
     setPhase("working");
     setError("");
     try {
-      const keyFile = await decryptRestoreBackup(keyId, blob.current!, password);
-      const want = await walletPublicKey(keyId);
-      if (!want || want.toLowerCase() !== keyFile.publicKey.toLowerCase()) throw Object.assign(new Error("x"), { code: "BACKUP_OPEN_FAILED" });
       const b = blob.current!;
+      const want = await walletPublicKey(keyId);
+      let keyFile;
+      try {
+        keyFile = await decryptRestoreBackup(keyId, { ...b, publicKey: want }, password);
+      } catch (err) {
+        // A passkey backup that does not open here. With the password already verified: open the password backup
+        // fetched for that check. Without: ask the server once more for the password backup only.
+        const pw = pwBlob.current;
+        if (password && pw && pw !== b) keyFile = await decryptRestoreBackup(keyId, { ...pw, publicKey: want }, password);
+        else if (password || blobNeedsPassword(b) || triedPasswordOnly.current) throw err;
+        else {
+          triedPasswordOnly.current = true;
+          blob.current = await openRestoreBackup(keyId, { passwordOnly: true });
+          setPhase("password");
+          return;
+        }
+      } finally { wipe(b.escrowSecret); b.escrowSecret = undefined; }
+      if (!want || want.toLowerCase() !== keyFile.publicKey.toLowerCase()) throw Object.assign(new Error("x"), { code: "BACKUP_OPEN_FAILED" });
       const lock: ShareLock = b.prfKey && b.credentialId ? { prfKey: b.prfKey, credentialId: b.credentialId, rpId: b.rpId } : { passphrase: password! };
       const rec = (await getSignerRecord(keyId)) as MoveSigner;
       await keepClaimedShare(keyFile, lock);
@@ -95,8 +114,9 @@ export function MoveRestorePage() {
     setError("");
     try {
       const b = blob.current!;
-      const pwBlob = blobNeedsPassword(b) ? b : await openRestoreBackup(keyId, { passwordOnly: true });
-      await decryptRestoreBackup(keyId, pwBlob, p);
+      const pw = blobNeedsPassword(b) ? b : await openRestoreBackup(keyId, { passwordOnly: true });
+      await decryptRestoreBackup(keyId, pw, p);
+      pwBlob.current = pw;
     } catch (err) {
       const code = String((err as { code?: unknown })?.code ?? "");
       if (code === "BACKUP_OPEN_FAILED") setPwError(t("restore.passwordWrong"));
@@ -109,7 +129,8 @@ export function MoveRestorePage() {
   async function openBackup() {
     setError("");
     try {
-      blob.current = await openRestoreBackup(keyId);
+      wipe(blob.current?.escrowSecret);
+      blob.current = await openRestoreBackup(keyId, { keepEscrowSecret: true });
       // A password backup existed: ask it, so the new backup keeps a password copy too (PRF blob or not).
       const status = await fetchBackupStatus(keyId);
       if (blobNeedsPassword(blob.current) || status?.password) setPhase("password");

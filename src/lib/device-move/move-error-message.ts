@@ -21,6 +21,7 @@ export function moveErrorMessage(err: unknown, t: TFunction): string {
     case "NO_BACKUP": case "PASSWORD_BACKUP_REQUIRED": return t("move.noBackup");
     case "SHARE_GENERATION_MISMATCH": case "TRANSFER_KEY_USED": return t("move.outdated");
     case "account_frozen": return t("move.locked");
+    case "wallet_frozen": return t("wallet.locked.title");
     case "RATE_LIMITED": return t("signers.error.rateLimited");
   }
   if (code.startsWith("SIGNER_") || code === "NO_SIGNER") return signerErrorMessage(err, t);
