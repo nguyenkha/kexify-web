@@ -4,20 +4,12 @@ import { Globe, Smartphone } from "lucide-react";
 import { apiUrl } from "../../lib/apiBase";
 import { authHeaders } from "../../lib/auth";
 import { getSignerRecord } from "../../lib/device-signer-key";
+import { timeAgo, waitLeft } from "../../lib/device-facts";
 import { signerErrorMessage } from "../../lib/signer-error-message";
 import { activateSigner, listSigners, revokeSigner, SignerApiError, type SignerRow } from "../../lib/signer-api";
 import { ErrorBox } from "../ui";
 
 interface Wallet { id: string; name: string | null; signers: SignerRow[] }
-
-function timeAgo(iso: string, lang: string): string {
-  const mins = Math.round((new Date(iso).getTime() - Date.now()) / 60_000);
-  if (!Number.isFinite(mins)) return "";
-  const rtf = new Intl.RelativeTimeFormat(lang, { numeric: "auto" });
-  if (Math.abs(mins) < 60) return rtf.format(mins, "minute");
-  const hours = Math.round(mins / 60);
-  return Math.abs(hours) < 24 ? rtf.format(hours, "hour") : rtf.format(Math.round(hours / 24), "day");
-}
 
 async function loadWallets(): Promise<{ wallets: Wallet[]; mine: Map<string, { id?: string; active: boolean }> }> {
   const res = await fetch(apiUrl("/api/keys"), { headers: authHeaders() });
@@ -90,7 +82,10 @@ export function SignersList() {
               const me = data.mine.get(w.id);
               const isMe = me?.id === s.id;
               const badge = s.status === "active" ? ["bg-green-500/10 text-green-400", t("signers.device.signing")]
+                : s.cooling ? ["bg-yellow-500/10 text-yellow-400", t("signers.waiting", { time: waitLeft(s.activeFrom, t) })]
                 : s.status === "pending" ? ["bg-yellow-500/10 text-yellow-400", t("signers.device.viewOnly")]
+                : s.revokeReason === "moved" ? ["bg-surface-tertiary text-text-muted", t("signers.moved")]
+                : s.revokeReason === "declined" ? ["bg-red-500/10 text-red-400", t("signers.stopped")]
                 : ["bg-red-500/10 text-red-400", t("signers.removed")];
               return (
                 <div key={s.id} className="px-3 md:px-5 py-2">
@@ -106,8 +101,8 @@ export function SignersList() {
                         {s.lastUsedAt ? t("signers.lastUsed", { time: timeAgo(s.lastUsedAt, i18n.language) }) : t("signers.never")}
                       </div>
                     </div>
-                    {s.status === "pending" && (
-                      <button className={btn} disabled={busy} onClick={() => run(() => activateSigner(w.id, s.id, !!me?.active))}>
+                    {s.status === "pending" && !(isMe && s.cooling) && (
+                      <button className={btn} disabled={busy} onClick={() => run(async () => { await activateSigner(w.id, s.id, !!me?.active); })}>
                         {isMe ? t("signers.useThis") : t("signers.makeSigning")}
                       </button>
                     )}

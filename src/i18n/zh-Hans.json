@@ -1708,7 +1708,13 @@
       "body": "签名在 {{device}} 上进行。改用此设备？"
     },
     "error": {
-      "notSigner": "此设备不是该钱包的签名设备。"
+      "notSigner": "此设备不是该钱包的签名设备。",
+      "coolingInProgress": "已有另一台设备在等待接管签名。",
+      "frozen": "你的账户已被锁定。请先解锁。",
+      "movePending": "另一台设备在等待接管签名。请先在你的签名设备上处理。",
+      "rateLimited": "尝试次数过多。请等几分钟后再试。",
+      "noDecliner": "没有人能阻止这次转移。请改用备份恢复。",
+      "noDeclinerLink": "从备份恢复"
     },
     "device": {
       "signing": "签名设备",
@@ -1721,7 +1727,10 @@
         "body": "你的钱包一次只在一台设备上签名。此设备目前只能查看。"
       }
     },
-    "unlockFirst": "请先解锁此钱包，然后重试。"
+    "unlockFirst": "请先解锁此钱包，然后重试。",
+    "waiting": "等待{{time}}",
+    "moved": "已转移",
+    "stopped": "已阻止"
   },
   "premium": {
     "plan": {
@@ -1799,5 +1808,111 @@
       "provider_unavailable": "网络服务商暂不可用,请稍后再试。",
       "unknown": "出了点问题,请重试。"
     }
+  },
+  "restore": {
+    "ask": {
+      "title": "{{country}}有人正在把签名转移到{{platform}}。是你吗？",
+      "body": "如果不是你，请立即阻止。该设备将无法签名。",
+      "no": "不是，阻止",
+      "yes": "是的，是我",
+      "noNote": "在签名设备允许新的通行密钥之前，你将通过邮件登录",
+      "noNoteAnon": "在签名设备允许新的通行密钥之前，请使用钱包文件登录",
+      "signedIn": "{{time}}登录",
+      "wallet": "钱包：{{name}}",
+      "later": "稍后再问"
+    },
+    "askNew": {
+      "title": "一台新设备（{{platform}}，{{country}}）可以查看你的钱包",
+      "body": "它无法签名。只有确认是你本人操作时，才将它设为签名设备。",
+      "notMe": "不是我",
+      "notMeNoteAccount": "这会锁定你的账户并让所有设备退出登录。你需要重新通过邮箱登录。",
+      "notMeNoteAnon": "该设备将从此钱包中移除。",
+      "confirmTitle": "设为你的签名设备？",
+      "confirmBody": "{{device}} 将能花费此钱包中的所有资产。此设备将停止签名。",
+      "later": "暂不"
+    },
+    "stopped": {
+      "title": "已阻止。该设备无法签名。",
+      "lockedTitle": "已阻止。你的账户已被锁定。",
+      "lockedBody": "为保护你的钱包，所有设备都已退出登录。请再次通过邮件登录。",
+      "signIn": "登录"
+    },
+    "wait": {
+      "title": "为了安全，这里将在{{time}}后开始签名",
+      "notice": "我们已给你和旧设备发送了邮件。",
+      "noticeAnon": "我们已通知旧设备和所有已登录的设备。"
+    },
+    "cancel": "取消恢复"
+  },
+  "deviceFacts": {
+    "unknownCountry": "未知国家",
+    "platform": {
+      "web": "网页浏览器",
+      "ios": "iPhone",
+      "cli": "命令行应用",
+      "unknown": "新设备"
+    },
+    "waitHm": "{{h}}小时{{m}}分钟",
+    "waitM": "{{m}}分钟"
+  },
+  "alerts": {
+    "title": "安全提醒",
+    "description": "登录情况，以及设备和通行密钥的变更。",
+    "markAllRead": "全部标为已读",
+    "empty": "还没有安全提醒。",
+    "loadFailed": "无法加载安全提醒。",
+    "banner": "新的安全提醒：{{n}}条",
+    "review": "查看",
+    "kind": {
+      "login_new": "在{{country}}通过{{platform}}有新的登录",
+      "session_reuse": "一份登录副本在别处被使用，该设备已退出登录。",
+      "sessions_revoked_others": "其他所有设备都已退出登录",
+      "signer_pending": "{{country}}的{{device}}现在可以查看你的钱包，但无法签名。",
+      "signer_cooling_started": "{{country}}有人开始把签名转移到{{device}}",
+      "signer_cooling_ended": "签名已转移到{{device}}",
+      "signer_activated": "{{device}}现在是你的签名设备",
+      "signer_revoked": "{{device}}不能再签名了",
+      "signer_declined": "转移到{{device}}的操作已被阻止",
+      "passkey_added": "已添加一个通行密钥",
+      "passkey_removed": "已删除一个通行密钥",
+      "alert_email_changed": "提醒邮箱已更改",
+      "unknown": "你的钱包发生了安全事件"
+    },
+    "markReadFailed": "无法将提醒标为已读。请重试。"
+  },
+  "anon": {
+    "alertEmail": "添加用于接收安全提醒的邮箱（可选）",
+    "alertEmailBody": "我们只会向这里发送安全提醒，它不用于登录。",
+    "alertEmailPlaceholder": "name@example.com",
+    "alertEmailSave": "保存",
+    "alertEmailRemove": "移除提醒邮箱",
+    "alertEmailCheckInbox": "请查看收件箱进行确认。",
+    "alertEmailRemoved": "提醒邮箱已移除。",
+    "alertEmailRemoveConfirm": "移除提醒邮箱？你将不再通过邮件收到安全提醒。"
+  },
+  "declineLink": {
+    "title": "有人正在把签名转移到新设备",
+    "body": "如果不是你，请立即阻止。新设备将无法签名，你的账户也会被锁定，直到你再次通过邮件登录。",
+    "stopping": "正在阻止...",
+    "stopped": "已阻止",
+    "stoppedFrozen": "该设备无法签名。你的账户已被锁定：请再次通过邮件登录。",
+    "stoppedAnon": "该设备无法签名。",
+    "notDone": "没有阻止任何操作",
+    "alreadyActive": "该设备已在为这个钱包签名。请登录后查看你的设备。",
+    "alreadyStopped": "这次转移已被阻止。",
+    "expired": "此链接已过期或已被使用。",
+    "failed": "没有成功，请重试。",
+    "signIn": "前往登录"
+  },
+  "confirmEmailLink": {
+    "title": "确认你的提醒邮箱",
+    "body": "钱包的安全提醒将发送到这个地址。",
+    "confirm": "确认邮箱",
+    "done": "邮箱已确认",
+    "doneBody": "今后安全提醒会发送到这个地址。",
+    "notDone": "邮箱未确认",
+    "expired": "此链接已过期或已被使用。",
+    "failed": "没有成功，请重试。",
+    "open": "打开 kexify"
   }
 }

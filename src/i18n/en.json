@@ -1708,7 +1708,13 @@
       "body": "Signing happens on {{device}}. Use this device instead?"
     },
     "error": {
-      "notSigner": "This device is not the signing device for this wallet."
+      "notSigner": "This device is not the signing device for this wallet.",
+      "coolingInProgress": "Another device is already waiting to take over signing.",
+      "frozen": "Your account is locked. Unlock it first.",
+      "movePending": "Another device is waiting to take over signing. Answer it on your signing device first.",
+      "rateLimited": "Too many tries. Wait a few minutes and try again.",
+      "noDecliner": "Nobody could stop this move. Restore from your backup instead.",
+      "noDeclinerLink": "Restore from backup"
     },
     "device": {
       "signing": "Signing device",
@@ -1721,7 +1727,10 @@
         "body": "Your wallet signs on one device at a time. This device can view it now."
       }
     },
-    "unlockFirst": "Unlock this wallet first, then try again."
+    "unlockFirst": "Unlock this wallet first, then try again.",
+    "waiting": "Waiting {{time}}",
+    "moved": "Moved",
+    "stopped": "Stopped"
   },
   "premium": {
     "plan": {
@@ -1799,5 +1808,111 @@
       "provider_unavailable": "The network provider is unavailable. Try again shortly.",
       "unknown": "Something went wrong. Try again."
     }
+  },
+  "restore": {
+    "ask": {
+      "title": "Someone in {{country}} is moving signing to {{platform}}. Was this you?",
+      "body": "If you did not start this, stop it now. That device will not be able to sign.",
+      "no": "No, stop it",
+      "yes": "Yes, it's me",
+      "noNote": "You'll sign in by email until your signing device allows a new passkey",
+      "noNoteAnon": "Sign in with your wallet file until your signing device allows a new passkey",
+      "signedIn": "signed in {{time}}",
+      "wallet": "Wallet: {{name}}",
+      "later": "Ask me later"
+    },
+    "askNew": {
+      "title": "A new device ({{platform}}, {{country}}) can view your wallet",
+      "body": "It cannot sign. Make it your signing device only if this is you.",
+      "notMe": "Not me",
+      "notMeNoteAccount": "This locks your account and signs out every device. You'll sign in by email again.",
+      "notMeNoteAnon": "That device will be removed from this wallet.",
+      "confirmTitle": "Make it your signing device?",
+      "confirmBody": "{{device}} will be able to spend everything in this wallet. This device stops signing.",
+      "later": "Not now"
+    },
+    "stopped": {
+      "title": "Stopped. That device cannot sign.",
+      "lockedTitle": "Stopped. Your account is now locked.",
+      "lockedBody": "Every device was signed out to keep your wallet safe. Sign in by email again.",
+      "signIn": "Sign in"
+    },
+    "wait": {
+      "title": "For your safety, signing starts here in {{time}}",
+      "notice": "We emailed you and your old device.",
+      "noticeAnon": "We told your old device and every device signed in."
+    },
+    "cancel": "Cancel restore"
+  },
+  "deviceFacts": {
+    "unknownCountry": "an unknown country",
+    "platform": {
+      "web": "a web browser",
+      "ios": "an iPhone",
+      "cli": "the command line app",
+      "unknown": "a new device"
+    },
+    "waitHm": "{{h}} h {{m}} min",
+    "waitM": "{{m}} min"
+  },
+  "alerts": {
+    "title": "Security alerts",
+    "description": "Sign-ins and changes to your devices and passkeys.",
+    "markAllRead": "Mark all read",
+    "empty": "No security alerts yet.",
+    "loadFailed": "Could not load security alerts.",
+    "banner": "New security alerts: {{n}}",
+    "review": "Review",
+    "kind": {
+      "login_new": "New sign-in from {{platform}} in {{country}}",
+      "session_reuse": "A copy of a sign-in was used elsewhere. That device was signed out.",
+      "sessions_revoked_others": "Every other device was signed out",
+      "signer_pending": "{{device}} in {{country}} can now view your wallet. It cannot sign.",
+      "signer_cooling_started": "Someone in {{country}} started moving signing to {{device}}",
+      "signer_cooling_ended": "Signing moved to {{device}}",
+      "signer_activated": "{{device}} is now your signing device",
+      "signer_revoked": "{{device}} can no longer sign",
+      "signer_declined": "The move to {{device}} was stopped",
+      "passkey_added": "A passkey was added",
+      "passkey_removed": "A passkey was removed",
+      "alert_email_changed": "The alert email was changed",
+      "unknown": "Security event on your wallet"
+    },
+    "markReadFailed": "Could not mark alerts as read. Try again."
+  },
+  "anon": {
+    "alertEmail": "Add an email for security alerts (optional)",
+    "alertEmailBody": "We only send security alerts there. It is not used to sign in.",
+    "alertEmailPlaceholder": "you@example.com",
+    "alertEmailSave": "Save",
+    "alertEmailRemove": "Remove alert email",
+    "alertEmailCheckInbox": "Check your inbox to confirm.",
+    "alertEmailRemoved": "Alert email removed.",
+    "alertEmailRemoveConfirm": "Remove the alert email? You will no longer get security alerts by email."
+  },
+  "declineLink": {
+    "title": "Someone is moving signing to a new device",
+    "body": "If this was not you, stop it now. The new device will not be able to sign and your account will be locked until you sign in by email again.",
+    "stopping": "Stopping...",
+    "stopped": "Stopped",
+    "stoppedFrozen": "That device cannot sign. Your account is locked: sign in by email again.",
+    "stoppedAnon": "That device cannot sign.",
+    "notDone": "Nothing was stopped",
+    "alreadyActive": "That device already signs for this wallet. Sign in to review your devices.",
+    "alreadyStopped": "This move was already stopped.",
+    "expired": "This link has expired or was already used.",
+    "failed": "That did not work. Try again.",
+    "signIn": "Go to sign in"
+  },
+  "confirmEmailLink": {
+    "title": "Confirm your alert email",
+    "body": "Security alerts for your wallet will be sent to this address.",
+    "confirm": "Confirm email",
+    "done": "Email confirmed",
+    "doneBody": "Security alerts will now come to this address.",
+    "notDone": "Email not confirmed",
+    "expired": "This link has expired or was already used.",
+    "failed": "That did not work. Try again.",
+    "open": "Open kexify"
   }
 }

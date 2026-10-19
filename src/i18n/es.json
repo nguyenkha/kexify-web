@@ -1712,7 +1712,13 @@
       "body": "La firma se hace en {{device}}. ¿Usar este dispositivo en su lugar?"
     },
     "error": {
-      "notSigner": "Este dispositivo no es el dispositivo de firma de esta billetera."
+      "notSigner": "Este dispositivo no es el dispositivo de firma de esta billetera.",
+      "coolingInProgress": "Otro dispositivo ya está esperando para tomar la firma.",
+      "frozen": "Tu cuenta está bloqueada. Desbloquéala primero.",
+      "movePending": "Otro dispositivo está esperando para tomar la firma. Respóndelo primero en tu dispositivo de firma.",
+      "rateLimited": "Demasiados intentos. Espera unos minutos e inténtalo de nuevo.",
+      "noDecliner": "Nadie podría detener este cambio. Restaura desde tu copia de seguridad.",
+      "noDeclinerLink": "Restaurar desde la copia"
     },
     "device": {
       "signing": "Dispositivo de firma",
@@ -1725,7 +1731,10 @@
         "body": "Tu billetera firma en un solo dispositivo a la vez. Este dispositivo puede verla ahora."
       }
     },
-    "unlockFirst": "Desbloquea primero esta billetera y vuelve a intentarlo."
+    "unlockFirst": "Desbloquea primero esta billetera y vuelve a intentarlo.",
+    "waiting": "Esperando {{time}}",
+    "moved": "Movido",
+    "stopped": "Detenido"
   },
   "premium": {
     "plan": {
@@ -1803,5 +1812,111 @@
       "provider_unavailable": "El proveedor de red no está disponible. Inténtalo en breve.",
       "unknown": "Algo salió mal. Inténtalo de nuevo."
     }
+  },
+  "restore": {
+    "ask": {
+      "title": "Alguien en {{country}} está pasando la firma a {{platform}}. ¿Fuiste tú?",
+      "body": "Si no fuiste tú, detenlo ahora. Ese dispositivo no podrá firmar.",
+      "no": "No, detenerlo",
+      "yes": "Sí, fui yo",
+      "noNote": "Iniciarás sesión por correo hasta que tu dispositivo de firma permita una nueva llave de acceso",
+      "noNoteAnon": "Inicia sesión con tu archivo de billetera hasta que tu dispositivo de firma permita una nueva llave de acceso",
+      "signedIn": "sesión iniciada {{time}}",
+      "wallet": "Billetera: {{name}}",
+      "later": "Preguntarme después"
+    },
+    "askNew": {
+      "title": "Un dispositivo nuevo ({{platform}}, {{country}}) puede ver tu billetera",
+      "body": "No puede firmar. Conviértelo en tu dispositivo de firma solo si fuiste tú.",
+      "notMe": "No fui yo",
+      "notMeNoteAccount": "Esto bloquea tu cuenta y cierra la sesión en todos los dispositivos. Volverás a iniciar sesión por correo.",
+      "notMeNoteAnon": "Ese dispositivo se quitará de esta billetera.",
+      "confirmTitle": "¿Convertirlo en tu dispositivo de firma?",
+      "confirmBody": "{{device}} podrá gastar todo lo que hay en esta billetera. Este dispositivo dejará de firmar.",
+      "later": "Ahora no"
+    },
+    "stopped": {
+      "title": "Detenido. Ese dispositivo no puede firmar.",
+      "lockedTitle": "Detenido. Tu cuenta está bloqueada.",
+      "lockedBody": "Se cerró la sesión en todos los dispositivos para proteger tu billetera. Inicia sesión de nuevo por correo.",
+      "signIn": "Iniciar sesión"
+    },
+    "wait": {
+      "title": "Por tu seguridad, la firma empezará aquí en {{time}}",
+      "notice": "Te enviamos un correo a ti y a tu dispositivo anterior.",
+      "noticeAnon": "Avisamos a tu dispositivo anterior y a todos los dispositivos con sesión iniciada."
+    },
+    "cancel": "Cancelar restauración"
+  },
+  "deviceFacts": {
+    "unknownCountry": "un país desconocido",
+    "platform": {
+      "web": "un navegador web",
+      "ios": "un iPhone",
+      "cli": "la app de línea de comandos",
+      "unknown": "un dispositivo nuevo"
+    },
+    "waitHm": "{{h}} h {{m}} min",
+    "waitM": "{{m}} min"
+  },
+  "alerts": {
+    "title": "Alertas de seguridad",
+    "description": "Inicios de sesión y cambios en tus dispositivos y llaves de acceso.",
+    "markAllRead": "Marcar todo como leído",
+    "empty": "Aún no hay alertas de seguridad.",
+    "loadFailed": "No se pudieron cargar las alertas de seguridad.",
+    "banner": "Alertas de seguridad nuevas: {{n}}",
+    "review": "Revisar",
+    "kind": {
+      "login_new": "Nuevo inicio de sesión desde {{platform}} en {{country}}",
+      "session_reuse": "Se usó en otro lugar una copia de un inicio de sesión. Ese dispositivo salió de la sesión.",
+      "sessions_revoked_others": "Se cerró la sesión en todos los demás dispositivos",
+      "signer_pending": "{{device}} en {{country}} ya puede ver tu billetera. No puede firmar.",
+      "signer_cooling_started": "Alguien en {{country}} empezó a pasar la firma a {{device}}",
+      "signer_cooling_ended": "La firma pasó a {{device}}",
+      "signer_activated": "{{device}} ahora es tu dispositivo de firma",
+      "signer_revoked": "{{device}} ya no puede firmar",
+      "signer_declined": "Se detuvo el cambio a {{device}}",
+      "passkey_added": "Se añadió una llave de acceso",
+      "passkey_removed": "Se eliminó una llave de acceso",
+      "alert_email_changed": "Se cambió el correo de alertas",
+      "unknown": "Evento de seguridad en tu billetera"
+    },
+    "markReadFailed": "No se pudieron marcar las alertas como leídas. Inténtalo de nuevo."
+  },
+  "anon": {
+    "alertEmail": "Añade un correo para alertas de seguridad (opcional)",
+    "alertEmailBody": "Solo enviamos alertas de seguridad ahí. No sirve para iniciar sesión.",
+    "alertEmailPlaceholder": "tu@example.com",
+    "alertEmailSave": "Guardar",
+    "alertEmailRemove": "Quitar correo de alertas",
+    "alertEmailCheckInbox": "Revisa tu bandeja de entrada para confirmar.",
+    "alertEmailRemoved": "Correo de alertas eliminado.",
+    "alertEmailRemoveConfirm": "¿Quitar el correo de alertas? Ya no recibirás alertas de seguridad por correo."
+  },
+  "declineLink": {
+    "title": "Alguien está pasando la firma a un dispositivo nuevo",
+    "body": "Si no fuiste tú, detenlo ahora. El dispositivo nuevo no podrá firmar y tu cuenta se bloqueará hasta que inicies sesión de nuevo por correo.",
+    "stopping": "Deteniendo...",
+    "stopped": "Detenido",
+    "stoppedFrozen": "Ese dispositivo no puede firmar. Tu cuenta está bloqueada: inicia sesión de nuevo por correo.",
+    "stoppedAnon": "Ese dispositivo no puede firmar.",
+    "notDone": "No se detuvo nada",
+    "alreadyActive": "Ese dispositivo ya firma para esta billetera. Inicia sesión para revisar tus dispositivos.",
+    "alreadyStopped": "Este cambio ya se detuvo.",
+    "expired": "Este enlace caducó o ya se usó.",
+    "failed": "No funcionó. Inténtalo de nuevo.",
+    "signIn": "Ir a iniciar sesión"
+  },
+  "confirmEmailLink": {
+    "title": "Confirma tu correo de alertas",
+    "body": "Las alertas de seguridad de tu billetera se enviarán a esta dirección.",
+    "confirm": "Confirmar correo",
+    "done": "Correo confirmado",
+    "doneBody": "Las alertas de seguridad llegarán ahora a esta dirección.",
+    "notDone": "Correo no confirmado",
+    "expired": "Este enlace caducó o ya se usó.",
+    "failed": "No funcionó. Inténtalo de nuevo.",
+    "open": "Abrir kexify"
   }
 }

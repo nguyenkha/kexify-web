@@ -1708,7 +1708,13 @@
       "body": "Việc ký diễn ra trên {{device}}. Dùng thiết bị này thay thế?"
     },
     "error": {
-      "notSigner": "Thiết bị này không phải là thiết bị ký của ví này."
+      "notSigner": "Thiết bị này không phải là thiết bị ký của ví này.",
+      "coolingInProgress": "Đã có một thiết bị khác đang chờ nhận quyền ký.",
+      "frozen": "Tài khoản của bạn đang bị khóa. Hãy mở khóa trước.",
+      "movePending": "Một thiết bị khác đang chờ nhận quyền ký. Hãy trả lời yêu cầu đó trên thiết bị ký trước.",
+      "rateLimited": "Bạn đã thử quá nhiều lần. Hãy đợi vài phút rồi thử lại.",
+      "noDecliner": "Không ai có thể chặn việc chuyển này. Hãy khôi phục từ bản sao lưu.",
+      "noDeclinerLink": "Khôi phục từ bản sao lưu"
     },
     "device": {
       "signing": "Thiết bị ký",
@@ -1721,7 +1727,10 @@
         "body": "Ví của bạn chỉ ký trên một thiết bị tại một thời điểm. Thiết bị này hiện chỉ có thể xem."
       }
     },
-    "unlockFirst": "Hãy mở khóa ví này trước, rồi thử lại."
+    "unlockFirst": "Hãy mở khóa ví này trước, rồi thử lại.",
+    "waiting": "Đang chờ {{time}}",
+    "moved": "Đã chuyển",
+    "stopped": "Đã chặn"
   },
   "premium": {
     "plan": {
@@ -1799,5 +1808,111 @@
       "provider_unavailable": "Nhà cung cấp mạng không khả dụng. Hãy thử lại sau ít phút.",
       "unknown": "Đã xảy ra lỗi. Hãy thử lại."
     }
+  },
+  "restore": {
+    "ask": {
+      "title": "Có người ở {{country}} đang chuyển quyền ký sang {{platform}}. Có phải bạn không?",
+      "body": "Nếu không phải bạn, hãy chặn ngay. Thiết bị đó sẽ không ký được.",
+      "no": "Không, chặn lại",
+      "yes": "Đúng, là tôi",
+      "noNote": "Bạn sẽ đăng nhập bằng email cho đến khi thiết bị ký cho phép passkey mới",
+      "noNoteAnon": "Đăng nhập bằng tệp ví cho đến khi thiết bị ký cho phép passkey mới",
+      "signedIn": "đăng nhập {{time}}",
+      "wallet": "Ví: {{name}}",
+      "later": "Hỏi lại sau"
+    },
+    "askNew": {
+      "title": "Một thiết bị mới ({{platform}}, {{country}}) có thể xem ví của bạn",
+      "body": "Thiết bị đó chưa ký được. Chỉ đặt làm thiết bị ký nếu đó là bạn.",
+      "notMe": "Không phải tôi",
+      "notMeNoteAccount": "Thao tác này sẽ khóa tài khoản và đăng xuất mọi thiết bị. Bạn sẽ phải đăng nhập lại bằng email.",
+      "notMeNoteAnon": "Thiết bị đó sẽ bị gỡ khỏi ví này.",
+      "confirmTitle": "Đặt làm thiết bị ký của bạn?",
+      "confirmBody": "{{device}} sẽ có thể chi tiêu toàn bộ tài sản trong ví này. Thiết bị này sẽ ngừng ký.",
+      "later": "Để sau"
+    },
+    "stopped": {
+      "title": "Đã chặn. Thiết bị đó không ký được.",
+      "lockedTitle": "Đã chặn. Tài khoản của bạn đã bị khóa.",
+      "lockedBody": "Mọi thiết bị đã được đăng xuất để giữ an toàn cho ví. Hãy đăng nhập lại bằng email.",
+      "signIn": "Đăng nhập"
+    },
+    "wait": {
+      "title": "Để an toàn, việc ký sẽ bắt đầu trên thiết bị này sau {{time}}",
+      "notice": "Chúng tôi đã gửi email cho bạn và báo cho thiết bị cũ.",
+      "noticeAnon": "Chúng tôi đã báo cho thiết bị cũ và mọi thiết bị đang đăng nhập."
+    },
+    "cancel": "Hủy khôi phục"
+  },
+  "deviceFacts": {
+    "unknownCountry": "một quốc gia không rõ",
+    "platform": {
+      "web": "trình duyệt web",
+      "ios": "iPhone",
+      "cli": "ứng dụng dòng lệnh",
+      "unknown": "một thiết bị mới"
+    },
+    "waitHm": "{{h}} giờ {{m}} phút",
+    "waitM": "{{m}} phút"
+  },
+  "alerts": {
+    "title": "Cảnh báo bảo mật",
+    "description": "Các lần đăng nhập và thay đổi về thiết bị, passkey của bạn.",
+    "markAllRead": "Đánh dấu đã đọc",
+    "empty": "Chưa có cảnh báo bảo mật nào.",
+    "loadFailed": "Không tải được cảnh báo bảo mật.",
+    "banner": "Cảnh báo bảo mật mới: {{n}}",
+    "review": "Xem",
+    "kind": {
+      "login_new": "Đăng nhập mới từ {{platform}} ở {{country}}",
+      "session_reuse": "Một bản sao phiên đăng nhập đã bị dùng ở nơi khác. Thiết bị đó đã bị đăng xuất.",
+      "sessions_revoked_others": "Mọi thiết bị khác đã bị đăng xuất",
+      "signer_pending": "{{device}} ở {{country}} giờ có thể xem ví của bạn. Thiết bị này chưa ký được.",
+      "signer_cooling_started": "Có người ở {{country}} bắt đầu chuyển quyền ký sang {{device}}",
+      "signer_cooling_ended": "Quyền ký đã chuyển sang {{device}}",
+      "signer_activated": "{{device}} giờ là thiết bị ký của bạn",
+      "signer_revoked": "{{device}} không còn ký được nữa",
+      "signer_declined": "Việc chuyển sang {{device}} đã bị chặn",
+      "passkey_added": "Đã thêm một passkey",
+      "passkey_removed": "Đã xóa một passkey",
+      "alert_email_changed": "Email nhận cảnh báo đã được thay đổi",
+      "unknown": "Sự kiện bảo mật trên ví của bạn"
+    },
+    "markReadFailed": "Không đánh dấu đã đọc được. Hãy thử lại."
+  },
+  "anon": {
+    "alertEmail": "Thêm email nhận cảnh báo bảo mật (không bắt buộc)",
+    "alertEmailBody": "Chúng tôi chỉ gửi cảnh báo bảo mật đến email này. Email này không dùng để đăng nhập.",
+    "alertEmailPlaceholder": "ban@example.com",
+    "alertEmailSave": "Lưu",
+    "alertEmailRemove": "Xóa email nhận cảnh báo",
+    "alertEmailCheckInbox": "Hãy kiểm tra hộp thư để xác nhận.",
+    "alertEmailRemoved": "Đã xóa email nhận cảnh báo.",
+    "alertEmailRemoveConfirm": "Xóa email nhận cảnh báo? Bạn sẽ không nhận cảnh báo bảo mật qua email nữa."
+  },
+  "declineLink": {
+    "title": "Có người đang chuyển quyền ký sang thiết bị mới",
+    "body": "Nếu không phải bạn, hãy chặn ngay. Thiết bị mới sẽ không ký được và tài khoản của bạn sẽ bị khóa cho đến khi bạn đăng nhập lại bằng email.",
+    "stopping": "Đang chặn...",
+    "stopped": "Đã chặn",
+    "stoppedFrozen": "Thiết bị đó không ký được. Tài khoản của bạn đã bị khóa: hãy đăng nhập lại bằng email.",
+    "stoppedAnon": "Thiết bị đó không ký được.",
+    "notDone": "Chưa chặn được gì",
+    "alreadyActive": "Thiết bị đó đã là thiết bị ký của ví này. Hãy đăng nhập để xem lại các thiết bị.",
+    "alreadyStopped": "Việc chuyển này đã bị chặn trước đó.",
+    "expired": "Liên kết này đã hết hạn hoặc đã được dùng.",
+    "failed": "Không thành công. Hãy thử lại.",
+    "signIn": "Đến trang đăng nhập"
+  },
+  "confirmEmailLink": {
+    "title": "Xác nhận email nhận cảnh báo",
+    "body": "Cảnh báo bảo mật của ví sẽ được gửi đến địa chỉ này.",
+    "confirm": "Xác nhận email",
+    "done": "Đã xác nhận email",
+    "doneBody": "Từ giờ cảnh báo bảo mật sẽ được gửi đến địa chỉ này.",
+    "notDone": "Chưa xác nhận được email",
+    "expired": "Liên kết này đã hết hạn hoặc đã được dùng.",
+    "failed": "Không thành công. Hãy thử lại.",
+    "open": "Mở kexify"
   }
 }

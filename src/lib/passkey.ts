@@ -14,7 +14,7 @@ export type PasskeyActionName =
   | "sign" | "generate" | "eddsa-init" | "policy.set" | "policy.cancel" | "backup.upload"
   | "export.hkdf" | "export.request" | "export.request-cancel" | "export.share" | "export.pve"
   | "unfreeze" | "unfreeze.cancel" | "passkey.register" | "passkey.delete"
-  | "session.revoke" | "session.revoke-others" | "signer.activate" | "signer.revoke";
+  | "session.revoke" | "session.revoke-others" | "signer.activate" | "signer.revoke" | "alert-email.set";
 
 export interface PasskeyAction {
   action: PasskeyActionName;
@@ -31,6 +31,8 @@ export interface PasskeyAction {
   signerId?: string;
   /** export.share / export.pve: sha256 hex of the base64 ephemeral or PVE key sent in the body. */
   ekSha256?: string;
+  /** alert-email.set: sha256 hex of the trimmed lower-case email; sha256("") to remove (the device signature uses "none"). */
+  emailSha256?: string;
 }
 
 export async function sha256Hex(s: string): Promise<string> {

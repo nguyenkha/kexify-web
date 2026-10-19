@@ -1712,7 +1712,13 @@
       "body": "A assinatura acontece em {{device}}. Usar este dispositivo no lugar?"
     },
     "error": {
-      "notSigner": "Este dispositivo não é o dispositivo de assinatura desta carteira."
+      "notSigner": "Este dispositivo não é o dispositivo de assinatura desta carteira.",
+      "coolingInProgress": "Outro dispositivo já está aguardando para assumir a assinatura.",
+      "frozen": "Sua conta está bloqueada. Desbloqueie primeiro.",
+      "movePending": "Outro dispositivo está aguardando para assumir a assinatura. Responda primeiro no seu dispositivo de assinatura.",
+      "rateLimited": "Muitas tentativas. Aguarde alguns minutos e tente de novo.",
+      "noDecliner": "Ninguém poderia impedir esta mudança. Restaure pelo seu backup.",
+      "noDeclinerLink": "Restaurar do backup"
     },
     "device": {
       "signing": "Dispositivo de assinatura",
@@ -1725,7 +1731,10 @@
         "body": "Sua carteira assina em um dispositivo por vez. Este dispositivo pode apenas visualizá-la agora."
       }
     },
-    "unlockFirst": "Desbloqueie esta carteira primeiro e tente novamente."
+    "unlockFirst": "Desbloqueie esta carteira primeiro e tente novamente.",
+    "waiting": "Aguardando {{time}}",
+    "moved": "Transferido",
+    "stopped": "Parado"
   },
   "premium": {
     "plan": {
@@ -1803,5 +1812,111 @@
       "provider_unavailable": "O provedor de rede está indisponível. Tente novamente em instantes.",
       "unknown": "Algo deu errado. Tente de novo."
     }
+  },
+  "restore": {
+    "ask": {
+      "title": "Alguém em {{country}} está passando a assinatura para {{platform}}. Foi você?",
+      "body": "Se não foi você, pare agora. Esse dispositivo não vai conseguir assinar.",
+      "no": "Não, parar",
+      "yes": "Sim, fui eu",
+      "noNote": "Você entrará por e-mail até que seu dispositivo de assinatura permita uma nova chave-senha",
+      "noNoteAnon": "Entre com seu arquivo da carteira até que seu dispositivo de assinatura permita uma nova chave-senha",
+      "signedIn": "entrou {{time}}",
+      "wallet": "Carteira: {{name}}",
+      "later": "Perguntar depois"
+    },
+    "askNew": {
+      "title": "Um dispositivo novo ({{platform}}, {{country}}) pode ver sua carteira",
+      "body": "Ele não pode assinar. Torne-o seu dispositivo de assinatura só se for você.",
+      "notMe": "Não fui eu",
+      "notMeNoteAccount": "Isso bloqueia sua conta e desconecta todos os dispositivos. Você vai entrar de novo pelo e-mail.",
+      "notMeNoteAnon": "Esse dispositivo será removido desta carteira.",
+      "confirmTitle": "Tornar este o seu dispositivo de assinatura?",
+      "confirmBody": "{{device}} poderá gastar tudo nesta carteira. Este dispositivo deixa de assinar.",
+      "later": "Agora não"
+    },
+    "stopped": {
+      "title": "Parado. Esse dispositivo não pode assinar.",
+      "lockedTitle": "Parado. Sua conta foi bloqueada.",
+      "lockedBody": "Todos os dispositivos foram desconectados para proteger sua carteira. Entre de novo por e-mail.",
+      "signIn": "Entrar"
+    },
+    "wait": {
+      "title": "Para sua segurança, a assinatura começa aqui em {{time}}",
+      "notice": "Enviamos um e-mail para você e avisamos seu dispositivo antigo.",
+      "noticeAnon": "Avisamos seu dispositivo antigo e todos os dispositivos conectados."
+    },
+    "cancel": "Cancelar restauração"
+  },
+  "deviceFacts": {
+    "unknownCountry": "um país desconhecido",
+    "platform": {
+      "web": "um navegador web",
+      "ios": "um iPhone",
+      "cli": "o app de linha de comando",
+      "unknown": "um dispositivo novo"
+    },
+    "waitHm": "{{h}} h {{m}} min",
+    "waitM": "{{m}} min"
+  },
+  "alerts": {
+    "title": "Alertas de segurança",
+    "description": "Logins e mudanças nos seus dispositivos e chaves-senha.",
+    "markAllRead": "Marcar tudo como lido",
+    "empty": "Nenhum alerta de segurança ainda.",
+    "loadFailed": "Não foi possível carregar os alertas de segurança.",
+    "banner": "Novos alertas de segurança: {{n}}",
+    "review": "Ver",
+    "kind": {
+      "login_new": "Novo login de {{platform}} em {{country}}",
+      "session_reuse": "Uma cópia de um login foi usada em outro lugar. Esse dispositivo foi desconectado.",
+      "sessions_revoked_others": "Todos os outros dispositivos foram desconectados",
+      "signer_pending": "{{device}} em {{country}} agora pode ver sua carteira. Ele não pode assinar.",
+      "signer_cooling_started": "Alguém em {{country}} começou a passar a assinatura para {{device}}",
+      "signer_cooling_ended": "A assinatura passou para {{device}}",
+      "signer_activated": "{{device}} agora é seu dispositivo de assinatura",
+      "signer_revoked": "{{device}} não pode mais assinar",
+      "signer_declined": "A troca para {{device}} foi parada",
+      "passkey_added": "Uma chave-senha foi adicionada",
+      "passkey_removed": "Uma chave-senha foi removida",
+      "alert_email_changed": "O e-mail de alertas foi alterado",
+      "unknown": "Evento de segurança na sua carteira"
+    },
+    "markReadFailed": "Não foi possível marcar os alertas como lidos. Tente de novo."
+  },
+  "anon": {
+    "alertEmail": "Adicione um e-mail para alertas de segurança (opcional)",
+    "alertEmailBody": "Só enviamos alertas de segurança para lá. Ele não serve para entrar.",
+    "alertEmailPlaceholder": "voce@example.com",
+    "alertEmailSave": "Salvar",
+    "alertEmailRemove": "Remover e-mail de alertas",
+    "alertEmailCheckInbox": "Confira sua caixa de entrada para confirmar.",
+    "alertEmailRemoved": "E-mail de alertas removido.",
+    "alertEmailRemoveConfirm": "Remover o e-mail de alertas? Você não vai mais receber alertas de segurança por e-mail."
+  },
+  "declineLink": {
+    "title": "Alguém está passando a assinatura para um dispositivo novo",
+    "body": "Se não foi você, pare agora. O dispositivo novo não vai conseguir assinar e sua conta ficará bloqueada até você entrar de novo por e-mail.",
+    "stopping": "Parando...",
+    "stopped": "Parado",
+    "stoppedFrozen": "Esse dispositivo não pode assinar. Sua conta está bloqueada: entre de novo por e-mail.",
+    "stoppedAnon": "Esse dispositivo não pode assinar.",
+    "notDone": "Nada foi parado",
+    "alreadyActive": "Esse dispositivo já assina para esta carteira. Entre para revisar seus dispositivos.",
+    "alreadyStopped": "Essa troca já foi parada.",
+    "expired": "Este link expirou ou já foi usado.",
+    "failed": "Não deu certo. Tente de novo.",
+    "signIn": "Ir para o login"
+  },
+  "confirmEmailLink": {
+    "title": "Confirme seu e-mail de alertas",
+    "body": "Os alertas de segurança da sua carteira serão enviados para este endereço.",
+    "confirm": "Confirmar e-mail",
+    "done": "E-mail confirmado",
+    "doneBody": "Os alertas de segurança agora chegarão a este endereço.",
+    "notDone": "E-mail não confirmado",
+    "expired": "Este link expirou ou já foi usado.",
+    "failed": "Não deu certo. Tente de novo.",
+    "open": "Abrir o kexify"
   }
 }

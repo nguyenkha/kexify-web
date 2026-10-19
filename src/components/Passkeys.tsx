@@ -14,6 +14,7 @@ import { ErrorBox } from "./ui";
 import { KeyRound } from "lucide-react";
 import { SessionsList } from "./settings/sessions-list";
 import { SignersList } from "./settings/signers-list";
+import { SecurityAlertsSection } from "./settings/security-alerts-section";
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString(undefined, {
@@ -194,7 +195,7 @@ export function Passkeys() {
           {adding ? t("passkey.registering") : <><KeyRound className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("passkey.addFirstButton")}</>}
         </button>
         {error && <ErrorBox className="mt-4">{error}</ErrorBox>}
-        <div className="w-full max-w-xl text-left mt-8"><SessionsList hasPasskeys={false} /></div>
+        <div className="w-full max-w-xl text-left mt-8"><SessionsList hasPasskeys={false} /><SecurityAlertsSection /></div>
       </div>
     );
   }
@@ -305,6 +306,7 @@ export function Passkeys() {
 
       <SessionsList hasPasskeys={passkeys.some((p) => !isPasskeyPending(p))} />
       <SignersList />
+      <SecurityAlertsSection />
     </div>
   );
 }

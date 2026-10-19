@@ -1,9 +1,11 @@
 // Signer registry client (phase 2): silent register, /sign/init fields, list / activate / revoke.
+// Phase 3: a passkey hand-over waits out a cooling period; the signing device can decline it.
 // Routes: /api/keys/<keyShareId>/signers/* with the wallet's workspace token.
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import { apiUrl } from "./apiBase";
 import { getToken } from "./auth";
 import { workspaceHeaders } from "./workspace-token";
+import { handleSessionEnded } from "./session-ended";
 import { sha256Hex, authenticatePasskey, passkeyHeader } from "./passkey";
 import { clientKeys } from "./client-key-cache";
 import { clientScalarFromHandle } from "./unfreeze-share-proof";
@@ -16,6 +18,10 @@ export interface SignerRow {
   id: string; kind: string; label: string | null; status: "active" | "pending" | "revoked";
   addedVia: string; activeFrom: string | null; createdAt: string; lastUsedAt: string | null;
   revokedAt: string | null; revokeReason: string | null;
+  /** Pending and waiting out a move started by a passkey (until activeFrom). */
+  cooling?: boolean;
+  /** Server-checked facts of the login that registered it (GET list only). */
+  device?: { label?: string | null; platform: "web" | "ios" | "cli" | null; country: string | null; loginAt: string | null };
 }
 
 export class SignerApiError extends Error {
@@ -31,7 +37,10 @@ async function call<T>(keyShareId: string, path: string, method: "GET" | "POST",
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new SignerApiError(res.status, String(data?.code ?? data?.error ?? res.status));
+  if (!res.ok) {
+    handleSessionEnded(res.status, data?.code); // this login is over (e.g. after a decline): sign out
+    throw new SignerApiError(res.status, String(data?.code ?? data?.error ?? res.status));
+  }
   return data as T;
 }
 
@@ -154,19 +163,42 @@ export async function listSigners(keyShareId: string): Promise<SignerRow[]> {
   return signers;
 }
 
-/** Hand signing to a pending signer: this device's key when it is the active one, else a passkey ticket. */
-export async function activateSigner(keyShareId: string, targetId: string, fromActive?: boolean): Promise<void> {
+/** `{ by, nonce, sig }` from this device's key over the message for a fresh nonce; null without a signer id. */
+export async function deviceAuth(keyShareId: string, message: (nonce: string) => Uint8Array): Promise<{ by: string; nonce: string; sig: string } | null> {
   const rec = await getSignerRecord(keyShareId);
+  if (!rec?.signerId) return null;
+  const { nonce } = await call<{ nonce: string }>(keyShareId, "/nonce", "POST");
+  return { by: rec.signerId, nonce, sig: await deviceSign(rec, message(nonce)) };
+}
+
+/**
+ * Hand signing to a pending signer. From the active device (its key): at once. By a passkey: the row comes back
+ * pending with cooling + activeFrom (the move completes after the wait); 409 COOLING_IN_PROGRESS when another
+ * device is already waiting. Returns the signer as the server answered.
+ */
+export async function activateSigner(keyShareId: string, targetId: string, fromActive?: boolean): Promise<SignerRow | undefined> {
   const path = `/${encodeURIComponent(targetId)}/activate`;
-  if (fromActive && rec?.signerId) {
-    const { nonce } = await call<{ nonce: string }>(keyShareId, "/nonce", "POST");
-    const sig = await deviceSign(rec, signerActionMessage("activate", keyShareId, targetId, nonce));
-    await call(keyShareId, path, "POST", { by: rec.signerId, nonce, sig });
+  const auth = fromActive ? await deviceAuth(keyShareId, (n) => signerActionMessage("activate", keyShareId, targetId, n)) : null;
+  let out: { signer?: SignerRow };
+  if (auth) {
+    out = await call(keyShareId, path, "POST", auth);
   } else {
     const { token } = await authenticatePasskey({ action: { action: "signer.activate", keyShareId, signerId: targetId } });
-    await call(keyShareId, path, "POST", {}, passkeyHeader(token));
+    out = await call(keyShareId, path, "POST", {}, passkeyHeader(token));
   }
   await listSigners(keyShareId);
+  return out?.signer;
+}
+
+/**
+ * "No, stop it": the active device refuses a pending one. The server revokes it, removes the passkey that started
+ * the move and, for an account, freezes it and ends every session (this one too): `frozen` says so.
+ */
+export async function declineSigner(keyShareId: string, targetId: string): Promise<{ signer?: SignerRow; frozen: boolean }> {
+  const auth = await deviceAuth(keyShareId, (n) => signerActionMessage("decline", keyShareId, targetId, n));
+  if (!auth) throw new SignerApiError(0, "NO_SIGNER");
+  const out = await call<{ signer?: SignerRow; frozen?: boolean }>(keyShareId, `/${encodeURIComponent(targetId)}/decline`, "POST", auth);
+  return { signer: out.signer, frozen: !!out.frozen };
 }
 
 /**
@@ -177,15 +209,14 @@ export async function revokeSigner(keyShareId: string, targetId: string, opts: {
   const rec = await getSignerRecord(keyShareId);
   const path = `/${encodeURIComponent(targetId)}/revoke`;
   const confirm = opts.confirmLast ? { confirmLast: true } : {};
-  if (opts.viaDevice && rec?.signerId) {
-    const { nonce } = await call<{ nonce: string }>(keyShareId, "/nonce", "POST");
-    const sig = await deviceSign(rec, signerActionMessage("revoke", keyShareId, targetId, nonce));
-    await call(keyShareId, path, "POST", { ...confirm, by: rec.signerId, nonce, sig });
+  const auth = opts.viaDevice ? await deviceAuth(keyShareId, (n) => signerActionMessage("revoke", keyShareId, targetId, n)) : null;
+  if (auth) {
+    await call(keyShareId, path, "POST", { ...confirm, ...auth });
   } else {
     try {
       await call(keyShareId, path, "POST", confirm);
     } catch (err) {
-      if (!(err instanceof SignerApiError) || err.status !== 401) throw err;
+      if (!(err instanceof SignerApiError) || err.status !== 401 || /^session_/.test(err.code)) throw err;
       const { token } = await authenticatePasskey({ action: { action: "signer.revoke", keyShareId, signerId: targetId } });
       await call(keyShareId, path, "POST", confirm, passkeyHeader(token));
     }

@@ -64,6 +64,10 @@ import { PasskeyTapHost } from "./components/PasskeyTapHost";
 import { KeyPassphraseHost } from "./components/KeyPassphraseHost";
 import { WCRequestQueue } from "./components/WCRequestQueue";
 import { FreezeAccount } from "./components/FreezeAccount";
+import { SignerDeclinePage } from "./components/signer-decline-page";
+import { AlertEmailConfirmPage } from "./components/alert-email-confirm-page";
+import { SecurityAlertsBanner } from "./components/security-alerts-banner";
+import { PendingSignerApproval } from "./components/settings/pending-signer-approval";
 import { RecoveryImport } from "./components/RecoveryImport";
 import { StandaloneKeygen } from "./components/StandaloneKeygen";
 import { DomainMovedNotice } from "./components/DomainMovedNotice";
@@ -473,6 +477,7 @@ function DashboardLayout() {
           {recovery && <RecoveryBanner />}
           {!recovery && <DomainMovedNotice className="mb-6" signedIn />}
           {user?.frozenAt && !standalone && <FrozenBanner user={user} onUpdate={refreshUser} />}
+          {!recovery && <SecurityAlertsBanner />}
           <Outlet />
         </main>
         <div className="shrink-0 px-4 md:px-8 py-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] flex items-center justify-between">
@@ -486,6 +491,9 @@ function DashboardLayout() {
 
       {/* WalletConnect request overlay — always mounted */}
       <WCRequestQueue />
+
+      {/* Signing device: another device waits to take over signing */}
+      {!recovery && <PendingSignerApproval />}
 
       <SignOutConfirmDialog open={confirmSignOut} onCancel={() => setConfirmSignOut(false)} />
     </div>
@@ -532,6 +540,8 @@ function App() {
         <Route path="/recovery" element={<RecoveryImport />} />
         <Route path="/auth/verify" element={<VerifyToken />} />
         <Route path="/auth/freeze" element={<FreezeAccount />} />
+        <Route path="/signers/decline" element={<SignerDeclinePage />} />
+        <Route path="/alerts/confirm-email" element={<AlertEmailConfirmPage />} />
         <Route
           element={
             <RequireAuth>

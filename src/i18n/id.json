@@ -1708,7 +1708,13 @@
       "body": "Penandatanganan dilakukan di {{device}}. Gunakan perangkat ini sebagai gantinya?"
     },
     "error": {
-      "notSigner": "Perangkat ini bukan perangkat penandatangan untuk dompet ini."
+      "notSigner": "Perangkat ini bukan perangkat penandatangan untuk dompet ini.",
+      "coolingInProgress": "Perangkat lain sudah menunggu untuk mengambil alih penandatanganan.",
+      "frozen": "Akun Anda terkunci. Buka kunci dulu.",
+      "movePending": "Perangkat lain sedang menunggu untuk mengambil alih penandatanganan. Jawab dulu di perangkat penandatangan Anda.",
+      "rateLimited": "Terlalu banyak percobaan. Tunggu beberapa menit lalu coba lagi.",
+      "noDecliner": "Tidak ada yang bisa menghentikan pemindahan ini. Pulihkan dari cadangan Anda.",
+      "noDeclinerLink": "Pulihkan dari cadangan"
     },
     "device": {
       "signing": "Perangkat penandatangan",
@@ -1721,7 +1727,10 @@
         "body": "Dompet Anda menandatangani di satu perangkat dalam satu waktu. Perangkat ini kini hanya bisa melihatnya."
       }
     },
-    "unlockFirst": "Buka kunci dompet ini dulu, lalu coba lagi."
+    "unlockFirst": "Buka kunci dompet ini dulu, lalu coba lagi.",
+    "waiting": "Menunggu {{time}}",
+    "moved": "Dipindahkan",
+    "stopped": "Dihentikan"
   },
   "premium": {
     "plan": {
@@ -1799,5 +1808,111 @@
       "provider_unavailable": "Penyedia jaringan tidak tersedia. Coba lagi sebentar lagi.",
       "unknown": "Terjadi kesalahan. Coba lagi."
     }
+  },
+  "restore": {
+    "ask": {
+      "title": "Seseorang di {{country}} sedang memindahkan penandatanganan ke {{platform}}. Apakah ini Anda?",
+      "body": "Jika bukan Anda, hentikan sekarang. Perangkat itu tidak akan bisa menandatangani.",
+      "no": "Bukan, hentikan",
+      "yes": "Ya, ini saya",
+      "noNote": "Anda akan masuk lewat email sampai perangkat penandatangan mengizinkan passkey baru",
+      "noNoteAnon": "Masuk dengan file dompet sampai perangkat penandatangan mengizinkan passkey baru",
+      "signedIn": "masuk {{time}}",
+      "wallet": "Dompet: {{name}}",
+      "later": "Tanya nanti"
+    },
+    "askNew": {
+      "title": "Perangkat baru ({{platform}}, {{country}}) bisa melihat dompet Anda",
+      "body": "Perangkat ini tidak bisa menandatangani. Jadikan perangkat penandatangan hanya jika ini Anda.",
+      "notMe": "Bukan saya",
+      "notMeNoteAccount": "Ini akan mengunci akun Anda dan mengeluarkan semua perangkat. Anda perlu masuk lagi lewat email.",
+      "notMeNoteAnon": "Perangkat itu akan dihapus dari dompet ini.",
+      "confirmTitle": "Jadikan perangkat penanda tangan Anda?",
+      "confirmBody": "{{device}} akan bisa membelanjakan semua isi dompet ini. Perangkat ini berhenti menandatangani.",
+      "later": "Nanti saja"
+    },
+    "stopped": {
+      "title": "Dihentikan. Perangkat itu tidak bisa menandatangani.",
+      "lockedTitle": "Dihentikan. Akun Anda sekarang terkunci.",
+      "lockedBody": "Semua perangkat dikeluarkan demi keamanan dompet Anda. Masuk lagi lewat email.",
+      "signIn": "Masuk"
+    },
+    "wait": {
+      "title": "Demi keamanan, penandatanganan mulai di sini dalam {{time}}",
+      "notice": "Kami sudah mengirim email ke Anda dan memberi tahu perangkat lama.",
+      "noticeAnon": "Kami sudah memberi tahu perangkat lama dan semua perangkat yang sedang masuk."
+    },
+    "cancel": "Batalkan pemulihan"
+  },
+  "deviceFacts": {
+    "unknownCountry": "negara yang tidak dikenal",
+    "platform": {
+      "web": "browser web",
+      "ios": "iPhone",
+      "cli": "aplikasi baris perintah",
+      "unknown": "perangkat baru"
+    },
+    "waitHm": "{{h}} jam {{m}} menit",
+    "waitM": "{{m}} menit"
+  },
+  "alerts": {
+    "title": "Peringatan keamanan",
+    "description": "Login dan perubahan pada perangkat dan passkey Anda.",
+    "markAllRead": "Tandai semua dibaca",
+    "empty": "Belum ada peringatan keamanan.",
+    "loadFailed": "Peringatan keamanan tidak bisa dimuat.",
+    "banner": "Peringatan keamanan baru: {{n}}",
+    "review": "Lihat",
+    "kind": {
+      "login_new": "Login baru dari {{platform}} di {{country}}",
+      "session_reuse": "Salinan login dipakai di tempat lain. Perangkat itu sudah dikeluarkan.",
+      "sessions_revoked_others": "Semua perangkat lain dikeluarkan",
+      "signer_pending": "{{device}} di {{country}} sekarang bisa melihat dompet Anda. Perangkat ini tidak bisa menandatangani.",
+      "signer_cooling_started": "Seseorang di {{country}} mulai memindahkan penandatanganan ke {{device}}",
+      "signer_cooling_ended": "Penandatanganan pindah ke {{device}}",
+      "signer_activated": "{{device}} sekarang jadi perangkat penandatangan Anda",
+      "signer_revoked": "{{device}} tidak bisa menandatangani lagi",
+      "signer_declined": "Pemindahan ke {{device}} dihentikan",
+      "passkey_added": "Sebuah passkey ditambahkan",
+      "passkey_removed": "Sebuah passkey dihapus",
+      "alert_email_changed": "Email peringatan diubah",
+      "unknown": "Kejadian keamanan pada dompet Anda"
+    },
+    "markReadFailed": "Tidak bisa menandai peringatan sebagai sudah dibaca. Coba lagi."
+  },
+  "anon": {
+    "alertEmail": "Tambahkan email untuk peringatan keamanan (opsional)",
+    "alertEmailBody": "Kami hanya mengirim peringatan keamanan ke sana. Email ini tidak dipakai untuk masuk.",
+    "alertEmailPlaceholder": "kamu@example.com",
+    "alertEmailSave": "Simpan",
+    "alertEmailRemove": "Hapus email peringatan",
+    "alertEmailCheckInbox": "Cek kotak masuk Anda untuk konfirmasi.",
+    "alertEmailRemoved": "Email peringatan dihapus.",
+    "alertEmailRemoveConfirm": "Hapus email peringatan? Anda tidak akan menerima peringatan keamanan lewat email lagi."
+  },
+  "declineLink": {
+    "title": "Seseorang memindahkan penandatanganan ke perangkat baru",
+    "body": "Jika bukan Anda, hentikan sekarang. Perangkat baru tidak akan bisa menandatangani dan akun Anda akan terkunci sampai Anda masuk lagi lewat email.",
+    "stopping": "Menghentikan...",
+    "stopped": "Dihentikan",
+    "stoppedFrozen": "Perangkat itu tidak bisa menandatangani. Akun Anda terkunci: masuk lagi lewat email.",
+    "stoppedAnon": "Perangkat itu tidak bisa menandatangani.",
+    "notDone": "Tidak ada yang dihentikan",
+    "alreadyActive": "Perangkat itu sudah menandatangani untuk dompet ini. Masuk untuk memeriksa perangkat Anda.",
+    "alreadyStopped": "Pemindahan ini sudah dihentikan.",
+    "expired": "Tautan ini sudah kedaluwarsa atau sudah dipakai.",
+    "failed": "Gagal. Coba lagi.",
+    "signIn": "Ke halaman masuk"
+  },
+  "confirmEmailLink": {
+    "title": "Konfirmasi email peringatan Anda",
+    "body": "Peringatan keamanan dompet Anda akan dikirim ke alamat ini.",
+    "confirm": "Konfirmasi email",
+    "done": "Email terkonfirmasi",
+    "doneBody": "Peringatan keamanan sekarang akan dikirim ke alamat ini.",
+    "notDone": "Email belum terkonfirmasi",
+    "expired": "Tautan ini sudah kedaluwarsa atau sudah dipakai.",
+    "failed": "Gagal. Coba lagi.",
+    "open": "Buka kexify"
   }
 }

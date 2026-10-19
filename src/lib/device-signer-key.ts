@@ -191,8 +191,12 @@ export const registerMessage = (keyShareId: string, fingerprint: string, challen
 export const signMessage = (keyShareId: string, nonce: string, digests: string[]) =>
   enc(`kexify-signer:v1:sign:${keyShareId}:${nonce}:${digests.join(",")}`);
 
-export const signerActionMessage = (action: "activate" | "revoke", keyShareId: string, targetId: string, nonce: string) =>
+export const signerActionMessage = (action: "activate" | "revoke" | "decline", keyShareId: string, targetId: string, nonce: string) =>
   enc(`kexify-signer:v1:${action}:${keyShareId}:${targetId}:${nonce}`);
+
+/** Alert email change by the signing device; `emailSha256` is "none" when removing it. */
+export const alertEmailMessage = (keyShareId: string, emailSha256: string, nonce: string) =>
+  enc(`kexify-signer:v1:alert-email:${keyShareId}:${emailSha256}:${nonce}`);
 
 /** ECDSA P-256 / SHA-256 over `message`; base64 of the raw 64-byte r||s. */
 export async function deviceSign(rec: SignerRecord, message: Uint8Array): Promise<string> {
