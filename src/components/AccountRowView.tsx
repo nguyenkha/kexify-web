@@ -15,6 +15,9 @@ import { fetchTransactions } from "../lib/transactions";
 import { getStaleCache, setCache, txCacheKey } from "../lib/dataCache";
 import { CompactTxPreview } from "./CompactTxPreview";
 import { truncateBalance } from "./sendTypes";
+import { AssetIcon } from "./AssetIcon";
+import { orderTokens } from "../lib/asset-order";
+import { withNativeKinds } from "../lib/tx-classify";
 import { TestnetBadge } from "./testnet-badge";
 
 const DEFAULT_POLL_INTERVAL = 60_000;
@@ -49,19 +52,22 @@ export function AccountRowView({
   // Recent transactions preview (fetch once, cached)
   const [recentTxs, setRecentTxs] = useState<Transaction[]>([]);
   const nativeAssetForTx = row.assets.find((a) => a.isNative);
+  // Approvals, revokes and contract calls get their own titles (tx-classify), not a 0 ETH send.
+  const kinded = (txs: Transaction[]) =>
+    row.chain.type === "evm" ? withNativeKinds(txs, { address: row.address, assets: row.assets }) : txs;
   useEffect(() => {
     if (!nativeAssetForTx) return;
     const cacheK = txCacheKey(row.address, row.chain.id);
     const cached = getStaleCache<Transaction[]>(cacheK);
     if (cached) {
-      setRecentTxs(cached.data.slice(0, 3));
+      setRecentTxs(kinded(cached.data).slice(0, 3));
       if (cached.fresh) return; // Skip fetch if cache is still fresh
     }
     // Fetch in background (non-blocking if we have stale data)
     fetchTransactions(row.address, row.chain, nativeAssetForTx, 1)
       .then(({ transactions }) => {
         setCache(cacheK, transactions);
-        setRecentTxs(transactions.slice(0, 3));
+        setRecentTxs(kinded(transactions).slice(0, 3));
       })
       .catch(() => {}); // silently hide on error
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -196,10 +202,14 @@ export function AccountRowView({
 
       {/* Token rows */}
       {tokenState === "loaded" && tokenBalances.length > 0 &&
-        tokenBalances
-          .filter((b) => isTokenVisible(b.asset.id, displayPrefs, b.formatted))
+        // Tokens by USD value, empty ones last (asset-order).
+        orderTokens(
+          tokenBalances
+            .filter((b) => isTokenVisible(b.asset.id, displayPrefs, b.formatted))
+            .map((b) => ({ ...b, usd: getUsdValue(b.formatted, b.asset.symbol, prices) })),
+        )
           .map((b) => {
-            const tokenUsd = getUsdValue(b.formatted, b.asset.symbol, prices);
+            const tokenUsd = b.usd;
             const tokenDir = tokenChanges.get(b.asset.id);
             return (
               <div
@@ -210,15 +220,8 @@ export function AccountRowView({
                 }
               >
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                  {b.asset.iconUrl ? (
-                    <img
-                      src={b.asset.iconUrl}
-                      alt={b.asset.symbol}
-                      className="w-7 h-7 rounded-full bg-surface-tertiary shrink-0"
-                    />
-                  ) : (
-                    <div className="w-7 h-7 rounded-full bg-surface-tertiary shrink-0" />
-                  )}
+                  {/* Token logo with its chain as a small badge */}
+                  <AssetIcon asset={b.asset} chain={row.chain} size="sm" />
                   <div className="min-w-0">
                     <div className="text-xs font-medium text-text-secondary leading-tight flex items-center gap-1.5">
                       {b.asset.name.replace(/\s*\(?\s*(testnet|devnet)\s*\)?\s*/gi, " ").trim()}

@@ -6,6 +6,8 @@ import { trackExpertTool } from "../lib/expert-usage";
 import type { Chain, Asset } from "../lib/api";
 import { explorerLink } from "../shared/utils";
 import { fetchTransactions, type Transaction } from "../lib/transactions";
+import { withNativeKinds } from "../lib/tx-classify";
+import { AssetIcon } from "./AssetIcon";
 import { fetchNativeBalance, fetchTokenBalances, getCachedNativeBalance, getCachedTokenBalances } from "../lib/balance";
 import { clearCache, balanceCacheKey, tokenBalancesCacheKey, txCacheKey, getStaleCache, setCache } from "../lib/dataCache";
 import { fetchPrices, formatUsd, getUsdValue } from "../lib/prices";
@@ -46,6 +48,14 @@ interface TokenDetailProps {
   pollInterval?: number; // ms, from server settings
   pendingTx?: PendingTxFromNavigation;
   chainAssets?: Asset[];
+}
+
+/** History page with approvals / contract calls named (EVM rows carry their calldata). */
+async function fetchKindedTransactions(address: string, chain: Chain, asset: Asset, chainAssets: Asset[] | undefined, page: number) {
+  const r = await fetchTransactions(address, chain, asset, page);
+  return chain.type === "evm" && asset.isNative
+    ? { ...r, transactions: withNativeKinds(r.transactions, { address, assets: chainAssets ?? [asset] }) }
+    : r;
 }
 
 /** Default polling interval for transactions/prices refresh (ms) — overridden by server setting */
@@ -171,7 +181,7 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
     }
     setError(false);
     setPage(1);
-    fetchTransactions(address, chain, asset, 1)
+    fetchKindedTransactions(address, chain, asset, chainAssets, 1)
       .then(({ transactions: txs, hasMore: more }) => {
         setTransactions((prev) => {
           const fetchedHashes = new Set(txs.map((t) => t.hash));
@@ -190,7 +200,7 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
 
     // Poll transactions every POLL_INTERVAL
     const iv = setInterval(() => {
-      fetchTransactions(address, chain, asset, 1)
+      fetchKindedTransactions(address, chain, asset, chainAssets, 1)
         .then(({ transactions: txs, hasMore: more }) => {
           setTransactions((prev) => {
             const prevHashes = new Set(prev.map((t) => t.hash));
@@ -222,7 +232,7 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
   function loadMore() {
     const nextPage = page + 1;
     setLoadingMore(true);
-    fetchTransactions(address, chain, asset, nextPage)
+    fetchKindedTransactions(address, chain, asset, chainAssets, nextPage)
       .then(({ transactions: txs, hasMore: more }) => {
         setTransactions((prev) => [...prev, ...txs]);
         setHasMore(more);
@@ -235,7 +245,7 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
   function retry() {
     setLoading(true);
     setError(false);
-    fetchTransactions(address, chain, asset, 1)
+    fetchKindedTransactions(address, chain, asset, chainAssets, 1)
       .then(({ transactions: txs, hasMore: more }) => {
         setTransactions((prev) => {
           const fetchedHashes = new Set(txs.map((t) => t.hash));
@@ -305,13 +315,7 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
 
       {/* Hero: centered icon + name + balance */}
       <div className="flex flex-col items-center text-center pt-4 pb-2">
-        {asset.iconUrl ? (
-          <img src={asset.iconUrl} alt={asset.symbol} className="w-14 h-14 rounded-full bg-surface-tertiary" />
-        ) : chain.iconUrl ? (
-          <img src={chain.iconUrl} alt={chain.displayName} className="w-14 h-14 rounded-full bg-surface-tertiary" />
-        ) : (
-          <div className="w-14 h-14 rounded-full bg-surface-tertiary" />
-        )}
+        <AssetIcon asset={asset} chain={chain} size="lg" />
         <h3 className="text-lg font-semibold text-text-primary mt-3 flex items-center gap-2">
           {asset.name.replace(/\s*\(?\s*(testnet|devnet)\s*\)?\s*/gi, " ").trim()}
           <TestnetBadge chainName={chain.name} />

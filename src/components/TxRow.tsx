@@ -4,7 +4,7 @@ import type { Transaction } from "../lib/transactions";
 import { useHideBalances } from "../context/HideBalancesContext";
 import { MASK } from "../lib/hidden-amount";
 import { addressLabel } from "../lib/address-label";
-import { formatTxTime, shortAddr, txCounterparty, txSign, txTitle } from "../lib/tx-display";
+import { formatTxTime, kindStyle, shortAddr, txCounterparty, txShowsAmount, txSign, txTitle } from "../lib/tx-display";
 import { TxDetailPanel } from "./tx-detail-panel";
 
 /** History row. Tapping it opens the in-app transaction detail (explorer link lives there). */
@@ -14,10 +14,14 @@ export function TxRow({ tx, explorerUrl, onSpeedUp, chainName, chainIcon, networ
   const [open, setOpen] = useState(false);
   const isPending = !tx.confirmed;
   const isFailed = !!tx.failed;
+  const kStyle = tx.kind ? kindStyle(tx.kind) : null;
+  const swap = tx.kind?.type === "swap" ? tx.kind : null;
   const dirColor = isFailed
     ? "text-red-400"
     : isPending
       ? "text-yellow-400"
+      : kStyle
+        ? kStyle.text
       : tx.isDeployment
         ? "text-purple-400"
         : tx.direction === "in"
@@ -25,7 +29,7 @@ export function TxRow({ tx, explorerUrl, onSpeedUp, chainName, chainIcon, networ
           : tx.direction === "out"
             ? (tx.isApprove ? "text-blue-400" : tx.isContractCall ? "text-orange-400" : "text-red-400")
             : "text-text-muted";
-  const title = txTitle(tx, t);
+  const title = txTitle(tx, t, hidden);
   const counterparty = txCounterparty(tx);
   const counterpartyName = addressLabel(counterparty) ?? shortAddr(counterparty);
 
@@ -44,6 +48,8 @@ export function TxRow({ tx, explorerUrl, onSpeedUp, chainName, chainIcon, networ
           ? "bg-red-400/10"
           : isPending
             ? "bg-yellow-400/10"
+            : kStyle
+              ? kStyle.bg
             : tx.isDeployment
               ? "bg-purple-400/10"
               : tx.direction === "in"
@@ -60,6 +66,10 @@ export function TxRow({ tx, explorerUrl, onSpeedUp, chainName, chainIcon, networ
           <svg className="w-4 h-4 text-yellow-400 animate-spin" viewBox="0 0 24 24" fill="none">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+        ) : kStyle ? (
+          <svg className={`w-4 h-4 ${kStyle.text}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d={kStyle.icon} />
           </svg>
         ) : tx.isDeployment ? (
           <svg className="w-4 h-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -115,10 +125,21 @@ export function TxRow({ tx, explorerUrl, onSpeedUp, chainName, chainIcon, networ
             <span className="text-[9px] text-text-muted font-medium">{chainName}</span>
           </div>
         )}
-        <div className={`text-sm tabular-nums font-medium ${dirColor} ${isFailed ? "line-through" : ""}`}>
-          {hidden ? MASK : `${txSign(tx)}${tx.formatted}`}
-        </div>
-        <div className="text-[11px] text-text-muted">{tx.symbol}</div>
+        {swap ? (
+          <>
+            <div className={`text-sm tabular-nums font-medium ${dirColor} ${isFailed ? "line-through" : ""}`}>
+              {hidden ? MASK : `+${swap.in.amount}`} <span className="text-[11px] font-normal">{swap.in.symbol}</span>
+            </div>
+            <div className="text-[11px] text-text-muted tabular-nums">{hidden ? MASK : `-${swap.out.amount}`} {swap.out.symbol}</div>
+          </>
+        ) : (!tx.kind || txShowsAmount(tx)) && (
+          <>
+            <div className={`text-sm tabular-nums font-medium ${dirColor} ${isFailed ? "line-through" : ""}`}>
+              {hidden ? MASK : `${txSign(tx)}${tx.formatted}`}
+            </div>
+            <div className="text-[11px] text-text-muted">{tx.symbol}</div>
+          </>
+        )}
         {onSpeedUp && (
           <button
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); onSpeedUp(); }}

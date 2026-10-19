@@ -11,7 +11,7 @@ import { fetchPrices, formatUsd, getUsdValue } from "../lib/prices";
 import { useHideBalances } from "../context/HideBalancesContext";
 import { maskAmount, maskUsd } from "../lib/hidden-amount";
 import { addressLabel } from "../lib/address-label";
-import { txSign, txTitle } from "../lib/tx-display";
+import { txShowsAmount, txSign, txTitle } from "../lib/tx-display";
 import { CopyableText } from "./ui";
 
 interface TxDetailPanelProps {
@@ -68,7 +68,8 @@ export function TxDetailPanel({ tx, explorerUrl, networkName, onClose }: TxDetai
   }, [onClose]);
 
   const usd = getUsdValue(tx.formatted, tx.symbol, prices);
-  const showAmount = !tx.isDeployment && !tx.isApprove;
+  const swap = tx.kind?.type === "swap" ? tx.kind : null;
+  const showAmount = !swap && txShowsAmount(tx) && (!!tx.kind || !tx.isApprove);
   const amountColor = tx.failed ? "text-red-400 line-through" : tx.direction === "in" ? "text-green-500" : "text-text-primary";
   const date = new Date(tx.timestamp * 1000);
 
@@ -78,11 +79,11 @@ export function TxDetailPanel({ tx, explorerUrl, networkName, onClose }: TxDetai
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={txTitle(tx, t)}
+        aria-label={txTitle(tx, t, hidden)}
         className="relative mt-auto md:mt-0 w-full md:w-[380px] h-[100dvh] md:h-full bg-surface-secondary border-l border-border-primary shadow-xl flex flex-col"
       >
         <div className="flex items-center justify-between px-4 py-3.5 border-b border-border-secondary">
-          <h3 className="text-sm font-semibold text-text-primary">{txTitle(tx, t)}</h3>
+          <h3 className="text-sm font-semibold text-text-primary">{txTitle(tx, t, hidden)}</h3>
           <button
             onClick={onClose}
             aria-label={t("common.close")}
@@ -100,6 +101,16 @@ export function TxDetailPanel({ tx, explorerUrl, networkName, onClose }: TxDetai
               <p className={`text-2xl font-semibold tabular-nums break-all ${amountColor}`}>
                 {hidden ? "" : txSign(tx)}{maskAmount(tx.formatted, tx.symbol, hidden)}
               </p>
+            )}
+            {swap && (
+              <>
+                <p className="text-2xl font-semibold tabular-nums break-all text-green-500">
+                  {hidden ? "" : "+"}{maskAmount(swap.in.amount, swap.in.symbol, hidden)}
+                </p>
+                <p className="text-sm text-text-muted tabular-nums">
+                  {hidden ? "" : "-"}{maskAmount(swap.out.amount, swap.out.symbol, hidden)}
+                </p>
+              </>
             )}
             {showAmount && usd != null && (
               <p className="text-sm text-text-muted tabular-nums">{maskUsd(formatUsd(usd), hidden)}</p>

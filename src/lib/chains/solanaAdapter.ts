@@ -1,7 +1,7 @@
 import type { Asset, Chain, ChainAdapter, BalanceResult, Transaction } from "../../shared/types";
 import { hexToBytes } from "../../shared/utils";
 import { base58 } from "@scure/base";
-import { KNOWN_PROGRAMS } from "./solanaTx";
+import { KNOWN_PROGRAMS, findAssociatedTokenAddress } from "./solanaTx";
 import { historyWithProxyFallback, PublicReadError, PUBLIC_TIMEOUT_MS, type PublicHistoryPage } from "./chain-proxy-client";
 import { proxySolanaBalances, proxySolanaHistory } from "./chain-proxy-solana";
 
@@ -166,6 +166,16 @@ export const solanaAdapter: ChainAdapter = {
   },
 };
 
+/** The owner's associated token account for `mint` (base58), or the owner itself when either key is not 32 bytes. */
+export function tokenAccountOf(owner: string, mint: string): string {
+  try {
+    const o = base58.decode(owner), m = base58.decode(mint);
+    return o.length === 32 && m.length === 32 ? base58.encode(findAssociatedTokenAddress(o, m)) : owner;
+  } catch {
+    return owner;
+  }
+}
+
 /** Public history page (mainnet-beta for publicnode). Throws on network, HTTP, RPC and timeout errors. */
 async function publicTransactions(
   address: string,
@@ -174,6 +184,9 @@ async function publicTransactions(
   page: number,
 ): Promise<PublicHistoryPage> {
   const historyRpc = solanaHistoryRpcUrl(chain.rpcUrl);
+  // A token's history is its token account's signatures: a transfer into an existing token account does not name
+  // the owner, so the owner's own list misses it.
+  const sigAccount = !asset.isNative && asset.contractAddress ? tokenAccountOf(address, asset.contractAddress) : address;
   const sigRes = await fetch(historyRpc, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -181,7 +194,7 @@ async function publicTransactions(
       jsonrpc: "2.0",
       id: 1,
       method: "getSignaturesForAddress",
-      params: [address, { limit: PAGE_SIZE * page + 1 }],
+      params: [sigAccount, { limit: PAGE_SIZE * page + 1 }],
     }),
     signal: AbortSignal.timeout(PUBLIC_TIMEOUT_MS),
   });

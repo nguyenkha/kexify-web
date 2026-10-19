@@ -7,6 +7,8 @@ import { getStaleCache, setCache, txCacheKey, evictTxCaches } from "../lib/dataC
 import { TxRow } from "./TxRow";
 import { Spinner } from "./ui";
 import { fetchAllTokenTransfers } from "../lib/chains/evmAdapter";
+import { proxyEvmTokenTransfers } from "../lib/chains/chain-proxy-evm";
+import { mergeEvmActivity } from "../lib/tx-classify";
 
 interface ChainTxResult {
   chainName: string;
@@ -27,6 +29,13 @@ function uniqueAddressChains(rows: AccountRow[]) {
     seen.add(key);
     return true;
   });
+}
+
+/** Blockscout token transfers; when the explorer cannot be read, the chain proxy's erc20 rows of the listed tokens. */
+async function loadEvmTokenTransfers(row: AccountRow): Promise<Transaction[]> {
+  const viaExplorer = await fetchAllTokenTransfers(row.address, row.chain.explorerUrl);
+  if (viaExplorer) return viaExplorer;
+  return (await proxyEvmTokenTransfers(row.chain, row.address, row.assets).catch(() => null)) ?? [];
 }
 
 interface WalletActivityProps {
@@ -82,8 +91,8 @@ export function WalletActivity({ accountRows, pollInterval }: WalletActivityProp
         const [nativeResult, tokenTxs] = await Promise.all([
           fetchTransactions(row.address, row.chain, nativeAsset, 1),
           row.chain.type === "evm"
-            ? fetchAllTokenTransfers(row.address, row.chain.explorerUrl)
-            : Promise.resolve([]),
+            ? loadEvmTokenTransfers(row)
+            : Promise.resolve([] as Transaction[]),
         ]);
 
         // Fetch token transactions for non-EVM chains (TON Jettons, etc.)
@@ -101,10 +110,13 @@ export function WalletActivity({ accountRows, pollInterval }: WalletActivityProp
 
         // Merge and deduplicate by hash — token transfers first so they
         // take precedence over native txs that show 0 ETH for the same hash
+        // EVM: one row per hash, with approvals / swaps / contract calls classified and unlisted-token spam dropped.
         const seen = new Set<string>();
-        const merged = [...tokenTxs, ...extraTokenTxs, ...nativeResult.transactions]
-          .filter((tx) => { if (seen.has(tx.hash)) return false; seen.add(tx.hash); return true; })
-          .sort((a, b) => b.timestamp - a.timestamp);
+        const merged = row.chain.type === "evm"
+          ? mergeEvmActivity(nativeResult.transactions, tokenTxs, { address: row.address, assets: row.assets })
+          : [...tokenTxs, ...extraTokenTxs, ...nativeResult.transactions]
+              .filter((tx) => { if (seen.has(tx.hash)) return false; seen.add(tx.hash); return true; })
+              .sort((a, b) => b.timestamp - a.timestamp);
 
         // Cache the merged transactions
         setCache(txCacheKey(row.address, row.chain.id), merged);

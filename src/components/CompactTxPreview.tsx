@@ -4,7 +4,7 @@ import type { Transaction } from "../shared/types";
 import { useHideBalances } from "../context/HideBalancesContext";
 import { maskAmount } from "../lib/hidden-amount";
 import { addressLabel } from "../lib/address-label";
-import { formatTxTime, shortAddr } from "../lib/tx-display";
+import { formatTxTime, kindStyle, shortAddr, txShowsAmount, txTitle } from "../lib/tx-display";
 import { TxDetailPanel } from "./tx-detail-panel";
 
 /** Compact single-line tx preview for account row (max 3 shown). Tap opens the tx detail. */
@@ -14,10 +14,13 @@ export function CompactTxPreview({ tx, explorerUrl, networkName }: { tx: Transac
   const [open, setOpen] = useState(false);
   const isPending = !tx.confirmed;
   const isFailed = !!tx.failed;
+  const kStyle = tx.kind ? kindStyle(tx.kind) : null;
   const label = isFailed
     ? t("tx.failed")
     : isPending
       ? t("tx.pending")
+      : tx.kind
+        ? txTitle(tx, t, hidden)
       : tx.isDeployment
         ? t("tx.deployed")
         : tx.isApprove
@@ -29,6 +32,8 @@ export function CompactTxPreview({ tx, explorerUrl, networkName }: { tx: Transac
     ? "text-red-400"
     : isPending
       ? "text-yellow-400"
+      : kStyle
+        ? kStyle.text
       : tx.isDeployment
         ? "text-purple-400"
         : tx.isApprove
@@ -40,6 +45,8 @@ export function CompactTxPreview({ tx, explorerUrl, networkName }: { tx: Transac
     ? "bg-red-400"
     : isPending
       ? "bg-yellow-400"
+      : kStyle
+        ? kStyle.bg.replace("/10", "")
       : tx.isDeployment
         ? "bg-purple-400"
         : tx.isApprove
@@ -47,7 +54,7 @@ export function CompactTxPreview({ tx, explorerUrl, networkName }: { tx: Transac
           : tx.isContractCall
             ? "bg-orange-400"
             : tx.direction === "in" ? "bg-green-500" : "bg-red-400";
-  const sign = tx.isDeployment || tx.isApprove ? "" : tx.direction === "in" ? "+" : tx.direction === "out" ? "-" : "";
+  const sign = tx.isDeployment || tx.isApprove || tx.kind ? "" : tx.direction === "in" ? "+" : tx.direction === "out" ? "-" : "";
 
   // For deployments, show contract address; for others show counterparty
   const counterparty = tx.isDeployment && tx.createdContract
@@ -57,7 +64,7 @@ export function CompactTxPreview({ tx, explorerUrl, networkName }: { tx: Transac
       : `${t("tx.to").toLowerCase()} ${addressLabel(tx.to) ?? shortAddr(tx.to)}`;
 
   // Hide "0 ETH" for deployments and approvals — show gas cost isn't useful here
-  const showAmount = !tx.isDeployment && !tx.isApprove;
+  const showAmount = !tx.isDeployment && !tx.isApprove && (!tx.kind || txShowsAmount(tx));
 
   // Truncate to 8 decimal places for compact display (e.g. 0.000344447119101489 → 0.00034444)
   const dotIdx = tx.formatted.indexOf(".");

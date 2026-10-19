@@ -61,7 +61,23 @@ export interface Transaction {
   createdContract?: string; // address of deployed contract
   label?: string;  // override direction label (e.g. "Enabled USDC")
   memo?: TxMemo;   // Stellar memo / XRP destination tag (lib/chains/tx-memo.ts)
+  /** EVM only: calldata (0x...), blockscout method name and the callee's name, kept for lib/tx-classify.ts. */
+  input?: string;
+  method?: string;
+  toName?: string;
+  /** EVM token transfer rows: the token contract (lowercase), to match the wallet's listed assets. */
+  tokenContract?: string;
+  /** What the row really is when it is not a plain send / receive (lib/tx-classify.ts). */
+  kind?: TxKind;
 }
+
+export type TxKind =
+  | { type: "approve"; symbol: string; spender: string; amount: string | null; unlimited: boolean }
+  | { type: "revoke"; symbol: string; spender: string }
+  | { type: "approveNfts"; operator: string }
+  | { type: "revokeNfts"; operator: string }
+  | { type: "swap"; out: { symbol: string; amount: string }; in: { symbol: string; amount: string } }
+  | { type: "call"; method?: string };
 
 export interface ChainAdapter {
   /** Which chain type this adapter handles */

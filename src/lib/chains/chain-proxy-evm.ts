@@ -2,6 +2,7 @@
 // The provider lists every ERC-20 the address holds, spam included: only the app's known tokens are kept.
 
 import type { Asset, Chain, Transaction } from "../../shared/types";
+import { fmtUnits } from "../tx-classify";
 import { proxyBalance, proxyNetwork, proxyRead, type ProxyBody } from "./chain-proxy-client";
 
 export type ProxyTxRow = Omit<Transaction, "formatted" | "symbol">;
@@ -29,14 +30,18 @@ export function parseEvmBalance(body: ProxyBody): { native: bigint; tokens: Map<
  * no approvals, failed txs or fees.
  */
 export function parseEvmHistory(body: ProxyBody, address: string, asset: Asset): ProxyTxRow[] | null {
+  const contract = asset.contractAddress?.toLowerCase();
+  return transferRows(body, address, (t) => asset.isNative
+    ? t.category === "external"
+    : t.category === "erc20" && typeof t.contract === "string" && t.contract.toLowerCase() === contract);
+}
+
+function transferRows(body: ProxyBody, address: string, pick: (t: Record<string, unknown>) => boolean): ProxyTxRow[] | null {
   if (!Array.isArray(body.transfers)) return null;
   const me = address.toLowerCase();
-  const contract = asset.contractAddress?.toLowerCase();
   const rows: ProxyTxRow[] = [];
   for (const t of body.transfers as Record<string, unknown>[]) {
-    const matches = asset.isNative
-      ? t.category === "external"
-      : t.category === "erc20" && typeof t.contract === "string" && t.contract.toLowerCase() === contract;
+    const matches = pick(t);
     const value = hexAmount(t.rawValue);
     if (!matches || value === null || typeof t.hash !== "string") continue;
     const from = typeof t.from === "string" ? t.from : "";
@@ -53,9 +58,20 @@ export function parseEvmHistory(body: ProxyBody, address: string, asset: Asset):
       timestamp: Number.isFinite(ms) ? Math.floor(ms / 1000) : Math.floor(Date.now() / 1000),
       direction: sent && received ? "self" : sent ? "out" : "in",
       confirmed: true,
+      ...(t.category === "erc20" && typeof t.contract === "string" ? { tokenContract: t.contract.toLowerCase() } : {}),
     });
   }
   return rows;
+}
+
+/** All ERC-20 transfers of the wallet's listed tokens (activity feed): symbol and amount come from the listed asset. */
+export function parseEvmTokenTransfers(body: ProxyBody, address: string, assets: Asset[]): Transaction[] | null {
+  const byContract = new Map(assets.filter((a) => a.contractAddress).map((a) => [a.contractAddress!.toLowerCase(), a]));
+  const rows = transferRows(body, address, (t) => t.category === "erc20" && typeof t.contract === "string" && byContract.has(t.contract.toLowerCase()));
+  return rows?.map((r) => {
+    const a = byContract.get(r.tokenContract!)!;
+    return { ...r, formatted: fmtUnits(BigInt(r.value), a.decimals), symbol: a.symbol };
+  }) ?? null;
 }
 
 /** Balances through the proxy, or null when it is not available for this chain or failed. */
@@ -64,6 +80,14 @@ export async function proxyEvmBalances(chain: Chain, address: string) {
   if (!network) return null;
   const body = await proxyBalance(network, address);
   return body ? parseEvmBalance(body) : null;
+}
+
+/** Token transfers of the wallet's listed tokens through the proxy, or null when it is not available or failed. */
+export async function proxyEvmTokenTransfers(chain: Chain, address: string, assets: Asset[]): Promise<Transaction[] | null> {
+  const network = proxyNetwork(chain);
+  if (!network) return null;
+  const body = await proxyRead(network, "history", address);
+  return body ? parseEvmTokenTransfers(body, address, assets) : null;
 }
 
 /** History rows of one asset through the proxy, or null when it is not available or failed. */

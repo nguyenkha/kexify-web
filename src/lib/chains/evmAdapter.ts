@@ -264,25 +264,32 @@ function parseNativeTx(
     ...(createdContract ? { createdContract } : {}),
     ...(isContractCall ? { isContractCall: true } : {}),
     ...(isApprove ? { isApprove: true } : {}),
+    ...(rawInput && rawInput.length > 2 ? { input: rawInput } : {}),
+    ...(typeof tx.method === "string" ? { method: tx.method } : {}),
+    ...(typeof (tx.to as Record<string, unknown>)?.name === "string" ? { toName: (tx.to as Record<string, unknown>).name as string } : {}),
   };
 }
 
-/** Fetch all ERC-20 token transfers for an address (for unified activity view) */
+/**
+ * Fetch all ERC-20 token transfers for an address (for unified activity view).
+ * null = the explorer could not be read (caller falls back to the chain proxy); [] = it answered with none.
+ */
 export async function fetchAllTokenTransfers(
   address: string,
   explorerUrl: string,
-): Promise<Transaction[]> {
+): Promise<Transaction[] | null> {
   const apiBase = blockscoutApiUrl(explorerUrl);
+  // No explorer for this chain: nothing to read and nothing failed (no paid proxy call on every poll).
   if (!apiBase) return [];
   try {
-    const res = await fetch(`${apiBase}/api/v2/addresses/${address}/token-transfers?type=ERC-20`);
-    if (!res.ok) return [];
+    const res = await fetch(`${apiBase}/api/v2/addresses/${address}/token-transfers?type=ERC-20`, { signal: AbortSignal.timeout(PUBLIC_TIMEOUT_MS) });
+    if (!res.ok) return null;
     const data = await res.json();
     const items: Record<string, unknown>[] = data.items || [];
     const addrLower = address.toLowerCase();
     return items.slice(0, PAGE_SIZE).map((tx) => parseAnyTokenTransfer(tx, addrLower));
   } catch {
-    return [];
+    return null;
   }
 }
 
@@ -307,6 +314,8 @@ function parseAnyTokenTransfer(
   const token = tx.token as Record<string, unknown> | null;
   const decimals = total?.decimals ? parseInt(total.decimals, 10) : (token?.decimals as number) ?? 18;
   const symbol = (token?.symbol as string) || "???";
+  const contractRaw = token?.address_hash ?? token?.address;
+  const tokenContract = typeof contractRaw === "string" ? contractRaw.toLowerCase() : undefined;
   const tsStr = tx.timestamp as string | null;
   const timestamp = tsStr ? Math.floor(new Date(tsStr).getTime() / 1000) : Math.floor(Date.now() / 1000);
 
@@ -320,6 +329,7 @@ function parseAnyTokenTransfer(
     timestamp,
     direction,
     confirmed: true,
+    ...(tokenContract ? { tokenContract } : {}),
   };
 }
 
