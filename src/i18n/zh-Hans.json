@@ -1713,5 +1713,82 @@
       }
     },
     "unlockFirst": "请先解锁此钱包，然后重试。"
+  },
+  "premium": {
+    "plan": {
+      "section": "套餐",
+      "free": "免费",
+      "premium": "Premium",
+      "freeDesc": "免费套餐。Premium 增加 iPhone 审批、冷保险库和提醒。",
+      "active": "有效期至 {{date}}",
+      "grace": "宽限期至 {{date}}",
+      "expired": "已于 {{date}} 过期",
+      "source": {
+        "apple": "已通过 Apple 付款。请在 iPhone 上管理。",
+        "crypto": "已用稳定币付款(预付,不自动续订)。",
+        "both": "已通过 Apple 和稳定币付款。"
+      },
+      "manageApple": "在 iPhone 上管理订阅(设置 > Apple ID > 订阅)。",
+      "get": "开通 Premium",
+      "extend": "延长时长"
+    },
+    "perMonth": "/ 月",
+    "perYear": "/ 年",
+    "paywall": {
+      "title": "kexify Premium",
+      "intro": "Premium 按账户计费,以 iPhone 为先。",
+      "feature": {
+        "iphone": "在 iPhone 上审批交易",
+        "vault": "1 个冷保险库",
+        "alerts": "钱包活动提醒",
+        "extras": "后续推出的其他附加功能"
+      },
+      "iphoneFirst": "iPhone 审批和冷保险库需要 iPhone。网页端可使用提醒和其他附加功能。",
+      "exportFree": "无论是否订阅 Premium,导出密钥始终免费。",
+      "payStablecoin": "用稳定币支付",
+      "comingSoon": "稳定币支付即将推出。",
+      "iphoneBuy": "你也可以在 kexify iPhone 应用中订阅。"
+    },
+    "pay": {
+      "title": "用稳定币支付",
+      "month1": "1 个月",
+      "month12": "12 个月",
+      "network": "代币和网络",
+      "noRenew": "本期预付,不自动续订。价格:${{price}}。",
+      "continue": "继续",
+      "address": "发送到此地址",
+      "amount": "请精确发送",
+      "exact": "请精确发送此金额。金额不同可能无法自动到账。仅在所示网络上发送。",
+      "expires": "此付款有效期至 {{date}}。",
+      "reference": "付款参考号(请提供给客服)",
+      "txHash": "交易哈希",
+      "txHashPlaceholder": "粘贴交易哈希",
+      "verify": "验证付款",
+      "checking": "正在检查...",
+      "confirming": "正在等待网络确认,可能需要几分钟。",
+      "stillConfirming": "仍未确认,请几分钟后再查看。",
+      "credited": "已收到付款,Premium 已生效。",
+      "appleOverlap": "你已有 Apple 订阅。用稳定币支付的时间会同时计算，不会延长该订阅。"
+    },
+    "error": {
+      "network": "无法连接服务器。请检查网络后重试。",
+      "unauthorized": "请重新登录。",
+      "crypto_payments_disabled": "稳定币支付暂不可用。",
+      "busy": "当前未完成的付款过多,请稍后再试。",
+      "bad_request": "这不是有效的交易哈希。",
+      "tx_already_used": "此交易已用于一笔付款。",
+      "already_paid": "此付款已完成。如果你转了第二笔,请联系客服。",
+      "intent_not_open": "此付款已不再开放。",
+      "intent_expired": "此付款已过期。请带上付款参考号联系客服。",
+      "no_transfer": "在该交易中未找到转入我们地址的转账。",
+      "too_early": "这笔交易发生在创建此付款之前，无法用于支付。",
+      "too_late": "这笔交易发生在此付款过期之后。请带上付款参考号联系客服。",
+      "underpaid": "发送金额低于所需金额。请带上付款参考号联系客服。",
+      "amount_mismatch": "发送金额与付款不符。请带上付款参考号联系客服。",
+      "amount_mismatch_received": "你发送了 {{received}},但付款需要 {{amount}}。请带上付款参考号联系客服。",
+      "tx_failed": "该交易在链上失败。",
+      "provider_unavailable": "网络服务商暂不可用,请稍后再试。",
+      "unknown": "出了点问题,请重试。"
+    }
   }
 }

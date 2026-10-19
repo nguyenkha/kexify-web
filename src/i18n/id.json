@@ -1713,5 +1713,82 @@
       }
     },
     "unlockFirst": "Buka kunci dompet ini dulu, lalu coba lagi."
+  },
+  "premium": {
+    "plan": {
+      "section": "Paket",
+      "free": "Gratis",
+      "premium": "Premium",
+      "freeDesc": "Paket gratis. Premium menambah persetujuan di iPhone, brankas dingin, dan peringatan.",
+      "active": "Aktif hingga {{date}}",
+      "grace": "Masa tenggang hingga {{date}}",
+      "expired": "Kedaluwarsa pada {{date}}",
+      "source": {
+        "apple": "Dibayar lewat Apple. Kelola di iPhone Anda.",
+        "crypto": "Dibayar dengan stablecoin (prabayar, tanpa perpanjangan otomatis).",
+        "both": "Dibayar lewat Apple dan stablecoin."
+      },
+      "manageApple": "Kelola langganan di iPhone Anda (Pengaturan > Apple ID > Langganan).",
+      "get": "Dapatkan Premium",
+      "extend": "Tambah masa aktif"
+    },
+    "perMonth": "/ bulan",
+    "perYear": "/ tahun",
+    "paywall": {
+      "title": "kexify Premium",
+      "intro": "Premium berlaku per akun dan mengutamakan iPhone.",
+      "feature": {
+        "iphone": "Persetujuan transaksi di iPhone",
+        "vault": "1 brankas dingin",
+        "alerts": "Peringatan aktivitas di dompet Anda",
+        "extras": "Fitur tambahan lain saat dirilis"
+      },
+      "iphoneFirst": "Persetujuan iPhone dan brankas dingin memerlukan iPhone. Di web Anda mendapat peringatan dan fitur tambahan lainnya.",
+      "exportFree": "Mengekspor kunci Anda selalu gratis, dengan atau tanpa Premium.",
+      "payStablecoin": "Bayar dengan stablecoin",
+      "comingSoon": "Pembayaran stablecoin segera hadir.",
+      "iphoneBuy": "Anda juga bisa berlangganan di aplikasi kexify untuk iPhone."
+    },
+    "pay": {
+      "title": "Bayar dengan stablecoin",
+      "month1": "1 bulan",
+      "month12": "12 bulan",
+      "network": "Token dan jaringan",
+      "noRenew": "Prabayar untuk periode ini, tanpa perpanjangan otomatis. Harga: ${{price}}.",
+      "continue": "Lanjutkan",
+      "address": "Kirim ke alamat ini",
+      "amount": "Kirim tepat",
+      "exact": "Kirim jumlah yang tepat ini. Jumlah lain mungkin tidak dikreditkan otomatis. Kirim hanya di jaringan yang ditampilkan.",
+      "expires": "Pembayaran ini terbuka hingga {{date}}.",
+      "reference": "Referensi pembayaran (berikan ke dukungan)",
+      "txHash": "Hash transaksi",
+      "txHashPlaceholder": "Tempel hash transaksi",
+      "verify": "Verifikasi pembayaran",
+      "checking": "Memeriksa...",
+      "confirming": "Menunggu konfirmasi jaringan. Ini bisa memakan waktu beberapa menit.",
+      "stillConfirming": "Belum terkonfirmasi. Periksa lagi beberapa menit lagi.",
+      "credited": "Pembayaran diterima. Premium aktif.",
+      "appleOverlap": "Anda sudah punya langganan Apple. Waktu yang dibayar dengan stablecoin berjalan bersamaan dan tidak memperpanjangnya."
+    },
+    "error": {
+      "network": "Tidak dapat terhubung ke server. Periksa koneksi Anda lalu coba lagi.",
+      "unauthorized": "Silakan masuk lagi.",
+      "crypto_payments_disabled": "Pembayaran stablecoin belum tersedia.",
+      "busy": "Terlalu banyak pembayaran terbuka saat ini. Coba lagi nanti.",
+      "bad_request": "Itu bukan hash transaksi yang valid.",
+      "tx_already_used": "Transaksi ini sudah dipakai untuk pembayaran.",
+      "already_paid": "Pembayaran ini sudah dibayar. Hubungi dukungan jika Anda mengirim transfer kedua.",
+      "intent_not_open": "Pembayaran ini sudah tidak terbuka.",
+      "intent_expired": "Pembayaran ini kedaluwarsa. Hubungi dukungan dengan referensi pembayaran Anda.",
+      "no_transfer": "Tidak ditemukan transfer ke alamat kami dalam transaksi itu.",
+      "too_early": "Transaksi ini dibuat sebelum pembayaran ini dibuat, jadi tidak bisa dipakai untuk membayarnya.",
+      "too_late": "Transaksi ini dibuat setelah pembayaran ini kedaluwarsa. Hubungi dukungan dengan referensi pembayaran Anda.",
+      "underpaid": "Jumlah yang dikirim kurang dari yang diperlukan. Hubungi dukungan dengan referensi pembayaran Anda.",
+      "amount_mismatch": "Jumlah yang dikirim tidak sesuai dengan pembayaran. Hubungi dukungan dengan referensi pembayaran Anda.",
+      "amount_mismatch_received": "Anda mengirim {{received}} tetapi pembayaran memerlukan {{amount}}. Hubungi dukungan dengan referensi pembayaran Anda.",
+      "tx_failed": "Transaksi itu gagal di blockchain.",
+      "provider_unavailable": "Penyedia jaringan tidak tersedia. Coba lagi sebentar lagi.",
+      "unknown": "Terjadi kesalahan. Coba lagi."
+    }
   }
 }

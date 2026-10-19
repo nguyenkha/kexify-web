@@ -33,6 +33,7 @@ import { TestnetBadge } from "./testnet-badge";
 import { isTestnetChain } from "../lib/testnet";
 import { fetchRpcChainId } from "../lib/custom-networks";
 import { CustomNetworksSection } from "./config/CustomNetworksSection";
+import { PlanCard } from "./premium/PlanCard";
 
 type RpcStatus = "checking" | "ok" | "error" | "mismatch";
 
@@ -495,6 +496,8 @@ export function ConfigPage() {
           </button>
         )}
       </div>
+
+      {!isRecoveryActive() && <PlanCard />}
 
       {/* ── Preferences ── */}
       <div>

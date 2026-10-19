@@ -1713,5 +1713,82 @@
       }
     },
     "unlockFirst": "Hãy mở khóa ví này trước, rồi thử lại."
+  },
+  "premium": {
+    "plan": {
+      "section": "Gói",
+      "free": "Miễn phí",
+      "premium": "Premium",
+      "freeDesc": "Gói miễn phí. Premium thêm phê duyệt trên iPhone, ví lạnh và cảnh báo.",
+      "active": "Còn hiệu lực đến {{date}}",
+      "grace": "Thời gian ân hạn đến {{date}}",
+      "expired": "Đã hết hạn ngày {{date}}",
+      "source": {
+        "apple": "Thanh toán qua Apple. Quản lý trên iPhone của bạn.",
+        "crypto": "Thanh toán bằng stablecoin (trả trước, không tự gia hạn).",
+        "both": "Thanh toán qua Apple và stablecoin."
+      },
+      "manageApple": "Quản lý đăng ký trên iPhone (Cài đặt > Apple ID > Đăng ký).",
+      "get": "Nâng cấp Premium",
+      "extend": "Gia hạn thêm"
+    },
+    "perMonth": "/ tháng",
+    "perYear": "/ năm",
+    "paywall": {
+      "title": "kexify Premium",
+      "intro": "Premium tính theo tài khoản và ưu tiên iPhone.",
+      "feature": {
+        "iphone": "Phê duyệt giao dịch trên iPhone",
+        "vault": "1 ví lạnh",
+        "alerts": "Cảnh báo hoạt động trên ví của bạn",
+        "extras": "Các tiện ích khác khi ra mắt"
+      },
+      "iphoneFirst": "Phê duyệt trên iPhone và ví lạnh cần có iPhone. Trên web bạn dùng được cảnh báo và các tiện ích khác.",
+      "exportFree": "Xuất khóa luôn miễn phí, dù có hay không có Premium.",
+      "payStablecoin": "Thanh toán bằng stablecoin",
+      "comingSoon": "Thanh toán bằng stablecoin sắp ra mắt.",
+      "iphoneBuy": "Bạn cũng có thể đăng ký trong ứng dụng kexify trên iPhone."
+    },
+    "pay": {
+      "title": "Thanh toán bằng stablecoin",
+      "month1": "1 tháng",
+      "month12": "12 tháng",
+      "network": "Token và mạng",
+      "noRenew": "Trả trước cho kỳ này, không tự gia hạn. Giá: ${{price}}.",
+      "continue": "Tiếp tục",
+      "address": "Gửi đến địa chỉ này",
+      "amount": "Gửi chính xác",
+      "exact": "Hãy gửi đúng số tiền này. Số tiền khác có thể không được ghi nhận tự động. Chỉ gửi trên mạng được hiển thị.",
+      "expires": "Khoản thanh toán này có hiệu lực đến {{date}}.",
+      "reference": "Mã tham chiếu thanh toán (gửi cho bộ phận hỗ trợ)",
+      "txHash": "Mã giao dịch (hash)",
+      "txHashPlaceholder": "Dán mã giao dịch",
+      "verify": "Xác minh thanh toán",
+      "checking": "Đang kiểm tra...",
+      "confirming": "Đang chờ mạng xác nhận. Việc này có thể mất vài phút.",
+      "stillConfirming": "Vẫn chưa được xác nhận. Hãy kiểm tra lại sau vài phút.",
+      "credited": "Đã nhận thanh toán. Premium đã được kích hoạt.",
+      "appleOverlap": "Bạn đang có gói đăng ký Apple. Thời gian trả bằng stablecoin chạy song song, không cộng thêm vào gói đó."
+    },
+    "error": {
+      "network": "Không kết nối được máy chủ. Kiểm tra kết nối và thử lại.",
+      "unauthorized": "Vui lòng đăng nhập lại.",
+      "crypto_payments_disabled": "Thanh toán bằng stablecoin chưa khả dụng.",
+      "busy": "Hiện có quá nhiều khoản thanh toán đang mở. Hãy thử lại sau.",
+      "bad_request": "Mã giao dịch này không hợp lệ.",
+      "tx_already_used": "Giao dịch này đã được dùng cho một khoản thanh toán.",
+      "already_paid": "Khoản thanh toán này đã được thanh toán. Liên hệ hỗ trợ nếu bạn đã chuyển lần thứ hai.",
+      "intent_not_open": "Khoản thanh toán này không còn mở.",
+      "intent_expired": "Khoản thanh toán đã hết hạn. Hãy liên hệ hỗ trợ kèm mã tham chiếu.",
+      "no_transfer": "Không tìm thấy khoản chuyển nào đến địa chỉ của chúng tôi trong giao dịch này.",
+      "too_early": "Giao dịch này được thực hiện trước khi tạo khoản thanh toán nên không dùng để thanh toán được.",
+      "too_late": "Giao dịch này được thực hiện sau khi khoản thanh toán hết hạn. Hãy liên hệ hỗ trợ kèm mã thanh toán của bạn.",
+      "underpaid": "Số tiền đã gửi thấp hơn mức yêu cầu. Hãy liên hệ hỗ trợ kèm mã tham chiếu.",
+      "amount_mismatch": "Số tiền đã gửi không khớp với khoản thanh toán. Hãy liên hệ hỗ trợ kèm mã tham chiếu.",
+      "amount_mismatch_received": "Bạn đã gửi {{received}} nhưng khoản thanh toán cần {{amount}}. Hãy liên hệ hỗ trợ kèm mã tham chiếu.",
+      "tx_failed": "Giao dịch này đã thất bại trên chuỗi.",
+      "provider_unavailable": "Nhà cung cấp mạng không khả dụng. Hãy thử lại sau ít phút.",
+      "unknown": "Đã xảy ra lỗi. Hãy thử lại."
+    }
   }
 }

@@ -1717,5 +1717,82 @@
       }
     },
     "unlockFirst": "Desbloquea primero esta billetera y vuelve a intentarlo."
+  },
+  "premium": {
+    "plan": {
+      "section": "Plan",
+      "free": "Gratis",
+      "premium": "Premium",
+      "freeDesc": "Plan gratuito. Premium añade aprobación en iPhone, una bóveda fría y alertas.",
+      "active": "Activo hasta el {{date}}",
+      "grace": "Periodo de gracia hasta el {{date}}",
+      "expired": "Venció el {{date}}",
+      "source": {
+        "apple": "Pagado con Apple. Gestiónalo en tu iPhone.",
+        "crypto": "Pagado con stablecoin (prepago, sin renovación automática).",
+        "both": "Pagado con Apple y stablecoin."
+      },
+      "manageApple": "Gestiona tu suscripción en tu iPhone (Ajustes > Apple ID > Suscripciones).",
+      "get": "Obtener Premium",
+      "extend": "Añadir tiempo"
+    },
+    "perMonth": "/ mes",
+    "perYear": "/ año",
+    "paywall": {
+      "title": "kexify Premium",
+      "intro": "Premium es por cuenta y prioriza el iPhone.",
+      "feature": {
+        "iphone": "Aprobación de transacciones en iPhone",
+        "vault": "1 bóveda fría",
+        "alerts": "Alertas de actividad en tus billeteras",
+        "extras": "Otros extras a medida que se lancen"
+      },
+      "iphoneFirst": "La aprobación en iPhone y la bóveda fría requieren un iPhone. En la web tienes las alertas y los demás extras.",
+      "exportFree": "Exportar tus claves es siempre gratis, con o sin Premium.",
+      "payStablecoin": "Pagar con stablecoin",
+      "comingSoon": "El pago con stablecoin llegará pronto.",
+      "iphoneBuy": "También puedes suscribirte en la app de kexify para iPhone."
+    },
+    "pay": {
+      "title": "Pagar con stablecoin",
+      "month1": "1 mes",
+      "month12": "12 meses",
+      "network": "Token y red",
+      "noRenew": "Prepago por este periodo, sin renovación automática. Precio: ${{price}}.",
+      "continue": "Continuar",
+      "address": "Envía a esta dirección",
+      "amount": "Envía exactamente",
+      "exact": "Envía exactamente esta cantidad. Otra cantidad puede no acreditarse automáticamente. Envía solo en la red indicada.",
+      "expires": "Este pago está abierto hasta el {{date}}.",
+      "reference": "Referencia de pago (indícala a soporte)",
+      "txHash": "Hash de la transacción",
+      "txHashPlaceholder": "Pega el hash de la transacción",
+      "verify": "Verificar pago",
+      "checking": "Comprobando...",
+      "confirming": "Esperando confirmaciones de la red. Puede tardar unos minutos.",
+      "stillConfirming": "Aún sin confirmar. Vuelve a comprobar en unos minutos.",
+      "credited": "Pago recibido. Premium está activo.",
+      "appleOverlap": "Ya tienes una suscripción de Apple. El tiempo pagado con stablecoins corre a la vez y no la alarga."
+    },
+    "error": {
+      "network": "No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.",
+      "unauthorized": "Inicia sesión de nuevo.",
+      "crypto_payments_disabled": "Los pagos con stablecoin aún no están disponibles.",
+      "busy": "Hay demasiados pagos abiertos ahora. Inténtalo más tarde.",
+      "bad_request": "Ese hash de transacción no parece válido.",
+      "tx_already_used": "Esta transacción ya se usó para un pago.",
+      "already_paid": "Este pago ya está pagado. Contacta con soporte si enviaste una segunda transferencia.",
+      "intent_not_open": "Este pago ya no está abierto.",
+      "intent_expired": "Este pago venció. Contacta con soporte con tu referencia de pago.",
+      "no_transfer": "No se encontró ninguna transferencia a nuestra dirección en esa transacción.",
+      "too_early": "Esta transacción se hizo antes de crear este pago, así que no puede pagarlo.",
+      "too_late": "Esta transacción se hizo después de que venciera este pago. Contacta con soporte con tu referencia de pago.",
+      "underpaid": "La cantidad enviada es menor que la requerida. Contacta con soporte con tu referencia de pago.",
+      "amount_mismatch": "La cantidad enviada no coincide con el pago. Contacta con soporte con tu referencia de pago.",
+      "amount_mismatch_received": "Enviaste {{received}} pero el pago requiere {{amount}}. Contacta con soporte con tu referencia de pago.",
+      "tx_failed": "Esa transacción falló en la cadena.",
+      "provider_unavailable": "El proveedor de red no está disponible. Inténtalo en breve.",
+      "unknown": "Algo salió mal. Inténtalo de nuevo."
+    }
   }
 }

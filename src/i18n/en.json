@@ -1713,5 +1713,82 @@
       }
     },
     "unlockFirst": "Unlock this wallet first, then try again."
+  },
+  "premium": {
+    "plan": {
+      "section": "Plan",
+      "free": "Free",
+      "premium": "Premium",
+      "freeDesc": "Free plan. Premium adds iPhone approval, a cold vault and alerts.",
+      "active": "Active until {{date}}",
+      "grace": "Grace period until {{date}}",
+      "expired": "Expired on {{date}}",
+      "source": {
+        "apple": "Paid with Apple. Manage it on your iPhone.",
+        "crypto": "Paid with stablecoin (prepaid, no auto-renew).",
+        "both": "Paid with Apple and stablecoin."
+      },
+      "manageApple": "Manage your subscription on your iPhone (Settings > Apple ID > Subscriptions).",
+      "get": "Get Premium",
+      "extend": "Add time"
+    },
+    "perMonth": "/ month",
+    "perYear": "/ year",
+    "paywall": {
+      "title": "kexify Premium",
+      "intro": "Premium is per account. It is iPhone-first.",
+      "feature": {
+        "iphone": "iPhone approval for transactions",
+        "vault": "1 cold vault",
+        "alerts": "Alerts for activity on your wallets",
+        "extras": "Other extras as they ship"
+      },
+      "iphoneFirst": "iPhone approval and the cold vault need an iPhone. On the web you get alerts and the other extras.",
+      "exportFree": "Exporting your keys is always free, with or without Premium.",
+      "payStablecoin": "Pay with stablecoin",
+      "comingSoon": "Stablecoin payment is coming soon.",
+      "iphoneBuy": "You can also subscribe in the kexify iPhone app."
+    },
+    "pay": {
+      "title": "Pay with stablecoin",
+      "month1": "1 month",
+      "month12": "12 months",
+      "network": "Token and network",
+      "noRenew": "Prepaid for this term, no auto-renew. Price: ${{price}}.",
+      "continue": "Continue",
+      "address": "Send to this address",
+      "amount": "Send exactly",
+      "exact": "Send exactly this amount. A different amount may not be credited automatically. Only send on the network shown.",
+      "expires": "This payment is open until {{date}}.",
+      "reference": "Payment reference (give this to support)",
+      "txHash": "Transaction hash",
+      "txHashPlaceholder": "Paste the transaction hash",
+      "verify": "Verify payment",
+      "checking": "Checking...",
+      "confirming": "Waiting for network confirmations. This can take a few minutes.",
+      "stillConfirming": "Still not confirmed. Check again in a few minutes.",
+      "credited": "Payment received. Premium is active.",
+      "appleOverlap": "You already have an Apple subscription. Stablecoin time runs at the same time and does not extend it."
+    },
+    "error": {
+      "network": "Could not reach the server. Check your connection and try again.",
+      "unauthorized": "Please sign in again.",
+      "crypto_payments_disabled": "Stablecoin payments are not available yet.",
+      "busy": "Too many open payments right now. Try again later.",
+      "bad_request": "That does not look like a valid transaction hash.",
+      "tx_already_used": "This transaction was already used for a payment.",
+      "already_paid": "This payment is already paid. Contact support if you sent a second transfer.",
+      "intent_not_open": "This payment is no longer open.",
+      "intent_expired": "This payment expired. Contact support with your payment reference.",
+      "no_transfer": "No matching transfer to our address was found in that transaction.",
+      "too_early": "This transaction was made before this payment was created, so it cannot pay it.",
+      "too_late": "This transaction was made after this payment expired. Contact support with your payment reference.",
+      "underpaid": "The amount sent is lower than required. Contact support with your payment reference.",
+      "amount_mismatch": "The amount sent does not match the payment. Contact support with your payment reference.",
+      "amount_mismatch_received": "You sent {{received}} but the payment needs {{amount}}. Contact support with your payment reference.",
+      "tx_failed": "That transaction failed on chain.",
+      "provider_unavailable": "The network provider is unavailable. Try again shortly.",
+      "unknown": "Something went wrong. Try again."
+    }
   }
 }
