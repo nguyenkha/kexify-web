@@ -943,7 +943,12 @@
     "backUpNow": "Cadangkan sekarang",
     "nudgeTitle": "Cadangkan bagian kunci Anda",
     "nudgeDesc": "Unduh file cadangan untuk berjaga-jaga jika perangkat hilang",
-    "nudgeAction": "Cadangkan sekarang"
+    "nudgeAction": "Cadangkan sekarang",
+    "old": "Cadangan lama tidak berlaku lagi",
+    "newKit": "Unduh kit baru",
+    "fromSigner": "Buat cadangan dari perangkat penanda tangan.",
+    "notBackedUp": "Belum dicadangkan. Buat kata sandi cadangan",
+    "setPassword": "Buat kata sandi cadangan"
   },
   "activity": {
     "title": "Log aktivitas",
@@ -1842,7 +1847,13 @@
       "notice": "Kami sudah mengirim email ke Anda dan memberi tahu perangkat lama.",
       "noticeAnon": "Kami sudah memberi tahu perangkat lama dan semua perangkat yang sedang masuk."
     },
-    "cancel": "Batalkan pemulihan"
+    "cancel": "Batalkan pemulihan",
+    "title": "Pulihkan dengan passkey Anda",
+    "continue": "Lanjut dengan passkey",
+    "password": "Masukkan kata sandi cadangan",
+    "noBackupLeft": "Pemulihan dihentikan: tidak ada cadangan tersisa. Gunakan file pemulihan.",
+    "alreadySigning": "Perangkat ini sudah menandatangani untuk dompet ini.",
+    "passwordWrong": "Kata sandi salah"
   },
   "deviceFacts": {
     "unknownCountry": "negara yang tidak dikenal",
@@ -1876,7 +1887,11 @@
       "passkey_added": "Sebuah passkey ditambahkan",
       "passkey_removed": "Sebuah passkey dihapus",
       "alert_email_changed": "Email peringatan diubah",
-      "unknown": "Kejadian keamanan pada dompet Anda"
+      "unknown": "Kejadian keamanan pada dompet Anda",
+      "move_stopped": "Pemindahan perangkat dihentikan di perangkat penanda tangan",
+      "share_refreshed": "Penandatanganan pindah ke perangkat baru. Cadangan lama tidak berlaku lagi.",
+      "escrow_downloaded": "Cadangan dompet dibuka di perangkat penanda tangan",
+      "backup_dropped": "Penandatanganan pindah tanpa cadangan baru. Buat cadangan di perangkat penanda tangan."
     },
     "markReadFailed": "Tidak bisa menandai peringatan sebagai sudah dibaca. Coba lagi."
   },
@@ -1914,5 +1929,65 @@
     "expired": "Tautan ini sudah kedaluwarsa atau sudah dipakai.",
     "failed": "Gagal. Coba lagi.",
     "open": "Buka kexify"
+  },
+  "move": {
+    "haveOld": "Saya punya perangkat lama",
+    "noOld": "Saya tidak punya",
+    "useFile": "Gunakan file pemulihan",
+    "notNow": "Nanti saja - hanya lihat",
+    "qr": {
+      "title": "Pindai ini di perangkat lama Anda",
+      "howTo": "Di perangkat lama buka Pengaturan > Keamanan lalu pilih \"Pindahkan penandatanganan ke perangkat baru\".",
+      "code": "Ketik kode yang tampil di perangkat lama",
+      "submit": "Lanjut"
+    },
+    "noCamera": "Tidak ada kamera? Cocokkan kode ini: {{fingerprint}}",
+    "wait": "Demi keamanan, pemindahan ini selesai dalam {{time}}. Ketik kode dari perangkat lama untuk melewati penantian.",
+    "working": "Memindahkan penandatanganan ke perangkat ini...",
+    "done": "Selesai. Perangkat ini sekarang menandatangani.",
+    "retry": "Coba lagi",
+    "failed": "Pemindahan belum selesai. Dompet Anda aman.",
+    "codeWrong": "Kode itu salah.",
+    "stopped": "Pemindahan ini dihentikan.",
+    "expired": "Kode ini kedaluwarsa. Tampilkan yang baru.",
+    "password": {
+      "ask": "Buat kata sandi cadangan. Anda hanya memerlukannya jika kehilangan perangkat ini dan passkey Anda.",
+      "save": "Simpan"
+    },
+    "start": "Pindahkan penandatanganan ke perangkat baru",
+    "scan": {
+      "title": "Pindai kode di perangkat baru",
+      "paste": "Atau tempel teks kodenya",
+      "check": "Periksa",
+      "list": "Tanpa kamera, pilih perangkat yang menampilkan kode yang sama. Anda lalu mengandalkan server untuk mencocokkan perangkat.",
+      "none": "Tidak ada perangkat baru yang menunggu."
+    },
+    "confirm": {
+      "title": "Pindahkan penandatanganan ke perangkat baru?",
+      "body": "{{platform}} . {{country}} . {{loginAge}}. Perangkat itu bisa membelanjakan semuanya. Perangkat ini berhenti menandatangani.",
+      "confirm": "Konfirmasi",
+      "notMe": "Bukan saya"
+    },
+    "code": {
+      "show": "Kode: {{code}} (jangan pernah dibagikan)",
+      "keep": "Biarkan layar ini terbuka sampai perangkat baru selesai."
+    },
+    "newLogin": "login baru",
+    "notSignedIn": "belum login",
+    "signedIn": "login {{time}}",
+    "invalidQr": "Kode ini tidak valid. Pindai lagi kode di perangkat baru.",
+    "locked": "Akun dikunci.",
+    "loginRequired": "Masuk ke akun ini di perangkat baru terlebih dahulu.",
+    "inProgress": "Pemindahan lain sedang berlangsung. Coba lagi nanti.",
+    "outdated": "Perangkat ini tidak bisa lagi memindahkan penandatanganan.",
+    "fromOldDevice": "Pindahkan dari perangkat lama",
+    "noBackup": "Tidak ada cadangan yang bisa dipulihkan perangkat ini. Gunakan file pemulihan.",
+    "skipBackup": "Lanjut tanpa cadangan",
+    "finishHere": "Selesaikan pemindahan penandatanganan ke sini",
+    "passkeyCancelled": "Passkey dibatalkan. Coba lagi."
+  },
+  "moved": {
+    "title": "Penandatanganan dipindahkan ke \"{{device}}\" pada {{date}}.",
+    "action": "Pindahkan penandatanganan ke sini"
   }
 }

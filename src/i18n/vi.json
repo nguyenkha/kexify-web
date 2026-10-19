@@ -943,7 +943,12 @@
     "backUpNow": "Sao lưu ngay",
     "nudgeTitle": "Sao lưu key share",
     "nudgeDesc": "Tải file sao lưu để bảo vệ khi mất thiết bị",
-    "nudgeAction": "Sao lưu ngay"
+    "nudgeAction": "Sao lưu ngay",
+    "old": "Các bản sao lưu cũ không còn dùng được",
+    "newKit": "Tải bộ khôi phục mới",
+    "fromSigner": "Hãy sao lưu từ thiết bị ký.",
+    "notBackedUp": "Chưa sao lưu. Hãy đặt mật khẩu sao lưu",
+    "setPassword": "Đặt mật khẩu sao lưu"
   },
   "activity": {
     "title": "Nhật ký hoạt động",
@@ -1842,7 +1847,13 @@
       "notice": "Chúng tôi đã gửi email cho bạn và báo cho thiết bị cũ.",
       "noticeAnon": "Chúng tôi đã báo cho thiết bị cũ và mọi thiết bị đang đăng nhập."
     },
-    "cancel": "Hủy khôi phục"
+    "cancel": "Hủy khôi phục",
+    "title": "Khôi phục bằng passkey",
+    "continue": "Tiếp tục với passkey",
+    "password": "Nhập mật khẩu sao lưu",
+    "noBackupLeft": "Đã dừng khôi phục: không còn bản sao lưu. Hãy dùng tệp khôi phục.",
+    "alreadySigning": "Thiết bị này đã là thiết bị ký của ví.",
+    "passwordWrong": "Mật khẩu không đúng"
   },
   "deviceFacts": {
     "unknownCountry": "một quốc gia không rõ",
@@ -1876,7 +1887,11 @@
       "passkey_added": "Đã thêm một passkey",
       "passkey_removed": "Đã xóa một passkey",
       "alert_email_changed": "Email nhận cảnh báo đã được thay đổi",
-      "unknown": "Sự kiện bảo mật trên ví của bạn"
+      "unknown": "Sự kiện bảo mật trên ví của bạn",
+      "move_stopped": "Một lần chuyển thiết bị đã bị dừng trên thiết bị ký",
+      "share_refreshed": "Việc ký đã chuyển sang thiết bị mới. Các bản sao lưu cũ không còn dùng được.",
+      "escrow_downloaded": "Bản sao lưu ví đã được mở trên một thiết bị ký",
+      "backup_dropped": "Việc ký đã chuyển mà không có bản sao lưu mới. Hãy sao lưu trên thiết bị ký."
     },
     "markReadFailed": "Không đánh dấu đã đọc được. Hãy thử lại."
   },
@@ -1914,5 +1929,65 @@
     "expired": "Liên kết này đã hết hạn hoặc đã được dùng.",
     "failed": "Không thành công. Hãy thử lại.",
     "open": "Mở kexify"
+  },
+  "move": {
+    "haveOld": "Tôi có thiết bị cũ",
+    "noOld": "Tôi không có",
+    "useFile": "Dùng tệp khôi phục",
+    "notNow": "Để sau - chỉ xem",
+    "qr": {
+      "title": "Quét mã này trên thiết bị cũ",
+      "howTo": "Trên thiết bị cũ, mở Cài đặt > Bảo mật và chọn \"Chuyển việc ký sang thiết bị mới\".",
+      "code": "Nhập mã hiển thị trên thiết bị cũ",
+      "submit": "Tiếp tục"
+    },
+    "noCamera": "Không có camera? Đối chiếu mã này: {{fingerprint}}",
+    "wait": "Để an toàn, việc chuyển sẽ xong sau {{time}}. Nhập mã từ thiết bị cũ để bỏ qua thời gian chờ.",
+    "working": "Đang chuyển việc ký sang thiết bị này...",
+    "done": "Xong. Thiết bị này giờ sẽ ký.",
+    "retry": "Thử lại",
+    "failed": "Việc chuyển chưa xong. Ví của bạn vẫn an toàn.",
+    "codeWrong": "Mã không đúng.",
+    "stopped": "Việc chuyển đã bị dừng.",
+    "expired": "Mã này đã hết hạn. Hiện mã mới.",
+    "password": {
+      "ask": "Đặt mật khẩu sao lưu. Bạn chỉ cần nó nếu mất thiết bị này và passkey.",
+      "save": "Lưu"
+    },
+    "start": "Chuyển việc ký sang thiết bị mới",
+    "scan": {
+      "title": "Quét mã trên thiết bị mới",
+      "paste": "Hoặc dán nội dung mã",
+      "check": "Kiểm tra",
+      "list": "Không dùng camera thì chọn thiết bị hiển thị cùng mã. Khi đó bạn dựa vào máy chủ để ghép đúng thiết bị.",
+      "none": "Không có thiết bị mới nào đang chờ."
+    },
+    "confirm": {
+      "title": "Chuyển việc ký sang thiết bị mới?",
+      "body": "{{platform}} . {{country}} . {{loginAge}}. Thiết bị đó sẽ có thể chi tiêu mọi thứ. Thiết bị này ngừng ký.",
+      "confirm": "Xác nhận",
+      "notMe": "Không phải tôi"
+    },
+    "code": {
+      "show": "Mã: {{code}} (không bao giờ chia sẻ)",
+      "keep": "Giữ màn hình này mở cho đến khi thiết bị mới hoàn tất."
+    },
+    "newLogin": "đăng nhập mới",
+    "notSignedIn": "chưa đăng nhập",
+    "signedIn": "đăng nhập {{time}}",
+    "invalidQr": "Mã này không hợp lệ. Hãy quét lại mã trên thiết bị mới.",
+    "locked": "Tài khoản đã bị khóa.",
+    "loginRequired": "Hãy đăng nhập tài khoản này trên thiết bị mới trước.",
+    "inProgress": "Đang có một lần chuyển khác. Hãy thử lại sau.",
+    "outdated": "Thiết bị này không thể chuyển việc ký nữa.",
+    "fromOldDevice": "Chuyển từ thiết bị cũ",
+    "noBackup": "Không có bản sao lưu nào thiết bị này khôi phục được. Hãy dùng tệp khôi phục.",
+    "skipBackup": "Tiếp tục không sao lưu",
+    "finishHere": "Hoàn tất chuyển việc ký về đây",
+    "passkeyCancelled": "Passkey đã bị hủy. Hãy thử lại."
+  },
+  "moved": {
+    "title": "Việc ký đã chuyển sang \"{{device}}\" ngày {{date}}.",
+    "action": "Chuyển việc ký về đây"
   }
 }

@@ -19,6 +19,8 @@ export interface KeyFileData {
   encrypted?: boolean;
   salt?: string;
   encryption?: "server-hkdf"; // present when encrypted by server HKDF
+  /** Which copy of the wallet key this file holds; older ones stop working after a device move. Missing = 0. */
+  shareGeneration?: number;
 }
 
 /** Check if a key file is HKDF-encrypted (server backup format) */
@@ -107,6 +109,7 @@ export async function encryptKeyFile(data: KeyFileData, passphrase: string): Pro
     share: await encryptField(data.share, key),
     eddsaShare: await encryptField(data.eddsaShare, key),
     eddsaPublicKey: data.eddsaPublicKey,
+    ...(data.shareGeneration !== undefined ? { shareGeneration: data.shareGeneration } : {}),
   };
 
   return result;
@@ -126,6 +129,7 @@ export async function decryptKeyFile(data: KeyFileData, passphrase: string): Pro
       share: await decryptField(data.share, key),
       eddsaShare: await decryptField(data.eddsaShare, key),
       eddsaPublicKey: data.eddsaPublicKey,
+      ...(data.shareGeneration !== undefined ? { shareGeneration: data.shareGeneration } : {}),
     };
 
     return result;

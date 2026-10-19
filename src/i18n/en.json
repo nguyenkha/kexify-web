@@ -943,7 +943,12 @@
     "backUpNow": "Back up now",
     "nudgeTitle": "Back up your key share",
     "nudgeDesc": "Download a backup file to protect against device loss",
-    "nudgeAction": "Back up now"
+    "nudgeAction": "Back up now",
+    "old": "Older backups no longer work",
+    "newKit": "Download a new kit",
+    "fromSigner": "Back up from the signing device.",
+    "notBackedUp": "Not backed up. Set a backup password",
+    "setPassword": "Set a backup password"
   },
   "activity": {
     "title": "Activity log",
@@ -1842,7 +1847,13 @@
       "notice": "We emailed you and your old device.",
       "noticeAnon": "We told your old device and every device signed in."
     },
-    "cancel": "Cancel restore"
+    "cancel": "Cancel restore",
+    "title": "Restore with your passkey",
+    "continue": "Continue with passkey",
+    "password": "Enter your backup password",
+    "noBackupLeft": "Restore stopped: no backup left. Use a recovery file.",
+    "alreadySigning": "This device already signs for this wallet.",
+    "passwordWrong": "Incorrect password"
   },
   "deviceFacts": {
     "unknownCountry": "an unknown country",
@@ -1876,7 +1887,11 @@
       "passkey_added": "A passkey was added",
       "passkey_removed": "A passkey was removed",
       "alert_email_changed": "The alert email was changed",
-      "unknown": "Security event on your wallet"
+      "unknown": "Security event on your wallet",
+      "move_stopped": "A device move was stopped on your signing device",
+      "share_refreshed": "Signing moved to a new device. Older backups no longer work.",
+      "escrow_downloaded": "Your wallet backup was opened on a signing device",
+      "backup_dropped": "Signing moved without a new backup. Set a backup on your signing device."
     },
     "markReadFailed": "Could not mark alerts as read. Try again."
   },
@@ -1914,5 +1929,65 @@
     "expired": "This link has expired or was already used.",
     "failed": "That did not work. Try again.",
     "open": "Open kexify"
+  },
+  "move": {
+    "haveOld": "I have my old device",
+    "noOld": "I don't have it",
+    "useFile": "Use a recovery file",
+    "notNow": "Not now - view only",
+    "qr": {
+      "title": "Scan this on your old device",
+      "howTo": "On your old device open Settings > Security and choose \"Move signing to a new device\".",
+      "code": "Type the code shown on your old device",
+      "submit": "Continue"
+    },
+    "noCamera": "No camera? Match this code: {{fingerprint}}",
+    "wait": "For your safety this move finishes in {{time}}. Type the code from your old device to skip the wait.",
+    "working": "Moving signing to this device...",
+    "done": "Done. This device now signs.",
+    "retry": "Try again",
+    "failed": "The move did not finish. Your wallet is safe.",
+    "codeWrong": "That code is not right.",
+    "stopped": "This move was stopped.",
+    "expired": "This code expired. Show a new one.",
+    "password": {
+      "ask": "Set a backup password. You'll need it only if you lose this device and your passkey.",
+      "save": "Save"
+    },
+    "start": "Move signing to a new device",
+    "scan": {
+      "title": "Scan the code on the new device",
+      "paste": "Or paste the code text",
+      "check": "Check",
+      "list": "Without the camera, pick the device that shows the same code. You then rely on the server to match the devices.",
+      "none": "No new device is waiting."
+    },
+    "confirm": {
+      "title": "Move signing to a new device?",
+      "body": "{{platform}} . {{country}} . {{loginAge}}. It will be able to spend everything. This device stops signing.",
+      "confirm": "Confirm",
+      "notMe": "Not me"
+    },
+    "code": {
+      "show": "Code: {{code}} (never share this)",
+      "keep": "Keep this screen open until the new device finishes."
+    },
+    "newLogin": "new login",
+    "notSignedIn": "not signed in yet",
+    "signedIn": "signed in {{time}}",
+    "invalidQr": "This code is not valid. Scan the code on the new device again.",
+    "locked": "Account locked.",
+    "loginRequired": "Sign in to this account on the new device first.",
+    "inProgress": "Another move is in progress. Try again later.",
+    "outdated": "This device can no longer move signing.",
+    "fromOldDevice": "Move from my old device",
+    "noBackup": "No backup this device can restore from. Use a recovery file.",
+    "skipBackup": "Continue without a backup",
+    "finishHere": "Finish moving signing here",
+    "passkeyCancelled": "Passkey was cancelled. Try again."
+  },
+  "moved": {
+    "title": "Signing moved to \"{{device}}\" on {{date}}.",
+    "action": "Move signing here"
   }
 }

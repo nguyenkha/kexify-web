@@ -1,3 +1,4 @@
+import { backupUploadErrorText, backupUploadSignerFields, downloadEscrow, EscrowError, fetchBackupStatus, type EscrowBlob } from "../lib/escrow-download";
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useExpertMode } from "../context/ExpertModeContext";
@@ -108,8 +109,8 @@ export function RecoveryChecklist() {
         setHkdfDownloadingId(null);
         return;
       }
-      const { encryptedShare, encryptedEddsaShare, publicKey, eddsaPublicKey } = await res.json();
-      const payload = JSON.stringify({ id: account.id, peer: 2, share: encryptedShare, eddsaShare: encryptedEddsaShare || "", publicKey: publicKey || "", eddsaPublicKey: eddsaPublicKey || "", encryption: "server-hkdf" }, null, 2);
+      const { encryptedShare, encryptedEddsaShare, publicKey, eddsaPublicKey, shareGeneration } = await res.json();
+      const payload = JSON.stringify({ id: account.id, peer: 2, share: encryptedShare, eddsaShare: encryptedEddsaShare || "", publicKey: publicKey || "", eddsaPublicKey: eddsaPublicKey || "", encryption: "server-hkdf", shareGeneration: typeof shareGeneration === "number" ? shareGeneration : 0 }, null, 2);
       const blob = new Blob([payload], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -231,6 +232,14 @@ export function RecoveryChecklist() {
     setEscrowUploading(true);
     setEscrowError(null);
     try {
+      // A key file from before the last device move must never become the backup: check before the passkey tap.
+      const shareGeneration = data.shareGeneration ?? 0;
+      const status = await fetchBackupStatus(data.id);
+      if (status?.walletGeneration !== undefined && status.walletGeneration !== shareGeneration) {
+        setEscrowError(t("backup.old"));
+        setEscrowUploading(false);
+        return;
+      }
       const { token } = await authenticatePasskey({ action: { action: "backup.upload", keyShareId: data.id } });
       const headers = await sensitiveHeadersFor(data.id, token);
       const encryptedJson = JSON.stringify(data);
@@ -239,13 +248,14 @@ export function RecoveryChecklist() {
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({
           encryptedData: encryptedJson,
+          shareGeneration,
+          ...(await backupUploadSignerFields(data.id, encryptedJson)),
           publicKey: data.publicKey,
           eddsaPublicKey: data.eddsaPublicKey,
         }),
       });
       if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        setEscrowError(d.error || t("recovery.uploadFailed"));
+        setEscrowError(backupUploadErrorText(await res.json().catch(() => ({})), t) || t("recovery.uploadFailed"));
       } else {
         setEscrowAccountId(null);
         fetchAccounts();
@@ -262,22 +272,22 @@ export function RecoveryChecklist() {
     setRestoreStep("loading");
     setRestoreError(null);
     try {
-      // Step 1: Download the backup (session only; the PRF tap below decrypts it)
-      const res = await fetch(apiUrl(`/api/keys/${accountId}/backup`), { headers: await sensitiveHeadersFor(accountId) });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        setRestoreError(d.error || t("recovery.restoreFailed"));
+      // Step 1: one passkey ceremony downloads the backup (ticket backup.download) and reads PRF
+      let prfAuth: EscrowBlob;
+      try {
+        prfAuth = await downloadEscrow(accountId);
+      } catch (err) {
+        setRestoreError(err instanceof EscrowError && err.code === "ESCROW_SIGNER_REQUIRED" ? t("signers.error.notSigner") : t("recovery.restoreFailed"));
         setRestoreStep("idle");
         setRestoreId(null);
         return;
       }
-      const { encryptedData } = await res.json();
-      const parsed = JSON.parse(encryptedData);
+      if (!prfAuth.current) { setRestoreError(t("backup.old")); setRestoreStep("idle"); setRestoreId(null); return; } // from before the last device move
+      const parsed = JSON.parse(prfAuth.encryptedData);
 
       setRestoreStep("saving");
 
       // Step 2: Decrypt with PRF and re-save
-      const prfAuth = await authenticatePasskey({ withPrf: true });
       if (!prfAuth.prfKey || !prfAuth.credentialId) {
         setRestoreError(t("recovery.prfNotSupported"));
         setRestoreStep("idle");

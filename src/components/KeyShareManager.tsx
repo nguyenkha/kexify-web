@@ -1,3 +1,4 @@
+import { downloadEscrow, EscrowError, type EscrowBlob } from "../lib/escrow-download";
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -216,21 +217,22 @@ export function KeyShareManager() {
     setRestoreStep("loading");
     setError("");
     try {
-      // Reading the escrow needs only the session; the PRF tap below decrypts it.
-      const res = await fetch(apiUrl(`/api/keys/${keyId}/backup`), { headers: await sensitiveHeadersFor(keyId) });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error || t("keyShare.failedToDownload"));
+      // One passkey ceremony: the backup.download ticket and the PRF key that decrypts the blob.
+      let blob: EscrowBlob;
+      try {
+        blob = await downloadEscrow(keyId);
+      } catch (err) {
+        setError(err instanceof EscrowError && err.code === "ESCROW_SIGNER_REQUIRED" ? t("signers.error.notSigner") : t("keyShare.failedToDownload"));
         setRestoreStep("idle");
         setRestoreId(null);
         return;
       }
-      const { encryptedData } = await res.json();
-      const parsed = JSON.parse(encryptedData);
+      if (!blob.current) { setError(t("backup.old")); setRestoreStep("idle"); setRestoreId(null); return; } // from before the last device move
+      const parsed = JSON.parse(blob.encryptedData);
 
       // Detect StoredShare format (PRF-encrypted browser backup from auto-escrow)
       if (parsed.mode === "prf" && parsed.ciphertext) {
-        const prfAuth = await authenticatePasskey({ withPrf: true });
+        const prfAuth = blob;
         if (!prfAuth.prfKey) {
           setError(t("keyShare.prfNotSupported"));
           setRestoreStep("idle");
@@ -319,8 +321,8 @@ export function KeyShareManager() {
         setHkdfDownloading(false);
         return;
       }
-      const { encryptedShare, encryptedEddsaShare, publicKey, eddsaPublicKey } = await res.json();
-      const payload = JSON.stringify({ id: keyId, peer: 2, share: encryptedShare, eddsaShare: encryptedEddsaShare || "", publicKey: publicKey || "", eddsaPublicKey: eddsaPublicKey || "", encryption: "server-hkdf" }, null, 2);
+      const { encryptedShare, encryptedEddsaShare, publicKey, eddsaPublicKey, shareGeneration } = await res.json();
+      const payload = JSON.stringify({ id: keyId, peer: 2, share: encryptedShare, eddsaShare: encryptedEddsaShare || "", publicKey: publicKey || "", eddsaPublicKey: eddsaPublicKey || "", encryption: "server-hkdf", shareGeneration: typeof shareGeneration === "number" ? shareGeneration : 0 }, null, 2);
       const blob = new Blob([payload], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -382,7 +384,7 @@ export function KeyShareManager() {
         return;
       }
 
-      const { encryptedShare, encryptedEddsaShare, publicKey, eddsaPublicKey } = await res.json();
+      const { encryptedShare, encryptedEddsaShare, publicKey, eddsaPublicKey, shareGeneration } = await res.json();
 
       const cryptoKey = await crypto.subtle.importKey("raw", ephKey, "AES-GCM", false, ["decrypt"]);
 
@@ -404,6 +406,7 @@ export function KeyShareManager() {
         publicKey,
         eddsaShare: plainEddsaShare,
         eddsaPublicKey,
+        shareGeneration: typeof shareGeneration === "number" ? shareGeneration : 0,
       } as KeyFileData;
 
       setServerExportStep("passphrase");

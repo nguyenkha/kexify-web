@@ -943,7 +943,12 @@
     "backUpNow": "Respaldar ahora",
     "nudgeTitle": "Respalda tu fragmento de clave",
     "nudgeDesc": "Descarga un archivo de copia para protegerte si pierdes el dispositivo",
-    "nudgeAction": "Respaldar ahora"
+    "nudgeAction": "Respaldar ahora",
+    "old": "Las copias de seguridad anteriores ya no sirven",
+    "newKit": "Descargar un kit nuevo",
+    "fromSigner": "Haz la copia desde el dispositivo que firma.",
+    "notBackedUp": "Sin copia de seguridad. Crea una contraseña de respaldo",
+    "setPassword": "Crear contraseña de respaldo"
   },
   "activity": {
     "title": "Registro de actividad",
@@ -1846,7 +1851,13 @@
       "notice": "Te enviamos un correo a ti y a tu dispositivo anterior.",
       "noticeAnon": "Avisamos a tu dispositivo anterior y a todos los dispositivos con sesión iniciada."
     },
-    "cancel": "Cancelar restauración"
+    "cancel": "Cancelar restauración",
+    "title": "Restaurar con tu passkey",
+    "continue": "Continuar con passkey",
+    "password": "Escribe tu contraseña de respaldo",
+    "noBackupLeft": "Restauración detenida: no queda ninguna copia. Usa un archivo de recuperación.",
+    "alreadySigning": "Este dispositivo ya firma para esta billetera.",
+    "passwordWrong": "Contraseña incorrecta"
   },
   "deviceFacts": {
     "unknownCountry": "un país desconocido",
@@ -1880,7 +1891,11 @@
       "passkey_added": "Se añadió una llave de acceso",
       "passkey_removed": "Se eliminó una llave de acceso",
       "alert_email_changed": "Se cambió el correo de alertas",
-      "unknown": "Evento de seguridad en tu billetera"
+      "unknown": "Evento de seguridad en tu billetera",
+      "move_stopped": "Se detuvo un traslado de dispositivo en tu dispositivo que firma",
+      "share_refreshed": "La firma se movió a un dispositivo nuevo. Las copias anteriores ya no sirven.",
+      "escrow_downloaded": "Se abrió la copia de seguridad de tu billetera en un dispositivo que firma",
+      "backup_dropped": "La firma se movió sin copia nueva. Crea una copia en tu dispositivo que firma."
     },
     "markReadFailed": "No se pudieron marcar las alertas como leídas. Inténtalo de nuevo."
   },
@@ -1918,5 +1933,65 @@
     "expired": "Este enlace caducó o ya se usó.",
     "failed": "No funcionó. Inténtalo de nuevo.",
     "open": "Abrir kexify"
+  },
+  "move": {
+    "haveOld": "Tengo mi dispositivo anterior",
+    "noOld": "No lo tengo",
+    "useFile": "Usar un archivo de recuperación",
+    "notNow": "Ahora no - solo ver",
+    "qr": {
+      "title": "Escanea esto en tu dispositivo anterior",
+      "howTo": "En tu dispositivo anterior abre Ajustes > Seguridad y elige \"Mover la firma a un dispositivo nuevo\".",
+      "code": "Escribe el código que muestra tu dispositivo anterior",
+      "submit": "Continuar"
+    },
+    "noCamera": "¿Sin cámara? Compara este código: {{fingerprint}}",
+    "wait": "Por tu seguridad este traslado termina en {{time}}. Escribe el código de tu dispositivo anterior para no esperar.",
+    "working": "Moviendo la firma a este dispositivo...",
+    "done": "Listo. Este dispositivo ahora firma.",
+    "retry": "Intentar de nuevo",
+    "failed": "El traslado no terminó. Tu billetera está a salvo.",
+    "codeWrong": "Ese código no es correcto.",
+    "stopped": "Este traslado se detuvo.",
+    "expired": "Este código caducó. Muestra uno nuevo.",
+    "password": {
+      "ask": "Crea una contraseña de respaldo. Solo la necesitarás si pierdes este dispositivo y tu passkey.",
+      "save": "Guardar"
+    },
+    "start": "Mover la firma a un dispositivo nuevo",
+    "scan": {
+      "title": "Escanea el código del dispositivo nuevo",
+      "paste": "O pega el texto del código",
+      "check": "Comprobar",
+      "list": "Sin la cámara, elige el dispositivo que muestra el mismo código. En ese caso dependes del servidor para emparejar los dispositivos.",
+      "none": "Ningún dispositivo nuevo está esperando."
+    },
+    "confirm": {
+      "title": "¿Mover la firma a un dispositivo nuevo?",
+      "body": "{{platform}} . {{country}} . {{loginAge}}. Podrá gastar todo. Este dispositivo deja de firmar.",
+      "confirm": "Confirmar",
+      "notMe": "No fui yo"
+    },
+    "code": {
+      "show": "Código: {{code}} (no lo compartas nunca)",
+      "keep": "Mantén esta pantalla abierta hasta que el dispositivo nuevo termine."
+    },
+    "newLogin": "inicio de sesión nuevo",
+    "notSignedIn": "aún sin iniciar sesión",
+    "signedIn": "sesión iniciada {{time}}",
+    "invalidQr": "Este código no es válido. Vuelve a escanear el código del dispositivo nuevo.",
+    "locked": "Cuenta bloqueada.",
+    "loginRequired": "Primero inicia sesión en esta cuenta en el dispositivo nuevo.",
+    "inProgress": "Hay otro traslado en curso. Inténtalo más tarde.",
+    "outdated": "Este dispositivo ya no puede mover la firma.",
+    "fromOldDevice": "Mover desde mi dispositivo anterior",
+    "noBackup": "No hay ninguna copia que este dispositivo pueda restaurar. Usa un archivo de recuperación.",
+    "skipBackup": "Continuar sin copia de seguridad",
+    "finishHere": "Terminar de mover la firma aquí",
+    "passkeyCancelled": "Se canceló la passkey. Inténtalo de nuevo."
+  },
+  "moved": {
+    "title": "La firma se movió a \"{{device}}\" el {{date}}.",
+    "action": "Mover la firma aquí"
   }
 }

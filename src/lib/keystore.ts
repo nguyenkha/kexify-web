@@ -231,6 +231,94 @@ export async function saveKeyShareWithPassphrase(
   }
 }
 
+/**
+ * A key file sealed into the stored-share JSON without writing it anywhere: the same blob the escrow upload
+ * sends (device move: the new escrow goes up before the commit, the local copy is written only after it).
+ */
+export async function sealStoredShare(
+  keyId: string,
+  data: KeyFileData,
+  lock: { prfKey: CryptoKey; credentialId: string } | { passphrase: string },
+  type: "email" | "standalone" = "email",
+): Promise<string> {
+  const plain = serialize(data);
+  const meta = { publicKey: data.publicKey, eddsaPublicKey: data.eddsaPublicKey, peer: data.peer, storedAt: new Date().toISOString() };
+  if ("prfKey" in lock) {
+    const { iv, ciphertext } = await aesEncrypt(lock.prfKey, plain).finally(() => wipe(plain));
+    return JSON.stringify({ keyId, mode: "prf", type, credentialId: lock.credentialId, iv, ciphertext, meta } satisfies StoredShare);
+  }
+  const salt = crypto.getRandomValues(new Uint8Array(SALT_BYTES));
+  const key = await derivePassphraseKey(lock.passphrase, salt).catch((err) => { wipe(plain); throw err; });
+  const { iv, ciphertext } = await aesEncrypt(key, plain).finally(() => wipe(plain));
+  return JSON.stringify({ keyId, mode: "passphrase", type, salt: toBase64(salt), iv, ciphertext, meta } satisfies StoredShare);
+}
+
+// ── Pending copy of a re-key (sealed like the stored share, kept until the commit is known) ──
+
+const PENDING_PREFIX = "keyshare-pending:";
+
+export interface PendingShare { keyId: string; sealed: string; target: number }
+
+/** Keep the sealed new copy BEFORE the commit: a lost commit answer must not lose the only working copy. */
+export function savePendingShare(p: PendingShare): void {
+  localStorage.setItem(PENDING_PREFIX + p.keyId, JSON.stringify(p));
+}
+
+export function getPendingShare(keyId: string): PendingShare | null {
+  try { return JSON.parse(localStorage.getItem(PENDING_PREFIX + keyId) ?? "null"); } catch { return null; }
+}
+
+export function dropPendingShare(keyId: string): void {
+  localStorage.removeItem(PENDING_PREFIX + keyId);
+}
+
+export function listPendingShares(): PendingShare[] {
+  const out: PendingShare[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k?.startsWith(PENDING_PREFIX)) { const p = getPendingShare(k.slice(PENDING_PREFIX.length)); if (p) out.push(p); }
+  }
+  return out;
+}
+
+/** The commit went through (seen later): the pending copy becomes this browser's copy. */
+export function promotePendingShare(keyId: string): boolean {
+  const p = getPendingShare(keyId);
+  if (!p) return false;
+  const value = JSON.parse(p.sealed) as StoredShare;
+  if (value.keyId !== keyId) return false;
+  lsPut(value);
+  dropPendingShare(keyId);
+  return true;
+}
+
+/** Open a sealed share again (checks a backup before it replaces the old one). Null when it does not decrypt. */
+export async function openSealedStoredShare(sealed: string, lock: { prfKey: CryptoKey } | { passphrase: string }): Promise<KeyFileData | null> {
+  try {
+    const v = JSON.parse(sealed) as StoredShare;
+    const key = "prfKey" in lock ? lock.prfKey : await derivePassphraseKey(lock.passphrase, fromBase64(v.salt ?? ""));
+    return deserialize(await aesDecrypt(key, v.iv, v.ciphertext));
+  } catch {
+    return null;
+  }
+}
+
+/** Make a sealed share (sealStoredShare) this browser's copy of `data`, replacing any older one. */
+export async function saveSealedStoredShare(keyId: string, sealed: string, data: KeyFileData): Promise<void> {
+  const value = JSON.parse(sealed) as StoredShare;
+  if (value.keyId !== keyId || data.id !== keyId) throw new Error("Stored share does not match the wallet");
+  noteUnlockedShare(data.id, data.share);
+  lsPut(value);
+  if ((value.type ?? "email") === "email") {
+    try {
+      await linkKeyShareToSite(keyId);
+    } catch (err) {
+      lsDelete(keyId);
+      throw err;
+    }
+  }
+}
+
 export async function getKeyShareWithPrf(keyId: string, prfKey: CryptoKey): Promise<KeyFileData | null> {
   const entry = lsGet(keyId);
   if (!entry || entry.mode !== "prf") return null;

@@ -1,3 +1,4 @@
+import { backupUploadSignerFields } from "../lib/escrow-download";
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -299,6 +300,8 @@ export function CreateAccountDialog({
                 headers: await sensitiveHeadersFor(keyId, freshAuth?.token),
                 body: JSON.stringify({
                   encryptedData: stored,
+                  shareGeneration: newRawKeyData.shareGeneration ?? 0,
+                  ...(await backupUploadSignerFields(keyId, stored)),
                   publicKey: newRawKeyData.publicKey,
                   eddsaPublicKey: newRawKeyData.eddsaPublicKey,
                 }),
@@ -696,6 +699,8 @@ export function CreateAccountDialog({
                           headers: { ...(await workspaceHeaders(rawKeyData.id)), "Content-Type": "application/json" },
                           body: JSON.stringify({
                             encryptedData: encryptedJson,
+                            shareGeneration: rawKeyData.shareGeneration ?? 0,
+                            ...(await backupUploadSignerFields(rawKeyData.id, encryptedJson)),
                             publicKey: rawKeyData.publicKey,
                             eddsaPublicKey: rawKeyData.eddsaPublicKey,
                           }),
@@ -772,6 +777,8 @@ export function CreateAccountDialog({
                         headers: { ...(await workspaceHeaders(rawKeyData.id)), "Content-Type": "application/json" },
                         body: JSON.stringify({
                           encryptedData: encryptedJson,
+                          shareGeneration: rawKeyData.shareGeneration ?? 0,
+                          ...(await backupUploadSignerFields(rawKeyData.id, encryptedJson)),
                           publicKey: rawKeyData.publicKey,
                           eddsaPublicKey: rawKeyData.eddsaPublicKey,
                         }),

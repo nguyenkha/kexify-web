@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { getSignerRecord } from "./device-signer-key";
 import { isRecoveryMode } from "./recovery";
+import { restorePending } from "./device-move/move-restore";
 
 export function useViewOnlyKeys(keyIds: string[]): string[] {
   const [viewOnly, setViewOnly] = useState<string[]>([]);
@@ -13,7 +14,8 @@ export function useViewOnlyKeys(keyIds: string[]): string[] {
     const ids = idsKey && !isRecoveryMode() ? idsKey.split(",") : [];
     const refresh = async () => {
       const recs = await Promise.all(ids.map((id) => getSignerRecord(id).catch(() => null)));
-      if (live) setViewOnly(ids.filter((_, i) => recs[i] && recs[i]!.status !== "active" && recs[i]!.signerId));
+      // A restore started here that has not opened the backup yet is View only too (active, but no copy here).
+      if (live) setViewOnly(ids.filter((id, i) => recs[i]?.signerId && (recs[i]!.status !== "active" || restorePending(id))));
     };
     void refresh();
     window.addEventListener("kx-signer-changed", refresh);

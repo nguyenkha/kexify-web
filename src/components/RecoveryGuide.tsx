@@ -24,6 +24,9 @@ There are three types of server key files:
 - **Verifiable export** (filename: kexify-server-pve-*.json) — encrypted with your passphrase.
   Load it on the recovery web page or in the CLI (the iOS app cannot read it yet).
 
+Both files must be from after your last device move. Moving signing to a new device renews the keys
+(same addresses), so key files made before the move no longer work together with newer ones.
+
 ### Step 2: Open the recovery page
 Go to: ${RECOVERY_URL}
 

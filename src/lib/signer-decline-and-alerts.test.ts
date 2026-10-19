@@ -9,6 +9,8 @@ const local = new Map<string, string>();
 g.sessionStorage ??= { getItem: (k: string) => session.get(k) ?? null, setItem: (k: string, v: string) => void session.set(k, v), removeItem: (k: string) => void session.delete(k) };
 g.localStorage ??= { getItem: (k: string) => local.get(k) ?? null, setItem: (k: string, v: string) => void local.set(k, v), removeItem: (k: string) => void local.delete(k) };
 g.window ??= { addEventListener() {}, removeEventListener() {}, dispatchEvent() { return true; }, location: { href: "" } };
+// Another test file may have set a window without location (full `bun test src` run order).
+(g.window as { location?: { href: string } }).location ??= { href: "" };
 
 const key = await import("./device-signer-key");
 const api = await import("./signer-api");

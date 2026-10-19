@@ -38,7 +38,8 @@ async function tx<T>(mode: IDBTransactionMode, run: (s: IDBObjectStore) => IDBRe
       const t = db.transaction(STORE, mode);
       const req = run(t.objectStore(STORE));
       let result: T;
-      req.onsuccess = () => { result = req.result; };
+      // A listener, not onsuccess: run() may set its own onsuccess (compareAndPut does the put there).
+      req.addEventListener("success", () => { result = req.result; });
       t.oncomplete = () => resolve(result);
       t.onerror = () => reject(t.error ?? req.error);
       t.onabort = () => reject(t.error ?? new Error("indexeddb_aborted"));
@@ -142,7 +143,8 @@ function b64(buf: ArrayBuffer | Uint8Array): string {
   return btoa(s);
 }
 
-async function newKeyRecord(keyShareId: string): Promise<SignerRecord> {
+/** A new non-extractable device key, not stored yet (device move: the workspace is known only after the claim). */
+export async function newKeyRecord(keyShareId: string): Promise<SignerRecord> {
   const kp = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, false, ["sign", "verify"]);
   return { keyShareId, privateKey: kp.privateKey, spki: b64(await crypto.subtle.exportKey("spki", kp.publicKey)) };
 }

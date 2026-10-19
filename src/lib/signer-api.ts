@@ -223,3 +223,8 @@ export async function revokeSigner(keyShareId: string, targetId: string, opts: {
   }
   if (rec?.signerId === targetId) await setLocalSignerState(keyShareId, { status: "revoked" }, rec.spki);
 }
+
+/** A fresh single-use signer nonce for this workspace (device move and refresh steps). */
+export async function fetchSignerNonce(keyShareId: string): Promise<string> {
+  return (await call<{ nonce: string }>(keyShareId, "/nonce", "POST")).nonce;
+}

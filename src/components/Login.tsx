@@ -281,6 +281,10 @@ export function Login() {
               {t("login.useWithoutEmail")}
             </Link>
             <span className="text-border-primary">·</span>
+            <Link to="/move" className="text-text-muted hover:text-text-secondary transition-colors">
+              {t("move.fromOldDevice")}
+            </Link>
+            <span className="text-border-primary">·</span>
             <Link to="/recovery" className="text-text-muted hover:text-orange-400 transition-colors">
               {t("login.recoveryMode")}
             </Link>

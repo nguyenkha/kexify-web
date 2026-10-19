@@ -46,6 +46,7 @@ export async function requestPveServerExport(
         publicKey: data.publicKey,
         eddsaShare: seal(data.eddsaShare, "eddsa", clientFile?.eddsaShare),
         eddsaPublicKey: data.eddsaPublicKey,
+        shareGeneration: typeof data.shareGeneration === "number" ? data.shareGeneration : 0,
       },
     };
   } finally {

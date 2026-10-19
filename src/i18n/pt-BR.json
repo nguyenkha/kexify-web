@@ -943,7 +943,12 @@
     "backUpNow": "Fazer backup agora",
     "nudgeTitle": "Faça o backup da sua parte da chave",
     "nudgeDesc": "Baixe um arquivo de backup para se proteger contra a perda do dispositivo",
-    "nudgeAction": "Fazer backup agora"
+    "nudgeAction": "Fazer backup agora",
+    "old": "Backups antigos não funcionam mais",
+    "newKit": "Baixar um novo kit",
+    "fromSigner": "Faça o backup no dispositivo que assina.",
+    "notBackedUp": "Sem backup. Crie uma senha de backup",
+    "setPassword": "Criar senha de backup"
   },
   "activity": {
     "title": "Registro de atividade",
@@ -1846,7 +1851,13 @@
       "notice": "Enviamos um e-mail para você e avisamos seu dispositivo antigo.",
       "noticeAnon": "Avisamos seu dispositivo antigo e todos os dispositivos conectados."
     },
-    "cancel": "Cancelar restauração"
+    "cancel": "Cancelar restauração",
+    "title": "Restaurar com sua passkey",
+    "continue": "Continuar com passkey",
+    "password": "Digite sua senha de backup",
+    "noBackupLeft": "Restauração interrompida: não há mais backup. Use um arquivo de recuperação.",
+    "alreadySigning": "Este dispositivo já assina para esta carteira.",
+    "passwordWrong": "Senha incorreta"
   },
   "deviceFacts": {
     "unknownCountry": "um país desconhecido",
@@ -1880,7 +1891,11 @@
       "passkey_added": "Uma chave-senha foi adicionada",
       "passkey_removed": "Uma chave-senha foi removida",
       "alert_email_changed": "O e-mail de alertas foi alterado",
-      "unknown": "Evento de segurança na sua carteira"
+      "unknown": "Evento de segurança na sua carteira",
+      "move_stopped": "Uma mudança de dispositivo foi interrompida no seu dispositivo que assina",
+      "share_refreshed": "A assinatura foi para um novo dispositivo. Backups antigos não funcionam mais.",
+      "escrow_downloaded": "O backup da sua carteira foi aberto em um dispositivo que assina",
+      "backup_dropped": "A assinatura mudou sem novo backup. Crie um backup no dispositivo que assina."
     },
     "markReadFailed": "Não foi possível marcar os alertas como lidos. Tente de novo."
   },
@@ -1918,5 +1933,65 @@
     "expired": "Este link expirou ou já foi usado.",
     "failed": "Não deu certo. Tente de novo.",
     "open": "Abrir o kexify"
+  },
+  "move": {
+    "haveOld": "Tenho meu dispositivo antigo",
+    "noOld": "Não tenho",
+    "useFile": "Usar um arquivo de recuperação",
+    "notNow": "Agora não - só visualizar",
+    "qr": {
+      "title": "Escaneie isto no seu dispositivo antigo",
+      "howTo": "No dispositivo antigo abra Configurações > Segurança e escolha \"Mover a assinatura para um novo dispositivo\".",
+      "code": "Digite o código mostrado no dispositivo antigo",
+      "submit": "Continuar"
+    },
+    "noCamera": "Sem câmera? Confira este código: {{fingerprint}}",
+    "wait": "Para sua segurança esta mudança termina em {{time}}. Digite o código do dispositivo antigo para pular a espera.",
+    "working": "Movendo a assinatura para este dispositivo...",
+    "done": "Pronto. Este dispositivo agora assina.",
+    "retry": "Tentar de novo",
+    "failed": "A mudança não terminou. Sua carteira está segura.",
+    "codeWrong": "Esse código não está certo.",
+    "stopped": "Esta mudança foi interrompida.",
+    "expired": "Este código expirou. Mostre um novo.",
+    "password": {
+      "ask": "Crie uma senha de backup. Você só vai precisar dela se perder este dispositivo e sua passkey.",
+      "save": "Salvar"
+    },
+    "start": "Mover a assinatura para um novo dispositivo",
+    "scan": {
+      "title": "Escaneie o código no novo dispositivo",
+      "paste": "Ou cole o texto do código",
+      "check": "Verificar",
+      "list": "Sem a câmera, escolha o dispositivo que mostra o mesmo código. Nesse caso você depende do servidor para combinar os dispositivos.",
+      "none": "Nenhum dispositivo novo está aguardando."
+    },
+    "confirm": {
+      "title": "Mover a assinatura para um novo dispositivo?",
+      "body": "{{platform}} . {{country}} . {{loginAge}}. Ele poderá gastar tudo. Este dispositivo deixa de assinar.",
+      "confirm": "Confirmar",
+      "notMe": "Não fui eu"
+    },
+    "code": {
+      "show": "Código: {{code}} (nunca compartilhe)",
+      "keep": "Mantenha esta tela aberta até o novo dispositivo terminar."
+    },
+    "newLogin": "login novo",
+    "notSignedIn": "ainda sem login",
+    "signedIn": "login {{time}}",
+    "invalidQr": "Este código não é válido. Escaneie de novo o código do novo dispositivo.",
+    "locked": "Conta bloqueada.",
+    "loginRequired": "Entre nesta conta no novo dispositivo primeiro.",
+    "inProgress": "Outra mudança está em andamento. Tente mais tarde.",
+    "outdated": "Este dispositivo não pode mais mover a assinatura.",
+    "fromOldDevice": "Mover do meu dispositivo antigo",
+    "noBackup": "Não há backup que este dispositivo possa restaurar. Use um arquivo de recuperação.",
+    "skipBackup": "Continuar sem backup",
+    "finishHere": "Concluir a mudança da assinatura para cá",
+    "passkeyCancelled": "A passkey foi cancelada. Tente de novo."
+  },
+  "moved": {
+    "title": "A assinatura foi movida para \"{{device}}\" em {{date}}.",
+    "action": "Mover a assinatura para cá"
   }
 }

@@ -13,6 +13,7 @@ import { HomeSendAssetPicker, type FundedAsset } from "./home-send-asset-picker"
 import { ReceiveNetworkPicker } from "./receive-network-picker";
 import { SendDialog } from "./SendDialog";
 import { ViewOnlyCard } from "./settings/view-only-card";
+import { PendingMoveCard } from "./device-move/pending-move-card";
 import { useViewOnlyKeys } from "../lib/use-view-only-keys";
 import { QrModal } from "./QrModal";
 
@@ -72,6 +73,7 @@ export function HomeSendReceive({ rows, prices, walletName }: Props) {
         </button>
       </div>
       {sendBlockedReason && <p className="text-[11px] text-text-muted mt-2">{sendBlockedReason}</p>}
+      <PendingMoveCard />
       {viewOnlyKeys.map((id) => (
         <div key={id} className="w-full mt-3"><ViewOnlyCard keyShareId={id} walletName={walletName(id)} /></div>
       ))}

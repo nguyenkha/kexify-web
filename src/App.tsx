@@ -65,6 +65,9 @@ import { KeyPassphraseHost } from "./components/KeyPassphraseHost";
 import { WCRequestQueue } from "./components/WCRequestQueue";
 import { FreezeAccount } from "./components/FreezeAccount";
 import { SignerDeclinePage } from "./components/signer-decline-page";
+import { MoveNewDevicePage } from "./components/device-move/move-new-device-page";
+import { MoveRestorePage } from "./components/device-move/move-restore-page";
+import { MoveRestorePick } from "./components/device-move/move-restore-pick";
 import { AlertEmailConfirmPage } from "./components/alert-email-confirm-page";
 import { SecurityAlertsBanner } from "./components/security-alerts-banner";
 import { PendingSignerApproval } from "./components/settings/pending-signer-approval";
@@ -217,6 +220,8 @@ function DashboardLayout() {
     refreshUser();
     if (!recovery) {
       fetch(apiUrl("/api/health")).then((r) => r.json()).then((d) => setServerVersion(d.version ?? null)).catch(() => {});
+      // A device move whose commit answer was lost: promote or drop its pending copy.
+      void import("./lib/device-move/move-new-device").then((m) => m.reconcilePendingShares());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -541,6 +546,7 @@ function App() {
         <Route path="/auth/verify" element={<VerifyToken />} />
         <Route path="/auth/freeze" element={<FreezeAccount />} />
         <Route path="/signers/decline" element={<SignerDeclinePage />} />
+        <Route path="/move" element={<MoveNewDevicePage />} />
         <Route path="/alerts/confirm-email" element={<AlertEmailConfirmPage />} />
         <Route
           element={
@@ -567,6 +573,8 @@ function App() {
           <Route path="/accounts/:keyId/:chainName/:assetSymbol/:btcAddrType?" element={<AccountDetail />} />
           <Route path="/passkeys" element={<Passkeys />} />
           <Route path="/backup-recovery" element={<BackupRecoveryPage />} />
+          <Route path="/move/restore" element={<MoveRestorePick />} />
+          <Route path="/move/restore/:keyId" element={<MoveRestorePage />} />
           <Route path="/activity" element={<ActivityLogPage />} />
           <Route path="/config" element={<ConfigPage />} />
           <Route path="/walletconnect" element={<WalletConnectPage />} />

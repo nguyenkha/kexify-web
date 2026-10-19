@@ -8,6 +8,7 @@ import { timeAgo, waitLeft } from "../../lib/device-facts";
 import { signerErrorMessage } from "../../lib/signer-error-message";
 import { activateSigner, listSigners, revokeSigner, SignerApiError, type SignerRow } from "../../lib/signer-api";
 import { ErrorBox } from "../ui";
+import { MoveOldDeviceDialog } from "../device-move/move-old-device-dialog";
 
 interface Wallet { id: string; name: string | null; signers: SignerRow[] }
 
@@ -35,6 +36,7 @@ export function SignersList() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState<{ keyId: string; signerId: string } | null>(null);
+  const [moving, setMoving] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try { setData(await loadWallets()); } catch { setError(t("signers.loadFailed")); }
@@ -76,6 +78,9 @@ export function SignersList() {
       {data.wallets.map((w) => (
         <div key={w.id} className="space-y-1.5">
           {data.wallets.length > 1 && <div className="text-xs font-medium text-text-secondary">{w.name || w.id.slice(0, 8)}</div>}
+          {data.mine.get(w.id)?.active && (
+            <button className={btn} disabled={busy} onClick={() => setMoving(w.id)}>{t("move.start")}</button>
+          )}
           <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden divide-y divide-border-secondary">
             {w.signers.map((s) => {
               const Icon = s.kind === "ios_se" ? Smartphone : Globe;
@@ -126,6 +131,7 @@ export function SignersList() {
         </div>
       ))}
       {error && <ErrorBox>{error}</ErrorBox>}
+      {moving && <MoveOldDeviceDialog keyShareId={moving} onClose={() => { setMoving(null); void load(); }} />}
     </div>
   );
 }

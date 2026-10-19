@@ -16,6 +16,7 @@ import { createInterface, type Interface as RLInterface } from "node:readline";
 import { initCbMpc, NID_secp256k1, NID_ED25519 } from "cb-mpc";
 import type { CbMpc, DataTransport, Ecdsa2pKeyHandle, EcKey2pHandle } from "cb-mpc";
 import { isPveShare, restorePveServerShare } from "./src/lib/pve-server-share";
+import { assertSameShareGeneration } from "./src/lib/share-generation-check";
 import { ethers } from "ethers";
 import { keccak_256 } from "@noble/hashes/sha3";
 import { sha256 } from "@noble/hashes/sha256";
@@ -77,6 +78,8 @@ interface KeyFileData {
   encrypted?: boolean;
   salt?: string;
   encryption?: "server-hkdf";
+  /** Phase 4: the key version the file belongs to (absent = 0). */
+  shareGeneration?: number;
 }
 
 // ── Utility Functions ────────────────────────────────────────────
@@ -392,6 +395,7 @@ async function decryptKeyFile(data: KeyFileData, passphrase: string): Promise<Ke
       share: await decryptField(data.share, key),
       eddsaShare: await decryptField(data.eddsaShare, key),
       eddsaPublicKey: data.eddsaPublicKey,
+      shareGeneration: data.shareGeneration,
     };
   } catch (err: unknown) {
     if ((err as { name?: string })?.name === "OperationError") throw new Error("Incorrect passphrase");
@@ -412,6 +416,7 @@ async function decryptHkdfKeyFile(data: KeyFileData, hexKey: string): Promise<Ke
   try {
     return {
       id: data.id, peer: data.peer, publicKey: data.publicKey, eddsaPublicKey: data.eddsaPublicKey,
+      shareGeneration: data.shareGeneration,
       share: await dec(data.share),
       eddsaShare: data.eddsaShare ? await dec(data.eddsaShare) : "",
     };
@@ -815,6 +820,12 @@ async function loadAndDecryptShares(filePath1: string, filePath2: string): Promi
 
   // Integrity check
   process.stdout.write("Integrity check... ");
+  try {
+    assertSameShareGeneration(share1, share2);
+  } catch (err) {
+    console.log("✗");
+    throw err;
+  }
   if (share1.publicKey !== share2.publicKey) {
     console.log("✗");
     throw new Error("ECDSA public keys do not match between share files");

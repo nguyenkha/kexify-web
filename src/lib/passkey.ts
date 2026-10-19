@@ -14,7 +14,8 @@ export type PasskeyActionName =
   | "sign" | "generate" | "eddsa-init" | "policy.set" | "policy.cancel" | "backup.upload"
   | "export.hkdf" | "export.request" | "export.request-cancel" | "export.share" | "export.pve"
   | "unfreeze" | "unfreeze.cancel" | "passkey.register" | "passkey.delete"
-  | "session.revoke" | "session.revoke-others" | "signer.activate" | "signer.revoke" | "alert-email.set";
+  | "session.revoke" | "session.revoke-others" | "signer.activate" | "signer.revoke" | "alert-email.set"
+  | "signer.restore" | "backup.download";
 
 export interface PasskeyAction {
   action: PasskeyActionName;
@@ -33,6 +34,8 @@ export interface PasskeyAction {
   ekSha256?: string;
   /** alert-email.set: sha256 hex of the trimmed lower-case email; sha256("") to remove (the device signature uses "none"). */
   emailSha256?: string;
+  /** signer.restore: sha256 hex of the new device key SPKI DER. */
+  pubkeySha256?: string;
 }
 
 export async function sha256Hex(s: string): Promise<string> {
@@ -167,6 +170,8 @@ export interface PasskeyAuthResult {
   token?: string;
   prfKey?: CryptoKey;
   credentialId?: string;
+  /** The RP the assertion was made for (PRF output is scoped to it). */
+  rpId?: string;
 }
 
 /**
@@ -260,7 +265,7 @@ export async function authenticatePasskey(opts?: { withPrf?: boolean; action?: P
     );
   }
 
-  return { token: data.passkeyToken, prfKey, credentialId: credential.id };
+  return { token: data.passkeyToken, prfKey, credentialId: credential.id, rpId: typeof options.rpId === "string" ? options.rpId : undefined };
 }
 
 /**

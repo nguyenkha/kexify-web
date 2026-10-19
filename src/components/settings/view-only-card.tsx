@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { getSignerRecord } from "../../lib/device-signer-key";
+import { deleteKeyShare, hasKeyShare } from "../../lib/keystore";
+import { clientKeys } from "../../lib/client-key-cache";
+import { restorePending } from "../../lib/device-move/move-restore";
 import { listSigners, SignerApiError, takeOverSigning, type SignerRow } from "../../lib/signer-api";
 import { signerErrorMessage } from "../../lib/signer-error-message";
 import { ErrorBox } from "../ui";
@@ -10,6 +13,8 @@ import { SignerCoolingWait } from "./signer-cooling-wait";
 /** "Use this device for signing?": shown where signing would be, for a wallet this device can only view. */
 export function ViewOnlyCard({ keyShareId, walletName }: { keyShareId: string; walletName?: string | null }) {
   const { t } = useTranslation();
+  const { i18n } = useTranslation();
+  const navigate = useNavigate();
   const dismissKey = `kx-signer-dismiss:${keyShareId}`;
   const [dismissed, setDismissed] = useState(() => sessionStorage.getItem(dismissKey) === "1");
   const [activeLabel, setActiveLabel] = useState("");
@@ -22,7 +27,14 @@ export function ViewOnlyCard({ keyShareId, walletName }: { keyShareId: string; w
     const rows = await listSigners(keyShareId).catch(() => [] as SignerRow[]);
     const rec = await getSignerRecord(keyShareId).catch(() => null);
     setActiveLabel(rows.find((r) => r.status === "active")?.label ?? "");
-    setMine(rows.find((r) => r.id === rec?.signerId) ?? null);
+    const me = rows.find((r) => r.id === rec?.signerId) ?? null;
+    setMine(me);
+    // Signing moved away (the wallet was re-keyed in the same step): this copy can never sign again. Remove it,
+    // so it is not offered as a kit or a backup either.
+    if (me?.status === "revoked" && me.revokeReason === "moved" && hasKeyShare(keyShareId)) {
+      clientKeys.delete(keyShareId);
+      deleteKeyShare(keyShareId);
+    }
   }, [keyShareId]);
   useEffect(() => { void load(); }, [load]);
   const reload = useCallback(() => { void load(); }, [load]);
@@ -47,6 +59,30 @@ export function ViewOnlyCard({ keyShareId, walletName }: { keyShareId: string; w
     }
   }
 
+  // A lost-device restore whose wait is over: open the backup here (screen 3b, last step).
+  if (mine?.status === "active" && restorePending(keyShareId)) {
+    return (
+      <div className="rounded-lg border border-border-primary bg-surface-secondary p-3 space-y-2 text-left">
+        <p className="text-xs text-text-muted">{walletName ? `${walletName}: ` : ""}{t("restore.title")}</p>
+        <button onClick={() => navigate(`/move/restore/${keyShareId}`)} className="text-xs px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white">{t("restore.continue")}</button>
+      </div>
+    );
+  }
+
+  // Screen 4: signing moved away from this device by a QR move.
+  if (mine?.status === "revoked" && mine.revokeReason === "moved") {
+    return (
+      <div className="rounded-lg border border-border-primary bg-surface-secondary p-3 space-y-2 text-left">
+        <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/10 text-yellow-400">{t("signers.device.viewOnly")}</span>
+        <p className="text-xs text-text-muted">
+          {walletName ? `${walletName}: ` : ""}
+          {t("moved.title", { device: activeLabel || t("signers.device.signing"), date: mine.revokedAt ? new Date(mine.revokedAt).toLocaleDateString(i18n.language) : "" })}
+        </p>
+        <button onClick={() => navigate("/move")} className="text-xs px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white">{t("moved.action")}</button>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-lg border border-border-primary bg-surface-secondary p-3 space-y-2 text-left">
       <div className="flex items-center gap-2">
@@ -64,13 +100,17 @@ export function ViewOnlyCard({ keyShareId, walletName }: { keyShareId: string; w
           <Link to="/recovery" className="underline">{t("signers.error.noDeclinerLink")}</Link>
         </ErrorBox>
       )}
-      <div className="flex gap-2">
-        <button onClick={useThis} disabled={busy} className="text-xs px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-60">{t("signers.useThis")}</button>
+      <div className="flex flex-wrap gap-2">
+        <button onClick={() => navigate("/move")} disabled={busy} className="text-xs px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-60">{t("move.haveOld")}</button>
+        <button onClick={hasKeyShare(keyShareId) ? useThis : () => navigate(`/move/restore/${keyShareId}`)} disabled={busy} className="text-xs px-3 py-1.5 rounded bg-surface-tertiary text-text-secondary hover:bg-border-primary disabled:opacity-60">{t("move.noOld")}</button>
+      </div>
+      <div className="flex gap-3 text-[11px] text-text-muted">
+        <Link to="/recovery" className="underline">{t("move.useFile")}</Link>
         <button
           onClick={() => { sessionStorage.setItem(dismissKey, "1"); setDismissed(true); }}
           disabled={busy}
-          className="text-xs px-3 py-1.5 rounded bg-surface-tertiary text-text-secondary hover:bg-border-primary disabled:opacity-60"
-        >{t("signers.keepOther", { device: activeLabel || t("signers.device.signing") })}</button>
+          className="underline disabled:opacity-60"
+        >{t("move.notNow")}</button>
       </div>
     </div>
   );
