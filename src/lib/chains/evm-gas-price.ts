@@ -6,6 +6,7 @@
 // eth_gasPrice. Same rule as iOS EvmGasPrice.swift.
 
 import { EVM_FEE_MULTIPLIER, type FeeLevel } from "../../components/sendTypes";
+import { fetchKonfirmEthGasPrice } from "./konfirm-fees";
 
 export interface EvmGasQuote {
   /** eth_gasPrice. */
@@ -46,10 +47,20 @@ async function rpc(rpcUrl: string, method: string, params: unknown[]): Promise<u
   return data.result;
 }
 
+/** eth_gasPrice from Konfirm on Ethereum mainnet, else (or when Konfirm fails) from the chain's RPC. */
+async function gasPrice(rpcUrl: string, evmChainId?: number | null): Promise<unknown> {
+  if (evmChainId === 1) {
+    try {
+      return "0x" + (await fetchKonfirmEthGasPrice()).toString(16);
+    } catch { /* fall back to the chain's RPC */ }
+  }
+  return rpc(rpcUrl, "eth_gasPrice", []);
+}
+
 /** eth_gasPrice + the latest block's base fee. A failed block read only drops the headroom. */
-export async function fetchEvmGasQuote(rpcUrl: string): Promise<EvmGasQuote> {
+export async function fetchEvmGasQuote(rpcUrl: string, evmChainId?: number | null): Promise<EvmGasQuote> {
   const [gp, block] = await Promise.all([
-    rpc(rpcUrl, "eth_gasPrice", []),
+    gasPrice(rpcUrl, evmChainId),
     rpc(rpcUrl, "eth_getBlockByNumber", ["latest", false]).catch(() => null),
   ]);
   if (typeof gp !== "string") throw new Error("no gas price");

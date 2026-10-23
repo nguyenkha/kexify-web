@@ -5,6 +5,7 @@ import { base58check } from "@scure/base";
 import { decodeSegwitAddress, segwitScriptPubKey } from "./segwit-address";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import { hexToBytes, bytesToHex } from "../../shared/utils";
+import { fetchKonfirmBtcFeeRates } from "./konfirm-fees";
 
 const b58check = base58check(sha256);
 
@@ -126,8 +127,14 @@ export async function fetchUtxos(address: string, apiBase?: string): Promise<UTX
   return res.json();
 }
 
+/** Mainnet: Konfirm first, mempool.space when it fails. Testnet: mempool.space only. */
 export async function fetchFeeRates(apiBase?: string): Promise<FeeRates> {
   const api = apiBase ?? MEMPOOL_API_DEFAULT;
+  if (api === MEMPOOL_API_DEFAULT) {
+    try {
+      return await fetchKonfirmBtcFeeRates();
+    } catch { /* fall back to mempool.space */ }
+  }
   const res = await fetch(`${api}/v1/fees/recommended`);
   if (!res.ok) throw new Error(`Failed to fetch fee rates: ${res.status}`);
   return res.json();

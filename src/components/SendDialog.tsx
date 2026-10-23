@@ -401,7 +401,7 @@ export function SendDialog({
           .catch(onFeeFail);
       } else if (chain.type === "evm") {
         if (!chain.rpcUrl) return;
-        fetchEvmGasQuote(chain.rpcUrl)
+        fetchEvmGasQuote(chain.rpcUrl, chain.evmChainId)
           .then((quote) => {
             setFeeError(false);
             setEvmGasQuote(quote);
@@ -429,7 +429,7 @@ export function SendDialog({
     const feeIv = setInterval(() => { refreshFees(); setFeeCountdown(10); }, 10_000);
     const countIv = setInterval(() => setFeeCountdown((c) => Math.max(0, c - 1)), 1_000);
     return () => { clearInterval(feeIv); clearInterval(countIv); };
-  }, [chain.rpcUrl, chain.explorerUrl, chain.type, chain.name, feeRetry]);
+  }, [chain.rpcUrl, chain.explorerUrl, chain.type, chain.name, chain.evmChainId, feeRetry]);
 
   // Fetch estimated gas and nonce for EVM chains
   useEffect(() => {

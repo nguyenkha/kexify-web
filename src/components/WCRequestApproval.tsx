@@ -430,7 +430,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss, ori
     function refreshGasPrice() {
       const rpcUrl = chain?.rpcUrl;
       if (!rpcUrl) return;
-      fetchEvmGasQuote(rpcUrl).then(setEvmGasQuote).catch(() => {});
+      fetchEvmGasQuote(rpcUrl, chain?.evmChainId).then(setEvmGasQuote).catch(() => {});
     }
 
     refreshGasPrice();
