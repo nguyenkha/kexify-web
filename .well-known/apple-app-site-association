@@ -1,0 +1,12 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["29LSZSZRUY.app.kexify.wallet"],
+        "components": [
+          { "/": "/auth/verify", "?": { "src": "ios" }, "comment": "login links asked for by the iOS app (api magicLinkUrl)" }
+        ]
+      }
+    ]
+  }
+}
