@@ -1188,7 +1188,7 @@
     "backToLogin": "Voltar ao login",
     "verifying": "Verificando...",
     "invalid": "Este link de acesso não é válido. Peça um novo.",
-    "used": "Este link de acesso já foi usado. Digite o código do e-mail ou peça um novo e-mail.",
+    "used": "Este link de login já foi usado. Peça um novo e-mail.",
     "expired": "Este link de acesso expirou. Peça um novo."
   },
   "standalone": {

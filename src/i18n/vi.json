@@ -1188,7 +1188,7 @@
     "backToLogin": "Quay lại đăng nhập",
     "verifying": "Đang xác minh...",
     "invalid": "Liên kết đăng nhập không hợp lệ. Hãy yêu cầu liên kết mới.",
-    "used": "Liên kết đăng nhập đã được dùng. Hãy nhập mã trong email hoặc yêu cầu email mới.",
+    "used": "Liên kết đăng nhập này đã được dùng. Hãy yêu cầu email mới.",
     "expired": "Liên kết đăng nhập đã hết hạn. Hãy yêu cầu liên kết mới."
   },
   "standalone": {

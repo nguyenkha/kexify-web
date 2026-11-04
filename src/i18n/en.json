@@ -1188,7 +1188,7 @@
     "backToLogin": "Back to login",
     "verifying": "Verifying...",
     "invalid": "This login link is not valid. Request a new one.",
-    "used": "This login link was already used. Enter the code from the email, or request a new email.",
+    "used": "This login link was already used. Request a new email.",
     "expired": "This login link has expired. Request a new one."
   },
   "standalone": {

@@ -1188,7 +1188,7 @@
     "backToLogin": "Kembali ke halaman masuk",
     "verifying": "Memverifikasi...",
     "invalid": "Tautan masuk ini tidak valid. Minta yang baru.",
-    "used": "Tautan masuk ini sudah dipakai. Masukkan kode dari email, atau minta email baru.",
+    "used": "Tautan masuk ini sudah dipakai. Minta email baru.",
     "expired": "Tautan masuk ini sudah kedaluwarsa. Minta yang baru."
   },
   "standalone": {

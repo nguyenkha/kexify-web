@@ -1188,7 +1188,7 @@
     "backToLogin": "Volver al inicio de sesión",
     "verifying": "Verificando...",
     "invalid": "Este enlace de inicio de sesión no es válido. Solicita uno nuevo.",
-    "used": "Este enlace de inicio de sesión ya se usó. Ingresa el código del correo o solicita un correo nuevo.",
+    "used": "Este enlace de inicio de sesión ya se usó. Solicita un correo nuevo.",
     "expired": "Este enlace de inicio de sesión expiró. Solicita uno nuevo."
   },
   "standalone": {
