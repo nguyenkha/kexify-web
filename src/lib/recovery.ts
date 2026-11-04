@@ -9,6 +9,7 @@ import { sharePartsFromString, wipe } from "./secret-bytes";
 import { isPveShare, restorePveServerShare } from "./pve-server-share";
 import type { MpcSignResult, BatchMpcSignResult } from "./mpc";
 import { setRecoveryActive } from "./recovery-flag";
+import { docRoot } from "./doc-root";
 
 // ── Module-level state ──
 
@@ -156,8 +157,8 @@ export async function enterRecoveryMode(p1: KeyFileData, p2: KeyFileData): Promi
   peer2 = p2;
   setRecoveryActive(true);
   handles = h;
-  document.documentElement.setAttribute("data-recovery", "");
-  document.documentElement.setAttribute("data-theme", "dark");
+  docRoot()?.setAttribute("data-recovery", "");
+  docRoot()?.setAttribute("data-theme", "dark");
   startAutoLock();
 }
 
@@ -168,7 +169,7 @@ export function exitRecoveryMode(): void {
   setRecoveryActive(false);
   if (handles) retire(handles);
   handles = null;
-  document.documentElement.removeAttribute("data-recovery");
+  docRoot()?.removeAttribute("data-recovery");
 }
 
 export function getRecoveryKeys(): KeyShare[] {

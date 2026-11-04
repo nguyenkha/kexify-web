@@ -12,6 +12,7 @@ import ja from "./ja.json";
 import hi from "./hi.json";
 import ru from "./ru.json";
 import { matchLocale, type LocaleCode } from "./locales";
+import { docRoot } from "../lib/doc-root";
 
 const STORAGE_KEY = "secretkey-lang";
 
@@ -43,14 +44,14 @@ i18n.use(initReactI18next).init({
   load: "currentOnly",
   interpolation: { escapeValue: false },
 });
-document.documentElement.setAttribute("lang", initial);
+docRoot()?.setAttribute("lang", initial);
 
 /** Change language and persist to localStorage */
 export function setLanguage(lang: string) {
   const code = matchLocale(lang) ?? "en";
   try { localStorage.setItem(STORAGE_KEY, code); } catch { /* storage blocked */ }
   i18n.changeLanguage(code);
-  document.documentElement.setAttribute("lang", code);
+  docRoot()?.setAttribute("lang", code);
 }
 
 export function getStoredLanguage(): string {

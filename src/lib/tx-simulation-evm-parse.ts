@@ -5,6 +5,11 @@
 export const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 /** traceTransfers reports native-value moves as Transfer logs from this pseudo address (EIP / geth convention). */
 export const NATIVE_TRANSFER_ADDRESS = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+/**
+ * Some clients use the EIP-4788 system address instead (seen on a Sepolia RPC, 2026-10-26): without it a plain ETH send
+ * showed as "-100000… 0xffff…fffe". No contract can live there, so it never hides a real token.
+ */
+const NATIVE_TRANSFER_ADDRESSES = new Set([NATIVE_TRANSFER_ADDRESS, "0xfffffffffffffffffffffffffffffffffffffffe"]);
 
 export interface EvmSimLog {
   address: string;
@@ -81,7 +86,7 @@ export function parseEthSimulateV1(result: unknown, user: string): EvmSimParsed 
   const deltas: EvmNetDelta[] = [];
   for (const [addr, delta] of net) {
     if (delta === 0n) continue;
-    deltas.push({ contractAddress: addr === NATIVE_TRANSFER_ADDRESS ? null : addr, delta });
+    deltas.push({ contractAddress: NATIVE_TRANSFER_ADDRESSES.has(addr) ? null : addr, delta });
   }
   // Native first, then tokens in log order
   deltas.sort((a, b) => (a.contractAddress === null ? -1 : b.contractAddress === null ? 1 : 0));

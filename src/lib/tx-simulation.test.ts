@@ -37,6 +37,13 @@ describe("parseEthSimulateV1 (recorded)", () => {
     expect(r).toEqual({ reverted: false, deltas: [{ contractAddress: null, delta: -10_000_000_000_000_000n }] });
   });
 
+  test("native send logged from the EIP-4788 system address (some clients) is still the native coin", () => {
+    const system = JSON.parse(JSON.stringify(evmNative).replace(/0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee/gi, "0xfffffffffffffffffffffffffffffffffffffffe"));
+    expect(JSON.stringify(system)).toContain("0xfffffffffffffffffffffffffffffffffffffffe");
+    const r = parseEthSimulateV1(system, FROM);
+    expect(r).toEqual({ reverted: false, deltas: [{ contractAddress: null, delta: -10_000_000_000_000_000n }] });
+  });
+
   test("ERC-20 transfer: token delta, no native delta (gas is not a transfer)", () => {
     const r = parseEthSimulateV1(evmErc20, FROM);
     expect(r).toEqual({ reverted: false, deltas: [{ contractAddress: USDC, delta: -1_000_000n }] });

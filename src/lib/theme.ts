@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { docRoot } from "./doc-root";
 
 // UX spec settings.md: theme = System (default) with an optional Light / Dark override.
 type Theme = "light" | "dark";
@@ -25,8 +26,9 @@ export function getStoredTheme(): Theme {
 
 function applyTheme() {
   // Recovery mode forces its own monochrome dark theme
-  if (document.documentElement.hasAttribute("data-recovery")) return;
-  document.documentElement.setAttribute("data-theme", getStoredTheme());
+  const root = docRoot();
+  if (!root || root.hasAttribute("data-recovery")) return;
+  root.setAttribute("data-theme", getStoredTheme());
 }
 
 function notify() {
